@@ -1,0 +1,11 @@
+/* the platform's shared look first (Vaadin copies the platform JAR's META-INF/frontend to generated/jar-resources),
+   then Joi's own rules; each class has its constant in JoiCssStyles */
+@import "../generated/jar-resources/styles/platform-styles.css";
+
+.joi-home {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--lumo-space-m);
+    padding: var(--lumo-space-l);
+}

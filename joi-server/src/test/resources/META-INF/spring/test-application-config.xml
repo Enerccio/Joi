@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- The context of joi-server's tests, started by the platform's PlatformTestBase: the production wiring (relative
+     locations such as config/persistence.xml resolve against src/main/webapp, see @WebAppConfiguration) with the
+     platform's test adaptations (a fresh data folder per context, cheap password hashes, no OSGi). -->
+<beans xmlns="http://www.springframework.org/schema/beans"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd">
+
+    <import resource="classpath:META-INF/spring/application-config.xml" />
+
+    <bean class="com.github.enerccio.marginalia.test.TestContextPostProcessor" />
+
+</beans>

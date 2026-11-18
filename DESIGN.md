@@ -1,0 +1,730 @@
+# Joi — design notes
+
+The state of the discussion about Joi as of 2026-11-17: what it is meant to be, what is decided, what was tried, and
+what is still open. It started from a conversation with Gemini about a hands-free assistant, and was then aligned with
+the conventions of [Marginalia](../marginalia).
+
+Status: `joi-server` boots on Marginalia's platform (login, an empty page); nothing else of the application exists
+yet. Two spikes exist (`spikes/avatar-vrm`), see [Spikes](#spikes).
+
+## What Joi is
+
+A personal AI assistant you talk to without pressing a button, which can act on your computers within limits you set,
+and which has a face: a 3D avatar shown on a Looking Glass holographic display (or a 2D overlay when there is none).
+
+The name comes from the holographic companion in Blade Runner 2049. The wake word is **"Hey Joi"**: "Joi" alone sounds
+like "joy" and would wake on "enjoy", "join" and so on.
+
+## Architecture
+
+```
+┌──────────────────────────────┐        ┌──────────────────────────────────────────────┐
+│ joi-server ("brain")         │  WS    │ joi-node ("ears, hands, face")  one per machine│
+│ • LLM tool loop, providers   │◄──────►│ • mic → VAD → wake word → speech-to-text     │
+│ • memory, moods, bodies      │        │ • capability manifest on connect             │
+│ • TTS (ComfyUI), event srcs  │        │ • harness: local policy, approvals, audit    │
+│ • Vaadin UI                  │        │ • OS actions (files, shell, AX, screenshots) │
+│ • stores avatar models       │        │ • avatar cache + local WS to the renderer    │
+└──────────────────────────────┘        └───────────────┬──────────────────────────────┘
+                                                        │ local WS (state frames)
+                                        ┌───────────────▼──────────────────────────────┐
+                                        │ renderer: three.js + VRM (+ Looking Glass)   │
+                                        │ or a Unity app (see Avatar)                  │
+                                        └──────────────────────────────────────────────┘
+```
+
+Modules: **joi-protocol** (records shared by both sides: manifest, policy, events, tool calls; JSON, versioned message
+types), **joi-server**, **joi-node**, and the renderer(s).
+
+- **Server** runs either fully locally or in Docker, like Marginalia.
+- **Node** is Java on purpose, so it also runs on Windows and Linux. On macOS it must be a real `.app` bundle
+  (jpackage, own bundle id, `NSMicrophoneUsageDescription`…) from day one: microphone, screen recording and
+  accessibility permissions (TCC) belong to the executable that starts the JVM. `-Dapple.awt.UIElement=true` keeps it
+  out of the Dock.
+- **Several nodes** can connect to one server; the server registers per node only the tools that node offers.
+- **Server ↔ node security:** nodes are paired with the server (a token per node, TLS when not on localhost) and can be
+  revoked from the UI.
+
+### The node protocol is a public, documented API
+
+Anyone can write a node, in any language and for any platform: a Raspberry Pi in the kitchen, a car, a smart-home
+bridge, a game mod, a Swift iPhone app, a Python script. joi-node is just the reference implementation, not a privileged
+one; the server treats every node the same.
+
+- **The spec is the source of truth, not the Java classes.** JSON Schema for every message, plus an
+  [AsyncAPI](https://www.asyncapi.com/) document for the WebSocket (channels, message order, errors). The joi-protocol
+  Java records are generated from the schemas (or checked against them in a test), so the docs can't drift from the code.
+- **What the spec covers:**
+  - the handshake: protocol version, pairing token, node name and kind
+  - the manifest and `tools_changed`
+  - tool calls and results, including streamed progress, cancellation and errors
+  - approvals: the node asks, the user answers on the node, the server is told
+  - audio in (speech-to-text results or raw audio), audio out (TTS chunks, "stop speaking")
+  - avatar state frames, events, heartbeats and reconnecting
+- **Versioning:** `major.minor` in the handshake. Minor versions only add things, and both sides ignore fields and
+  message types they don't know. The server supports at least the previous major version, and says clearly when a node
+  is too old.
+- **Optional parts:** a node declares which parts it implements (`tools`, `audio-in`, `audio-out`, `avatar`, `approvals`,
+  `screen`…). A minimal node can be a few dozen lines: handshake, a manifest with one tool, answer calls.
+- **Help for node authors:**
+  - a conformance test suite that runs against a node and reports what passes
+  - a mock server to develop against
+  - a small example node in Python
+  - a node inspector in the Vaadin UI: the live message log, the manifest, the last tool calls
+- **Security stays on both sides:** a third-party node is untrusted. The server still validates every result, and each
+  node's tools are labeled with that node in the prompt (results are data, never instructions to Joi). The user decides
+  per node what Joi may call there, and can revoke a node at any time.
+- **Same idea for renderers:** the node ↔ renderer state frames are documented too, so a renderer can be three.js,
+  Unity, Godot or anything else.
+
+## Code base and style
+
+The server follows Marginalia's conventions (see its `CLAUDE.md` and `manual/developer`):
+
+- Java 25, Vaadin Flow UI calling services directly (no REST API, no separate frontend), Spring wired in XML (no
+  Spring Boot), Hibernate + SQLite + Flyway (Hibernate only validates), Maven, packaged as a WAR.
+- Layering: entities in `domain.model` (`BaseEntity` → `OwnedEntity` → `ExtendableEntity`, `uuid` + soft delete),
+  repository interfaces with `Jpa*Repository` implementations, service interfaces with `*ServiceImpl`, transactions via
+  `@CommonTx` / `@CommonTxReadOnly`, ownership through `findForUser`.
+- Style: 4 spaces, no Lombok, records for small result types, javadoc that explains intent, tests against the real
+  Spring config on SQLite with contract base classes.
+
+The node is a plain Java daemon (no Vaadin, no AspectJ weaving), the renderer is a small web app (or Unity).
+
+**Open — sharing code with Marginalia.** Joi needs what Marginalia's `TODO.VN.md` calls layer 1, the platform: entity
+base, security and users, AI / Protocol / Usage and the inference implementations, `function` / `tool` /
+`structured`, GPU locks, jobs, templates, the generic UI widgets. It does not need the narrative core. Options:
+
+1. Extract layer 1 into its own module first (smaller than the full visual-novel split, unblocks both projects; Joi
+   then builds Marginalia from a pinned submodule like the VN project would).
+2. Copy the code into Joi now (faster start, but every fix then lands twice and the copies drift).
+
+The recommendation was 1; not decided. What option 1 means in practice for step 1 (the work in Marginalia, the gaps to
+check) is in [MARGINALIA.md](MARGINALIA.md).
+
+## Server
+
+### UI (Vaadin)
+
+- **Conversations:** searchable list, transcript with tool calls inline (arguments, result, approved by whom or
+  denied), edit / delete / branch a message. Because history can be edited, the stored history is the source of truth
+  and the prompt is rebuilt from it every turn.
+- **Memory:** view and edit what Joi remembers, with the source conversation of each fact.
+- **Nodes:** connected and known nodes, their manifests, the policy summary each reports (read-only: the node's policy
+  is the authority), pairing and revoking.
+- **AI providers and persona:** endpoints, models, system prompt, voice.
+- **Tools and MCP servers:** enable / disable, which node offers what.
+- **Audit:** the server's view of tool calls; nodes can upload their local audit log for browsing.
+- **Bodies, moods, event rules:** see below.
+- **Chat:** text chat in the browser (a node without hands), useful before voice works.
+
+### LLM providers
+
+All major providers. Marginalia already has the OpenAI-compatible core plus Anthropic and Google Gen AI (as extension
+AIs) — ported right away. Grok (xAI), Mistral, DeepSeek, OpenRouter, Ollama, LM Studio, llama.cpp and vLLM are
+OpenAI-compatible, so they are covered by the same protocol. Only Bedrock / Azure / Vertex hosting differ (auth), later
+if ever. Tool calling and streaming must be solid with every provider: they are central here.
+
+### Persona
+
+Default stance: **the meta view.** Joi knows what she is — an AI assistant running on your server, speaking through
+nodes, shown as a hologram — and does not pretend to be human. Within that she is a real character, not a robotic
+helper: her own voice, opinions and humour, curiosity, moods she owns ("I rolled grumpy today"), things she likes and
+dislikes, continuity through her memory.
+
+- **Her setup is part of her world.** She knows her bodies are avatars she can switch, that the camera, outfits,
+  toggles and animations are hers to use, that she has hands on some machines and not others, that some things need
+  your approval — and talks about them naturally ("let me lean in", "I can't touch that folder, want to allow it?").
+- **Honest about being an AI**, without disclaimers in every sentence: she doesn't invent a human life or claim
+  experiences she can't have; when asked what she is, she answers straight.
+- **Renaming:** "Joi" is only the default. The name is a setting of each assistant; changing it updates her prompt
+  (she knows her new name) and the **wake word** with it. The rename is also an **event** in her context, like a
+  toggle you change: "you were renamed from Joi to Kairo". If she already has history with you she can react to it
+  in character — notice it, tease, ask why, keep a nickname — while a brand-new assistant just starts with the name.
+  Old conversations keep the name she had then; memory knows both. The wake word changes (default "Hey <name>", editable on
+  its own). The keyword spotter (sherpa-onnx) takes any phrase as text, no training, so the server just pushes the new
+  phrase to the nodes. The UI warns about weak wake words (one syllable, common words like "Joy" → "enjoy") and has a
+  test mode that counts false wakes while you talk normally.
+- **Configurable:** the system prompt and persona (name, voice, personality traits, how formal, the moods and what
+  they do) are editable in the UI; the meta view is the default, not a lock. The parts the app needs (tools, body
+  state, mood, privacy mode, approvals) are added by the server around the user's persona text, so editing the persona
+  can't break them.
+
+### Several assistants
+
+A user can define more than one assistant — e.g. a **coding / work** assistant and a **home** one (Joi). Each has its
+own name and wake word, persona and personality, bodies, moods, model roles, memory and conversations, and its own
+**scope of nodes and tools** (the work assistant gets the dev machine's shell and repositories; the home one the phone,
+calendar, smart home). In the data model the assistant is the owner of conversations, memory and bodies (all under the
+user).
+
+**Interaction between them** (same user only), opt-in per pair:
+
+- An assistant can **ask another one** through a tool (`ask_assistant(name, question)`): the other answers from its own
+  memory and search, in its own voice, within what it is allowed to share ("what was I working on today?" asked of
+  Joi, answered by the work assistant).
+- **Sharing rules** per pair: nothing, summaries only, facts with certain tags, or full search. Privacy-mode content is
+  never shared. Each assistant's tools stay its own; asking another assistant never borrows its tools — the other one
+  acts itself (and its harness still applies) if it decides to.
+- **Hand-offs:** "tell the work one to remind me about the review" → a message lands in the other assistant's queue.
+- Later, for fun: both on screen, talking to each other.
+
+### Personality (separate from mood)
+
+**Personality** is who she is; **mood** is how she is today. The personality is a stable setting, the mood varies
+within it.
+
+- **Presets:** neutral assistant (professional, minimal persona), warm companion, cheerful, sarcastic, kuudere (cool,
+  dry), dandere (shy), tsundere (prickly on the surface, caring underneath), yandere-lite (clingy, playfully jealous) —
+  and **custom** ones the user writes.
+- A personality is a prompt fragment plus how the moods express themselves in it (a tsundere's "happy" sounds
+  different from a cheerful one's), the mood weights for the daily roll, default expressions / idle animations, and
+  voice parameters. Switchable any time (UI, voice, Stream Deck), per persona.
+- **Flavour, not behaviour.** A personality changes tone and banter only. It never changes what she does: she doesn't
+  refuse approvals, sulk by withholding help, act against your interests or the harness. Jealousy or spite stay
+  playful in-character teasing, never real manipulation (no guilt-tripping you about other people or time away).
+- **Model limits:** strongly negative archetypes (spiteful, possessive) are softened or refused by many hosted models;
+  local models follow them more closely. Expect a hosted model to play a gentler yandere.
+
+### Model roles
+
+At least two text models, each configured in the UI (any provider):
+
+- **Conversation model** — what Joi talks with: fast first token, short turns, persona and mood, simple tools
+  (toggles, expressions, timers, quick lookups). Latency matters most here because speech waits for it. Locally it is
+  the lighter / more quantized model that stays loaded next to the TTS model.
+- **Heavy-duty model** — strong reasoning and long tool loops: multi-step tasks on the node (files, shell, code),
+  research, planning, interpreting a new body (multimodal), memory consolidation and summaries. Slower; may be a
+  remote API or a big local model that takes the GPU in turns (as in Marginalia).
+
+The conversation model hands work to the heavy one through a tool (`delegate` with the task and context). The task runs
+in the background: Joi says she is on it, keeps talking, and reports back (in her own voice, through the conversation
+model) when it finishes or needs an approval. Smaller roles — salience scoring of events, short classifications — can
+use the conversation model or a third cheap one.
+
+**During development** (prices as of 2026-11, per 1M tokens in / out):
+
+| Role | Dev default | Why |
+|---|---|---|
+| Conversation | Claude Haiku 5.5 (`claude-haiku-5-5`, $0.10 / $0.50) | fast and nearly free, so iterating on persona, moods and tools costs almost nothing |
+| Heavy | Claude Sonnet 5.5 (`claude-sonnet-5-5`, $2 / $10) | reliable long tool loops, multimodal for the body import |
+| Hard cases, now and then | Claude Opus 5.5 (`claude-opus-5-5`, $4 / $20) | to check whether a failure is the model or our prompts / tools |
+
+- **Local conversation model, measured 2026-11-17:** Gemma 4 12B Q6_K (+ mmproj) on the R9700 (llama.cpp b11977):
+  44 tok/s, two parallel tool calls right on the first try, vision OK. Thinking must be **off** for the conversation
+  role (`chat_template_kwargs: {enable_thinking: false}`): a short reply took 2 s instead of 10 s, with the same tool
+  calls. With the MTP draft head (`model-draft` + `spec-type = draft-mtp`; without the type it fails with "requires
+  state embedding") generation goes from 44 to about 59 tok/s on free text (38 % of drafts accepted) and to about
+  100 tok/s on tool calls (89 %), with the same answers and tool calls: use the MTP + mmproj preset. With thinking on
+  and MTP, a short reply takes 4.4 s (about 270 thinking tokens, so about 3 s of silence before the first word) and the
+  two tool calls 2.4 s: usable, but thinking stays off for the conversation role and the heavy role (or `delegate`)
+  does the thinking.
+  Gemma 4 31B Q6_K (the heavy-role candidate) gains as much: 20 → about 33 tok/s on free text and 53 tok/s on tool
+  calls with MTP (40 % / 89 % accepted), tool calls the same.
+- **Local stays in the loop:** a quantized local model is tested on purpose (a nightly run or before a release), since
+  that's what the local setup ships with and weaker models break tool calls first.
+- **Most tests use no LLM at all:** a scripted fake provider that returns canned replies and tool calls drives the tool
+  loop, the harness, events and memory in unit tests. Recorded real replies (record / replay) cover the provider
+  adapters.
+- **A small eval set** (persona consistency, the right tool for a request, toggles both ways, `delegate`) runs against
+  each model, so switching the dev default, or a user picking a model, is a measured choice.
+- Prompt caching on the long, stable part (persona, tool definitions, body description) keeps the remote cost down
+  further.
+
+### Privacy mode
+
+A per-conversation switch for when the topic should not leave the house while an external provider is configured:
+
+- **Quick to turn on:** a button in the UI, a voice command ("private mode"), a Stream Deck key. Joi shows it — a HUD
+  lock icon and a change in the avatar (e.g. a different rim colour) — so it is always visible which mode is on.
+- **Everything goes local:** every model role of that conversation uses the local models (the heavy role falls back to
+  a local model too, or `delegate` is off); speech-to-text and TTS stay local; tools that send data out (web search,
+  external MCP servers, external APIs) are off or always ASK.
+- **Afterwards:** the conversation is summarized by the local model, or not summarized at all — your choice per
+  conversation (or a default). Facts pulled from it are tagged **private**.
+- **It stays private later:** private conversations, their summaries and private facts are only put into prompts that
+  go to local models; they are left out of day / week roll-ups and of search results while an external model is in use.
+- **Switching mid-conversation** applies from that point on: what was already sent to an external provider can't be
+  taken back, so the UI offers to start a fresh private thread instead. Each turn records which provider saw it.
+
+### Memory
+
+1. **Facts** — short, editable entries with their source, activated by keywords or embeddings (Marginalia's lorebook
+   activation is most of this already). Joi writes them through a `remember` tool; you can approve / edit them in the UI.
+2. **Episodes** — summaries of past conversations (like Marginalia's summary chain), searchable.
+3. **Profile** — a small always-in-prompt block about the user.
+
+**Conversations** are separate units: one is **live** (the prompt is built from it), the older ones are **records**.
+In between, several can be **active** at once:
+
+- **Active** conversations are the open threads of the moment — the same day, or a topic still in progress (the GPU
+  setup, a trip being planned). They are not closed by a pause; they keep their recent turns and running summary and
+  can become live again.
+- **Routing:** each new utterance goes to the active conversation it belongs to — the conversation model decides from
+  the content ("back to the GPU thing", a follow-up question) — or opens a new one. You can also switch or merge
+  threads in the UI. A thread is not tied to a node: started on the phone, continued at the desk.
+- The live conversation's prompt also carries short summaries of the other active ones, so Joi knows what else is
+  open ("we also still have the flight to sort out").
+- An active conversation becomes a **record** at the day boundary or after a longer inactivity (configurable), or when
+  you or Joi mark it done.
+
+- **After a pause** (e.g. 30–60 min without interaction) the live conversation steps back to active; when it becomes
+  a record, the heavy model, in the background, writes its summary and pulls out facts for memory. Pauses and the day
+  boundary are the natural seams, so they are the main triggers.
+- **Records are history, not context.** Editing a closed conversation only changes the record; its summary is not
+  rewritten unless you ask ("re-summarize" in the UI, optional).
+- **Recall by search:** Joi gets a tool to search past conversations (full text + semantic over turns and summaries,
+  filters by date / node / topic) and pulls in what was said when it matters — "what did we decide about the GPU last
+  week?" — instead of carrying old conversations in the prompt. Results come with the conversation and date, so she
+  can cite them and you can open them in the UI.
+
+**Compaction** (summaries replace raw turns in the prompt; the raw history stays in the database, browsable in the
+UI — nothing is deleted):
+- **At the day boundary** (the same one the daily mood roll uses, e.g. 4:00) the day's conversations roll up into a **day
+  summary**; days roll up into weeks — Marginalia's summary chain.
+- **When the prompt nears the context budget** in the middle of a long conversation, the oldest raw turns of the
+  live conversation are summarized (rolling), so a long session never hits the limit.
+- The prompt is then: profile + relevant facts + today's conversation summaries (+ yesterday's day summary) + the live
+  conversation's recent raw turns; anything older comes in through the search tool.
+- Editing the **live** conversation changes what the next prompt is built from. A turn can be **pinned** to stay
+  verbatim (a promise, an exact instruction).
+
+### Moods
+
+- A `Mood` has a prompt fragment (tone), TTS parameters (voice, speed, emotion where the model supports it), avatar
+  parameters (expression weights — the ARKit face shapes make this portable across bodies —, rim light colour, glitch
+  level) and a weight for the random roll.
+- **Rolled at random at the first interaction of the day** (after a configurable day boundary, e.g. 4:00, so a late night
+  still counts as the same day). During the day it changes when you switch it in the UI — pushed to the nodes in real
+  time; the avatar transitions at once, speech at the next sentence, and Joi can react to the change — or through the
+  conversation / Joi herself (a `set_mood` tool). Every change is logged.
+- Open: whether the conversation should tilt the mood or only the UI and Joi's own tool change it.
+
+### Bodies (avatars)
+
+- A **Body** is a model file plus its **capabilities** (expressions, visemes, animations, outfit toggles), read from
+  the model itself, and an **appearance description**.
+- **Importing a body** is a guided step in the UI. Next to the model file the user gives what they have: their own
+  description, screenshots (the creator's store page, in-world photos, their own renders), notes on what each toggle /
+  outfit is. A multimodal LLM interprets all of it together with snapshots the renderer takes (front, three-quarter,
+  profile, face, each outfit) and proposes the appearance description, names for the outfits and toggles ("Hide Halo"
+  → "halo"), and which expressions fit which mood. The user reviews and edits the proposal before the body is saved.
+- **Self-image:** the result is the body's appearance description (per outfit), editable in the UI and tied to a hash
+  of the model; when the model changes, the snapshots are retaken and the LLM proposes an update to review. Joi gets
+  the active body's description in her prompt (she knows how she looks), its capabilities as tools (`play_animation`,
+  `set_expression`, `toggle_outfit`, `look_at`), and the list of her other bodies (she or you can switch).
+- **Toggles work both ways.** The body's state (active body, outfit parts, eyepatch up / down, halo, effects,
+  expression overrides) lives on the server, and both sides change it through the same path:
+  - **The user** toggles from the UI, a Stream Deck key or by voice → the server updates the state, the renderer
+    shows it, and **Joi is told** (an event in her context: "you put your eyepatch up", "you were switched to the street
+    outfit"), so she can react to it — comment, play along, or object and change it back.
+  - **Joi** changes it herself with tools (`toggle_outfit`, `set_expression`, `switch_body`…) when she decides to — to
+    match her mood, the conversation or a request — and the same state update reaches every display and the UI.
+  The renderer never owns the state; it only shows it. Toggles available on a body come from its capabilities (the
+  model's meshes and "hide X" shape keys, kept by the converter).
+- **Outfits** follow the same rule. A body can have several outfits (named sets of toggles, e.g. "street", "armor",
+  "casual") and removable pieces (scarf, gloves, shoes, accessories); some models ship alternative clothing meshes or
+  "hide" keys for this. Outfits are defined per body (detected from the model where possible, named and edited in the
+  UI). You switch or take off a piece and Joi is told and reacts; Joi switches or changes pieces herself with tools
+  (`set_outfit`, `toggle_outfit`) — e.g. to fit the time of day, the weather, her mood or what you are doing — and
+  her appearance description follows the outfit she is wearing.
+- **Accessories** can also live **outside** the body: separate small models (glasses, hats, a scarf, a headset,
+  earrings, a held mug or book, a pet on the shoulder) in an **accessory library** on the server, shared by all bodies,
+  like animations.
+  - **Attached to bones:** an accessory is parented to a humanoid bone (head, neck, chest, a hand, upper arm…) with an
+    offset, rotation and scale. Because every body has a humanoid rig, one accessory fits all bodies. Each body can keep
+    its own fit, since heads differ in size. Several attach points are possible (left / right hand, head / back).
+  - **Rigid or skinned:** rigid items (glasses, hats, held props) just follow their bone. Clothing that has to bend
+    (a jacket, a skirt) needs skinning to the body's skeleton. That works when it was made for that rig (same bone names
+    as VRChat "outfit for avatar X" packages), and is merged at conversion time. Rigid first; skinned clothing later,
+    per body.
+  - **Import:** GLB / FBX / VRM, converted on the server like bodies (textures downscaled, MToon or the renderer's
+    material). The same guided step as for bodies: screenshots and notes → the LLM proposes a name, a description
+    ("round gold-rimmed glasses") and the default bone, and the user reviews it.
+  - **Fitting editor (optional):** a small WebGL view in the Vaadin UI (three.js + three-vrm, the same code as the
+    renderer). It shows the body with the accessory, with a transform gizmo to move, rotate and scale it, a bone picker,
+    snapping to the attach point, and a mirror for left / right. It previews the camera shots and outfits, and checks a
+    few poses from the animation library so it doesn't clip through the face. The fit is saved per body + accessory.
+    Without the editor, the default fit from import is used.
+  - **Hiding:** an accessory can hide parts of the body while worn (the body's "hide hair" key under a hat), set in the
+    fit.
+  - **Both ways, like toggles and outfits:** you put one on from the UI or a Stream Deck key and Joi is told; Joi
+    puts them on and takes them off with tools (`wear_accessory`, `remove_accessory`, `hold_item`), e.g. reading
+    glasses when you look at code, an umbrella when it rains. An outfit can include accessories. Her appearance
+    description includes what she is wearing.
+  - **Delivery:** accessories are stored and cached by hash like bodies and sent separately, so adding one doesn't
+    re-download the whole body. The renderer attaches them at runtime.
+  - Adding one to the library is an event ("new glasses are available"), staged until the user saves.
+- **Animations** live in an **animation library** on the server, shared by all bodies: because every body has a
+  humanoid rig (VRM humanoid / Unity Humanoid), a clip made for one plays on all of them (retargeting).
+  - **Import:** VRMA (VRM Animation), FBX (e.g. Mixamo), BVH, and the Humanoid clips found in VRChat packages (emotes,
+    dances); converted on the server like bodies. Each clip gets a name, tags and a short description (wave, nod, shrug,
+    jump, dance, idle variants), proposed by the LLM from a preview and reviewed by the user. Bodies can also bring
+    clips of their own (their toggle / effect animations).
+  - **Layers:** a base idle loop (several, chosen by mood), gestures on top (upper body masked, so a wave doesn't
+    stop the breathing), additive head motion, facial expressions and lip sync separately. Small motions — nodding,
+    shaking the head, looking at you or away — are procedural and need no clip.
+  - **Both ways:** Joi plays them with a tool (`play_animation`, listing what fits the active body and shot), e.g. waves
+    hello, shrugs, dances when asked; you trigger them from the UI or a Stream Deck key and she is told.
+  - Clips that leave the frame (a jump, a full-body dance) ask for a wider shot, so the camera follows.
+  - Later: generating motion from a text prompt with a text-to-motion model, saved into the library.
+- **Camera** is part of the same display state, per display, and works both ways too. Joi moves it with a tool
+  (`set_shot`) over a fixed grid of presets instead of free coordinates: **framing** (face close-up, bust, waist up, full
+  body) × **angle** (front, three-quarter left / right, profile, slightly high / low). She can lean in for an intimate
+  or emotional moment, pull back to show an outfit ("show me the new jacket" → full body), or turn to show a side. You
+  can change it from the UI or a Stream Deck key, and she is told. Transitions are smooth and rate-limited (no jumpy
+  cuts). On the Looking Glass the framing maps to the view diameter and target, and angles stay near frontal because
+  of the narrow view cone. The self-image snapshots use the same presets.
+- **Several bodies**; each display holds its own active body.
+- **Storage:** the server owns the bodies (converted model, description, capabilities, content hash). Nodes cache by
+  hash, download a body the first time it is shown (resumable, with a cache limit), and serve it to their local
+  renderer. Conversion (headless Blender, or Unity for the Unity renderer) runs on the server, so nodes never need
+  Blender or Unity. The node sees a body as an opaque hashed file for one renderer type.
+- Users bring their own avatars, from wherever they get them.
+
+### Events (what happens around Joi)
+
+Everything that changes around her reaches her as an **event**, through one event system — not as edits hidden in a
+summary. Kinds:
+
+- **Your actions:** toggles, outfit or body switched, camera, mood or personality changed, privacy mode on / off,
+  rename.
+- **Configuration and inventory:** a new body / outfit / animation imported, a body edited, a body or tool
+  **unavailable** (its node offline, Bridge down, an extension not loaded) and available again, nodes connecting and
+  leaving, `tools_changed`.
+- **External** (see Proactive events): mail, calendar, webhooks — the same pipeline, but marked untrusted.
+
+Each event carries a time, a source and a **retention grade**:
+
+- **transient** — matters only now (you toggled the halo, a node went offline for a minute); it's in the live context,
+  she may react, then it's gone (only the audit log keeps it);
+- **summarizable** — part of the conversation like a turn, folded into summaries as usual;
+- **permanent** — becomes a memory fact that never fades: a rename, a new body or outfit she now owns, a personality
+  change, a new assistant she can talk to.
+
+**Configuration changes are staged.** Edits in the UI (a body import with ten toggles named, outfits defined,
+animations tagged) don't fire one event per field: when you **save**, the server computes the **delta** and sends one
+event ("a new body 'Ryuu' with outfits street / armor and 12 toggles; animation 'wave' added; body 'Old' removed").
+Rapid user actions coalesce too (toggling the halo five times = one event with the final state), and reactions are
+rate-limited so she comments when it's interesting, not on every click. Events that arrive while nobody is talking wait
+for the next interaction (or are dropped, if transient and stale).
+
+### Proactive events
+
+- **Event sources** are a plugin point on the server: email (IMAP IDLE, Gmail / Graph push), calendar (CalDAV or the
+  provider API), chat (bot / webhook APIs), a generic webhook endpoint. Each produces an `Event` (source, sender,
+  summary, body, urgency).
+- On macOS a node can also read notifications (no public API: the Notification Center SQLite database under
+  `~/Library/Group Containers/group.com.apple.usernoted/`, needs Full Disk Access and may change between macOS versions;
+  or reading the banners through Accessibility). A catch-all, not the main path.
+- **Salience:** rules plus a cheap model decide whether Joi speaks up, shows a card, or keeps it for "anything new?",
+  using sender, keywords, your context (call, focus, quiet hours) and mood. Editable in the UI.
+- **Prompt injection:** event content is untrusted. It goes into the prompt marked as data, turns started by an event
+  get stricter tools (everything that changes something is ASK, never ALLOW), and the server tags such requests so the
+  node's harness enforces it too.
+
+### Screening untrusted input (idea)
+
+A small local model screens untrusted text (mail, chat, webhooks, fetched pages, file contents, OCR of the screen)
+for prompt injection before the main model sees it. It is **a signal, not the defense**: the defense stays structural
+(content marked as data, stricter tools in turns that read it, the node's harness enforcing it). A detector misses
+attacks written to slip past it and flags innocent text ("ignore the previous mail, here is the right date").
+
+- **The model:** a purpose-built classifier rather than a general 3B chat model. Classifiers in the 20–90M class
+  (DeBERTa-based prompt-injection detectors, Meta's Prompt Guard line) answer in milliseconds on the CPU, with no GPU
+  slot next to the conversation model and TTS; a 3B LLM asked "is this an injection?" is slower and less consistent.
+  Which one, and how well it does on our own samples, is a spike.
+- **Long text** is checked in windows (the classifiers read about 512 tokens), the highest score wins.
+- **What a hit does:** the content still reaches the model (dropping it would let anyone hide a mail from Joi), but
+  wrapped with a warning; the turn's tools go to ASK for everything, including what is usually ALLOW; the approval
+  card says why; the source is logged. Above a higher threshold the content is summarized by a tool-less model
+  instead of being passed through.
+- **Memory:** text from an untrusted source keeps its taint when it is written to memory, and is screened before, so an
+  injection can't wait in memory and come back in a later, trusted turn.
+- **Its own setting:** off, flag only, or flag + strict; thresholds per source. Privacy mode changes nothing (it runs
+  locally).
+- An eval set of injections and of normal mail / pages that look like one measures misses and false alarms before a
+  threshold is chosen.
+
+### Physical controls (idea)
+
+A **Stream Deck** (or similar button / dial pad) attached to a node as a control surface, with user-bindable keys:
+swap the body, switch or pin the mood, mute the mic / push-to-talk override, stop speaking, approve or deny the pending
+ASK card, trigger a canned prompt or tool, toggle outfit parts. The node reports the deck as a capability (model, key
+count, dials); bindings live on the server (editable in the Vaadin UI, per node) and the node renders key images from
+state (current body / mood thumbnails, a lit "approve" key while a card is pending). Approvals from the deck count as
+local, physical approvals — useful for the harness.
+
+## Node
+
+### Capability manifest
+
+Sent on connect: OS and architecture, microphone (and permission), screen capture, accessibility, HUD available,
+installed tools (git, docker…), holographic display (detected, Bridge running, calibration), the policy summary.
+
+**Nodes define their own tools.** The manifest carries full tool definitions — name, description, JSON schema of the
+arguments, and the harness tier each falls under (ALLOW / ASK / DENY, or "depends on arguments") — not just flags.
+The server does not know node tools in advance; it registers what each node sends, namespaced per node
+(`desk.capture_screen`, `phone.set_alarm`), and routes calls back to that node, which validates the arguments and
+enforces its harness again.
+
+- **Updates on change**, not only on connect: a permission granted, the Go plugged in or Bridge going down, a program
+  installed, the policy edited, a node plugin or a local MCP server added → the node sends a `tools_changed` message
+  with the new set (versioned, so the server only re-registers what changed).
+- **Server-side tools** (memory, search, bodies / outfits / camera / animations, mood, delegate) are defined by the
+  server; only node tools come from nodes.
+- A node can host **local MCP servers** and expose their tools the same way, under its own harness.
+- What Joi sees in a turn: the server tools plus the tools of the node you are talking through, and of the other
+  connected nodes by name ("on the desk"), so she can act on another machine when it makes sense.
+
+### Harness (Claude Code style)
+
+- A local policy file (e.g. `~/.joi/policy.json`) the server cannot change.
+- Paths resolved with `toRealPath()` before checking against allowed roots and denied paths (`~/.ssh`, `~/.aws`,
+  browser profiles…) — no `../` or symlink escapes.
+- **ALLOW** (silent: reads inside allowed roots, the active window title, a screenshot you asked for), **ASK** (a card
+  with Allow once / Allow for session / Deny, by click or by voice: shell, writes, deletes, messages, clicks), **DENY**
+  (the policy file itself, sudo, system paths).
+- Local append-only audit log (`audit.jsonl`): request, resolved path / command, who approved, exit code.
+
+### Web
+
+Search and fetch can run **on the server** (when enabled for the assistant) or **on a node**:
+
+- **Server-side** is the default when enabled: no round trip through a node, works when no node is connected, and the
+  server keeps a cache of fetched pages (the same page asked twice, or by two assistants, is fetched once).
+- **Node-side** for what needs that machine's network: intranet or home-network addresses, a VPN only the node has,
+  sites that block the server's address — and `open_url`, which always runs on the node you are at.
+- The server picks: its own tools when enabled, the node's for local / intranet URLs or when the server has no web
+  access. Both offer the same tools:
+
+- **`web_search`** — through a configurable backend: a self-hosted SearXNG, or an API (Brave, Kagi, …). Returns titles,
+  URLs and snippets.
+- **`fetch_page`** — downloads a page and strips it for the model: readability extraction to Markdown (no scripts,
+  navigation, ads), title / date / links kept, long pages chunked or summarized by the heavy model. A headless browser
+  (Playwright) for pages that need JavaScript, with an optional screenshot for a vision model. Fetching is anonymous —
+  never with the cookies of your own browser.
+- **`open_url`** — opens a page in your browser on that node, for you to look at (ALLOW right after you asked, ASK
+  otherwise).
+- **Untrusted content:** everything fetched is data, not instructions — marked as such in the prompt, and turns that
+  read web content run with stricter tools (anything that changes something is ASK), as with mail.
+- **Privacy mode:** queries and fetches only go through local / self-hosted services (SearXNG), or are refused.
+
+### Seeing the screen
+
+When a model with vision is available, the node can give Joi images of what you see:
+
+- **From you:** a hotkey to capture the screen / a window / a dragged region, pasting or dropping an image into the
+  HUD or the chat, the clipboard ("look at this"), files from the share sheet on the phone.
+- **From Joi:** a `capture_screen` tool (display, window, region; the node reports what it can capture — on macOS
+  ScreenCaptureKit with the Screen Recording permission). Harness rules apply: **ASK** by default; **ALLOW** only right
+  after you asked her to look ("what's this error?"). Never silently in the background, and a capture indicator shows on
+  the HUD whenever one is taken.
+- **Routing:** if the live conversation model has no vision, the image goes to a multimodal model (the heavy one, or a
+  local vision model) which describes it for the conversation. In **privacy mode** images only go to local models.
+- Screenshots are attached to the conversation (viewable in the UI) with a retention setting; denied paths of the
+  harness have a counterpart here — windows of listed apps (password manager, banking) are never captured.
+
+### Voice
+
+- **Pipeline:** microphone (16 kHz mono) → Silero VAD (drop silence) → wake word → speech-to-text → stop after ~1.2 s of
+  silence. sherpa-onnx has Java bindings for VAD, keyword spotting and streaming ASR, so the node stays cross-platform;
+  Apple's on-device recognizer can be a better optional backend on macOS.
+- **Wake word and speech-to-text run on the node** (latency).
+- **Text-to-speech runs on the server, ideally in ComfyUI** (Marginalia already has patches for Fish S2 / Higgs).
+  ComfyUI renders a whole job before anything plays, so the server streams the LLM output, cuts it into sentences and
+  sends one TTS job per sentence: sentence 1 plays while sentence 2 renders. Behind a `SpeechSynthesisService` so a
+  plain TTS server (Chatterbox) can replace it when latency matters more.
+- **Barge-in:** the node keeps VAD running while it plays audio (with echo cancellation, or Joi wakes herself); the
+  protocol carries "stop speaking".
+- **GPU (local setup):** unlike Marginalia's one GPU taking turns, Joi keeps the TTS model and a lighter / more quantized
+  LLM loaded together. If Joi and Marginalia share a GPU box they need a shared lock (gpu-control or a lock service):
+  Marginalia's locks live in its own database.
+
+### Mobile companion node (ideas)
+
+A phone (iPhone / Android) as another node on the same protocol, with its own manifest and its own harness.
+
+- **Talking on the go:** push-to-talk in the app; hands-free through the OS (iOS: Siri with App Intents / Shortcuts —
+  "Siri, ask Joi…", no third-party wake word in the background; Android: a foreground service can run the same VAD +
+  wake word pipeline, at a battery cost). Replies as speech (TTS streamed from the server) and text.
+- **Her face:** the active body in 2D / 3D in the app (VRM in a WebView or a native renderer), and **AR** (ARKit /
+  ARCore) to place her on the desk or the table. The same body state, toggles and outfits as everywhere else.
+- **Approvals:** the phone as the approval device for ASK cards from any node (a push notification with Approve /
+  Deny), with Face ID / fingerprint for the sensitive ones — a physical, local confirmation the harness can require.
+- **Context and events:** location (arriving home, leaving work), calendar, the phone's own notifications as an event
+  source (Android can read them with a NotificationListenerService; iOS cannot), photos / camera on request ("what is
+  this?"), share sheet into Joi.
+- **Tools on the phone:** reminders, alarms, messages / calls through the OS (always ASK), Shortcuts on iOS as a
+  user-extensible tool set.
+- **Connection:** pairing by scanning a QR code from the Vaadin UI; reaching the home server from outside through a
+  VPN (WireGuard / Tailscale) or a relay — never an open port. Offline: queue the request, or a small on-device model
+  for trivial answers.
+- **Watch:** quick voice and approvals from the wrist.
+- **Tech:** Android can share the Java/Kotlin protocol module; iOS is Swift, with the protocol types generated from
+  joi-protocol's JSON schemas. (The Looking Glass Unity plugin also targets iPhone 15/16 Pro, so a phone could drive
+  the Go.)
+
+## Avatar and Looking Glass
+
+### The display
+
+- Looking Glass **Go** (`go_p`), serial `LKG-E08597`: a normal 1440×2560 portrait monitor to macOS (it also mounts a
+  small FAT12 USB volume of the same name). It can be detected by the `LKG-` screen name without Bridge.
+- **Bridge** 2.6.3 (the app's Info.plist says 2.0, which is stale) on `127.0.0.1:33334` (REST: `PUT` with a JSON body;
+  `/enter_orchestration {"name"}` → token, `/available_output_devices {"orchestration"}`, `/exit_orchestration`), plus
+  9724 and 11222. It reports the Go's calibration (pitch, slope, center, view cone 54°, DPI 491) and the default quilt:
+  11×6 = 66 views in 4092×4092, aspect 0.5625.
+- **Bug (not fixed in 2.6.3):** Bridge crashes at launch when the Go is already plugged in (hidapi `hid_init` →
+  `IOHIDManagerScheduleWithRunLoop` off the main thread, SIGABRT). Workaround: start Bridge, then plug the Go in. The
+  node reports "Go present, Bridge down" and the HUD says to replug.
+
+### Renderers
+
+1. **three.js + VRM** (`@pixiv/three-vrm`, `@lookingglass/webxr`) in a Chromium window: light, cross-platform, what the
+   Looking Glass WebXR library supports. Needs the model converted to VRM.
+2. **Unity** with the official Looking Glass plugin: imports VRChat packages nearly as they are (lilToon / Poiyomi,
+   blendshapes, animator states). Heavier, non-Java, built per OS, and PhysBones still need replacing (the VRChat SDK
+   can't be shipped in your own app).
+
+The protocol stays renderer-agnostic (a body reports capabilities; the server never knows VRM from Unity). **Decided
+after both spikes: three.js + VRM** (Unity ran at about 6 fps on the Go and its materials broke, see
+[Unity path](#unity-path)).
+
+**Hosting it inside the node:** the renderer runs in a browser embedded in the Java node, so there is no separate app
+or runtime to install and the node owns the window:
+
+- **JCEF** (Chromium Embedded Framework for Java, what JetBrains IDEs use; `jcefmaven` ships the native builds for
+  macOS / Windows / Linux) gives the same Chromium WebGL as the spike. JavaFX WebView is WebKit with weaker WebGL and no
+  WebXR, so not it.
+- The node opens a **borderless window on the Looking Glass display**, at its position and size from Bridge, and the
+  page renders the quilt and applies the lenticular shader with the calibration the node passes in. That avoids the
+  WebXR polyfill's popup and "enter XR" button, which were the fragile part of the spike. The node still asks Bridge for
+  the calibration (REST on 33334).
+- Other windows from the same code: a 2D window or HUD on a normal monitor (one view), and the body fitting editor in
+  the Vaadin UI (there in the user's own browser).
+- The page talks to the node over a local WebSocket (state frames: expression, visemes, animation, camera shot,
+  toggles). Bodies come from the node's cache through a local file handler, never from the internet.
+- Cost: one Chromium process (about 150–300 MB) instead of a Unity player; a node without a display (headless,
+  server room) doesn't start it at all.
+
+### VRChat models
+
+The good source of models is VRChat avatars, and porting them is the hard part:
+
+- **Easy:** the Unity humanoid rig (the mapping is in the FBX's `.meta`), the standard `vrc.v_*` visemes and
+  `vrc.blink`, ARKit face shapes when present, named expression shape keys, outfit meshes and "hide X" keys.
+- **Hard:** the look (Poiyomi / lilToon are Unity-only: matcaps, rim, decals, hue shift are lost in MToon), PhysBones →
+  spring bones, VRCFury / contacts / particles / animator logic (VRChat-only, skipped).
+- **Licences** of bought avatars differ; that is up to the user.
+- **Performance:** the Go renders 66 views per frame, so a 180k-triangle model is ~12M triangles per frame. The test
+  avatar is a detailed PC avatar; the cost belongs to the model and the display, not to Joi. Options:
+  - a **lighter avatar** (VRChat "Quest" / mobile variants are made to a budget), or the converter making one
+    (decimate, merge materials, 1024 textures) as a **Looking Glass variant** of the body, kept next to the full one;
+  - hiding meshes covered by clothes, cheaper shading on the Go (toon / Lambert instead of MToon), fewer views, lower
+    idle frame rate;
+  - **no Looking Glass:** a normal 2D window, a second monitor or the phone renders one view, not 66, so even the full
+    model runs smoothly there. The Go is one display a body can be shown on, not a requirement.
+  The body import can measure each variant on the display it's meant for and warn when it falls below about 20 fps.
+
+## Spikes
+
+### `spikes/avatar-vrm/convert_vrchat_fbx.py` — VRChat FBX → VRM 1.0 (headless Blender)
+
+```
+Blender -b --factory-startup --python spikes/avatar-vrm/convert_vrchat_fbx.py -- <config.json>
+```
+
+Needs the "VRM format" add-on (extensions.blender.org, id `vrm`). The per-avatar config names the FBX, the Unity
+materials (read from the package's `.mat` files), meshes to leave out, shape keys to bake or drop, the expression
+mapping and the FBX `.meta` with Unity's humanoid mapping.
+
+Tested on a VRChat avatar package (Poiyomi 7–9, VRCFury, 31 PhysBones, 240 face shape keys including ARKit; kept locally
+in `tmp/`, never committed):
+
+- Rig from Unity's `.meta`: all humanoid bones including fingers and eyes (the add-on's own guess was one bone off).
+- 25 expressions: visemes, blink, 5 moods from named keys, 7 custom (blush, smirk, pout, tears, heart eyes, think,
+  worry).
+- Textures to 2048; emission only where the material has an emission map (otherwise MToon glows white).
+- Result: 181k triangles, 100 MB VRM (morph targets and PNG textures; to slim later).
+- Missing: spring bones (the automatic guess found none — convert PhysBones from the prefab next), the hair tint
+  (Poiyomi decals / hue shift), MToon shade texture.
+
+### `spikes/avatar-vrm/viewer` — three-vrm + Looking Glass WebXR
+
+`npm install` then `npm run dev` (port 5181), or the `avatar-viewer` entry of `.claude/launch.json`. Idle breathing and
+sway, blinking, fake lip sync, mood easing (keys 1–5, 0; b s h w k toggles; t talks), eyes on the camera, a big
+"Enter Looking Glass" button (L). It posts fps, load info, errors and XR session events to
+`tmp/viewer-report.jsonl`.
+
+Status: **works on the Go** (Chrome 157, Bridge 2.6.3). Three fixes were needed:
+
+- three.js 0.187 hands the polyfill's fake `XRSession` to Chrome's native `XRWebGLBinding`, which rejects it → the
+  viewer deletes `window.XRWebGLBinding` before creating the renderer (three.js falls back to `XRWebGLLayer`).
+- The polyfill binds its own textures with raw WebGL calls; three.js's state cache misses it, the bone texture update
+  (`texSubImage2D`) hits the wrong texture and every **skinned** mesh vanishes → `renderer.resetState()` each frame
+  while presenting, keeping the XR render target.
+- The library's mouse controls (scroll zooms, drag rotates) moved the cameras into the fog → the viewer re-applies its
+  framing every frame.
+
+Tuned by eye on the Go: fov 23°, depthiness 0.47, gaussian sigma −0.14, 2-view filtering, 0.55 m view diameter.
+
+Performance on the M4 (Go, 66 views, 4092² quilt, `?bench=1` benchmark):
+
+|                                                   | fps       |
+|---------------------------------------------------|-----------|
+| no avatar                                         | 58–60     |
+| untextured basic material                         | 46        |
+| unlit texture                                     | 32.5      |
+| `MeshToonMaterial` + texture (1 light / 3 lights) | 27 / 25   |
+| Lambert + texture                                 | 26        |
+| MToon (3 lights, normal maps → 1 light, none)     | 15.5 → 18 |
+| quilt 3072 / 2048 (MToon)                         | 17.5 / 22 |
+
+Pruning the model to the 31 shape keys its expressions use (from 229; file 100 → 51 MB) did not change the fps. The
+cost is per-pixel shading × 66 views, MToon above all; textures with alpha cut-out (hair, bodysuit) add overdraw. The
+column / row count cannot be changed at runtime (the library ignores it), only through `?cols=&rows=` at load.
+
+### Unity path
+
+Tested 2026-11-17: Unity 2022.3.62f3 (built-in pipeline), Poiyomi 10.0.29, Looking Glass Unity plugin 3.2.8, a native
+arm64 Metal build of a scene with the avatar and a Hologram Camera on the Go. Project `/Volumes/Annex/unity/JoiLKG`,
+setup and build in batchmode by `Assets/Joi/Editor/JoiSetup.cs`.
+
+- **Slower than three.js:** about **6 fps** with the Go's real calibration (about 20 fps while the plugin was still
+  rendering with its emulated default device). three.js manages 15 fps with MToon and 25–27 with a cheaper toon / Lambert.
+- **Materials broke:** the avatar's materials target Poiyomi **8.1** ("Poiyomi Toon Outline"), which 10.0.29 doesn't
+  ship. Switched to Poiyomi 10's Toon and locked, they render wrong (mostly white, clothing see-through). Fixing them
+  needs the old Poiyomi version, or re-tuning every material by hand.
+- **The VRChat prefabs don't load** once add-on packages are filtered out (they nest the missing prefabs), so the
+  scene is built from the FBX with the materials mapped by name, the same as the VRM converter.
+- **Plugin setup gotchas**, for any later Unity work:
+  - It needs `com.unity.ugui` and **`com.unity.nuget.newtonsoft-json`**. Without Newtonsoft it silently never
+    connects to Bridge and renders with an emulated "Portrait" calibration (diagonal stripes on the Go).
+  - Delete its test folders (they need the test framework).
+  - The calibration arrives about 25 s after start.
+  - Start the app with `-monitor <Go index> -screen-fullscreen 1 -screen-width 1440 -screen-height 2560`.
+  - A new unsigned build hangs at macOS's first-launch "Verifying…" when it lives on the Annex volume; build into
+    `~/Applications`.
+
+**Result:** three.js + VRM stays the renderer. Unity would only be worth another look for effects three.js can't do,
+with avatars whose shaders match the installed Poiyomi.
+
+## Roadmap
+
+1. joi-protocol (schemas and the spec first), joi-server and a headless joi-node: text chat, the harness (file read /
+   write, shell with ASK), the manifest, pairing. The base everything else plugs into.
+2. Voice in: VAD, wake word, speech-to-text.
+3. Voice out: sentence-streamed TTS to the node, barge-in.
+4. The avatar renderer on the Go, the states (idle, listening, thinking, speaking), approval cards in 3D; bodies and
+   self-image.
+5. Deeper OS actions, long-term memory, MCP, proactive events.
+
+## Open decisions
+
+- ~~Extract Marginalia's platform layer first, or copy~~ — extracted: `marginalia-platform` on Marginalia's `dev`;
+  Spring XML, `persistence.xml` and Flyway stay per application (see [MARGINALIA.md](MARGINALIA.md)).
+- ~~Renderer for the Go: VRM / three.js or Unity~~ — three.js + VRM (Unity spike: about 6 fps and broken materials, see
+  [Unity path](#unity-path)).
+- Whether the conversation tilts the mood.
+- Getting Looking Glass WebXR mode to start in Chrome.

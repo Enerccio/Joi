@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Localization, the configuration (data folder, database schema, logins) and the session beans. -->
+<beans xmlns="http://www.springframework.org/schema/beans"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:aop="http://www.springframework.org/schema/aop"
+       xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd http://www.springframework.org/schema/aop https://www.springframework.org/schema/aop/spring-aop.xsd">
+
+    <!-- the platform's texts (L, LocalizationBundle*) and Joi's (J_L, JoiLocalizationBundle*) -->
+    <bean name="localization" class="com.github.enerccio.marginalia.loc.LocalizationImpl">
+        <property name="defaultLanguageCode" value="${joi.default-language:}" />
+        <property name="bundles">
+            <list>
+                <bean class="com.github.enerccio.marginalia.loc.LocalizationBundleEN" />
+                <bean class="com.github.enerccio.marginalia.loc.LocalizationBundleJP" />
+                <bean class="com.github.enerccio.marginalia.loc.LocalizationBundleFR" />
+                <bean class="com.github.enerccio.marginalia.loc.LocalizationBundleES" />
+                <bean class="com.github.enerccio.marginalia.loc.LocalizationBundleDE" />
+                <bean class="com.github.enerccio.marginalia.loc.LocalizationBundleKO" />
+                <bean class="com.github.enerccio.marginalia.loc.LocalizationBundleIT" />
+            </list>
+        </property>
+        <property name="texts">
+            <list>
+                <bean class="com.github.enerccio.joi.loc.JoiLocalizationBundleEN" />
+            </list>
+        </property>
+    </bean>
+
+    <!-- every setting can be overridden by an environment variable or a -D system property of the same name
+         (joi.data = JOI_DATA) -->
+    <bean name="configuration" class="com.github.enerccio.marginalia.Configuration">
+        <!-- empty: ~/.joi -->
+        <property name="folder" value="${joi.data:}" />
+        <property name="defaultFolderName" value=".joi" />
+        <property name="databaseSchema" value="#{T(com.github.enerccio.joi.JoiDatabase).SCHEMA}" />
+        <property name="allowPersistentLogin" value="${joi.allow-persistent-login:true}" />
+        <property name="persistentLoginInfoTTL" value="${joi.persistent-login-ttl:2592000}" />
+        <property name="trustedProxies" value="${joi.trusted-proxies:}" />
+    </bean>
+
+    <bean name="applicationPoint" class="com.github.enerccio.marginalia.bound.ApplicationPoint" />
+    <bean name="sessionManager" class="com.github.enerccio.marginalia.bound.SessionManager" />
+    <!-- the platform's session point until Joi has session state of its own -->
+    <bean name="sessionPoint" class="com.github.enerccio.marginalia.bound.SessionPoint" scope="session">
+        <aop:scoped-proxy />
+    </bean>
+    <bean name="user" class="com.github.enerccio.marginalia.domain.security.model.User" scope="session">
+        <aop:scoped-proxy />
+    </bean>
+    <bean name="applicationInitializer" class="com.github.enerccio.marginalia.bound.ApplicationInitializer">
+        <property name="appVersion" value="1" />
+        <property name="dbVersion" value="1" />
+    </bean>
+</beans>

@@ -1,0 +1,166 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  The platform's services that joi-server uses (the platform ships no Spring XML, see MARGINALIA.md). Taken from the
+  platform's test wiring (Marginalia's platform/src/test/resources/META-INF/spring/test-application-config.xml), so it
+  has no OSGi and no runtime instrumentation: no plugins (Claude and Gemini providers) yet. Joi's own services go
+  below the platform's.
+-->
+<beans xmlns="http://www.springframework.org/schema/beans"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd">
+
+    <!-- ===== platform ===== -->
+
+
+
+    <bean id="userRepository" class="com.github.enerccio.marginalia.domain.security.repository.impl.JpaUserRepository">
+        <property name="entityManager" ref="em"/>
+    </bean>
+
+    <bean class="com.github.enerccio.marginalia.domain.security.AdminGuard" />
+
+    <bean class="com.github.enerccio.marginalia.domain.security.service.impl.UserServiceImpl">
+        <property name="repository" ref="userRepository" />
+    </bean>
+
+    <bean id="permissionRepository" class="com.github.enerccio.marginalia.domain.security.repository.impl.JpaPermissionRepository">
+        <property name="entityManager" ref="em"/>
+    </bean>
+
+    <bean class="com.github.enerccio.marginalia.domain.security.service.impl.PermissionServiceImpl">
+        <property name="repository" ref="permissionRepository" />
+    </bean>
+
+    <bean id="apiKeyRepository" class="com.github.enerccio.marginalia.domain.security.repository.impl.JpaApiKeyRepository">
+        <property name="entityManager" ref="em"/>
+    </bean>
+
+    <bean class="com.github.enerccio.marginalia.domain.security.service.impl.ApiKeyServiceImpl">
+        <property name="repository" ref="apiKeyRepository" />
+    </bean>
+
+    <bean class="com.github.enerccio.marginalia.api.ApiDispatcher" />
+
+    <bean class="com.github.enerccio.marginalia.domain.service.impl.InferenceServicesImpl">
+        <property name="inferenceProviders">
+            <list>
+                <value>com.github.enerccio.marginalia.domain.service.impl.inference.OpenAICompatibleInferenceService</value>
+            </list>
+        </property>
+    </bean>
+
+    <bean class="com.github.enerccio.marginalia.domain.service.impl.TemplateServiceImpl" />
+
+    <bean id="settingRepository" class="com.github.enerccio.marginalia.domain.repository.impl.JpaSettingRepository">
+        <property name="entityManager" ref="em"/>
+    </bean>
+
+    <bean class="com.github.enerccio.marginalia.domain.service.impl.SettingServiceImpl">
+        <property name="repository" ref="settingRepository" />
+        <property name="userSettingClass" value="com.github.enerccio.joi.domain.model.impl.settings.JoiUserSetting" />
+    </bean>
+
+    <bean id="resourceRepository" class="com.github.enerccio.marginalia.domain.repository.impl.JpaResourceRepository">
+        <property name="entityManager" ref="em"/>
+    </bean>
+
+    <bean class="com.github.enerccio.marginalia.domain.service.impl.ResourceServiceImpl">
+        <property name="repository" ref="resourceRepository" />
+    </bean>
+
+    <bean class="com.github.enerccio.marginalia.domain.service.impl.ResourceGarbageServiceImpl" />
+
+    <bean id="aiRepository" class="com.github.enerccio.marginalia.domain.repository.impl.JpaAIRepository">
+        <property name="entityManager" ref="em"/>
+    </bean>
+
+    <bean class="com.github.enerccio.marginalia.domain.service.impl.AIServiceImpl">
+        <property name="repository" ref="aiRepository" />
+    </bean>
+
+    <bean id="usageRepository" class="com.github.enerccio.marginalia.domain.repository.impl.JpaUsageRepository">
+        <property name="entityManager" ref="em"/>
+    </bean>
+
+    <bean class="com.github.enerccio.marginalia.domain.service.impl.UsageServiceImpl">
+        <property name="repository" ref="usageRepository" />
+    </bean>
+
+    <bean id="jobRepository" class="com.github.enerccio.marginalia.domain.repository.impl.JpaJobRepository">
+        <property name="entityManager" ref="em"/>
+    </bean>
+
+    <bean class="com.github.enerccio.marginalia.domain.service.impl.JobServiceImpl">
+        <property name="repository" ref="jobRepository" />
+    </bean>
+
+    <bean class="com.github.enerccio.marginalia.domain.service.impl.AILimitServiceImpl" />
+
+    <bean id="protocolRepository" class="com.github.enerccio.marginalia.domain.repository.impl.JpaProtocolRepository">
+        <property name="entityManager" ref="em"/>
+    </bean>
+
+    <bean class="com.github.enerccio.marginalia.domain.service.impl.ProtocolServiceImpl">
+        <property name="repository" ref="protocolRepository" />
+    </bean>
+
+    <bean id="tagRepository" class="com.github.enerccio.marginalia.domain.repository.impl.JpaTagRepository">
+        <property name="entityManager" ref="em"/>
+    </bean>
+
+    <bean class="com.github.enerccio.marginalia.domain.service.impl.TagServiceImpl">
+        <property name="repository" ref="tagRepository" />
+    </bean>
+
+    <bean id="tagRelationRepository" class="com.github.enerccio.marginalia.domain.repository.impl.JpaTagRelationRepository">
+        <property name="entityManager" ref="em"/>
+    </bean>
+
+    <bean class="com.github.enerccio.marginalia.domain.service.impl.TagRelationServiceImpl">
+        <property name="repository" ref="tagRelationRepository" />
+    </bean>
+
+    <bean class="com.github.enerccio.marginalia.domain.service.impl.AIGateImpl" />
+
+    <bean id="gpuRepository" class="com.github.enerccio.marginalia.domain.repository.impl.JpaGpuRepository">
+        <property name="entityManager" ref="em"/>
+    </bean>
+
+    <bean id="gpuLockRepository" class="com.github.enerccio.marginalia.domain.repository.impl.JpaGpuLockRepository">
+        <property name="entityManager" ref="em"/>
+    </bean>
+
+    <bean id="gpuStepRepository" class="com.github.enerccio.marginalia.domain.repository.impl.JpaGpuStepRepository">
+        <property name="entityManager" ref="em"/>
+    </bean>
+
+    <bean class="com.github.enerccio.marginalia.domain.service.impl.GpuServiceImpl">
+        <property name="gpuRepository" ref="gpuRepository" />
+        <property name="lockRepository" ref="gpuLockRepository" />
+        <property name="stepRepository" ref="gpuStepRepository" />
+    </bean>
+
+    <bean class="com.github.enerccio.marginalia.domain.service.impl.TokenizerServiceImpl" />
+
+    <bean class="com.github.enerccio.marginalia.domain.service.impl.ManualServiceImpl" init-method="load" />
+
+    <bean class="com.github.enerccio.marginalia.domain.service.impl.ToolServiceImpl" />
+
+    <!-- the desktop notifications of the browser: what can notify (the sources, extensions add theirs) and what the user chose -->
+    <bean class="com.github.enerccio.marginalia.domain.service.impl.NotificationServiceImpl" />
+
+    <bean class="com.github.enerccio.marginalia.domain.service.impl.ExtensionServiceImpl" />
+
+    <bean class="com.github.enerccio.marginalia.domain.service.impl.DatabaseBackupServiceImpl" />
+
+    <bean class="com.github.enerccio.marginalia.domain.service.impl.UpdateServiceImpl" />
+
+    <bean class="com.github.enerccio.marginalia.domain.service.impl.CommandServiceImpl" />
+
+    <bean class="com.github.enerccio.marginalia.domain.service.impl.CleanupServiceImpl">
+        <property name="entityManager" ref="em" />
+    </bean>
+
+    <!-- ===== joi ===== -->
+
+</beans>

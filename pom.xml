@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <!-- Parent of the Joi modules: holds Joi's version and the versions shared with Marginalia's platform. The platform
+       is built from the submodule (marginalia/, pinned commit, see MARGINALIA.md); it keeps its own parent
+       (marginalia-parent) and version. -->
+  <groupId>io.github.enerccio</groupId>
+  <artifactId>joi-parent</artifactId>
+  <version>0.1.0-SNAPSHOT</version>
+  <packaging>pom</packaging>
+  <name>joi-parent</name>
+
+  <modules>
+    <module>marginalia/marginalia/platform</module>
+    <module>joi-server</module>
+  </modules>
+
+  <properties>
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    <java.version>25</java.version>
+    <maven.compiler.source>25</maven.compiler.source>
+    <maven.compiler.target>25</maven.compiler.target>
+    <!-- the version of marginalia-platform in the submodule; the versions below follow its POM -->
+    <marginalia.version>1.9.0</marginalia.version>
+    <vaadin.version>25.2.3</vaadin.version>
+    <spring.version>7.0.8</spring.version>
+    <junit.version>6.0.3</junit.version>
+    <aspectj.version>1.9.25.1</aspectj.version>
+    <jetty.version>12.1.14</jetty.version>
+  </properties>
+
+  <dependencyManagement>
+    <dependencies>
+      <dependency>
+        <groupId>org.junit</groupId>
+        <artifactId>junit-bom</artifactId>
+        <version>${junit.version}</version>
+        <type>pom</type>
+        <scope>import</scope>
+      </dependency>
+      <dependency>
+        <groupId>com.vaadin</groupId>
+        <artifactId>vaadin-bom</artifactId>
+        <version>${vaadin.version}</version>
+        <type>pom</type>
+        <scope>import</scope>
+      </dependency>
+      <dependency>
+        <groupId>io.github.enerccio</groupId>
+        <artifactId>marginalia-platform</artifactId>
+        <version>${marginalia.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>io.github.enerccio</groupId>
+        <artifactId>marginalia-platform</artifactId>
+        <version>${marginalia.version}</version>
+        <type>test-jar</type>
+      </dependency>
+    </dependencies>
+  </dependencyManagement>
+</project>

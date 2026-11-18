@@ -1,0 +1,227 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <!-- The server ("brain"): a Vaadin Flow WAR on Marginalia's platform, wired in Spring XML like Marginalia (no
+       Spring Boot). Its own Spring XML, persistence unit and Flyway history, platform tables included (MARGINALIA.md). -->
+  <parent>
+    <groupId>io.github.enerccio</groupId>
+    <artifactId>joi-parent</artifactId>
+    <version>0.1.0-SNAPSHOT</version>
+  </parent>
+
+  <artifactId>joi-server</artifactId>
+  <packaging>war</packaging>
+  <name>joi-server</name>
+
+  <properties>
+    <!-- test JVMs, each with its own Spring context and SQLite database -->
+    <test.forks>2</test.forks>
+    <test.heap>-Xmx1g</test.heap>
+    <!-- a save of an entity from a copy older than its row fails the test (StaleSaves); -Dtest.staleSaves=log logs it -->
+    <test.staleSaves>fail</test.staleSaves>
+    <argLine></argLine>
+  </properties>
+
+  <dependencies>
+    <!-- the platform brings Vaadin, Spring, Hibernate, SQLite, Flyway and the inference code -->
+    <dependency>
+      <groupId>io.github.enerccio</groupId>
+      <artifactId>marginalia-platform</artifactId>
+    </dependency>
+    <!-- the platform's test base: PlatformTestBase, MockLLMServer, the CRUD contracts -->
+    <dependency>
+      <groupId>io.github.enerccio</groupId>
+      <artifactId>marginalia-platform</artifactId>
+      <type>test-jar</type>
+      <scope>test</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>com.vaadin</groupId>
+      <artifactId>vaadin-dev</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>jakarta.servlet</groupId>
+      <artifactId>jakarta.servlet-api</artifactId>
+      <version>6.1.0</version>
+      <scope>provided</scope>
+    </dependency>
+
+    <!-- TESTS -->
+    <dependency>
+      <groupId>org.junit.jupiter</groupId>
+      <artifactId>junit-jupiter</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework</groupId>
+      <artifactId>spring-test</artifactId>
+      <version>${spring.version}</version>
+      <scope>test</scope>
+    </dependency>
+    <!-- EL for hibernate-validator, provided by the servlet container at runtime -->
+    <dependency>
+      <groupId>org.glassfish.expressly</groupId>
+      <artifactId>expressly</artifactId>
+      <version>5.0.0</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.assertj</groupId>
+      <artifactId>assertj-core</artifactId>
+      <version>3.27.3</version>
+      <scope>test</scope>
+    </dependency>
+  </dependencies>
+
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-compiler-plugin</artifactId>
+        <version>3.15.0</version>
+        <configuration>
+          <source>${java.version}</source>
+          <target>${java.version}</target>
+          <encoding>UTF-8</encoding>
+          <parameters>true</parameters>
+        </configuration>
+      </plugin>
+
+      <!-- compile-time weaving of @Configurable (UI classes created with new get their @Autowired fields); plain
+           javac leaves them null -->
+      <plugin>
+        <groupId>org.codehaus.mojo</groupId>
+        <artifactId>aspectj-maven-plugin</artifactId>
+        <version>1.16.0</version>
+        <dependencies>
+          <dependency>
+            <groupId>org.aspectj</groupId>
+            <artifactId>aspectjrt</artifactId>
+            <version>${aspectj.version}</version>
+          </dependency>
+          <dependency>
+            <groupId>org.aspectj</groupId>
+            <artifactId>aspectjtools</artifactId>
+            <version>${aspectj.version}</version>
+          </dependency>
+        </dependencies>
+        <configuration>
+          <complianceLevel>${java.version}</complianceLevel>
+          <source>${java.version}</source>
+          <target>${java.version}</target>
+          <encoding>UTF-8</encoding>
+          <aspectLibraries>
+            <aspectLibrary>
+              <groupId>org.springframework</groupId>
+              <artifactId>spring-aspects</artifactId>
+            </aspectLibrary>
+          </aspectLibraries>
+          <preserveAllLocals>true</preserveAllLocals>
+          <additionalCompilerArgs>
+            <arg>-g</arg>
+            <arg>-parameters</arg>
+          </additionalCompilerArgs>
+        </configuration>
+        <executions>
+          <execution>
+            <goals>
+              <goal>compile</goal>
+              <goal>test-compile</goal>
+            </goals>
+          </execution>
+        </executions>
+      </plugin>
+
+      <!-- a Spring context (and its database) per test JVM, not threads: the @Configurable aspect is one per JVM -->
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-surefire-plugin</artifactId>
+        <version>3.5.4</version>
+        <configuration>
+          <forkCount>${test.forks}</forkCount>
+          <reuseForks>true</reuseForks>
+          <argLine>@{argLine} ${test.heap} -XX:+EnableDynamicAgentLoading -Djdk.attach.allowAttachSelf=true -Djava.awt.headless=true -Dapple.awt.UIElement=true</argLine>
+          <systemPropertyVariables>
+            <!-- read by the platform's TestContextPostProcessor: each context gets a fresh folder here -->
+            <marginalia.test.home>${project.build.directory}/test-home</marginalia.test.home>
+            <marginalia.staleSaves>${test.staleSaves}</marginalia.staleSaves>
+            <logback.configurationFile>${project.basedir}/src/test/logback-joi-tests.xml</logback.configurationFile>
+          </systemPropertyVariables>
+        </configuration>
+      </plugin>
+
+      <plugin>
+        <groupId>org.eclipse.jetty.ee11</groupId>
+        <artifactId>jetty-ee11-maven-plugin</artifactId>
+        <version>${jetty.version}</version>
+        <configuration>
+          <webApp>
+            <contextPath>/</contextPath>
+          </webApp>
+        </configuration>
+        <dependencies>
+          <dependency>
+            <groupId>org.eclipse.jetty</groupId>
+            <artifactId>jetty-server</artifactId>
+            <version>${jetty.version}</version>
+          </dependency>
+        </dependencies>
+      </plugin>
+
+      <plugin>
+        <artifactId>maven-war-plugin</artifactId>
+        <version>3.5.1</version>
+        <configuration>
+          <packagingExcludes>WEB-INF/classes/META-INF/VAADIN/config/flow-build-info.json.*</packagingExcludes>
+          <failOnMissingWebXml>false</failOnMissingWebXml>
+        </configuration>
+      </plugin>
+
+      <!-- prepare-frontend only: enough for the tests and for development mode (jetty:run). The production bundle
+           (npm install, Vite) is the production profile -->
+      <plugin>
+        <groupId>com.vaadin</groupId>
+        <artifactId>vaadin-maven-plugin</artifactId>
+        <version>${vaadin.version}</version>
+        <executions>
+          <execution>
+            <goals>
+              <goal>prepare-frontend</goal>
+            </goals>
+          </execution>
+        </executions>
+      </plugin>
+    </plugins>
+  </build>
+
+  <profiles>
+    <!-- mvn package -Pproduction: the WAR with the production frontend bundle -->
+    <profile>
+      <id>production</id>
+      <build>
+        <plugins>
+          <plugin>
+            <groupId>com.vaadin</groupId>
+            <artifactId>vaadin-maven-plugin</artifactId>
+            <version>${vaadin.version}</version>
+            <executions>
+              <execution>
+                <id>frontend-production</id>
+                <goals>
+                  <goal>clean-frontend</goal>
+                  <goal>prepare-frontend</goal>
+                  <goal>build-frontend</goal>
+                </goals>
+              </execution>
+            </executions>
+          </plugin>
+        </plugins>
+      </build>
+    </profile>
+  </profiles>
+</project>
