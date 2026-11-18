@@ -4,8 +4,8 @@ The state of the discussion about Joi as of 2026-11-17: what it is meant to be, 
 what is still open. It started from a conversation with Gemini about a hands-free assistant, and was then aligned with
 the conventions of [Marginalia](../marginalia).
 
-Status: `joi-server` boots on Marginalia's platform (login, an empty page); nothing else of the application exists
-yet. Two spikes exist (`spikes/avatar-vrm`), see [Spikes](#spikes).
+Status: `joi-server` boots on Marginalia's platform (login, then a workspace with a Models part where the
+platform's AIs are added and edited); nothing else of the application exists yet. Two spikes exist (`spikes/avatar-vrm`), see [Spikes](#spikes).
 
 ## What Joi is
 

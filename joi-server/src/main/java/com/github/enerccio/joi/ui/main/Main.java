@@ -1,7 +1,8 @@
 package com.github.enerccio.joi.ui.main;
 
 import com.github.enerccio.joi.loc.J_L;
-import com.github.enerccio.joi.ui.JoiCssStyles;
+import com.github.enerccio.joi.ui.workspace.JoiWorkspace;
+import com.github.enerccio.marginalia.bound.ApplicationPoint;
 import com.github.enerccio.marginalia.bound.SessionPoint;
 import com.github.enerccio.marginalia.domain.model.impl.settings.BaseUserSetting;
 import com.github.enerccio.marginalia.domain.security.model.User;
@@ -9,17 +10,14 @@ import com.github.enerccio.marginalia.domain.service.SettingService;
 import com.github.enerccio.marginalia.ui.main.LoginCheckRoute;
 import com.github.enerccio.marginalia.ui.widgets.ThemeSwitch;
 import com.github.enerccio.marginalia.utils.UIUtils;
-import com.vaadin.flow.component.button.Button;
-import com.vaadin.flow.component.html.Div;
-import com.vaadin.flow.component.html.Span;
+import com.vaadin.flow.component.UI;
 import com.vaadin.flow.router.Route;
 import com.vaadin.flow.server.VaadinSession;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Configurable;
 
 /**
- * The root page: the platform's login (or the first user on an empty database), then Joi. For now only a placeholder
- * after the login.
+ * The root page: the platform's login (or the first user on an empty database), then the {@link JoiWorkspace}.
  */
 @Route("/")
 @Configurable(preConstruction = true)
@@ -30,6 +28,9 @@ public class Main extends LoginCheckRoute {
 
     @Autowired
     private SessionPoint sessionPoint;
+
+    @Autowired
+    private ApplicationPoint applicationPoint;
 
     @Autowired
     private SettingService settingService;
@@ -71,11 +72,18 @@ public class Main extends LoginCheckRoute {
             sessionPoint.setLanguage(loc.resolveLanguage(setting.getLanguage()));
             ThemeSwitch.apply(setting.getThemeMode());
 
-            Div home = new Div();
-            home.addClassName(JoiCssStyles.JOI_HOME);
-            home.add(new Span(String.format(loc.getValue(J_L.MSG_SIGNED_IN), u.getLogin())));
-            home.add(new Button(loc.getValue(J_L.LABEL_LOGOUT), e -> logout()));
-            add(home);
+            JoiWorkspace workspace = new JoiWorkspace();
+            // the registry keeps its own copy: the session bean is a proxy of the request's session
+            User referenceCopy = new User();
+            referenceCopy.setId(u.getId());
+            referenceCopy.setLogin(u.getLogin());
+            referenceCopy.setFullName(u.getFullName());
+            applicationPoint.register(UI.getCurrent(), workspace, referenceCopy);
+            sessionPoint.setWorkspace(workspace);
+            workspace.setOnLogout(this::logout);
+            add(workspace.create());
+            workspace.refresh();
+            workspace.restoreAutosaved();
         } catch (Exception e) {
             UIUtils.internalServerError(loc, e);
         }

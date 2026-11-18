@@ -10,8 +10,8 @@ cache), with an avatar shown on a Looking Glass Go. **`DESIGN.md` is the design 
 before working on anything, and when the user shares a new idea or decision, write it into the matching section of
 `DESIGN.md` (and into Roadmap / Open decisions when it changes them).
 
-**Status:** design, spikes, and the first module: `joi-server` boots on Marginalia's platform (login, an empty page
-after it). `spikes/` holds throwaway experiments for the avatar renderer.
+**Status:** design, spikes, and the first module: `joi-server` boots on Marginalia's platform (login, then a
+workspace with a Models part for the platform's AIs). `spikes/` holds throwaway experiments for the avatar renderer.
 
 ## Build
 
@@ -57,7 +57,11 @@ with the code.
 - `joi-server/` — the server WAR. Packages under `com.github.enerccio.joi`. Its own Spring XML
   (`src/main/resources/META-INF/spring`), persistence unit (`src/main/webapp/config/persistence.xml`) and Flyway history
   (`src/main/resources/migration`, the platform's tables included: a platform entity change needs a Joi migration too).
-  UI texts in `loc/J_L` + `JoiLocalizationBundle*`, styles in `frontend/styles/joi-styles.css` + `JoiCssStyles`. Tests
+  **V1 stays open:** until the user says Joi runs on their production server, every schema change is edited into
+  `V1__platform.sql` instead of a new version (a dev database from an older V1 fails Flyway's checksum: delete
+  `~/.joi/joi.sqlite*`). Don't add V2 before that.
+  The page after the login is `ui/workspace/JoiWorkspace` (tabs of `WorkspacePart`s, state kept by
+  `WorkspaceAutosave`; parts in `ui/workspace/parts`). UI texts in `loc/J_L` + `JoiLocalizationBundle*`, styles in `frontend/styles/joi-styles.css` + `JoiCssStyles`. Tests
   extend the platform's `PlatformTestBase` and start `src/test/resources/META-INF/spring/test-application-config.xml`.
 - `MARGINALIA.md` — what Joi uses from Marginalia's platform and what it provides itself.
 - `DESIGN.md` — the design (architecture, server, node, avatar, spikes and their results, roadmap, open decisions).

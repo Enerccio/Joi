@@ -6,8 +6,8 @@ package com.github.enerccio.joi.ui;
  */
 public final class JoiCssStyles {
 
-    /** The page shown after the login until Joi has a real UI. */
-    public static final String JOI_HOME = "joi-home";
+    /** The icon in front of the caption of a workspace tab ({@code PartIcon}). */
+    public static final String WORKSPACE_PART_ICON = "workspace-part-icon";
 
     private JoiCssStyles() {
     }

@@ -101,10 +101,13 @@ Done in Joi (2026-11-18): the submodule `marginalia/` (URL `../marginalia`, so i
 - `services-config.xml` is the platform's part of the test wiring (43 beans), with `JoiUserSetting`. **No OSGi and no
   runtime instrumentation**, as in the platform's tests, so no Claude / Gemini provider plugins yet (open question
   below). No `BuildTimeWeaver` step either: Joi has no `@Extendable` classes.
-- `V1__platform.sql` is the platform's test migration copied; Joi's own tables come in V2 and on.
+- `V1__platform.sql` is the platform's test migration copied. Joi's own tables go into the same V1 until the first
+  production install (then V2 and on).
 - `JoiDatabase.SCHEMA` (`classpath:migration`, the platform's core tables for now), data folder `~/.joi` (`JOI_DATA`).
 - The platform's `SessionPoint` as it is (no Joi session state yet).
-- `Main` extends `LoginCheckRoute`: the platform's login and first-user dialog, then a placeholder.
+- `Main` extends `LoginCheckRoute`: the platform's login and first-user dialog, then `JoiWorkspace` (Joi's own
+  `BaseWorkspace`, since Marginalia's `DesktopWorkspace`, `WorkspaceComponent` and `AIPart` are in the app layer) with
+  a Models part on the platform's `AIService` and `AIDialog`.
 
 **To keep in mind:** `a6a1edc37` is not on GitHub yet (`dev` there is at `e92a4800c`), so a fresh clone of Joi can't
 check the submodule out until Marginalia's `dev` is pushed.
@@ -139,6 +142,13 @@ change after the split.
 - [~] **Usage per assistant and per role**: `UsageContext.open(BaseEntity)` takes any entity, so an assistant works,
   with `UsageListener` beans for counting. No role or kind next to the id yet (the parameter is still named `book`).
   Since roles are separate AIs, usage per AI may already answer "per role".
+
+- [ ] **`Setting` ignores `@DiscriminatorValue`** (found 2026-11-18): its constructor writes
+  `getClass().getSimpleName()` into `DTYPE`, so a subclass whose `@DiscriminatorValue` differs from its simple name is
+  saved but can't be read back ("Unknown discriminator value"). Marginalia's `UserSetting` matches by chance; the
+  platform's `TestUserSetting` (`"UserSetting"`) has the mismatch, which no platform test hits because none reads a
+  saved user setting back in a new transaction. Joi works around it: `JoiUserSetting` declares `"JoiUserSetting"`. Fix in
+  the platform: take the value from the annotation when there is one.
 
 ## Open questions
 

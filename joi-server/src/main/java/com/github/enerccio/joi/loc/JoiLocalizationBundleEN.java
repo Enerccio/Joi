@@ -22,8 +22,9 @@ public class JoiLocalizationBundleEN extends TextBundleBase<J_L> {
         // --- LABEL ---
         setValue(J_L.LABEL_APP_DESC, "Your personal assistant");
         setValue(J_L.LABEL_LOGOUT, "Log out");
-
-        // --- MSG ---
-        setValue(J_L.MSG_SIGNED_IN, "Signed in as %s. Nothing else is here yet.");
+        setValue(J_L.LABEL_MODELS, "Models");
+        setValue(J_L.LABEL_ADD_MODEL, "Add model");
+        setValue(J_L.LABEL_SHARED, "Shared");
+        setValue(J_L.LABEL_CLONE_MODEL, "Clone model");
     }
 }

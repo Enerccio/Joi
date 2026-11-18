@@ -12,7 +12,8 @@ public enum J_L implements LocalizationKey {
     // --- LABEL ---
     LABEL_APP_DESC,
     LABEL_LOGOUT,
-
-    // --- MSG ---
-    MSG_SIGNED_IN,
+    LABEL_MODELS,
+    LABEL_ADD_MODEL,
+    LABEL_SHARED,
+    LABEL_CLONE_MODEL,
 }

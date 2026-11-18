@@ -2,10 +2,19 @@
    then Joi's own rules; each class has its constant in JoiCssStyles */
 @import "../generated/jar-resources/styles/platform-styles.css";
 
-.joi-home {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-    gap: var(--lumo-space-m);
-    padding: var(--lumo-space-l);
+.workspace-part-icon {
+    display: inline-flex;
+    flex: 0 0 auto;
+    width: var(--lumo-icon-size-m);
+    height: var(--lumo-icon-size-m);
+}
+
+.workspace-part-icon svg {
+    width: 100%;
+    height: 100%;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
 }
