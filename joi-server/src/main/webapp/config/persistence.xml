@@ -30,6 +30,14 @@
         <class>com.github.enerccio.marginalia.domain.model.impl.settings.NotificationSettings</class>
         <!-- joi -->
         <class>com.github.enerccio.joi.domain.model.impl.settings.JoiUserSetting</class>
+        <class>com.github.enerccio.joi.domain.model.impl.Joi</class>
+        <class>com.github.enerccio.joi.domain.model.impl.ChatMessage</class>
+        <class>com.github.enerccio.joi.domain.model.impl.MessagePrompt</class>
+        <class>com.github.enerccio.joi.domain.model.impl.Summary</class>
+        <class>com.github.enerccio.joi.domain.model.impl.JoiTask</class>
+        <class>com.github.enerccio.joi.domain.model.impl.JoiTaskMessage</class>
+        <class>com.github.enerccio.joi.domain.model.impl.Memory</class>
+        <class>com.github.enerccio.joi.domain.model.impl.QueuedEvent</class>
         <exclude-unlisted-classes>true</exclude-unlisted-classes>
 
         <properties>

@@ -4,18 +4,19 @@
        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:aop="http://www.springframework.org/schema/aop"
        xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd http://www.springframework.org/schema/aop https://www.springframework.org/schema/aop/spring-aop.xsd">
 
-    <!-- the platform's texts (L, LocalizationBundle*) and Joi's (J_L, JoiLocalizationBundle*) -->
+    <!-- the platform's texts (L: its LocalizationBundle*, saying Joi where they name Marginalia, see PlatformTexts) and Joi's
+         (J_L, JoiLocalizationBundle*) -->
     <bean name="localization" class="com.github.enerccio.marginalia.loc.LocalizationImpl">
         <property name="defaultLanguageCode" value="${joi.default-language:}" />
         <property name="bundles">
             <list>
-                <bean class="com.github.enerccio.marginalia.loc.LocalizationBundleEN" />
-                <bean class="com.github.enerccio.marginalia.loc.LocalizationBundleJP" />
-                <bean class="com.github.enerccio.marginalia.loc.LocalizationBundleFR" />
-                <bean class="com.github.enerccio.marginalia.loc.LocalizationBundleES" />
-                <bean class="com.github.enerccio.marginalia.loc.LocalizationBundleDE" />
-                <bean class="com.github.enerccio.marginalia.loc.LocalizationBundleKO" />
-                <bean class="com.github.enerccio.marginalia.loc.LocalizationBundleIT" />
+                <bean class="com.github.enerccio.joi.loc.PlatformTexts$EN" />
+                <bean class="com.github.enerccio.joi.loc.PlatformTexts$JP" />
+                <bean class="com.github.enerccio.joi.loc.PlatformTexts$FR" />
+                <bean class="com.github.enerccio.joi.loc.PlatformTexts$ES" />
+                <bean class="com.github.enerccio.joi.loc.PlatformTexts$DE" />
+                <bean class="com.github.enerccio.joi.loc.PlatformTexts$KO" />
+                <bean class="com.github.enerccio.joi.loc.PlatformTexts$IT" />
             </list>
         </property>
         <property name="texts">

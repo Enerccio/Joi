@@ -250,6 +250,14 @@ CREATE TABLE gpu_lock_release_steps
     primary key (lock_id, ordinal)
 );
 
+CREATE TABLE gpu_lock_always_steps
+(
+    lock_id  bigint  not null REFERENCES gpu_locks (id),
+    step_id  bigint  not null REFERENCES gpu_steps (id),
+    ordinal  integer not null,
+    primary key (lock_id, ordinal)
+);
+
 CREATE TABLE permissions
 (
     id              bigint      not null primary key,
@@ -436,3 +444,201 @@ CREATE INDEX ix_gpu_locks_gpu ON gpu_locks (gpu_id);
 CREATE INDEX ix_permissions_holder ON permissions (holder_id, permissionType, is_deleted);
 
 CREATE INDEX ix_api_keys_owner ON api_keys (userId, is_deleted);
+
+-- ===== Joi =====
+
+-- Joi: the assistants of a user. Her template attributes (name, prompts, personality...) are extended content.
+CREATE TABLE assistants
+(
+    id              bigint      not null primary key,
+    creation        timestamp,
+    is_deleted      boolean     not null,
+    modification    timestamp,
+    uuid            varchar(36) not null unique,
+    extendedContent blob,
+    _fulltext       clob,
+    userId          bigint
+);
+
+-- ChatMessage: one exchange, the input (the user's words or an event) and the response with its reasoning.
+CREATE TABLE chat_messages
+(
+    id              bigint      not null primary key,
+    creation        timestamp,
+    is_deleted      boolean     not null,
+    modification    timestamp,
+    uuid            varchar(36) not null unique,
+    extendedContent blob,
+    _fulltext       clob,
+    userId          bigint,
+    joi_id          bigint      not null REFERENCES assistants (id),
+    type            varchar(16) not null,
+    sentAt          timestamp   not null,
+    pinned          boolean     not null default 0,
+    privateMode     boolean     not null default 0
+);
+
+-- MessagePrompt: the prompt sent for a message, deflated, at most one per message.
+CREATE TABLE message_prompts
+(
+    id              bigint      not null primary key,
+    creation        timestamp,
+    is_deleted      boolean     not null,
+    modification    timestamp,
+    uuid            varchar(36) not null unique,
+    extendedContent blob,
+    _fulltext       clob,
+    userId          bigint,
+    message_id      bigint      REFERENCES chat_messages (id),
+    builtPrompt     blob
+);
+
+-- Summary: the summary of a time [coverFrom, coverTo); a longer one covers the shorter ones in its time.
+CREATE TABLE summaries
+(
+    id              bigint      not null primary key,
+    creation        timestamp,
+    is_deleted      boolean     not null,
+    modification    timestamp,
+    uuid            varchar(36) not null unique,
+    extendedContent blob,
+    _fulltext       clob,
+    userId          bigint,
+    joi_id          bigint      not null REFERENCES assistants (id),
+    summaryType     varchar(16) not null,
+    coverFrom       timestamp   not null,
+    coverTo         timestamp   not null,
+    privateMode     boolean     not null default 0
+);
+
+-- JoiTask: a call to inference the assistant started with a tool call, run after her reply.
+CREATE TABLE joi_tasks
+(
+    id              bigint      not null primary key,
+    creation        timestamp,
+    is_deleted      boolean     not null,
+    modification    timestamp,
+    uuid            varchar(36) not null unique,
+    extendedContent blob,
+    _fulltext       clob,
+    userId          bigint,
+    joi_id            bigint      not null REFERENCES assistants (id),
+    origin_message_id bigint      REFERENCES chat_messages (id),
+    result_message_id bigint      REFERENCES chat_messages (id),
+    status            varchar(16) not null
+);
+
+-- JoiTaskMessage: the transcript of a task, in order.
+CREATE TABLE joi_task_messages
+(
+    id              bigint      not null primary key,
+    creation        timestamp,
+    is_deleted      boolean     not null,
+    modification    timestamp,
+    uuid            varchar(36) not null unique,
+    extendedContent blob,
+    _fulltext       clob,
+    userId          bigint,
+    task_id         bigint      not null REFERENCES joi_tasks (id),
+    ordinal         integer     not null,
+    role            varchar(16) not null
+);
+
+-- Memory: a fact the assistant remembers, with its importance.
+CREATE TABLE memories
+(
+    id              bigint      not null primary key,
+    creation        timestamp,
+    is_deleted      boolean     not null,
+    modification    timestamp,
+    uuid            varchar(36) not null unique,
+    extendedContent blob,
+    _fulltext       clob,
+    userId          bigint,
+    joi_id            bigint      not null REFERENCES assistants (id),
+    importance        varchar(16) not null,
+    privateMode       boolean     not null default 0,
+    source_message_id bigint      REFERENCES chat_messages (id)
+);
+
+-- QueuedEvent: an event that waits until a node is connected, then becomes an EVENT message.
+CREATE TABLE queued_events
+(
+    id              bigint      not null primary key,
+    creation        timestamp,
+    is_deleted      boolean     not null,
+    modification    timestamp,
+    uuid            varchar(36) not null unique,
+    extendedContent blob,
+    _fulltext       clob,
+    userId          bigint,
+    joi_id               bigint      not null REFERENCES assistants (id),
+    kind                 varchar(64) not null,
+    occurredAt           timestamp   not null,
+    delivered_message_id bigint      REFERENCES chat_messages (id),
+    handled              boolean     not null default 0
+);
+
+CREATE TABLE assistants_SEQ
+(
+    next_val bigint
+);
+INSERT INTO assistants_SEQ (next_val) VALUES (1);
+
+CREATE TABLE chat_messages_SEQ
+(
+    next_val bigint
+);
+INSERT INTO chat_messages_SEQ (next_val) VALUES (1);
+
+CREATE TABLE message_prompts_SEQ
+(
+    next_val bigint
+);
+INSERT INTO message_prompts_SEQ (next_val) VALUES (1);
+
+CREATE TABLE summaries_SEQ
+(
+    next_val bigint
+);
+INSERT INTO summaries_SEQ (next_val) VALUES (1);
+
+CREATE TABLE joi_tasks_SEQ
+(
+    next_val bigint
+);
+INSERT INTO joi_tasks_SEQ (next_val) VALUES (1);
+
+CREATE TABLE joi_task_messages_SEQ
+(
+    next_val bigint
+);
+INSERT INTO joi_task_messages_SEQ (next_val) VALUES (1);
+
+CREATE TABLE memories_SEQ
+(
+    next_val bigint
+);
+INSERT INTO memories_SEQ (next_val) VALUES (1);
+
+CREATE TABLE queued_events_SEQ
+(
+    next_val bigint
+);
+INSERT INTO queued_events_SEQ (next_val) VALUES (1);
+
+CREATE INDEX ix_assistants_user ON assistants (userId, is_deleted);
+CREATE INDEX ix_chat_messages_joi ON chat_messages (joi_id, is_deleted, sentAt);
+CREATE INDEX ix_chat_messages_user ON chat_messages (userId, is_deleted);
+CREATE INDEX ix_message_prompts_message ON message_prompts (message_id, is_deleted);
+CREATE INDEX ix_message_prompts_user ON message_prompts (userId, is_deleted);
+CREATE INDEX ix_summaries_joi ON summaries (joi_id, is_deleted, coverFrom, coverTo);
+CREATE INDEX ix_summaries_user ON summaries (userId, is_deleted);
+CREATE INDEX ix_joi_tasks_joi ON joi_tasks (joi_id, is_deleted, status);
+CREATE INDEX ix_joi_tasks_user ON joi_tasks (userId, is_deleted);
+CREATE INDEX ix_joi_task_messages_task ON joi_task_messages (task_id, is_deleted, ordinal);
+CREATE INDEX ix_joi_task_messages_user ON joi_task_messages (userId, is_deleted);
+CREATE INDEX ix_memories_joi ON memories (joi_id, is_deleted, importance);
+CREATE INDEX ix_memories_user ON memories (userId, is_deleted);
+CREATE INDEX ix_queued_events_joi ON queued_events (joi_id, handled, is_deleted, occurredAt);
+CREATE INDEX ix_queued_events_user ON queued_events (userId, is_deleted);

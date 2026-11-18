@@ -11,7 +11,11 @@ before working on anything, and when the user shares a new idea or decision, wri
 `DESIGN.md` (and into Roadmap / Open decisions when it changes them).
 
 **Status:** design, spikes, and the first module: `joi-server` boots on Marginalia's platform (login, then a
-workspace with a Models part for the platform's AIs). `spikes/` holds throwaway experiments for the avatar renderer.
+workspace with a Models part: text models (the platform's AIs), TTS models and voice actors; User Settings: the
+assistant's name, the user's name, personality, model roles, voice, the prompts and the personalities and moods; and, for administrators, an
+Administration page behind a button under the tabs, as in Marginalia: users and GPU locks). The data model of the assistant is built (no UI or inference yet): `Joi`, `ChatMessage`, `MessagePrompt`, `Summary`,
+`Memory`, `JoiTask`, `JoiTaskMessage`, `QueuedEvent` (see `DESIGN.md` → Several assistants), with the Jois tab and the Joi dialog (`ui/workspace/parts/JoisPart`,
+`ui/dialogs/JoiDialog` and its parts in `ui/dialogs/joi`). `spikes/` holds throwaway experiments for the avatar renderer.
 
 ## Build
 
@@ -58,11 +62,21 @@ with the code.
   (`src/main/resources/META-INF/spring`), persistence unit (`src/main/webapp/config/persistence.xml`) and Flyway history
   (`src/main/resources/migration`, the platform's tables included: a platform entity change needs a Joi migration too).
   **V1 stays open:** until the user says Joi runs on their production server, every schema change is edited into
-  `V1__platform.sql` instead of a new version (a dev database from an older V1 fails Flyway's checksum: delete
-  `~/.joi/joi.sqlite*`). Don't add V2 before that.
+  `V1__platform.sql` instead of a new version. Don't add V2 before that. A dev database from an older V1 fails
+  Flyway's checksum: never delete it, upgrade it with `python3 tools/upgrade_dev_db.py` (server stopped; it backs the
+  database up into `~/.joi/db-backups`, rebuilds it from the current V1, copies the data by shared columns and sets
+  the checksum; `--dry-run` reports only). Run it after each V1 change, and say so to the user.
   The page after the login is `ui/workspace/JoiWorkspace` (tabs of `WorkspacePart`s, state kept by
-  `WorkspaceAutosave`; parts in `ui/workspace/parts`). UI texts in `loc/J_L` + `JoiLocalizationBundle*`, styles in `frontend/styles/joi-styles.css` + `JoiCssStyles`. Tests
+  `WorkspaceAutosave`; parts in `ui/workspace/parts`). Speech is in `tts/` (servers, voices; copied from Marginalia's
+  audiobook plugin, see `MARGINALIA.md`), with `TtsService` keeping the user's TTS models and voice actors as JSON in
+  the user setting; ask `AdminGuard`, not the session's `User`, whether someone is an administrator.
+  Built-in texts and values are in `defaults/JoiDefaults` (like Marginalia's `Defaults`); a setting resolves along the
+  chain assistant (later) → `JoiUserSetting` → `JoiDefaults` (`domain/persona/JoiPromptField`, `PersonaService`).
+  Template data extends `domain/templates/JoiTemplateData` (`{{char}}` / `{{user}}`); don't name a variable after a
+  SillyTavern macro (`personality`, `persona`, `description`, `scenario`...): the platform swallows it. Text areas for
+  prompts expand (`ui/widgets/PromptAreas`, the platform's `ResizableTextArea`). UI texts in `loc/J_L` + `JoiLocalizationBundle*`, styles in `frontend/styles/joi-styles.css` + `JoiCssStyles`. Tests
   extend the platform's `PlatformTestBase` and start `src/test/resources/META-INF/spring/test-application-config.xml`.
+- `tools/upgrade_dev_db.py` — upgrades a dev database to the current V1 without losing its data (see above).
 - `MARGINALIA.md` — what Joi uses from Marginalia's platform and what it provides itself.
 - `DESIGN.md` — the design (architecture, server, node, avatar, spikes and their results, roadmap, open decisions).
 - `spikes/avatar-vrm/convert_vrchat_fbx.py` — VRChat FBX → VRM 1.0 converter, headless Blender (the "VRM format"

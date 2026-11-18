@@ -1,0 +1,156 @@
+package com.github.enerccio.joi.ui.dialogs;
+
+import com.github.enerccio.joi.domain.model.impl.Joi;
+import com.github.enerccio.joi.domain.model.impl.QueuedEvent;
+import com.github.enerccio.joi.domain.service.JoiService;
+import com.github.enerccio.joi.loc.J_L;
+import com.github.enerccio.joi.ui.dialogs.joi.JoiAboutPart;
+import com.github.enerccio.joi.ui.dialogs.joi.JoiDialogPart;
+import com.github.enerccio.joi.ui.dialogs.joi.JoiNothingYetPart;
+import com.github.enerccio.joi.ui.dialogs.joi.JoiTemplatesPart;
+import com.github.enerccio.marginalia.CssStyles;
+import com.github.enerccio.marginalia.loc.L;
+import com.github.enerccio.marginalia.loc.Localization;
+import com.github.enerccio.marginalia.ui.widgets.HTabSheet;
+import com.github.enerccio.marginalia.utils.UIUtils;
+import com.vaadin.flow.component.Component;
+import com.vaadin.flow.component.button.Button;
+import com.vaadin.flow.component.dialog.Dialog;
+import com.vaadin.flow.component.orderedlayout.VerticalLayout;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Configurable;
+
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+
+/**
+ * One assistant ({@link Joi}), after Marginalia's manuscript dialog: the tabs on the left, each a {@link JoiDialogPart}
+ * that stores its changes as they are made, and Exit.
+ * <ul>
+ *     <li>About: her name, what she calls the user, her personality, the models of the roles and her voice;</li>
+ *     <li>Templates: her prompts;</li>
+ *     <li>Memories, Summaries, Chats: empty for now.</li>
+ * </ul>
+ * An empty field is not set: the user's setting is used, shown greyed out.
+ */
+@Configurable
+public class JoiDialog extends Dialog {
+
+    @Autowired
+    private Localization loc;
+
+    @Autowired
+    private JoiService joiService;
+
+    private Joi joi;
+    private Runnable onClose = () -> {
+    };
+    private HTabSheet tabs;
+    private final Map<JoiDialogPart, Component> parts = new LinkedHashMap<>();
+    private JoiAboutPart aboutPart;
+    private JoiTemplatesPart templatesPart;
+
+    public JoiDialog(Joi joi) {
+        this.joi = joi;
+    }
+
+    /** What runs when the dialog closes (the list of the assistants refreshes). */
+    public void setOnClose(Runnable onClose) {
+        this.onClose = onClose == null ? () -> {
+        } : onClose;
+    }
+
+    public void create() throws Exception {
+        setSizeFull();
+        setCloseOnOutsideClick(false);
+        updateTitle();
+
+        tabs = new HTabSheet();
+        tabs.setSizeFull();
+        tabs.setTabsWidth("200px");
+        aboutPart = new JoiAboutPart(this);
+        templatesPart = new JoiTemplatesPart(this);
+        for (JoiDialogPart part : List.of(aboutPart, templatesPart, new JoiNothingYetPart(J_L.LABEL_MEMORIES),
+                new JoiNothingYetPart(J_L.LABEL_SUMMARIES), new JoiNothingYetPart(J_L.LABEL_CHATS))) {
+            Component content = part.create();
+            parts.put(part, content);
+            tabs.add(loc.getValue(part.caption()), content);
+        }
+        for (JoiDialogPart part : parts.keySet()) {
+            part.load(joi);
+        }
+
+        VerticalLayout layout = new VerticalLayout(tabs);
+        layout.setSizeFull();
+        layout.setPadding(false);
+        layout.addClassName(CssStyles.OVERFLOW_HIDDEN);
+        add(layout);
+
+        Button exitButton = new Button(loc.getValue(L.LABEL_EXIT), e -> close());
+        exitButton.setThemeName("primary");
+        getFooter().add(exitButton);
+
+        addOpenedChangeListener(e -> {
+            if (!e.isOpened()) {
+                onClose.run();
+            }
+        });
+        aboutPart.focus(this);
+    }
+
+    /** The assistant as stored last. */
+    public Joi getJoi() {
+        return joi;
+    }
+
+    /** Stores the assistant after a change of a part. */
+    public void save() {
+        try {
+            joiService.save(joi);
+            reload();
+        } catch (Exception e) {
+            UIUtils.internalServerError(loc, e);
+        }
+    }
+
+    /**
+     * Stores the assistant after a change of her About, queuing an event for each change of her persona (see
+     * {@link JoiService#saveAbout}).
+     */
+    public List<QueuedEvent> saveAbout(JoiService.Persona before) {
+        try {
+            List<QueuedEvent> events = joiService.saveAbout(joi, before);
+            reload();
+            return events;
+        } catch (Exception e) {
+            UIUtils.internalServerError(loc, e);
+            return new ArrayList<>();
+        }
+    }
+
+    private void reload() throws Exception {
+        joi = joiService.find(joi.getId());
+        updateTitle();
+    }
+
+    private void updateTitle() throws Exception {
+        setHeaderTitle(joiService.name(joi));
+    }
+
+    /** The tabs, for tests. */
+    public HTabSheet getTabs() {
+        return tabs;
+    }
+
+    /** The About tab, for tests. */
+    public JoiAboutPart getAboutPart() {
+        return aboutPart;
+    }
+
+    /** The Templates tab, for tests. */
+    public JoiTemplatesPart getTemplatesPart() {
+        return templatesPart;
+    }
+}

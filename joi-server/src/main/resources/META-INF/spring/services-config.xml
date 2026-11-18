@@ -163,4 +163,74 @@
 
     <!-- ===== joi ===== -->
 
+    <!-- the speech of the user: TTS models, voice actors and their clips, in the user setting -->
+    <bean class="com.github.enerccio.joi.domain.service.impl.TtsServiceImpl" />
+
+    <!-- who the assistant is: her name, the prompts, personalities and moods (the user setting, else JoiDefaults) -->
+    <bean class="com.github.enerccio.joi.domain.service.impl.PersonaServiceImpl" />
+
+    <!-- the assistants; their template attributes are the first link of the chain of a setting -->
+    <bean id="joiRepository" class="com.github.enerccio.joi.domain.repository.impl.JpaJoiRepository">
+        <property name="entityManager" ref="em" />
+    </bean>
+    <bean class="com.github.enerccio.joi.domain.service.impl.JoiServiceImpl">
+        <property name="repository" ref="joiRepository" />
+    </bean>
+
+    <!-- the conversation: an input (the user or an event) and the response with its reasoning -->
+    <bean id="chatMessageRepository" class="com.github.enerccio.joi.domain.repository.impl.JpaChatMessageRepository">
+        <property name="entityManager" ref="em" />
+    </bean>
+    <bean class="com.github.enerccio.joi.domain.service.impl.ChatMessageServiceImpl">
+        <property name="repository" ref="chatMessageRepository" />
+    </bean>
+
+    <!-- the prompt sent for a message, stored apart from it -->
+    <bean id="messagePromptRepository" class="com.github.enerccio.joi.domain.repository.impl.JpaMessagePromptRepository">
+        <property name="entityManager" ref="em" />
+    </bean>
+    <bean class="com.github.enerccio.joi.domain.service.impl.MessagePromptServiceImpl">
+        <property name="repository" ref="messagePromptRepository" />
+    </bean>
+
+    <!-- summaries of a time; a longer one covers the shorter ones -->
+    <bean id="summaryRepository" class="com.github.enerccio.joi.domain.repository.impl.JpaSummaryRepository">
+        <property name="entityManager" ref="em" />
+    </bean>
+    <bean class="com.github.enerccio.joi.domain.service.impl.SummaryServiceImpl">
+        <property name="repository" ref="summaryRepository" />
+    </bean>
+
+    <!-- the tasks the assistant starts with a tool call, run after her reply -->
+    <bean id="joiTaskRepository" class="com.github.enerccio.joi.domain.repository.impl.JpaJoiTaskRepository">
+        <property name="entityManager" ref="em" />
+    </bean>
+    <bean class="com.github.enerccio.joi.domain.service.impl.JoiTaskServiceImpl">
+        <property name="repository" ref="joiTaskRepository" />
+    </bean>
+
+    <!-- the transcripts of the tasks -->
+    <bean id="joiTaskMessageRepository" class="com.github.enerccio.joi.domain.repository.impl.JpaJoiTaskMessageRepository">
+        <property name="entityManager" ref="em" />
+    </bean>
+    <bean class="com.github.enerccio.joi.domain.service.impl.JoiTaskMessageServiceImpl">
+        <property name="repository" ref="joiTaskMessageRepository" />
+    </bean>
+
+    <!-- the facts the assistant remembers -->
+    <bean id="memoryRepository" class="com.github.enerccio.joi.domain.repository.impl.JpaMemoryRepository">
+        <property name="entityManager" ref="em" />
+    </bean>
+    <bean class="com.github.enerccio.joi.domain.service.impl.MemoryServiceImpl">
+        <property name="repository" ref="memoryRepository" />
+    </bean>
+
+    <!-- events that wait for a connected node -->
+    <bean id="queuedEventRepository" class="com.github.enerccio.joi.domain.repository.impl.JpaQueuedEventRepository">
+        <property name="entityManager" ref="em" />
+    </bean>
+    <bean class="com.github.enerccio.joi.domain.service.impl.QueuedEventServiceImpl">
+        <property name="repository" ref="queuedEventRepository" />
+    </bean>
+
 </beans>

@@ -3,6 +3,10 @@ package com.github.enerccio.joi.ui.workspace;
 import com.flowingcode.vaadin.addons.fontawesome.FontAwesome.Solid;
 import com.github.enerccio.joi.loc.J_L;
 import com.github.enerccio.joi.ui.workspace.parts.AIPart;
+import com.github.enerccio.joi.ui.workspace.parts.AdminPart;
+import com.github.enerccio.joi.ui.workspace.parts.JoisPart;
+import com.github.enerccio.joi.ui.workspace.parts.UserSettingsPart;
+import com.github.enerccio.marginalia.domain.security.AdminGuard;
 import com.github.enerccio.marginalia.domain.security.model.User;
 import com.github.enerccio.marginalia.domain.security.service.UserService;
 import com.github.enerccio.marginalia.loc.L;
@@ -34,8 +38,9 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Joi's page after the login: the parts as tabs on the left, the account actions (language, theme, password, logout)
- * under them. Its {@link com.github.enerccio.marginalia.ui.Restorable} state is the selected tab and the state of the
+ * Joi's page after the login: the parts as tabs on the left, under them the Administration button (for
+ * administrators; it shows the admin part in place of the tabs' content, as Marginalia's workspace does) and the account
+ * actions (language, theme, password, logout). Its {@link com.github.enerccio.marginalia.ui.Restorable} state is the selected tab and the state of the
  * parts, kept in the user setting by {@link WorkspaceAutosave}.
  */
 @Configurable
@@ -50,12 +55,19 @@ public class JoiWorkspace implements BaseWorkspace {
     @Autowired
     private User currentUser;
 
+    @Autowired
+    private AdminGuard adminGuard;
+
     private HTabSheet tabs;
 
-    // the parts under the keys of the stored state, in the order of the tabs; a key never changes
+    // the parts under the keys of the stored state, in the order of the tabs; a key never changes. The admin part is
+    // added in create(), for administrators only (asked of AdminGuard: the session's user does not carry the flag); it
+    // has no tab but the button above the account actions.
     private final Map<String, WorkspacePart> partsByKey = new LinkedHashMap<>();
     {
+        partsByKey.put("jois", new JoisPart());
         partsByKey.put("models", new AIPart());
+        partsByKey.put("settings", new UserSettingsPart(this));
     }
 
     private final Map<Tab, WorkspacePart> tabToPart = new HashMap<>();
@@ -63,6 +75,9 @@ public class JoiWorkspace implements BaseWorkspace {
     private final WorkspaceAutosave autosave = new WorkspaceAutosave(this);
 
     private WorkspacePart activePart;
+    private AdminPart adminPart;
+    private Component adminComponent;
+    private Button adminButton;
     private Button logoutButton;
     private Button changePasswordButton;
     private LanguageSelector languageSelector;
@@ -80,7 +95,15 @@ public class JoiWorkspace implements BaseWorkspace {
         tabs.setTabsMaxWidth("300px");
         layout.add(tabs);
 
+        addTab("jois", PartIcon.JOI, J_L.LABEL_JOIS);
         addTab("models", PartIcon.MODELS, J_L.LABEL_MODELS);
+        addTab("settings", PartIcon.SETTINGS, J_L.LABEL_USER_SETTINGS);
+        if (adminGuard.isAdmin()) {
+            adminPart = new AdminPart();
+            partsByKey.put("admin", adminPart);
+            adminComponent = adminPart.create();
+            partComponents.put(adminPart, adminComponent);
+        }
 
         tabs.setFooterComponent(createFooter());
         tabs.addSelectedChangeListener(e -> {
@@ -124,6 +147,13 @@ public class JoiWorkspace implements BaseWorkspace {
         footer.setSpacing(true);
         footer.setWidthFull();
 
+        if (adminPart != null) {
+            adminButton = new Button(loc.getValue(J_L.LABEL_ADMIN), PartIcon.ADMIN.create());
+            adminButton.setWidthFull();
+            adminButton.addClickListener(e -> openAdmin());
+            footer.add(adminButton);
+        }
+
         languageSelector = new LanguageSelector();
         languageSelector.setWidthFull();
         HorizontalLayout languageRow = new HorizontalLayout(languageSelector, new ThemeSwitch());
@@ -156,6 +186,24 @@ public class JoiWorkspace implements BaseWorkspace {
         return footer;
     }
 
+    /**
+     * Shows the admin part in place of the selected tab, what the Administration button does.
+     */
+    public void openAdmin() {
+        if (adminPart == null || activePart == adminPart) {
+            return;
+        }
+        // deselects the tab: the listener closes the part of the tab
+        tabs.setCustomContent(adminComponent);
+        activePart = adminPart;
+        try {
+            adminPart.onTabSwitched();
+        } catch (Exception ex) {
+            UIUtils.internalServerError(loc, ex);
+        }
+        autosave();
+    }
+
     @Override
     public void refresh() throws Exception {
         for (WorkspacePart part : partsByKey.values()) {
@@ -170,7 +218,7 @@ public class JoiWorkspace implements BaseWorkspace {
         for (Tab tab : tabToPart.keySet()) {
             tab.setEnabled(!locked || tab.equals(selected));
         }
-        for (HasEnabled control : new HasEnabled[]{languageSelector, changePasswordButton, logoutButton}) {
+        for (HasEnabled control : new HasEnabled[]{adminButton, languageSelector, changePasswordButton, logoutButton}) {
             if (control != null) {
                 control.setEnabled(!locked);
             }
@@ -210,7 +258,8 @@ public class JoiWorkspace implements BaseWorkspace {
     }
 
     /**
-     * The part stored under the key ({@code "models"}), null for an unknown key.
+     * The part stored under the key ({@code "jois"}, {@code "models"}, {@code "settings"}, {@code "admin"}), null for an unknown key (or the admin part of a user
+     * who is not an administrator).
      */
     public WorkspacePart getPart(String key) {
         return partsByKey.get(key);
@@ -225,7 +274,7 @@ public class JoiWorkspace implements BaseWorkspace {
     public JsonObject storeState() {
         JsonObject state = new JsonObject();
         JsonObject parts = new JsonObject();
-        WorkspacePart selected = tabs == null ? null : tabToPart.get(tabs.getSelectedTab());
+        WorkspacePart selected = activePart;
         partsByKey.forEach((key, part) -> {
             RestorableState.put(parts, key, part.storeState());
             if (part == selected) {
@@ -246,7 +295,9 @@ public class JoiWorkspace implements BaseWorkspace {
             }
         });
         WorkspacePart part = partsByKey.get(RestorableState.string(self, "tab"));
-        if (part != null) {
+        if (part != null && part == adminPart) {
+            openAdmin();
+        } else if (part != null) {
             tabToPart.forEach((tab, candidate) -> {
                 if (candidate == part && !tab.equals(tabs.getSelectedTab())) {
                     tabs.setSelectedTab(tab);

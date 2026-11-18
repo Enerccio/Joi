@@ -31,8 +31,9 @@ extension point, not a reason to put Joi code there.
 | Generic UI | `ui/widgets`, `ui/menu`, `ui/shortcuts`, the AI / protocol / admin dialogs, `DialogFocus`, `DialogShortcuts`, `JavascriptLibrary`, `CssStyles` mechanism, localization mechanism | the Vaadin UI of joi-server |
 | Tests | the platform's test-jar (`marginalia-platform-<version>-tests.jar`): `PlatformTestBase`, `MockLLMServer`, `InferenceCollector`, `ExpectedLog`, `ComponentTree`, `TestImages`, the CRUD contracts | joi-server's tests (fake model, no network) |
 
-Not needed in step 1: GPU locks (step 3, TTS in ComfyUI next to the local model), jobs UI, the OSGi plugin system beyond
-the provider plugins (see open questions).
+Also used now: the GPU locks (`GpuService`, the admin page's `GpuPanel`, `GpuLockSelect`), which the TTS models take
+(see below). Not needed in step 1: the jobs UI, the OSGi plugin system beyond the provider plugins (see open
+questions).
 
 ## Work in Marginalia
 
@@ -96,7 +97,7 @@ application on it can be.
 | `platform-test-migration/V1__platform.sql` | the first migration: the platform tables at Marginalia's schema V31 (Marginalia's `PlatformSchemaTest` keeps it in step with Marginalia's migrations) |
 
 Done in Joi (2026-11-18): the submodule `marginalia/` (URL `../marginalia`, so it follows Joi's remote:
-`github.com/Enerccio/marginalia`) pinned at `a6a1edc37`, and `joi-server` built from these templates:
+`github.com/Enerccio/marginalia`) pinned at `a6a1edc37` (now `0b29644d`), and `joi-server` built from these templates:
 
 - `services-config.xml` is the platform's part of the test wiring (43 beans), with `JoiUserSetting`. **No OSGi and no
   runtime instrumentation**, as in the platform's tests, so no Claude / Gemini provider plugins yet (open question
@@ -109,8 +110,27 @@ Done in Joi (2026-11-18): the submodule `marginalia/` (URL `../marginalia`, so i
   `BaseWorkspace`, since Marginalia's `DesktopWorkspace`, `WorkspaceComponent` and `AIPart` are in the app layer) with
   a Models part on the platform's `AIService` and `AIDialog`.
 
-**To keep in mind:** `a6a1edc37` is not on GitHub yet (`dev` there is at `e92a4800c`), so a fresh clone of Joi can't
-check the submodule out until Marginalia's `dev` is pushed.
+Since 2026-11-18 the submodule is pinned at `0b29644d` (GitHub's `dev`): the AI dialog fix below (`0f63cc8c2`), and the
+GPU locks' **steps before every job** and step variables (`{{model}}`, `{{lock}}`, with filters). Joi's `V1__platform.sql`
+has the platform's `gpu_lock_always_steps` table, and a TTS model takes its lock with `GpuService.model(model)`.
+
+Also in Joi (2026-11-18):
+
+- **Administration part** (`ui/workspace/parts/AdminPart`, administrators only; opened by the button under the
+  workspace's tabs, like Marginalia's Admin): a Users tab after Marginalia's admin
+  page (the platform's `UserDialog` and `PermissionsDialog`) and the platform's `GpuPanel`. Whether the user is an
+  administrator is asked of `AdminGuard` (the database): the session's `User` does not carry the flag after a login.
+- **The platform's texts with Joi's name** (`loc/PlatformTexts`): one subclass per language of the platform's
+  `LocalizationBundle*`, registered in `container-config.xml` in their place, puts "Joi" where a text names Marginalia
+  (the GPU's "Also used outside Marginalia"). A neutral wording in the platform itself would make this unnecessary.
+- **TTS models and voice actors, copied from Marginalia's audiobook plugin** (an app-layer plugin, not the platform),
+  in `com.github.enerccio.joi.tts`: the Chatterbox and Higgs (ComfyUI) clients, `SpeechRequest`, `ServerCheck`,
+  `ComfyClient`, the audio helpers Higgs needs (`Ffmpeg`, `WavJoiner`, `BreathTrim`), `Delivery` / `Tags` /
+  `HiggsText`, and the models `BackendConfig` (as `TtsModel`), `Actor`, `Role`. The small HTTP helpers of the
+  `http-hooks` library (`Http`, `UrlGuard`, `BackendException`...) are copied too, since that library depends on the
+  Marginalia app. Left out: the requests before and after a batch (the GPU lock's steps do that), the batch checks,
+  the cast, the clip library (folders, versions, cleanup, shifts) and the studio. The copies may diverge from the
+  plugin; nothing in Marginalia changes for them.
 
 ## Gaps to check in the platform for Joi
 
@@ -149,6 +169,12 @@ change after the split.
   platform's `TestUserSetting` (`"UserSetting"`) has the mismatch, which no platform test hits because none reads a
   saved user setting back in a new transaction. Joi works around it: `JoiUserSetting` declares `"JoiUserSetting"`. Fix in
   the platform: take the value from the annotation when there is one.
+
+- [x] **`AIDialog` hook for an application's fields, image flag not named after lore** (fixed in `0f63cc8c2`): the
+  flag is `AI.isMultimodal()` / `isImagesInSystem()` with neutral texts (the stored attribute names stay
+  `sendLoreImages` / `loreImagesInSystem`), and `AIDialog.createApplicationFields(ai)` / `applyApplicationFields(ai)`
+  let a subclass add fields that are saved in the dialog's one save. `JoiAIDialog` uses them for the `TextLLMType`
+  multi-select (in the AI's attributes under `"joi"`).
 
 ## Open questions
 

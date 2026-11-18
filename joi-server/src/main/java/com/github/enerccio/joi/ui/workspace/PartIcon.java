@@ -10,9 +10,24 @@ import com.vaadin.flow.component.html.Span;
  */
 public enum PartIcon {
 
+    /**
+     * A hologram of a woman: a long-haired bust standing on the plate of a projector, between the dashed edges of its
+     * light: the assistants.
+     */
+    JOI("<path d='M12 4a3 3 0 0 0-3 3c0 3-.6 4.4-2 5.3M12 4a3 3 0 0 1 3 3c0 3 .6 4.4 2 5.3'/>"
+            + "<path d='M10 9.5a2 2 0 0 0 4 0'/><path d='M7.5 17a4.5 4 0 0 1 9 0'/><path d='M5 21h14'/>"
+            + "<path d='M3 4v2M21 4v2M3 10v2M21 10v2M3 16v1M21 16v1'/>"),
+
     /** A chip with pins: the models. */
     MODELS("<rect x='7' y='7' width='10' height='10' rx='2'/>"
-            + "<path d='M10 3v4M14 3v4M10 17v4M14 17v4M3 10h4M3 14h4M17 10h4M17 14h4'/>");
+            + "<path d='M10 3v4M14 3v4M10 17v4M14 17v4M3 10h4M3 14h4M17 10h4M17 14h4'/>"),
+
+    /** Sliders: the user's settings. */
+    SETTINGS("<path d='M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12'/><circle cx='16' cy='6' r='2'/>"
+            + "<circle cx='10' cy='12' r='2'/><circle cx='18' cy='18' r='2'/>"),
+
+    /** A shield: the administration. */
+    ADMIN("<path d='M12 3l7 3v5c0 4.5-3 8.5-7 10-4-1.5-7-5.5-7-10V6z'/><path d='M9 12l2 2 4-4'/>");
 
     private final String markup;
 

@@ -106,6 +106,20 @@ check) is in [MARGINALIA.md](MARGINALIA.md).
 
 ### UI (Vaadin)
 
+- **Jois (built):** the first tab of the workspace (its icon: a hologram of a woman on a projector plate). A table of
+  the user's assistants with their name and when they last chatted, Open and Delete; *Create Joi* (on the right, like
+  Marginalia's *Add Book*) asks for a name, prefilled with the one of the User Settings (else the default). Open shows
+  the **Joi dialog**, after Marginalia's manuscript dialog: tabs on the left, each change stored at once, Exit.
+  - **About:** her name, what she calls the user, her personality, the models of the three roles, the TTS model and
+    the voice actor.
+  - **Templates:** her master system template and the memory prompts, with the preview of the system prompt.
+  - **Memories**, **Summaries**, **Chats:** empty for now.
+
+  An empty field is not set: the User Settings are used, and shown greyed out (the placeholder). A change of her name,
+  the user's name or her personality is an **event** for her (`QueuedEvent`, kinds `persona.renamed`,
+  `persona.user_renamed`, `persona.personality`, with the old and new value), but only once she has chatted: before
+  that it is the initial setup, nothing to react to. The event waits in the queue and is delivered when a node of hers
+  is connected (at once while one is: the dispatcher comes with the nodes).
 - **Conversations:** searchable list, transcript with tool calls inline (arguments, result, approved by whom or
   denied), edit / delete / branch a message. Because history can be edited, the stored history is the source of truth
   and the prompt is rebuilt from it every turn.
@@ -149,6 +163,11 @@ dislikes, continuity through her memory.
   they do) are editable in the UI; the meta view is the default, not a lock. The parts the app needs (tools, body
   state, mood, privacy mode, approvals) are added by the server around the user's persona text, so editing the persona
   can't break them.
+- **The master system template** (Handlebars, editable, with a preview) holds the persona: who she is (the meta view),
+  `{{#personalityPrompt}}`, `{{#mood}}`, how she talks, then the sections the server fills per turn:
+  `{{#profile}}`, `{{#memories}}` (the recalled facts and episodes), `{{#conversations}}` (the other active ones),
+  `{{#body}}`, `{{#node}}`; `{{char}}` is her name and `{{user}}` the user's. An empty section is left out. The memory's
+  prompts are templates too: the conversation summary, the day summary and the facts to remember.
 
 ### Several assistants
 
@@ -157,6 +176,21 @@ own name and wake word, persona and personality, bodies, moods, model roles, mem
 **scope of nodes and tools** (the work assistant gets the dev machine's shell and repositories; the home one the phone,
 calendar, smart home). In the data model the assistant is the owner of conversations, memory and bodies (all under the
 user).
+
+**The data model (built, no UI or inference yet).** All owned by the user, each with its assistant:
+
+| Entity | Table | What it is |
+|---|---|---|
+| `Joi` | `assistants` | An assistant. Her **template attributes** (`PersonaAttributes`: her name, what she calls the user, the prompts, the personality, the moods, the models of the roles, the voice, the day boundary, the pause), the wake word and today's mood are all extended content. They are the first link of the chain of a setting: a blank one falls back to the user's setting, then to `JoiDefaults` (`JoiPromptField.resolve(joi, setting, defaults)`). |
+| `ChatMessage` | `chat_messages` | One exchange, like a part of Marginalia: the input, of type **User** (what you said or typed) or **Event** (what happened), and her response with its **reasoning**, the tool calls, the model, the tokens and the timings. Columns: `sentAt` (what summaries cover), `pinned`, `privateMode`. |
+| `MessagePrompt` | `message_prompts` | The prompt sent for a message, deflated, at most one per message (as in Marginalia), with the memories and summaries that were in it. |
+| `Summary` | `summaries` | A summary of a time, see Memory. |
+| `Memory` | `memories` | A fact, with its importance: `IMPORTANT` (always recalled when it matches), `MEDIUM`, `TRIVIAL` (recalled last, the first to go). Keywords, the message it came from, approved or not, private or not. |
+| `JoiTask`, `JoiTaskMessage` | `joi_tasks`, `joi_task_messages` | A task she started and its transcript, see Model roles. |
+| `QueuedEvent` | `queued_events` | An event that waits for a connected node, see Events. |
+
+Conversations as units (live, active, records) are not an entity yet: the messages are one timeline per assistant, and
+the summaries cover times of it.
 
 **Interaction between them** (same user only), opt-in per pair:
 
@@ -168,6 +202,10 @@ user).
   acts itself (and its harness still applies) if it decides to.
 - **Hand-offs:** "tell the work one to remind me about the review" → a message lands in the other assistant's queue.
 - Later, for fun: both on screen, talking to each other.
+- **Snooping (idea):** an assistant can receive the events of another one, opt-in per pair like the sharing rules.
+  The home Joi hears that the work assistant was renamed, got a new body or finished a task ("so you gave Kairo a new
+  outfit, hm?"), and can react to it in character. The events are copies, marked with the assistant they came from;
+  private ones are never passed on.
 
 ### Personality (separate from mood)
 
@@ -177,6 +215,16 @@ within it.
 - **Presets:** neutral assistant (professional, minimal persona), warm companion, cheerful, sarcastic, kuudere (cool,
   dry), dandere (shy), tsundere (prickly on the surface, caring underneath), yandere-lite (clingy, playfully jealous) —
   and **custom** ones the user writes.
+- **Built (defaults and settings):** the presets above are built-in defaults by key (`neutral`, `warm`, `cheerful`,
+  `sarcastic`, `kuudere`, `dandere`, `tsundere`, `yandere`), and so are the moods (`calm`, `happy`, `playful`,
+  `curious`, `affectionate`, `focused`, `sleepy`, `grumpy`, `melancholic`, `excited`, each with a roll weight and a
+  voice delivery). Every setting follows Marginalia's chain without the folders: the assistant's own value (once
+  assistants exist), else the user's setting, else the built-in default (`JoiDefaults`, per prompt language, English
+  for now). Under **User Settings** a user changes a built-in personality or mood (an empty field keeps the default, a
+  reset brings it back) or adds their own, picks the personality, the models of the roles, the voice, and edits the
+  prompts. The user's name (`{{user}}`) follows a chain too: the setting, else the name of the account. Unsaved
+  changes on the page freeze the other parts until they are saved or discarded, as in Marginalia. The summaries have
+  no word limit: their length follows the conversation (a long, deep talk gets a long summary). A personality says how some moods sound in it; a mood it says nothing about uses the mood's own text.
 - A personality is a prompt fragment plus how the moods express themselves in it (a tsundere's "happy" sounds
   different from a cheerful one's), the mood weights for the daily roll, default expressions / idle animations, and
   voice parameters. Switchable any time (UI, voice, Stream Deck), per persona.
@@ -199,8 +247,23 @@ At least two text models, each configured in the UI (any provider):
 
 The conversation model hands work to the heavy one through a tool (`delegate` with the task and context). The task runs
 in the background: Joi says she is on it, keeps talking, and reports back (in her own voice, through the conversation
-model) when it finishes or needs an approval. Smaller roles — salience scoring of events, short classifications — can
+model) when it finishes or needs an approval.
+
+**Tasks after the reply (designed; the entities are built: `JoiTask`, `JoiTaskMessage`).** A tool call of Joi can start
+a task, a call to inference of its own (`delegate` to the heavy model, research, a summary). The task does not start
+during the reply: it waits (`QUEUED`) until the message that started it is finished, spoken included. Then it runs, and
+its transcript (the instructions, the model's turns with their reasoning and tool calls, the tool results) is stored as
+task messages. This matters most with a single inference server or a single GPU that swaps models: the reply holds the
+conversation model and the TTS model, and only when she has said "I'm on it" does the GPU switch to the heavy model.
+Meanwhile the avatar takes a **thinking pose**, so it is visible that she is working. When the task ends, its result
+comes back to the conversation as an event message (`resultMessage`), and she reports it in her own voice. The speech
+of that report is the full synthesis again (text and voice); it may be one task that returns both at once, so the GPU
+switches back only once. States: `QUEUED`, `RUNNING`, `WAITING` (an approval), `DONE`, `FAILED`, `CANCELLED`. Smaller roles — salience scoring of events, short classifications — can
 use the conversation model or a third cheap one.
+
+In the UI each text model is marked for what it may be used for (`TextLLMType`, several allowed): **Chat** (the
+conversation role), **Deep reasoning** (the heavy role) and **Auxiliary** (the smaller jobs). A role picks its model
+from the ones marked for it. Whether a model takes images is the model's own **Multimodal** flag.
 
 **During development** (prices as of 2026-11, per 1M tokens in / out):
 
@@ -281,7 +344,12 @@ In between, several can be **active** at once:
 **Compaction** (summaries replace raw turns in the prompt; the raw history stays in the database, browsable in the
 UI — nothing is deleted):
 - **At the day boundary** (the same one the daily mood roll uses, e.g. 4:00) the day's conversations roll up into a **day
-  summary**; days roll up into weeks — Marginalia's summary chain.
+  summary**; days roll up into weeks, weeks into months, months into years.
+- **A summary covers a time, not a list of messages** (built: `Summary`): it has two timestamps, `coverFrom` and
+  `coverTo`, and a type (`ROLLING`, `DAY`, `WEEK`, `MONTH`, `YEAR`). A longer summary is the shorter ones of its time
+  run through a prompt of its own (a week from its days). Once it exists it covers them: the prompt takes the longest
+  summary of a time and skips the shorter ones inside it (`SummaryCoverage`), so a week shows as one week, not as seven
+  days. Summaries of the same type never hide each other.
 - **When the prompt nears the context budget** in the middle of a long conversation, the oldest raw turns of the
   live conversation are summarized (rolling), so a long session never hits the limit.
 - The prompt is then: profile + relevant facts + today's conversation summaries (+ yesterday's day summary) + the live
@@ -409,6 +477,12 @@ Rapid user actions coalesce too (toggling the halo five times = one event with t
 rate-limited so she comments when it's interesting, not on every click. Events that arrive while nobody is talking wait
 for the next interaction (or are dropped, if transient and stale).
 
+**Queued events (built: `QueuedEvent`).** An event that happens while she can't take it (no node is connected: every
+node is shut down and you add a model in the UI) is stored with its kind, time, text and data and waits. When a node
+connects, the waiting events go to her in the order they happened as **Event** messages (`ChatMessage` of type `EVENT`,
+the event is marked delivered in it), so she can still react ("oh, a new model?"). One that no longer matters (a model
+added and removed again) is marked handled without a message.
+
 ### Proactive events
 
 - **Event sources** are a plugin point on the server: email (IMAP IDLE, Gmail / Graph push), calendar (CalDAV or the
@@ -535,11 +609,26 @@ When a model with vision is available, the node can give Joi images of what you 
   ComfyUI renders a whole job before anything plays, so the server streams the LLM output, cuts it into sentences and
   sends one TTS job per sentence: sentence 1 plays while sentence 2 renders. Behind a `SpeechSynthesisService` so a
   plain TTS server (Chatterbox) can replace it when latency matters more.
+- **TTS models and voice actors** (built, taken from Marginalia's audiobook plugin): a TTS model is one speech server
+  (Chatterbox-TTS-Server, or ComfyUI with Higgs Audio v3), the model it must have loaded, its GPU lock and the speech
+  defaults. A voice actor is a voice (a reference clip of the user, or a voice file of the server) with voices of its own
+  for a mood (whisper, shout...) or a language. Both are per user, under Models. Joi's voice will name an actor, and her
+  moods map to the actor's mood voices.
 - **Barge-in:** the node keeps VAD running while it plays audio (with echo cancellation, or Joi wakes herself); the
   protocol carries "stop speaking".
-- **GPU (local setup):** unlike Marginalia's one GPU taking turns, Joi keeps the TTS model and a lighter / more quantized
-  LLM loaded together. If Joi and Marginalia share a GPU box they need a shared lock (gpu-control or a lock service):
-  Marginalia's locks live in its own database.
+- **GPU (local setup):** the platform's GPU locks, set up under Administration. A lock is a way to fill a GPU (start-up
+  and release steps), not one model, and the jobs of one lock run side by side. So Joi has a **voice lock** whose
+  start-up loads the conversation LLM and the TTS model; both the conversation AI and the TTS model name it (no job
+  limit, so the LLM streams while TTS renders the sentence before). A local heavy model is a second lock: a delegated
+  task releases the voice lock, and the voice comes back with the next reply. A model that never unloads goes into
+  every lock's start-up (load when missing) and no release, so the locks still know what the GPU holds.
+- **Joi and Marginalia on one GPU:** each keeps its locks in its own database, so neither knows what the other left
+  loaded. A lock's **steps before every job** check it each time, without marking the whole GPU as used outside:
+  on a shared `llama-server` router, the voice lock runs `tools/gpu-control`'s `POST /llama/unload` with
+  `{"keep": ["{{model | strip:openai/}}"]}` before every job. It unloads the other program's big model and does
+  nothing when only Joi's model is loaded, so a model in use is never unloaded for nothing. A TTS model's lock gets
+  its model as `{{model}}` too (an AI gets its model id from the platform), so one step serves every model. For
+  ComfyUI, `POST /comfy/ensure` as a step before every job starts or restarts it when it does not answer.
 
 ### Mobile companion node (ideas)
 

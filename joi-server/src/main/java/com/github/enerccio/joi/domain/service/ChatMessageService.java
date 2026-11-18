@@ -1,0 +1,27 @@
+package com.github.enerccio.joi.domain.service;
+
+import com.github.enerccio.joi.domain.model.impl.ChatMessage;
+import com.github.enerccio.joi.domain.model.impl.Joi;
+import com.github.enerccio.joi.domain.repository.ChatMessageRepository;
+import com.github.enerccio.marginalia.domain.service.ExtendableService;
+
+import java.util.Collection;
+import java.util.Date;
+import java.util.List;
+import java.util.Map;
+
+/** The exchanges of a conversation. */
+public interface ChatMessageService extends ExtendableService<ChatMessage, ChatMessageRepository> {
+
+    /** The messages sent in {@code [from, to)}, oldest first. */
+    List<ChatMessage> findBetween(Joi joi, Date from, Date to) throws Exception;
+
+    /** The last {@code limit} messages, oldest first. */
+    List<ChatMessage> findLatest(Joi joi, int limit) throws Exception;
+
+    /** When each of the assistants was last talked to, by her id; one that never was is not in the map. */
+    Map<Long, Date> findLastSentAt(Collection<Joi> jois) throws Exception;
+
+    /** Whether the assistant has any message. */
+    boolean hasAny(Joi joi) throws Exception;
+}

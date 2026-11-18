@@ -1,5 +1,8 @@
 package com.github.enerccio.joi.ui.workspace;
 
+import com.github.enerccio.joi.domain.collections.TextLLMType;
+import com.github.enerccio.joi.domain.components.TextModelTypes;
+import com.github.enerccio.joi.ui.dialogs.JoiAIDialog;
 import com.github.enerccio.joi.ui.workspace.parts.AIPartAccess;
 import com.github.enerccio.marginalia.domain.collections.AIType;
 import com.github.enerccio.marginalia.domain.model.impl.AI;
@@ -76,7 +79,8 @@ class JoiWorkspaceTest extends PlatformTestBase {
 
         JoiWorkspace workspace = openWorkspace();
 
-        assertThat(workspace.getActivePart()).isSameAs(workspace.getPart("models"));
+        // the first tab is the assistants
+        assertThat(workspace.getActivePart()).isSameAs(workspace.getPart("jois"));
         assertThat(models(workspace)).extracting(AI::getUuid)
                 .contains(own.getUuid())
                 .doesNotContain(other.getUuid());
@@ -89,7 +93,7 @@ class JoiWorkspaceTest extends PlatformTestBase {
         JoiWorkspace workspace = openWorkspace();
         String name = uniqueName("dialog-ai");
 
-        AIDialog dialog = new AIDialog();
+        JoiAIDialog dialog = new JoiAIDialog();
         dialog.setOnSave(() -> {
             try {
                 workspace.getPart("models").refresh();
@@ -106,11 +110,46 @@ class JoiWorkspaceTest extends PlatformTestBase {
         ComboBox<String> modelCombo = field(dialog, "modelCombo");
         modelCombo.setItems(MockLLMScenario.DEFAULT_MODEL);
         modelCombo.setValue(MockLLMScenario.DEFAULT_MODEL);
+        dialog.selectTypes(TextLLMType.CHAT, TextLLMType.AUXILIARY);
         ComponentTree.button(dialog, loc.getValue(L.LABEL_OK)).click();
 
         AI saved = models(workspace).stream().filter(ai -> name.equals(ai.getName())).findFirst().orElseThrow();
         assertThat(saved).isInstanceOf(OpenAICompatible.class);
-        assertThat(((OpenAICompatible) aiService.findForUser(saved.getUuid())).getUri()).isEqualTo(llm.baseUrl());
+        AI stored = aiService.findForUser(saved.getUuid());
+        assertThat(((OpenAICompatible) stored).getUri()).isEqualTo(llm.baseUrl());
+        assertThat(TextModelTypes.get(stored)).containsExactlyInAnyOrder(TextLLMType.CHAT, TextLLMType.AUXILIARY);
+        // the grid shows the new types after the save, not the ones before it
+        assertThat(TextModelTypes.get(saved)).containsExactlyInAnyOrder(TextLLMType.CHAT, TextLLMType.AUXILIARY);
+    }
+
+    @Test
+    void editDialogShowsAndChangesTheTypes() throws Exception {
+        login();
+        AI ai = createAI();
+        TextModelTypes.set(ai, List.of(TextLLMType.DEEP_REASONING));
+        ai = aiService.save(ai);
+
+        JoiAIDialog dialog = new JoiAIDialog(aiService.findForUser(ai.getUuid()));
+        dialog.create();
+        assertThat(dialog.getTypesBox().getValue()).containsExactly(TextLLMType.DEEP_REASONING);
+
+        dialog.selectTypes(TextLLMType.CHAT);
+        ComponentTree.button(dialog, loc.getValue(L.LABEL_OK)).click();
+
+        AI stored = aiService.findForUser(ai.getUuid());
+        assertThat(TextModelTypes.get(stored)).containsExactly(TextLLMType.CHAT);
+        // the platform's fields are kept
+        assertThat(((OpenAICompatible) stored).getUri()).isEqualTo(llm.baseUrl());
+    }
+
+    @Test
+    void typesBoxIsInTheDialog() throws Exception {
+        login();
+        JoiAIDialog dialog = new JoiAIDialog();
+        dialog.create();
+
+        assertThat(ComponentTree.all(dialog)).contains(dialog.getTypesBox());
+        assertThat(dialog.getTypesBox().getValue()).isEmpty();
     }
 
     @Test
@@ -119,11 +158,11 @@ class JoiWorkspaceTest extends PlatformTestBase {
         JoiWorkspace workspace = openWorkspace();
 
         JsonObject state = workspace.storeState();
-        assertThat(state.get("tab").getAsString()).isEqualTo("models");
+        assertThat(state.get("tab").getAsString()).isEqualTo("jois");
 
         // the autosave stores it once the old state was restored (an empty one for a new user)
         workspace.autosave();
-        assertThat(settingService.getUserSetting().getWorkspaceState().get("tab").getAsString()).isEqualTo("models");
+        assertThat(settingService.getUserSetting().getWorkspaceState().get("tab").getAsString()).isEqualTo("jois");
     }
 
     @SuppressWarnings("unchecked")
