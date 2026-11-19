@@ -18,6 +18,7 @@ import com.github.enerccio.marginalia.utils.UIUtils;
 import com.vaadin.flow.component.Component;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.html.Span;
+import com.vaadin.flow.component.orderedlayout.Scroller;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -81,7 +82,10 @@ public class JoiTemplatesPart implements JoiDialogPart {
             }
         }
         layout.addClassName(CssStyles.FORM_PADDING_BOTTOM);
-        return layout;
+        // the prompts are taller than the dialog, which doesn't scroll
+        Scroller scroller = new Scroller(layout, Scroller.ScrollDirection.VERTICAL);
+        scroller.setSizeFull();
+        return scroller;
     }
 
     @Override
