@@ -102,6 +102,17 @@ class JoiApiTest extends PlatformTestBase {
             this.headers = headers;
         }
 
+        /** The file answered, null when none. */
+        java.io.File file;
+
+        @Override
+        public void file(int status, String contentType, java.io.File file, Map<String, String> headers) {
+            this.status = status;
+            this.contentType = contentType;
+            this.file = file;
+            this.headers = headers;
+        }
+
         @Override
         public EventStream events() {
             status = 200;

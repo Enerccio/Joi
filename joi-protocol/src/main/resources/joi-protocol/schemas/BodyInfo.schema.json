@@ -1,0 +1,62 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Enerccio/joi/protocol/v1/BodyInfo.schema.json",
+  "title": "BodyInfo",
+  "description": "GET /api/v1/jois/{id}/body: the body she is in, its models and the state of their parts, and its animations.",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string"
+    },
+    "name": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "model": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "$ref": "BodyModel.schema.json"
+        }
+      ],
+      "description": "The full model, null when none was chosen."
+    },
+    "lookingGlassModel": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "$ref": "BodyModel.schema.json"
+        }
+      ],
+      "description": "The lighter model for the Looking Glass, null for the full one there too."
+    },
+    "parts": {
+      "type": "array",
+      "items": {
+        "$ref": "BodyPart.schema.json"
+      },
+      "description": "The parts of the full model that can be switched, each in the state the body is in."
+    },
+    "appearance": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "How she looks in it now, null when the model is not described."
+    },
+    "animations": {
+      "$ref": "BodyAnimations.schema.json"
+    }
+  },
+  "required": [
+    "id",
+    "parts",
+    "animations"
+  ]
+}

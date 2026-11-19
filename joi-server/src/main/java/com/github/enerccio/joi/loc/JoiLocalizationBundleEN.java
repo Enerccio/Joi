@@ -145,6 +145,16 @@ public class JoiLocalizationBundleEN extends TextBundleBase<J_L> {
         setValue(J_L.LABEL_BODY_PARTS, "Her parts");
         setValue(J_L.MSG_BODY_PARTS_HINT, "The parts described apart in the model's dialog. Switching one changes how she looks; when she is in this body, she is told.");
         setValue(J_L.MSG_BODY_NO_PARTS, "The model has no parts described apart: mark toggles to describe or make groups in the model's dialog.");
+        setValue(J_L.LABEL_BODY_ANIMATIONS, "Her animations");
+        setValue(J_L.LABEL_BODY_ALL_ANIMATIONS, "All animations of the library, also those added later");
+        setValue(J_L.LABEL_BODY_CHOSEN_ANIMATIONS, "Animations");
+        setValue(J_L.MSG_BODY_ANIMATIONS_HINT, "What she can play in this body. Leave out what doesn't fit it (a clip that cuts through a tail or a skirt).");
+        setValue(J_L.LABEL_JOIA_FILE, "Joi animations file");
+        setValue(J_L.LABEL_JOIA_DOWNLOAD, "Download .joia");
+        setValue(J_L.MSG_JOIA_STALE, "The animations changed since: it is written again when you exit.");
+        setValue(J_L.MSG_JOIA_NONE, "Not written yet: it is written when you exit.");
+        setValue(J_L.MSG_JOIA_EMPTY, "None: the body has no animations.");
+        setValue(J_L.MSG_JOIA_WRITE_ERROR, "The Joi animations file was not written: %s");
         setValue(J_L.LABEL_SPRING_BONES, "Spring bones");
         setValue(J_L.MSG_SPRING_BONES_HINT, "Bones that swing as she moves: hair, a tail, ears, cloth. Guessed from the bones' names. Switch a chain off, pick how it moves, or start one from another bone, then apply.");
         setValue(J_L.MSG_SPRING_BONES_UNAVAILABLE, "Spring bones are written into a converted VRM; an uploaded VRM keeps its own.");

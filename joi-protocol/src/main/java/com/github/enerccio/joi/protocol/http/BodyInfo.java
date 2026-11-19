@@ -1,0 +1,18 @@
+package com.github.enerccio.joi.protocol.http;
+
+import java.util.List;
+
+/**
+ * {@code GET /api/v1/jois/{id}/body}: the body she is in, its models and the state of their parts, and its animations.
+ *
+ * @param id                the id of the body
+ * @param name              its name, null when it has none
+ * @param model             the full model, null when none was chosen
+ * @param lookingGlassModel the lighter model for the Looking Glass, null for the full one there too
+ * @param parts             the parts of the full model that can be switched, each in the state the body is in
+ * @param appearance        how she looks in it now, null when the model is not described
+ * @param animations        the animations it plays
+ */
+public record BodyInfo(String id, String name, BodyModel model, BodyModel lookingGlassModel, List<BodyPart> parts,
+                       String appearance, BodyAnimations animations) {
+}

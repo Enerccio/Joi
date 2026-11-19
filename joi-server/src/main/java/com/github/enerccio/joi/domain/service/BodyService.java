@@ -1,5 +1,6 @@
 package com.github.enerccio.joi.domain.service;
 
+import com.github.enerccio.joi.domain.model.impl.AnimationPack;
 import com.github.enerccio.joi.domain.model.impl.Body;
 import com.github.enerccio.joi.domain.model.impl.Joi;
 import com.github.enerccio.joi.domain.model.impl.Model;
@@ -7,6 +8,7 @@ import com.github.enerccio.joi.domain.model.impl.QueuedEvent;
 import com.github.enerccio.joi.domain.repository.BodyRepository;
 import com.github.enerccio.marginalia.domain.service.ExtendableService;
 
+import java.io.File;
 import java.util.List;
 
 /** The bodies of the assistants (see {@code DESIGN.md} → Bodies). */
@@ -76,4 +78,24 @@ public interface BodyService extends ExtendableService<Body, BodyRepository> {
      * and the parts she can show or hide (named by the user), and her other bodies. Null when she is in none.
      */
     String prompt(Joi joi) throws Exception;
+
+    /**
+     * The animations the body plays, by name: all of the user's when none were chosen ({@code BodyAnimations}), else
+     * the chosen ones that are still there.
+     */
+    List<AnimationPack> animations(Body body) throws Exception;
+
+    /** The body's {@code .joia} of its animations, null when it has none. */
+    File animationsFile(Body body) throws Exception;
+
+    /**
+     * Makes the written {@code .joia} the body's: a resource of the current user linked to the body, in place of the
+     * one before (deleted).
+     *
+     * @param joia        a file in the model service's upload folder; null for none (the one before is deleted)
+     * @param fingerprint what it holds ({@code JoiaService}), to tell whether it is current
+     * @param hash        the SHA-256 of the file (hex), known from writing it
+     * @return the saved body
+     */
+    Body linkAnimations(Body body, File joia, String fingerprint, String hash) throws Exception;
 }

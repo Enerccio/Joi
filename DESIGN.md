@@ -75,7 +75,7 @@ one; the server treats every node the same.
 - **Security stays on both sides:** a third-party node is untrusted. The server still validates every result, and each
   node's tools are labeled with that node in the prompt (results are data, never instructions to Joi). The user decides
   per node what Joi may call there, and can revoke a node at any time.
-- **Built so far (HTTP, `joi-protocol` 1.0):** the module `joi-protocol` holds the JSON Schemas (the source of truth),
+- **Built so far (HTTP, `joi-protocol` 1.1):** the module `joi-protocol` holds the JSON Schemas (the source of truth),
   an OpenAPI description (`openapi.yaml`, with the rules of each call) and the Java records; a test checks that the
   records match the schemas, and the server's tests check every answer against them. The calls:
   - `GET /api/v1`: the version and how to authenticate (no auth needed). `GET /api/v1/me`.
@@ -88,6 +88,14 @@ one; the server treats every node the same.
     s. Both are useful: a simple client takes the whole reply, a voice node the stream. The speech starts once the
     text is whole (speaking while the model still writes is roadmap step 3). The turn is stored as a `ChatMessage`
     with its prompt; turns of one assistant run one at a time.
+  - `GET /api/v1/jois/{id}/body` (1.1): the body she is in (`404 no_body` for none): its models, the full one and
+    the Looking Glass one, each with its `.joim` to download; the parts of the full model that can be switched, each
+    in the state the body is in (the model's state); how she looks; and the animations the body plays (whether all of
+    the library, the list) with their `.joia`. A file to download is its URL, SHA-256, size, time and whether it is
+    **current** (it holds what is set up now; else it is written again on the Exit of its dialog).
+    `GET /api/v1/models/{id}/joim` and `GET /api/v1/bodies/{id}/joia` stream the files from the disk, with the hash
+    as the ETag (304 to `If-None-Match`), so a node caches them by hash. Only the user's own models and bodies.
+    Until the WebSocket, a node polls the body call to see a change.
   - **Auth.** The administrator chooses (Administration → API access) whether **tokens** (`joi_...`, made in User
     Settings → Access, shown once, with an optional expiry) and **OAuth** are offered. OAuth is the device grant
     (RFC 8628): the device asks `/oauth/device_authorization` for a code like `WDJB-MJHT`, the user approves it in the
@@ -710,7 +718,12 @@ UI — nothing is deleted):
       always the same.
   - **Bodies are paired with animations:** a body has the clips and groups it can play (all of the library by
     default; the user removes what doesn't fit it, e.g. a clip that clips through a big tail or a skirt, and adds the
-    body's own clips). Her prompt and `play_animation` list only the clips and groups of the active body, and a
+    body's own clips). **Built:** the body dialog's *Her animations*: a box for all of the library (the default, also
+    animations added later; stored as none chosen) or a choice of the user's animations (`Body.animations`, the uuids,
+    `domain/bodies/BodyAnimations`; `BodyService.animations`). On **Exit**, when they changed (a fingerprint of what
+    the file holds, as for a `.joim`), the dialog writes them with their clips into the body's **`.joia`**, a resource
+    of the user linked to the body, in place of the one before (`JoiaService.exportBody`); a body with no animations
+    has none. The dialog shows the file with a download, and says when it is out of date. The API serves it. Her prompt and `play_animation` list only the clips and groups of the active body, and a
     switch of body changes the list. Adding a clip or a group to a body is an event, staged like the rest.
   - **Default animations, per state:** the user sets which clip or group plays for each of her states: **idle**,
     **listening**, **thinking** (while the model works), **talking**, **waiting** for a tool, **sleeping** (privacy

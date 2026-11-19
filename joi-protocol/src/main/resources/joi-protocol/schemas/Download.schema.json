@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Enerccio/joi/protocol/v1/Download.schema.json",
+  "title": "Download",
+  "description": "A file of the server to download (a .joim or a .joia), cached by its hash.",
+  "type": "object",
+  "properties": {
+    "url": {
+      "type": "string",
+      "description": "Where to download it: GET with the same credentials; 304 to If-None-Match with the hash."
+    },
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$",
+      "description": "The SHA-256 of the file (hex), also its ETag."
+    },
+    "size": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "writtenAt": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When it was written, ISO 8601."
+    },
+    "current": {
+      "type": "boolean",
+      "description": "Whether it holds what is set up now; false when it changed since (it is written again when the user exits its dialog)."
+    }
+  },
+  "required": [
+    "url",
+    "sha256",
+    "size",
+    "writtenAt",
+    "current"
+  ]
+}

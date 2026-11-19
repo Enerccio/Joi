@@ -4,11 +4,15 @@ import com.github.enerccio.joi.domain.bodies.Appearance;
 import com.github.enerccio.joi.domain.bodies.BodyState;
 import com.github.enerccio.joi.domain.bodies.DescribedPart;
 import com.github.enerccio.joi.domain.bodies.ModelCapabilities;
+import com.github.enerccio.joi.domain.model.impl.AnimationPack;
 import com.github.enerccio.joi.domain.model.impl.Body;
 import com.github.enerccio.joi.domain.model.impl.Joi;
 import com.github.enerccio.joi.domain.model.impl.Model;
 import com.github.enerccio.joi.domain.service.BodyService;
+import com.github.enerccio.joi.domain.service.AnimationPackService;
 import com.github.enerccio.joi.domain.service.JoiService;
+import com.github.enerccio.joi.domain.service.JoiaService;
+import com.github.enerccio.joi.protocol.joia.JoiaFile;
 import com.github.enerccio.joi.domain.service.ModelService;
 import com.github.enerccio.joi.loc.J_L;
 import com.github.enerccio.joi.ui.JoiCssStyles;
@@ -18,11 +22,15 @@ import com.github.enerccio.joi.ui.bodies.ModelViewer;
 import com.github.enerccio.marginalia.CssStyles;
 import com.github.enerccio.marginalia.loc.L;
 import com.github.enerccio.marginalia.loc.Localization;
+import com.github.enerccio.marginalia.ui.widgets.Notification;
 import com.github.enerccio.marginalia.utils.UIUtils;
 import com.github.enerccio.marginalia.ui.widgets.ResizableTextArea;
 import com.github.enerccio.joi.ui.widgets.PromptAreas;
 import com.vaadin.flow.component.button.Button;
+import com.vaadin.flow.component.checkbox.Checkbox;
+import com.vaadin.flow.component.combobox.MultiSelectComboBox;
 import com.vaadin.flow.component.dialog.Dialog;
+import com.vaadin.flow.component.html.Anchor;
 import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.html.H4;
 import com.vaadin.flow.component.html.Span;
@@ -32,11 +40,15 @@ import com.vaadin.flow.component.radiobutton.RadioButtonGroup;
 import com.vaadin.flow.component.select.Select;
 import com.vaadin.flow.component.textfield.TextArea;
 import com.vaadin.flow.component.textfield.TextField;
+import com.vaadin.flow.server.streams.DownloadHandler;
+import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Configurable;
 
 import java.io.File;
+import java.text.DateFormat;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -45,7 +57,8 @@ import java.util.Map;
  * One body of an assistant ({@link Body}), full screen: on the left its name, its models (the full one and the one
  * for the Looking Glass, from the user's models with a VRM) and how she looks in it (the model's description, put
  * together for the state of the body: it is described and edited in the model's dialog), and the state of each part
- * described apart, which the user switches (she is told); on the right the
+ * described apart, which the user switches (she is told), and the animations she plays in it (all of the library by
+ * default), written into the body's {@code .joia} on Exit when they changed; on the right the
  * {@link ModelViewer 3D preview} of either model. Changes are stored at once; a new body is stored once it gets a name
  * or a model (her first body is the one she is in).
  */
@@ -63,6 +76,12 @@ public class BodyDialog extends Dialog {
 
     @Autowired
     private JoiService joiService;
+
+    @Autowired
+    private AnimationPackService packService;
+
+    @Autowired
+    private JoiaService joiaService;
 
     private final Joi joi;
     private Body body;
@@ -82,6 +101,11 @@ public class BodyDialog extends Dialog {
     private final Map<String, Select<String>> partSelects = new LinkedHashMap<>();
     private Div parts;
     private Span partsHint;
+    /** The user's animations, by uuid, in the order of their names. */
+    private final Map<String, AnimationPack> packs = new LinkedHashMap<>();
+    private Checkbox allAnimations;
+    private MultiSelectComboBox<String> animationSelect;
+    private Div joiaInfo;
 
     /**
      * @param body the stored body, null for a new one
@@ -152,8 +176,39 @@ public class BodyDialog extends Dialog {
         parts = new Div();
         parts.addClassName(JoiCssStyles.BODY_PARTS);
 
+        H4 animationsTitle = new H4(loc.getValue(J_L.LABEL_BODY_ANIMATIONS));
+        Span animationsHint = new Span(loc.getValue(J_L.MSG_BODY_ANIMATIONS_HINT));
+        animationsHint.addClassName(CssStyles.HINT_TEXT);
+        for (AnimationPack pack : packService.findAllByName()) {
+            packs.put(pack.getUuid(), pack);
+        }
+        List<String> chosen = body == null ? null : body.animationUuids();
+        allAnimations = new Checkbox(loc.getValue(J_L.LABEL_BODY_ALL_ANIMATIONS), chosen == null);
+        animationSelect = new MultiSelectComboBox<>(loc.getValue(J_L.LABEL_BODY_CHOSEN_ANIMATIONS));
+        animationSelect.setWidthFull();
+        animationSelect.setItems(packs.keySet());
+        animationSelect.setItemLabelGenerator(uuid -> StringUtils.defaultIfBlank(packs.get(uuid).getName(), uuid));
+        animationSelect.setValue(chosen == null ? packs.keySet() : chosen.stream().filter(packs::containsKey).toList());
+        animationSelect.setEnabled(chosen != null);
+        allAnimations.addValueChangeListener(e -> {
+            if (e.isFromClient()) {
+                animationSelect.setEnabled(!e.getValue());
+                if (e.getValue()) {
+                    animationSelect.setValue(packs.keySet());
+                }
+                storeAnimations();
+            }
+        });
+        animationSelect.addValueChangeListener(e -> {
+            if (e.isFromClient()) {
+                storeAnimations();
+            }
+        });
+        joiaInfo = new Div();
+        joiaInfo.addClassName(CssStyles.HINT_TEXT);
+
         VerticalLayout sidebar = new VerticalLayout(nameField, modelSelect, lookingGlassSelect, modelHint, capabilitiesInfo, description,
-                partsTitle, partsHint, parts);
+                partsTitle, partsHint, parts, animationsTitle, animationsHint, allAnimations, animationSelect, joiaInfo);
         sidebar.setPadding(false);
         sidebar.addClassName(JoiCssStyles.MODEL_SIDEBAR);
 
@@ -186,7 +241,7 @@ public class BodyDialog extends Dialog {
         com.vaadin.flow.component.splitlayout.SplitLayout content = EditorSplit.create(sidebar, previewColumn, "joi.body-dialog.split");
         add(content);
 
-        Button exitButton = new Button(loc.getValue(L.LABEL_EXIT), e -> close());
+        Button exitButton = new Button(loc.getValue(L.LABEL_EXIT), e -> exit());
         exitButton.setThemeName("primary");
         getFooter().add(exitButton);
 
@@ -196,7 +251,74 @@ public class BodyDialog extends Dialog {
             }
         });
         showModel();
+        showJoia();
         nameField.focus();
+    }
+
+    /** Stores the animations chosen: null for all of the library. */
+    private void storeAnimations() {
+        try {
+            if (body == null) {
+                // stored with the choice once it has a name or a model
+                store();
+                return;
+            }
+            body = bodyService.find(body.getId());
+            body.setAnimationUuids(chosenAnimations());
+            body = bodyService.save(body);
+            showJoia();
+        } catch (Exception e) {
+            UIUtils.internalServerError(loc, e);
+        }
+    }
+
+    /** The uuids of the animations chosen, in the order of their names; null for all of the library. */
+    private List<String> chosenAnimations() {
+        if (allAnimations.getValue()) {
+            return null;
+        }
+        List<String> uuids = new ArrayList<>(packs.keySet());
+        uuids.retainAll(animationSelect.getValue());
+        return uuids;
+    }
+
+    /** The body's .joia: its size and time with a download, and whether it is current. */
+    private void showJoia() {
+        joiaInfo.removeAll();
+        try {
+            if (body == null) {
+                return;
+            }
+            File file = bodyService.animationsFile(body);
+            Div line = new Div(new Span(loc.getValue(J_L.LABEL_JOIA_FILE) + ": "));
+            if (file != null) {
+                String when = body.getAnimationsExportedAt() == null ? ""
+                        : DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT).format(body.getAnimationsExportedAt());
+                line.add(new Span(String.format(loc.getValue(J_L.MSG_JOIM_INFO), FileUtils.byteCountToDisplaySize(file.length()), when) + " "));
+                Anchor download = new Anchor(DownloadHandler.forFile(file, JoiaFile.fileName(body.getName())), loc.getValue(J_L.LABEL_JOIA_DOWNLOAD));
+                download.setRouterIgnore(true);
+                line.add(download);
+            }
+            joiaInfo.add(line);
+            boolean stale = joiaService.needsBodyExport(body);
+            if (file == null || stale) {
+                joiaInfo.add(new Div(loc.getValue(!stale ? J_L.MSG_JOIA_EMPTY : file == null ? J_L.MSG_JOIA_NONE : J_L.MSG_JOIA_STALE)));
+            }
+        } catch (Exception e) {
+            UIUtils.internalServerError(loc, e);
+        }
+    }
+
+    /** Closes the dialog; the body's .joia is written first when its animations changed. */
+    private void exit() {
+        try {
+            if (body != null && joiaService.needsBodyExport(body)) {
+                body = joiaService.exportBody(body);
+            }
+        } catch (Exception e) {
+            Notification.error(String.format(loc.getValue(J_L.MSG_JOIA_WRITE_ERROR), e.getMessage()));
+        }
+        close();
     }
 
     private Select<Long> modelSelect(J_L label) {
@@ -227,6 +349,7 @@ public class BodyDialog extends Dialog {
                     return;
                 }
                 body = bodyService.create(joi, name);
+                body.setAnimationUuids(allAnimations == null ? null : chosenAnimations());
             } else {
                 body = bodyService.find(body.getId());
             }
@@ -241,6 +364,9 @@ public class BodyDialog extends Dialog {
             body.setLookingGlassModel(lookingGlassId == null ? null : models.get(lookingGlassId));
             body = bodyService.save(body);
             updateTitle();
+            if (joiaInfo != null) {
+                showJoia();
+            }
         } catch (Exception e) {
             UIUtils.internalServerError(loc, e);
         }
@@ -375,6 +501,21 @@ public class BodyDialog extends Dialog {
     /** The choice of the Looking Glass model, for tests. */
     public Select<Long> getLookingGlassSelect() {
         return lookingGlassSelect;
+    }
+
+    /** Whether the body plays all of the library, for tests. */
+    public Checkbox getAllAnimations() {
+        return allAnimations;
+    }
+
+    /** The choice of the body's animations, for tests. */
+    public MultiSelectComboBox<String> getAnimationSelect() {
+        return animationSelect;
+    }
+
+    /** Exit: writes the body's .joia when it changed and closes, for tests. */
+    public void exitForTest() {
+        exit();
     }
 
     /** The appearance description, for tests. */

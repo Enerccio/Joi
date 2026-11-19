@@ -1,0 +1,34 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Enerccio/joi/protocol/v1/BodyAnimation.schema.json",
+  "title": "BodyAnimation",
+  "description": "An animation a body plays; its steps and clips are in the .joia.",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string",
+      "description": "The id of the animation, as in the .joia."
+    },
+    "name": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "description": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "What it shows, null when not described."
+    },
+    "loop": {
+      "type": "boolean",
+      "description": "Whether the whole animation starts again after its last step until it is finished."
+    }
+  },
+  "required": [
+    "id",
+    "loop"
+  ]
+}

@@ -1,7 +1,9 @@
 # The `.joia` file ("Joi animations")
 
-Animations with the clips they play, in one file: to share them or move them to another server. The server exports
-the animations checked in the Animations tab, and imports a `.joia` there. The reader and writer are
+Animations with the clips they play, in one file: to share them or move them to another server, and to give a node
+the animations of a body. The server exports the animations checked in the Animations tab, and imports a `.joia`
+there. Each body keeps a `.joia` of the animations it plays, written when the user exits the body's dialog; a node
+downloads it with `GET /api/v1/bodies/{id}/joia` (see `openapi.yaml`), cached by its SHA-256. The reader and writer are
 `com.github.enerccio.joi.protocol.joia.JoiaFile`, the metadata `JoiaMetadata`.
 
 ## Container

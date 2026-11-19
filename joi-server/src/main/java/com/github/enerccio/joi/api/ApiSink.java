@@ -1,13 +1,17 @@
 package com.github.enerccio.joi.api;
 
+import java.io.File;
 import java.io.IOException;
 import java.util.Map;
 
-/** Where {@link JoiApi} writes its answer: one body, or a stream of server-sent events. */
+/** Where {@link JoiApi} writes its answer: one body, a file, or a stream of server-sent events. */
 public interface ApiSink {
 
     /** The whole answer. */
     void respond(int status, String contentType, byte[] body, Map<String, String> headers) throws IOException;
+
+    /** A file as the whole answer, streamed from the disk (never read into memory). */
+    void file(int status, String contentType, File file, Map<String, String> headers) throws IOException;
 
     /** Starts a stream of events (status 200, {@code text/event-stream}); the answer is then only events. */
     EventStream events() throws IOException;

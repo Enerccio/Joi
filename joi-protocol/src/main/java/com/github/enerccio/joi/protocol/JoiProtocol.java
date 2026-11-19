@@ -11,7 +11,7 @@ package com.github.enerccio.joi.protocol;
 public final class JoiProtocol {
 
     /** The version this JAR describes. */
-    public static final String VERSION = "1.0";
+    public static final String VERSION = "1.1";
 
     /** The calls of the API; {@code GET} of it is the {@link com.github.enerccio.joi.protocol.http.ServerInfo} and needs no auth. */
     public static final String API = "/api/v1";

@@ -1,17 +1,30 @@
 package com.github.enerccio.joi.api;
 
+import com.github.enerccio.joi.domain.bodies.BodyState;
+import com.github.enerccio.joi.domain.bodies.DescribedPart;
+import com.github.enerccio.joi.domain.bodies.ModelCapabilities;
+import com.github.enerccio.joi.domain.bodies.joim.JoimMetadata;
 import com.github.enerccio.joi.domain.chat.ChatService;
 import com.github.enerccio.joi.domain.chat.ChatService.NoModelException;
+import com.github.enerccio.joi.domain.model.impl.AnimationPack;
+import com.github.enerccio.joi.domain.model.impl.Body;
 import com.github.enerccio.joi.domain.model.impl.ChatMessage;
 import com.github.enerccio.joi.domain.model.impl.Joi;
+import com.github.enerccio.joi.domain.model.impl.Model;
 import com.github.enerccio.joi.domain.service.AccessTokenService;
 import com.github.enerccio.joi.domain.service.AccessTokenService.Principal;
 import com.github.enerccio.joi.domain.service.ApiAccessService;
+import com.github.enerccio.joi.domain.service.BodyService;
 import com.github.enerccio.joi.domain.service.ChatMessageService;
 import com.github.enerccio.joi.domain.service.DeviceAuthorizationService;
 import com.github.enerccio.joi.domain.service.JoiService;
+import com.github.enerccio.joi.domain.service.JoiaService;
+import com.github.enerccio.joi.domain.service.JoimService;
+import com.github.enerccio.joi.domain.service.ModelService;
 import com.github.enerccio.joi.protocol.JoiProtocol;
 import com.github.enerccio.joi.protocol.http.*;
+import com.github.enerccio.joi.protocol.joia.JoiaFile;
+import com.github.enerccio.joi.protocol.joim.JoimFile;
 import com.github.enerccio.joi.protocol.oauth.DeviceAuthorization;
 import com.github.enerccio.joi.protocol.oauth.OAuthError;
 import com.github.enerccio.joi.protocol.oauth.OAuthMetadata;
@@ -22,6 +35,8 @@ import com.github.enerccio.joi.tts.model.TtsModel;
 import com.github.enerccio.marginalia.bound.ApiRequestAttributes;
 import com.github.enerccio.marginalia.bound.SessionPoint;
 import com.github.enerccio.marginalia.domain.model.impl.AI;
+import com.github.enerccio.marginalia.domain.model.impl.Resource;
+import com.github.enerccio.marginalia.domain.service.ResourceService;
 import com.github.enerccio.marginalia.domain.security.model.User;
 import com.github.enerccio.marginalia.domain.security.service.UserService;
 import com.github.enerccio.marginalia.ui.components.ThreadCopyRequestAttributes.InRequestScope;
@@ -35,6 +50,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.DisposableBean;
 import org.springframework.beans.factory.annotation.Autowired;
 
+import java.io.File;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
@@ -46,8 +62,9 @@ import java.util.concurrent.TimeUnit;
 /**
  * Joi's API ({@value JoiProtocol#API}, {@value JoiProtocol#OAUTH}, see {@code joi-protocol}): authenticates the call
  * (a token, an OAuth access token, or nobody when the configuration allows it), makes the request context of its user
- * ({@link ApiRequestAttributes}, no session of the container) and answers. The assistants, one of them, and chat with
- * her, whole or streamed as server-sent events.
+ * ({@link ApiRequestAttributes}, no session of the container) and answers. The assistants, one of them, chat with
+ * her, whole or streamed as server-sent events, and the body she is in with its files ({@code .joim}, {@code .joia}),
+ * streamed from the disk.
  */
 public class JoiApi implements DisposableBean {
 
@@ -80,6 +97,21 @@ public class JoiApi implements DisposableBean {
 
     @Autowired
     private ChatService chatService;
+
+    @Autowired
+    private BodyService bodyService;
+
+    @Autowired
+    private ModelService modelService;
+
+    @Autowired
+    private JoimService joimService;
+
+    @Autowired
+    private JoiaService joiaService;
+
+    @Autowired
+    private ResourceService resourceService;
 
     /** Nulls written out: a client sees every field of the schema. */
     private final Gson gson = new GsonBuilder().serializeNulls().create();
@@ -171,6 +203,12 @@ public class JoiApi implements DisposableBean {
             json(sink, 200, info(joi(path.get(1))));
         } else if (post && path.size() == 3 && path.getFirst().equals("jois") && path.get(2).equals("chat")) {
             chat(call, joi(path.get(1)), sink);
+        } else if (get && path.size() == 3 && path.getFirst().equals("jois") && path.get(2).equals("body")) {
+            json(sink, 200, bodyInfo(call, joi(path.get(1))));
+        } else if (get && path.size() == 3 && path.getFirst().equals("models") && path.get(2).equals("joim")) {
+            joim(call, path.get(1), sink);
+        } else if (get && path.size() == 3 && path.getFirst().equals("bodies") && path.get(2).equals("joia")) {
+            joia(call, path.get(1), sink);
         } else {
             throw new ApiException(404, "not_found", "Not found: " + call.method() + " " + call.path());
         }
@@ -199,6 +237,116 @@ public class JoiApi implements DisposableBean {
                 model == null ? null : model.getName(), tts == null || actor == null ? null : new Voice(tts.getName(), actor.getName(),
                         StringUtils.defaultIfBlank(actor.getDescription(), null)));
     }
+
+    // ----------------------------------------------------------------------------------------------------------------
+    // her body
+    // ----------------------------------------------------------------------------------------------------------------
+
+    private BodyInfo bodyInfo(ApiCall call, Joi joi) throws Exception {
+        Body body = bodyService.active(joi);
+        if (body == null) {
+            throw new ApiException(404, "no_body", joiService.name(joi) + " is in no body");
+        }
+        String base = baseUrl(call) + JoiProtocol.API;
+        Model model = model(body.getModel());
+        List<BodyPart> parts = new ArrayList<>();
+        ModelCapabilities capabilities = model == null ? null : ModelCapabilities.fromJson(model.getCapabilities());
+        if (capabilities != null) {
+            Map<String, String> states = body.partStateMap();
+            for (DescribedPart part : DescribedPart.of(model, capabilities)) {
+                DescribedPart.State in = BodyState.stateOf(model, part, states);
+                parts.add(new BodyPart(part.id(), part.name(), in == null ? null : in.id(), in == null ? null : in.name(),
+                        in != null && part.isDefault(in)));
+            }
+        }
+        List<BodyAnimation> animations = new ArrayList<>();
+        for (AnimationPack pack : bodyService.animations(body)) {
+            animations.add(new BodyAnimation(pack.getUuid(), pack.getName(), StringUtils.defaultIfBlank(pack.getDescription(), null), pack.loops()));
+        }
+        Download joia = download(base + "/bodies/" + body.getUuid() + "/joia", bodyService.animationsFile(body),
+                body.getAnimationsResourceId(), body.getAnimationsExportedAt(), !joiaService.needsBodyExport(body));
+        return new BodyInfo(body.getUuid(), StringUtils.defaultIfBlank(body.getName(), null), bodyModel(base, model),
+                bodyModel(base, model(body.getLookingGlassModel())), parts, StringUtils.defaultIfBlank(bodyService.appearance(body), null),
+                new BodyAnimations(body.animationUuids() == null, animations, joia));
+    }
+
+    /** A model of a body (a lazy reference), read by its id; null for none or a deleted one. */
+    private Model model(Model reference) throws Exception {
+        if (reference == null) {
+            return null;
+        }
+        Model model = modelService.find(reference.getId());
+        return model == null || model.isDeleted() ? null : model;
+    }
+
+    private BodyModel bodyModel(String base, Model model) throws Exception {
+        if (model == null) {
+            return null;
+        }
+        Download joim = download(base + "/models/" + model.getUuid() + "/joim", modelService.exportFile(model),
+                model.getExportResourceId(), model.getExportedAt(), !joimService.needsExport(model));
+        return new BodyModel(model.getUuid(), StringUtils.defaultIfBlank(model.getName(), null), joim);
+    }
+
+    /** A stored file to download, null when there is none. */
+    private Download download(String url, File file, Long resourceId, Date writtenAt, boolean current) throws Exception {
+        String hash = hash(resourceId);
+        if (file == null || !file.isFile() || hash == null) {
+            return null;
+        }
+        return new Download(url, hash, file.length(), iso(writtenAt != null ? writtenAt : new Date(file.lastModified())), current);
+    }
+
+    private String hash(Long resourceId) throws Exception {
+        Resource resource = resourceId == null ? null : resourceService.find(resourceId);
+        return resource == null || resource.isDeleted() ? null : resource.getHash();
+    }
+
+    private void joim(ApiCall call, String id, ApiSink sink) throws Exception {
+        Model model = modelService.findForUser(id);
+        if (model == null || model.isDeleted()) {
+            throw new ApiException(404, "not_found", "No model " + id);
+        }
+        File file = modelService.exportFile(model);
+        String hash = hash(model.getExportResourceId());
+        if (file == null || !file.isFile() || hash == null) {
+            throw new ApiException(404, "not_found", "The model has no .joim yet: it is written when its dialog is exited");
+        }
+        file(call, sink, file, hash, JoimFile.CONTENT_TYPE, JoimMetadata.fileName(model.getName()));
+    }
+
+    private void joia(ApiCall call, String id, ApiSink sink) throws Exception {
+        Body body = bodyService.findForUser(id);
+        if (body == null || body.isDeleted()) {
+            throw new ApiException(404, "not_found", "No body " + id);
+        }
+        File file = bodyService.animationsFile(body);
+        String hash = hash(body.getAnimationsResourceId());
+        if (file == null || !file.isFile() || hash == null) {
+            throw new ApiException(404, "not_found", "The body has no .joia: it is written when its dialog is exited, when it has animations");
+        }
+        file(call, sink, file, hash, JoiaFile.CONTENT_TYPE, JoiaFile.fileName(body.getName()));
+    }
+
+    /** The file with its hash as the ETag; 304 when the client has it already. */
+    private void file(ApiCall call, ApiSink sink, File file, String hash, String contentType, String name) throws IOException {
+        String etag = "\"" + hash + "\"";
+        String ascii = name.replaceAll("[^\\x20-\\x7e]|\"", "_");
+        Map<String, String> headers = Map.of("ETag", etag, "Cache-Control", "private, no-cache",
+                "Content-Disposition", "attachment; filename=\"" + ascii + "\"; filename*=UTF-8''"
+                        + java.net.URLEncoder.encode(name, StandardCharsets.UTF_8).replace("+", "%20"));
+        String match = call.header("If-None-Match");
+        if (match != null && (match.strip().equals("*") || Arrays.stream(match.split(",")).map(String::strip)
+                .map(tag -> StringUtils.removeStart(tag, "W/")).anyMatch(etag::equals))) {
+            sink.respond(304, contentType, new byte[0], headers);
+            return;
+        }
+        sink.file(200, contentType, file, headers);
+    }
+
+    // ----------------------------------------------------------------------------------------------------------------
+    // chat
+    // ----------------------------------------------------------------------------------------------------------------
 
     private void chat(ApiCall call, Joi joi, ApiSink sink) throws Exception {
         ChatRequest request = gson.fromJson(call.text(), ChatRequest.class);

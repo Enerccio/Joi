@@ -1,0 +1,39 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Enerccio/joi/protocol/v1/BodyPart.schema.json",
+  "title": "BodyPart",
+  "description": "A part of a body's model described apart, and the state it is in.",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string"
+    },
+    "name": {
+      "type": "string",
+      "description": "As the user named it."
+    },
+    "state": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "The id of the state it is in (for a single toggle shown or hidden), null when it can't be told."
+    },
+    "stateName": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "default": {
+      "type": "boolean",
+      "description": "Whether that is the part's default state."
+    }
+  },
+  "required": [
+    "id",
+    "name",
+    "state",
+    "default"
+  ]
+}

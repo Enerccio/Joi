@@ -37,7 +37,8 @@ class SchemaContractTest {
     static final List<Class<? extends Record>> RECORDS = List.of(ServerInfo.class, AuthInfo.class, OAuthEndpoints.class, Me.class,
             JoiSummary.class, JoiList.class, Personality.class, Voice.class, JoiInfo.class, ChatRequest.class, Audio.class, Usage.class,
             ChatReply.class, TextDelta.class, AudioChunk.class, Done.class, ApiError.class, DeviceAuthorization.class,
-            TokenResponse.class, OAuthError.class, OAuthMetadata.class);
+            TokenResponse.class, OAuthError.class, OAuthMetadata.class, Download.class, BodyModel.class, BodyPart.class,
+            BodyAnimation.class, BodyAnimations.class, BodyInfo.class);
 
     /** As the server writes them: nulls included, so that "null" and "missing" are both checked against the schemas. */
     static final Gson GSON = new GsonBuilder().serializeNulls().create();
@@ -96,6 +97,12 @@ class SchemaContractTest {
         valid(new JoiList(List.of(new JoiSummary("2f0c", "Joi", "2026-11-18T19:00:00Z"), new JoiSummary("88aa", "Kairo", null))));
         valid(new JoiInfo("2f0c", "Joi", "Peter", new Personality("warm", "Warm"), null, "Hey Joi", null, "Gemma", new Voice("Higgs", "C", "low and warm")));
         valid(new JoiInfo("2f0c", "Joi", "Peter", null, "cheerful", "Hey Joi", null, null, null));
+        Download joim = new Download("http://h/api/v1/models/m1/joim", "a".repeat(64), 120_000_000, "2026-11-19T12:00:00Z", true);
+        valid(new BodyInfo("b1", "Street", new BodyModel("m1", "Ryuu", joim), null,
+                List.of(new BodyPart("group:eyes", "eyes", "bare", "bare", true), new BodyPart("t1", "halo", null, null, false)),
+                "Silver hair.", new BodyAnimations(false, List.of(new BodyAnimation("a1", "Wave", null, true)),
+                new Download("http://h/api/v1/bodies/b1/joia", "b".repeat(64), 5000, "2026-11-19T12:00:00Z", false))));
+        valid(new BodyInfo("b1", null, new BodyModel("m1", null, null), null, List.of(), null, new BodyAnimations(true, List.of(), null)));
         valid(new ChatRequest("Hi!", null, null, null, null));
         valid(new ChatRequest("Hi!", false, true, true, "kitchen"));
         valid(new ChatReply("m1", "Hello.", null, "cheerful", "Gemma", audio, null, usage));
@@ -115,6 +122,8 @@ class SchemaContractTest {
     void invalidMessagesAreCaught() {
         assertThat(errors(ChatRequest.class, "{\"text\": \"\"}")).isNotEmpty();
         assertThat(errors(ChatRequest.class, "{\"speak\": true}")).isNotEmpty();
+        assertThat(errors(Download.class, "{\"url\": \"u\", \"sha256\": \"x\", \"size\": 1, \"writtenAt\": \"2026-11-19T12:00:00Z\", \"current\": true}"))
+                .isNotEmpty();
         assertThat(errors(ServerInfo.class, "{\"protocol\": \"one\", \"server\": \"s\", \"version\": \"v\", \"auth\": {\"methods\": [\"magic\"]}}"))
                 .isNotEmpty();
     }

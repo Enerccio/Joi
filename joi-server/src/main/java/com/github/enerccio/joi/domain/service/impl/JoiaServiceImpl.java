@@ -5,13 +5,16 @@ import com.github.enerccio.joi.domain.animations.VrmaFiles;
 import com.github.enerccio.joi.domain.bodies.ModelFiles;
 import com.github.enerccio.joi.domain.model.impl.Animation;
 import com.github.enerccio.joi.domain.model.impl.AnimationPack;
+import com.github.enerccio.joi.domain.model.impl.Body;
 import com.github.enerccio.joi.domain.service.AnimationPackService;
 import com.github.enerccio.joi.domain.service.AnimationService;
 import com.github.enerccio.joi.domain.service.AnimationService.UuidUse;
+import com.github.enerccio.joi.domain.service.BodyService;
 import com.github.enerccio.joi.domain.service.JoiaService;
 import com.github.enerccio.joi.domain.service.ModelService;
 import com.github.enerccio.joi.protocol.joia.JoiaFile;
 import com.github.enerccio.joi.protocol.joia.JoiaMetadata;
+import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -19,6 +22,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import java.io.File;
 import java.io.IOException;
 import java.io.OutputStream;
+import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -41,15 +45,25 @@ public class JoiaServiceImpl implements JoiaService {
     @Autowired
     private ModelService modelService;
 
+    @Autowired
+    private BodyService bodyService;
+
     @Override
     public String fileName(List<AnimationPack> animations) {
         return JoiaFile.fileName(animations.size() == 1 ? animations.getFirst().getName() : null);
     }
 
-    @Override
-    public void export(List<AnimationPack> animations, OutputStream out) throws Exception {
+    /**
+     * What a {@code .joia} of animations holds: the metadata (no time yet), the file of each clip in its order, and
+     * the fingerprint of both (a clip's file is a resource that never changes, so its id stands for its bytes).
+     */
+    private record Collected(JoiaMetadata meta, List<File> files, String fingerprint) {
+    }
+
+    private Collected collect(List<AnimationPack> animations) throws Exception {
         Map<String, JoiaMetadata.Clip> clips = new LinkedHashMap<>();
         Map<String, File> files = new HashMap<>();
+        StringBuilder resources = new StringBuilder();
         List<JoiaMetadata.Animation> exported = new ArrayList<>();
         for (AnimationPack animation : animations) {
             // only the user's own
@@ -70,18 +84,58 @@ public class JoiaServiceImpl implements JoiaService {
                     }
                     files.put(clip.getUuid(), file);
                     clips.put(clip.getUuid(), clip(clip));
+                    resources.append(clip.getUuid()).append('=').append(clip.getResource().getId()).append(';');
                 }
                 AnimationStep s = step.step();
                 steps.add(new JoiaMetadata.Step(clip.getUuid(), s.loop(), s.speedOrDefault(), s.inPlace()));
             }
             exported.add(new JoiaMetadata.Animation(stored.getUuid(), stored.getName(), stored.getDescription(), stored.getLoop(), steps));
         }
-        JoiaMetadata meta = new JoiaMetadata(exported, new ArrayList<>(clips.values()), Instant.now().toString());
+        JoiaMetadata meta = new JoiaMetadata(exported, new ArrayList<>(clips.values()), null);
         List<File> clipFiles = new ArrayList<>();
         for (String uuid : clips.keySet()) {
             clipFiles.add(files.get(uuid));
         }
-        JoiaFile.write(out, meta, clipFiles);
+        String fingerprint = DigestUtils.sha256Hex((meta.toJson() + "\n" + resources).getBytes(StandardCharsets.UTF_8));
+        return new Collected(meta, clipFiles, fingerprint);
+    }
+
+    private static JoiaMetadata exportedNow(JoiaMetadata meta) {
+        return new JoiaMetadata(meta.animations(), meta.clips(), Instant.now().toString());
+    }
+
+    @Override
+    public void export(List<AnimationPack> animations, OutputStream out) throws Exception {
+        Collected collected = collect(animations);
+        JoiaFile.write(out, exportedNow(collected.meta()), collected.files());
+    }
+
+    @Override
+    public boolean needsBodyExport(Body body) throws Exception {
+        Body stored = body.getId() == null ? null : bodyService.find(body.getId());
+        if (stored == null || stored.isDeleted()) {
+            return false;
+        }
+        Collected collected = collect(bodyService.animations(stored));
+        return !collected.fingerprint().equals(stored.getAnimationsFingerprint())
+                || (!collected.meta().animations().isEmpty() && bodyService.animationsFile(stored) == null);
+    }
+
+    @Override
+    public Body exportBody(Body body) throws Exception {
+        Body stored = bodyService.find(body.getId());
+        Collected collected = collect(bodyService.animations(stored));
+        if (collected.meta().animations().isEmpty()) {
+            return bodyService.linkAnimations(stored, null, collected.fingerprint(), null);
+        }
+        File out = ModelFiles.uploadFile(modelService.uploadFolder(), "body." + JoiaFile.EXTENSION);
+        try {
+            String hash = JoiaFile.write(out, exportedNow(collected.meta()), collected.files());
+            return bodyService.linkAnimations(stored, out, collected.fingerprint(), hash);
+        } catch (Exception e) {
+            FileUtils.deleteQuietly(out);
+            throw e;
+        }
     }
 
     private static JoiaMetadata.Clip clip(Animation clip) {

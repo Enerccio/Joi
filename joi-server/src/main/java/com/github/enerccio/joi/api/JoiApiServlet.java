@@ -7,10 +7,12 @@ import org.springframework.web.context.WebApplicationContext;
 import org.springframework.web.context.support.WebApplicationContextUtils;
 
 import java.io.ByteArrayOutputStream;
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Locale;
@@ -95,6 +97,15 @@ public class JoiApiServlet extends HttpServlet {
             headers.forEach(response::setHeader);
             response.setContentLength(body.length);
             response.getOutputStream().write(body);
+        }
+
+        @Override
+        public void file(int status, String contentType, File file, Map<String, String> headers) throws IOException {
+            response.setStatus(status);
+            response.setContentType(contentType);
+            headers.forEach(response::setHeader);
+            response.setContentLengthLong(file.length());
+            Files.copy(file.toPath(), response.getOutputStream());
         }
 
         @Override

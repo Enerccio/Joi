@@ -1,6 +1,7 @@
 package com.github.enerccio.joi.domain.service;
 
 import com.github.enerccio.joi.domain.model.impl.AnimationPack;
+import com.github.enerccio.joi.domain.model.impl.Body;
 
 import java.io.File;
 import java.io.IOException;
@@ -22,6 +23,20 @@ public interface JoiaService {
      * left out.
      */
     void export(List<AnimationPack> animations, OutputStream out) throws Exception;
+
+    /**
+     * Whether the body's {@code .joia} is not current: what a {@code .joia} of its animations holds changed since the
+     * last one (or it has animations and the file is gone).
+     */
+    boolean needsBodyExport(Body body) throws Exception;
+
+    /**
+     * Writes the {@code .joia} of the body's animations ({@code BodyService.animations}) and links it to the body, in
+     * place of the one before; a body with no animations is left with none.
+     *
+     * @return the saved body
+     */
+    Body exportBody(Body body) throws Exception;
 
     /**
      * What an import added.

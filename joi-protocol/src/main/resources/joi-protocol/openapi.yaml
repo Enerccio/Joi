@@ -1,10 +1,10 @@
 openapi: 3.1.0
 info:
   title: Joi API
-  version: "1.0"
+  version: "1.1"
   description: |
-    The HTTP API of a Joi server for nodes and other clients: the assistants of the user, and chat with one of them,
-    answered in text and speech. The message shapes are the JSON Schemas in `schemas/` (the source of truth); the Java
+    The HTTP API of a Joi server for nodes and other clients: the assistants of the user, chat with one of them,
+    answered in text and speech, and the body she is in with the files to show it (`.joim`, `.joia`). The message shapes are the JSON Schemas in `schemas/` (the source of truth); the Java
     records of `joi-protocol` follow them.
 
     **Auth.** `GET /api/v1` says what the server offers (`auth.methods`):
@@ -114,6 +114,70 @@ paths:
           content:
             application/json:
               schema: { $ref: "schemas/ApiError.schema.json" }
+  /api/v1/jois/{id}/body:
+    get:
+      summary: The body she is in, the state of its parts and its animations (since 1.1)
+      description: |
+        Her body now: its models (the full one and the one for the Looking Glass), each with its `.joim` to download;
+        the parts of the full model that can be switched, each in the state the body is in; how she looks; and the
+        animations the body plays, with their `.joia` (the animations and their clips, see `joia.md`).
+
+        A client caches the files by their `sha256` and downloads one again only when it changed. A file whose
+        `current` is false is older than what is set up: it is written again when the user exits its dialog.
+      parameters:
+        - { $ref: "#/components/parameters/JoiId" }
+      responses:
+        "200":
+          description: Her body
+          content:
+            application/json:
+              schema: { $ref: "schemas/BodyInfo.schema.json" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404":
+          description: "`not_found`: no such assistant; `no_body`: she is in no body"
+          content:
+            application/json:
+              schema: { $ref: "schemas/ApiError.schema.json" }
+  /api/v1/models/{id}/joim:
+    get:
+      summary: The .joim of a model of the user (since 1.1)
+      description: The model's VRM and what was decided on it, as `joim.md` describes; streamed.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: The id of the model (BodyModel.id)
+          schema: { type: string }
+        - { $ref: "#/components/parameters/IfNoneMatch" }
+      responses:
+        "200": { $ref: "#/components/responses/File" }
+        "304": { $ref: "#/components/responses/NotModified" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404":
+          description: "`not_found`: no such model, or it has no .joim yet"
+          content:
+            application/json:
+              schema: { $ref: "schemas/ApiError.schema.json" }
+  /api/v1/bodies/{id}/joia:
+    get:
+      summary: The .joia of a body's animations (since 1.1)
+      description: The animations the body plays with their clips, as `joia.md` describes; streamed.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: The id of the body (BodyInfo.id)
+          schema: { type: string }
+        - { $ref: "#/components/parameters/IfNoneMatch" }
+      responses:
+        "200": { $ref: "#/components/responses/File" }
+        "304": { $ref: "#/components/responses/NotModified" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404":
+          description: "`not_found`: no such body, or it has no .joia"
+          content:
+            application/json:
+              schema: { $ref: "schemas/ApiError.schema.json" }
   /oauth/device_authorization:
     post:
       summary: A device asks for its codes (RFC 8628, 3.1)
@@ -187,7 +251,25 @@ components:
       required: true
       description: The id of the assistant (JoiSummary.id)
       schema: { type: string }
+    IfNoneMatch:
+      name: If-None-Match
+      in: header
+      required: false
+      description: The ETag (the quoted sha256) of the copy the client has; 304 when it is still the file
+      schema: { type: string }
   responses:
+    File:
+      description: The file, with its ETag (the quoted sha256) and a Content-Disposition with its name
+      headers:
+        ETag: { schema: { type: string } }
+        Content-Disposition: { schema: { type: string } }
+      content:
+        application/x-joi-model:
+          schema: { type: string, format: binary, description: "A .joim" }
+        application/x-joi-animations:
+          schema: { type: string, format: binary, description: "A .joia" }
+    NotModified:
+      description: The client's copy is the file
     Unauthorized:
       description: "`unauthorized`: no valid credentials"
       content:

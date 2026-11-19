@@ -1,0 +1,34 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Enerccio/joi/protocol/v1/BodyAnimations.schema.json",
+  "title": "BodyAnimations",
+  "description": "The animations a body plays.",
+  "type": "object",
+  "properties": {
+    "all": {
+      "type": "boolean",
+      "description": "Whether it plays all of the user's animations (also those added later), else those chosen for it."
+    },
+    "animations": {
+      "type": "array",
+      "items": {
+        "$ref": "BodyAnimation.schema.json"
+      }
+    },
+    "joia": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "$ref": "Download.schema.json"
+        }
+      ],
+      "description": "The .joia of them with their clips, null when none was written or it has none."
+    }
+  },
+  "required": [
+    "all",
+    "animations"
+  ]
+}
