@@ -599,6 +599,20 @@ CREATE TABLE access_tokens
     refreshHash     varchar(64)
 );
 
+-- Model: a 3D model of a user (what a body is made of); its file is a resource.
+CREATE TABLE models
+(
+    id              bigint      not null primary key,
+    creation        timestamp,
+    is_deleted      boolean     not null,
+    modification    timestamp,
+    uuid            varchar(36) not null unique,
+    extendedContent blob,
+    _fulltext       clob,
+    userId          bigint,
+    resource_id     bigint      REFERENCES resources (id)
+);
+
 CREATE TABLE assistants_SEQ
 (
     next_val bigint
@@ -653,6 +667,13 @@ CREATE TABLE queued_events_SEQ
 );
 INSERT INTO queued_events_SEQ (next_val) VALUES (1);
 
+CREATE TABLE models_SEQ
+(
+    next_val bigint
+);
+INSERT INTO models_SEQ (next_val) VALUES (1);
+
+CREATE INDEX ix_models_user ON models (userId, is_deleted);
 CREATE INDEX ix_assistants_user ON assistants (userId, is_deleted);
 CREATE INDEX ix_chat_messages_joi ON chat_messages (joi_id, is_deleted, sentAt);
 CREATE INDEX ix_chat_messages_user ON chat_messages (userId, is_deleted);

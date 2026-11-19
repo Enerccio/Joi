@@ -92,3 +92,33 @@
     font-size: var(--lumo-font-size-xs);
 }
 
+.model-sidebar {
+    flex: 0 0 22rem;
+    max-width: 22rem;
+    overflow: auto;
+}
+
+.model-viewer {
+    flex: 1 1 auto;
+    min-width: 0;
+    min-height: 0;
+    height: 100%;
+    border-radius: var(--lumo-border-radius-l);
+    overflow: hidden;
+}
+
+.conversion-log {
+    max-height: 20rem;
+    overflow: auto;
+    margin: 0;
+    font-size: var(--lumo-font-size-xxs);
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+}
+
+.expression-buttons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--lumo-space-xs);
+}
+

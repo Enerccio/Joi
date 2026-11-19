@@ -115,6 +115,29 @@ public class JoiLocalizationBundleEN extends TextBundleBase<J_L> {
         setValue(J_L.LABEL_FIRST_ADMINISTRATOR, "the first administrator");
         setValue(J_L.LABEL_REASONING, "Reasoning");
         setValue(J_L.LABEL_EVENT, "Event");
+        setValue(J_L.LABEL_ADD_3D_MODEL, "Add model");
+        setValue(J_L.LABEL_NEW_3D_MODEL, "New model");
+        setValue(J_L.LABEL_3D_MODELS, "Models");
+        setValue(J_L.LABEL_FORMAT, "Format");
+        setValue(J_L.LABEL_MAIN_FILE, "Main file");
+        setValue(J_L.LABEL_FILES, "Files");
+        setValue(J_L.LABEL_UPLOAD_3D_MODEL, "Upload a model");
+        setValue(J_L.LABEL_REPLACE_3D_MODEL, "Replace the model");
+        setValue(J_L.LABEL_CONVERSION, "Conversion to VRM");
+        setValue(J_L.LABEL_AVATAR_FBX, "Avatar FBX");
+        setValue(J_L.LABEL_MAX_TEXTURE_SIZE, "Largest texture");
+        setValue(J_L.LABEL_MESHES, "Meshes");
+        setValue(J_L.LABEL_SHAPE_KEYS, "Shape keys");
+        setValue(J_L.LABEL_DROP_SHAPE_KEYS, "Shape keys to delete: names or parts of names, one per line");
+        setValue(J_L.LABEL_BAKE_SHAPE_KEYS, "Shape keys always on (mesh / key, one per line)");
+        setValue(J_L.LABEL_CONVERT, "Convert to VRM");
+        setValue(J_L.LABEL_CONVERT_AGAIN, "Convert again");
+        setValue(J_L.LABEL_LOG, "Log");
+        setValue(J_L.LABEL_PREVIEW_UPLOADED, "Uploaded");
+        setValue(J_L.LABEL_PREVIEW_CONVERTED, "Converted VRM");
+        setValue(J_L.LABEL_CAPABILITIES, "What it can do");
+        setValue(J_L.LABEL_EXPRESSIONS, "Expressions");
+        setValue(J_L.LABEL_TOGGLES, "Toggles");
 
         // --- ENUM ---
         setValue(J_L.ENUM_TEXT_LLM_TYPE_AUXILIARY, "Auxiliary");
@@ -196,6 +219,22 @@ public class JoiLocalizationBundleEN extends TextBundleBase<J_L> {
         setValue(J_L.MSG_API_OFF, "The administrator has turned off tokens and devices.");
         setValue(J_L.MSG_LOADING_EARLIER_MESSAGES, "Loading earlier messages…");
         setValue(J_L.MSG_NO_CHATS, "No chats yet.");
+        setValue(J_L.MSG_NO_3D_MODEL_FILE, "No file yet: upload the model.");
+        setValue(J_L.MSG_3D_MODEL_UPLOAD_HINT, "A .vrm or .glb is one file with everything inside. A model of several files (an .fbx or a .gltf with its textures) goes in one .zip. A VRChat avatar can be uploaded as its .unitypackage.");
+        setValue(J_L.MSG_NOT_A_3D_MODEL, "Not a model: upload a .vrm, .glb, .gltf, .fbx, or a .zip with one of them.");
+        setValue(J_L.MSG_3D_MODEL_UPLOADED, "The model is uploaded.");
+        setValue(J_L.MSG_CONVERTING, "Converting… this takes a few minutes; the dialog can be closed.");
+        setValue(J_L.MSG_CONVERTED, "Converted %s · %s");
+        setValue(J_L.MSG_CONVERSION_FAILED, "The conversion failed: %s");
+        setValue(J_L.MSG_MESHES_HINT, "Uncheck the meshes to leave out. They are known after the first conversion.");
+        setValue(J_L.MSG_PACKAGE_PREVIEW, "A Unity package is shown once it is converted.");
+        setValue(J_L.MSG_CONVERSION_SUMMARY, "%,d triangles · %d of %d materials matched (%d textured) · %d expressions · %d spring chains");
+        setValue(J_L.MSG_MISSING_BONES, "Bones not mapped: %s");
+        setValue(J_L.MSG_ALREADY_VRM, "Already a VRM: nothing to convert.");
+        setValue(J_L.MSG_NO_FBX, "Nothing to convert: the upload has no FBX.");
+        setValue(J_L.MSG_CAPABILITIES_HINT, "Click an expression to try it on the preview; uncheck a toggle to hide that part. The names are what she and you will call them.");
+        setValue(J_L.MSG_NO_CAPABILITIES, "Known once the model is a VRM: convert it, or upload a .vrm.");
+        setValue(J_L.MSG_HUMANOID_BONES, "%d humanoid bones");
 
         // --- DESC ---
         setValue(J_L.DESC_TEMPLATE_PERSONALITY, "The personality, rendered ({{user}} and {{char}} work in it).");

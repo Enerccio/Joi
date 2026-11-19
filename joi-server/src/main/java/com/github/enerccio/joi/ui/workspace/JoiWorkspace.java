@@ -3,6 +3,7 @@ package com.github.enerccio.joi.ui.workspace;
 import com.flowingcode.vaadin.addons.fontawesome.FontAwesome.Solid;
 import com.github.enerccio.joi.loc.J_L;
 import com.github.enerccio.joi.ui.workspace.parts.AIPart;
+import com.github.enerccio.joi.ui.workspace.parts.BodiesPart;
 import com.github.enerccio.joi.ui.workspace.parts.AdminPart;
 import com.github.enerccio.joi.ui.workspace.parts.JoisPart;
 import com.github.enerccio.joi.ui.workspace.parts.UserSettingsPart;
@@ -66,6 +67,7 @@ public class JoiWorkspace implements BaseWorkspace {
     private final Map<String, WorkspacePart> partsByKey = new LinkedHashMap<>();
     {
         partsByKey.put("jois", new JoisPart());
+        partsByKey.put("bodies", new BodiesPart());
         partsByKey.put("models", new AIPart());
         partsByKey.put("settings", new UserSettingsPart(this));
     }
@@ -96,6 +98,7 @@ public class JoiWorkspace implements BaseWorkspace {
         layout.add(tabs);
 
         addTab("jois", PartIcon.JOI, J_L.LABEL_JOIS);
+        addTab("bodies", PartIcon.BODIES, J_L.LABEL_BODIES);
         addTab("models", PartIcon.MODELS, J_L.LABEL_MODELS);
         addTab("settings", PartIcon.SETTINGS, J_L.LABEL_USER_SETTINGS);
         if (adminGuard.isAdmin()) {

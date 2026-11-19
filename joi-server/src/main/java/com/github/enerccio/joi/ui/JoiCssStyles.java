@@ -33,4 +33,13 @@ public final class JoiCssStyles {
     public static final String CHAT_MARKDOWN = "chat-markdown";
     /** When, which model, which node. */
     public static final String CHAT_META = "chat-meta";
+
+    /** The model dialog: the column of the fields beside the preview. */
+    public static final String MODEL_SIDEBAR = "model-sidebar";
+    /** The buttons that try the expressions of a model. */
+    public static final String EXPRESSION_BUTTONS = "expression-buttons";
+    /** The output of a conversion. */
+    public static final String CONVERSION_LOG = "conversion-log";
+    /** The 3D preview of a model. */
+    public static final String MODEL_VIEWER = "model-viewer";
 }

@@ -233,6 +233,20 @@
         <property name="repository" ref="queuedEventRepository" />
     </bean>
 
+    <!-- the 3D models of the user, what bodies are made of; their files are resources -->
+    <bean id="modelRepository" class="com.github.enerccio.joi.domain.repository.impl.JpaModelRepository">
+        <property name="entityManager" ref="em" />
+    </bean>
+    <bean class="com.github.enerccio.joi.domain.service.impl.ModelServiceImpl">
+        <property name="repository" ref="modelRepository" />
+    </bean>
+
+    <!-- converting an FBX to VRM with Blender (joi.blender = JOI_BLENDER, empty: Blender.app on macOS, else blender
+         on the PATH); one conversion at a time -->
+    <bean class="com.github.enerccio.joi.domain.service.impl.ModelConversionServiceImpl">
+        <property name="blender" value="${joi.blender:}" />
+    </bean>
+
     <!-- the API (joi-protocol): its credentials, what the administrator offers, the OAuth device grant, chat -->
     <bean id="accessTokenRepository" class="com.github.enerccio.joi.domain.repository.impl.JpaAccessTokenRepository">
         <property name="entityManager" ref="em" />
