@@ -437,9 +437,19 @@ public class AppearancePanel {
 
     /** Every toggle in its default state, for the viewer. */
     public static List<ModelViewer.Toggle> defaultToggles(Model model) {
+        return toggles(model, Map.of());
+    }
+
+    /**
+     * The toggles of the model for the viewer in a state.
+     *
+     * @param shown the toggle's id → whether it is shown; a toggle not in it is as by default
+     */
+    public static List<ModelViewer.Toggle> toggles(Model model, Map<String, Boolean> shown) {
         ModelCapabilities capabilities = ModelCapabilities.fromJson(model.getCapabilities());
         return capabilities == null ? List.of() : capabilities.toggles().stream()
-                .map(toggle -> new ModelViewer.Toggle(toggle.mesh(), toggle.key(), toggle.hides(), model.shownByDefault(toggle))).toList();
+                .map(toggle -> new ModelViewer.Toggle(toggle.mesh(), toggle.key(), toggle.hides(),
+                        shown.getOrDefault(toggle.id(), model.shownByDefault(toggle)))).toList();
     }
 
     private void takeSnapshots() {

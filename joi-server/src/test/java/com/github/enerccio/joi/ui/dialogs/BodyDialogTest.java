@@ -3,6 +3,8 @@ package com.github.enerccio.joi.ui.dialogs;
 import com.github.enerccio.joi.domain.bodies.ModelFiles;
 import com.github.enerccio.joi.domain.bodies.UnityFixtures;
 import com.github.enerccio.joi.domain.collections.ChatMessageType;
+import com.vaadin.flow.component.AbstractField;
+import com.vaadin.flow.component.ComponentUtil;
 import com.github.enerccio.joi.domain.events.JoiEvents;
 import com.github.enerccio.joi.domain.model.impl.Body;
 import com.github.enerccio.joi.domain.model.impl.ChatMessage;
@@ -173,5 +175,44 @@ class BodyDialogTest extends PlatformTestBase {
                 Expressions your face can show: happy.
                 Parts you can switch: golden halo (shown).
                 Your other bodies: Armor.""");
+    }
+
+    @Test
+    void switchingAPartChangesHowSheLooksAndTellsHer() throws Exception {
+        Model ryuu = vrm("Ryuu");
+        ryuu = modelService.find(ryuu.getId());
+        ryuu.getCapabilityNames().put("key:Headgear/Hide Halo", "golden halo");
+        ryuu.setAppearance("Silver hair, a black jacket.");
+        ryuu.getPartShown().put("key:Headgear/Hide Halo", "A golden halo floats above you.");
+        ryuu.getPartHidden().put("key:Headgear/Hide Halo", "Nothing floats above you now.");
+        ryuu = modelService.save(ryuu);
+        Body street = bodyService.create(joi, "Street");
+        street.setModel(ryuu);
+        street = bodyService.save(street);
+        chatted();
+
+        BodyDialog dialog = new BodyDialog(joi, street);
+        dialog.create();
+        var select = dialog.getPartSelect("key:Headgear/Hide Halo");
+        assertThat(select.getValue()).isEqualTo("shown");
+        assertThat(select.getItemLabelGenerator().apply("shown")).isEqualTo("shown (default)");
+        assertThat(dialog.getDescription().getValue()).isEqualTo("Silver hair, a black jacket.");
+
+        // as the user picks it in the browser
+        select.setValue("hidden");
+        ComponentUtil.fireEvent(select, new AbstractField.ComponentValueChangeEvent<>(select, select, "shown", true));
+        assertThat(dialog.getDescription().getValue()).isEqualTo("Silver hair, a black jacket. Nothing floats above you now.");
+        assertThat(bodyService.find(street.getId()).partStateMap()).containsEntry("key:Headgear/Hide Halo", "hidden");
+        assertThat(bodyService.prompt(joi)).contains("Parts you can switch: golden halo (hidden).")
+                .contains("Nothing floats above you now.");
+        assertThat(queuedEventService.findWaiting(joi)).extracting(QueuedEvent::getKind, QueuedEvent::getText)
+                .containsExactly(org.assertj.core.groups.Tuple.tuple(JoiEvents.PART_SWITCHED,
+                        "A part of you was switched: golden halo, now hidden. Nothing floats above you now."));
+
+        // back to the default: nothing stored, and she is told again; the same state again tells nothing
+        bodyService.switchPart(bodyService.find(street.getId()), "key:Headgear/Hide Halo", "shown");
+        assertThat(bodyService.find(street.getId()).getPartStates()).isNull();
+        assertThat(bodyService.switchPart(bodyService.find(street.getId()), "key:Headgear/Hide Halo", "shown")).isEmpty();
+        assertThat(queuedEventService.findWaiting(joi)).hasSize(2);
     }
 }

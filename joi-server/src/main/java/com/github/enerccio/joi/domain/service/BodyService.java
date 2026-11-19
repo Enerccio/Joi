@@ -49,6 +49,22 @@ public interface BodyService extends ExtendableService<Body, BodyRepository> {
     String appearance(Body body) throws Exception;
 
     /**
+     * Whether each toggle of the body's model is shown in the state the body is in ({@code BodyState}); empty when it
+     * has no model or the model has no capabilities.
+     */
+    java.util.Map<String, Boolean> toggles(Body body) throws Exception;
+
+    /**
+     * Switches a part of the body's model described apart ({@code DescribedPart}) to one of its states. When she is in
+     * the body, has chatted and the part changed, she is told (an event with the state's sentence).
+     *
+     * @param partId  the part's id ({@code DescribedPart.id})
+     * @param stateId the state's id
+     * @return the events queued, empty when none
+     */
+    List<QueuedEvent> switchPart(Body body, String partId, String stateId) throws Exception;
+
+    /**
      * The model's description changed: each assistant who is in a body of it and has chatted is told how she looks now.
      *
      * @return the events queued, empty when none

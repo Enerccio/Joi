@@ -1,6 +1,7 @@
 package com.github.enerccio.joi.ui.dialogs;
 
 import com.github.enerccio.joi.domain.bodies.Appearance;
+import com.github.enerccio.joi.domain.bodies.BodyState;
 import com.github.enerccio.joi.domain.bodies.DescribedPart;
 import com.github.enerccio.joi.domain.bodies.ModelCapabilities;
 import com.github.enerccio.joi.domain.model.impl.Body;
@@ -11,6 +12,8 @@ import com.github.enerccio.joi.domain.service.JoiService;
 import com.github.enerccio.joi.domain.service.ModelService;
 import com.github.enerccio.joi.loc.J_L;
 import com.github.enerccio.joi.ui.JoiCssStyles;
+import com.github.enerccio.joi.ui.widgets.EditorSplit;
+import com.github.enerccio.joi.ui.bodies.AppearancePanel;
 import com.github.enerccio.joi.ui.bodies.ModelViewer;
 import com.github.enerccio.marginalia.CssStyles;
 import com.github.enerccio.marginalia.loc.L;
@@ -20,6 +23,8 @@ import com.github.enerccio.marginalia.ui.widgets.ResizableTextArea;
 import com.github.enerccio.joi.ui.widgets.PromptAreas;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.dialog.Dialog;
+import com.vaadin.flow.component.html.Div;
+import com.vaadin.flow.component.html.H4;
 import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
@@ -33,12 +38,14 @@ import org.springframework.beans.factory.annotation.Configurable;
 
 import java.io.File;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
  * One body of an assistant ({@link Body}), full screen: on the left its name, its models (the full one and the one
  * for the Looking Glass, from the user's models with a VRM) and how she looks in it (the model's description, put
- * together for the state of the body: it is described and edited in the model's dialog); on the right the
+ * together for the state of the body: it is described and edited in the model's dialog), and the state of each part
+ * described apart, which the user switches (she is told); on the right the
  * {@link ModelViewer 3D preview} of either model. Changes are stored at once; a new body is stored once it gets a name
  * or a model (her first body is the one she is in).
  */
@@ -71,6 +78,10 @@ public class BodyDialog extends Dialog {
     private RadioButtonGroup<Boolean> previewChoice;
     private ModelViewer viewer;
     private Span previewInfo;
+    /** The choice of the state of each part described apart, by the part's id. */
+    private final Map<String, Select<String>> partSelects = new LinkedHashMap<>();
+    private Div parts;
+    private Span partsHint;
 
     /**
      * @param body the stored body, null for a new one
@@ -135,7 +146,14 @@ public class BodyDialog extends Dialog {
         ResizableTextArea.install(loc, description, PromptAreas.TEMPLATE_HEIGHT);
         description.setHelperText(loc.getValue(J_L.MSG_BODY_APPEARANCE_HINT));
 
-        VerticalLayout sidebar = new VerticalLayout(nameField, modelSelect, lookingGlassSelect, modelHint, capabilitiesInfo, description);
+        H4 partsTitle = new H4(loc.getValue(J_L.LABEL_BODY_PARTS));
+        partsHint = new Span();
+        partsHint.addClassName(CssStyles.HINT_TEXT);
+        parts = new Div();
+        parts.addClassName(JoiCssStyles.BODY_PARTS);
+
+        VerticalLayout sidebar = new VerticalLayout(nameField, modelSelect, lookingGlassSelect, modelHint, capabilitiesInfo, description,
+                partsTitle, partsHint, parts);
         sidebar.setPadding(false);
         sidebar.addClassName(JoiCssStyles.MODEL_SIDEBAR);
 
@@ -143,8 +161,10 @@ public class BodyDialog extends Dialog {
         viewer.setSizeFull();
         previewInfo = new Span();
         previewInfo.addClassName(CssStyles.HINT_TEXT);
-        viewer.addInfoListener(e -> previewInfo.setText(String.format("%,d triangles · %d meshes · %d materials",
-                e.getTriangles(), e.getMeshes(), e.getMaterials())));
+        viewer.addInfoListener(e -> {
+            previewInfo.setText(String.format("%,d triangles · %d meshes · %d materials", e.getTriangles(), e.getMeshes(), e.getMaterials()));
+            showState();
+        });
         viewer.addErrorListener(e -> previewInfo.setText(e.getMessage()));
         previewChoice = new RadioButtonGroup<>();
         previewChoice.setItems(false, true);
@@ -163,11 +183,7 @@ public class BodyDialog extends Dialog {
         previewColumn.addClassName(JoiCssStyles.MODEL_VIEWER);
         previewColumn.setFlexGrow(1, viewer);
 
-        HorizontalLayout content = new HorizontalLayout(sidebar, previewColumn);
-        content.setSizeFull();
-        content.setPadding(false);
-        content.setFlexGrow(1, previewColumn);
-        content.addClassName(CssStyles.OVERFLOW_HIDDEN);
+        com.vaadin.flow.component.splitlayout.SplitLayout content = EditorSplit.create(sidebar, previewColumn, "joi.body-dialog.split");
         add(content);
 
         Button exitButton = new Button(loc.getValue(L.LABEL_EXIT), e -> close());
@@ -215,6 +231,11 @@ public class BodyDialog extends Dialog {
                 body = bodyService.find(body.getId());
             }
             body.setName(StringUtils.defaultIfBlank(name, null));
+            Long before = body.getModel() == null ? null : body.getModel().getId();
+            if (!java.util.Objects.equals(before, modelId)) {
+                // the parts are the model's: another model starts as it comes
+                body.setPartStateMap(Map.of());
+            }
             body.setModel(modelId == null ? null : models.get(modelId));
             Long lookingGlassId = lookingGlassSelect.getValue();
             body.setLookingGlassModel(lookingGlassId == null ? null : models.get(lookingGlassId));
@@ -232,13 +253,87 @@ public class BodyDialog extends Dialog {
         capabilitiesInfo.setText(model == null ? loc.getValue(J_L.MSG_BODY_NO_MODEL)
                 : capabilities == null ? loc.getValue(J_L.MSG_NO_CAPABILITIES)
                 : String.format(loc.getValue(J_L.MSG_BODY_CAPABILITIES), capabilities.expressions().size(), DescribedPart.of(model, capabilities).size()));
-        description.setValue(StringUtils.defaultString(model == null ? null : Appearance.of(model)));
+        showParts(model, capabilities);
+        showDescription(model);
         boolean lookingGlass = lookingGlassSelect.getValue() != null;
         previewChoice.setVisible(lookingGlass);
         if (!lookingGlass) {
             previewChoice.setValue(false);
         }
         showPreview();
+    }
+
+    /** The states of the body's switched parts ({@code BodyState}), empty while a new body is not stored. */
+    private Map<String, String> partStates() {
+        return body == null ? Map.of() : body.partStateMap();
+    }
+
+    private void showDescription(Model model) {
+        description.setValue(StringUtils.defaultString(model == null ? null : Appearance.of(model, BodyState.toggles(model, partStates()))));
+    }
+
+    /** A choice of the state for each part of the model described apart. */
+    private void showParts(Model model, ModelCapabilities capabilities) {
+        parts.removeAll();
+        partSelects.clear();
+        List<DescribedPart> described = model == null ? List.of() : DescribedPart.of(model, capabilities);
+        partsHint.setText(loc.getValue(model == null ? J_L.MSG_BODY_NO_MODEL : described.isEmpty() ? J_L.MSG_BODY_NO_PARTS : J_L.MSG_BODY_PARTS_HINT));
+        Map<String, String> states = partStates();
+        for (DescribedPart part : described) {
+            Select<String> select = new Select<>();
+            select.setLabel(part.name());
+            select.setItems(part.states().stream().map(DescribedPart.State::id).toList());
+            select.setItemLabelGenerator(id -> stateLabel(part, BodyState.state(part, id)));
+            DescribedPart.State in = BodyState.stateOf(model, part, states);
+            select.setValue(in == null ? null : in.id());
+            select.addValueChangeListener(e -> {
+                if (e.isFromClient() && e.getValue() != null) {
+                    switchPart(model, part, e.getValue());
+                }
+            });
+            partSelects.put(part.id(), select);
+            parts.add(select);
+        }
+    }
+
+    private String stateLabel(DescribedPart part, DescribedPart.State state) {
+        if (state == null) {
+            return "";
+        }
+        String name = part.group() ? state.name()
+                : loc.getValue(DescribedPart.SHOWN.equals(state.id()) ? J_L.LABEL_PART_SHOWN : J_L.LABEL_PART_HIDDEN);
+        return part.isDefault(state) ? name + loc.getValue(J_L.LABEL_STATE_DEFAULT_SUFFIX) : name;
+    }
+
+    /** The user switched a part: stored (she is told when she is in the body), shown on the preview and in her look. */
+    private void switchPart(Model model, DescribedPart part, String stateId) {
+        try {
+            if (body == null) {
+                store();
+            }
+            if (body == null) {
+                return;
+            }
+            bodyService.switchPart(body, part.id(), stateId);
+            body = bodyService.find(body.getId());
+            showDescription(model);
+            showState();
+        } catch (Exception e) {
+            UIUtils.internalServerError(loc, e);
+        }
+    }
+
+    /** The preview of the full model in the state of the body (the Looking Glass one as it comes). */
+    private void showState() {
+        Model model = modelSelect.getValue() == null ? null : models.get(modelSelect.getValue());
+        if (model != null && !Boolean.TRUE.equals(previewChoice.getValue())) {
+            viewer.setToggles(AppearancePanel.toggles(model, BodyState.toggles(model, partStates())));
+        }
+    }
+
+    /** The choice of the state of a part, by the part's id, for tests. */
+    public Select<String> getPartSelect(String partId) {
+        return partSelects.get(partId);
     }
 
     private void showPreview() {

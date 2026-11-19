@@ -93,9 +93,30 @@
 }
 
 .model-sidebar {
-    flex: 0 0 22rem;
-    max-width: 22rem;
-    overflow: auto;
+    min-width: 18rem;
+    height: 100%;
+    overflow-x: hidden;
+    overflow-y: auto;
+    overflow-wrap: anywhere;
+    padding-right: var(--lumo-space-m);
+    box-sizing: border-box;
+}
+
+.body-parts {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(12rem, 1fr));
+    gap: 0 var(--lumo-space-m);
+    width: 100%;
+}
+
+.editor-split {
+    overflow: hidden;
+}
+
+.editor-split > .model-viewer {
+    min-width: 16rem;
+    padding-left: var(--lumo-space-s);
+    box-sizing: border-box;
 }
 
 .model-viewer {

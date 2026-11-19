@@ -142,6 +142,10 @@ public class JoiLocalizationBundleEN extends TextBundleBase<J_L> {
         setValue(J_L.MSG_NO_DEFAULT_STATE, "Mark the state she is in by default (the least covered reads best: blindfold off, so the blindfold is what changes). Until then the shots take the toggles' own defaults and every state's sentence is added to her look.");
         setValue(J_L.MSG_DEFAULT_STATE_HINT, "She is in this state by default: the shots show it and her description has it; the other states are described as what changes.");
         setValue(J_L.MSG_DESCRIBE_TOGGLE_HINT, "Described apart, shown and hidden, from close-ups: her description follows the part when it is switched.");
+        setValue(J_L.LABEL_BODY_PARTS, "Her parts");
+        setValue(J_L.MSG_BODY_PARTS_HINT, "The parts described apart in the model's dialog. Switching one changes how she looks; when she is in this body, she is told.");
+        setValue(J_L.MSG_BODY_NO_PARTS, "The model has no parts described apart: mark toggles to describe or make groups in the model's dialog.");
+        setValue(J_L.LABEL_STATE_DEFAULT_SUFFIX, " (default)");
         setValue(J_L.MSG_BODY_APPEARANCE_HINT, "The model's description, for the state of the body. Described and edited in the model's dialog (Bodies tab of the workspace).");
         setValue(J_L.LABEL_TAKE_SNAPSHOTS, "Take snapshots");
         setValue(J_L.LABEL_REFERENCE_IMAGES, "Your images");

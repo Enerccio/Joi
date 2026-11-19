@@ -34,12 +34,16 @@ public final class JoiCssStyles {
     /** When, which model, which node. */
     public static final String CHAT_META = "chat-meta";
 
-    /** The model dialog: the column of the fields beside the preview. */
+    /** The model and body dialogs: the column of the fields beside the preview. */
     public static final String MODEL_SIDEBAR = "model-sidebar";
+    /** The model and body dialogs: the split of the fields and the preview ({@code EditorSplit}). */
+    public static final String EDITOR_SPLIT = "editor-split";
     /** The buttons that try the expressions of a model. */
     public static final String EXPRESSION_BUTTONS = "expression-buttons";
     /** The output of a conversion. */
     public static final String CONVERSION_LOG = "conversion-log";
+    /** The body dialog: the choices of the state of each part. */
+    public static final String BODY_PARTS = "body-parts";
     /** The 3D preview of a model. */
     public static final String MODEL_VIEWER = "model-viewer";
     /** The thumbnails of a body's snapshots and images. */

@@ -48,6 +48,11 @@ public class Body extends ExtendableEntity {
     @Transient
     private String name;
 
+    /** The state of its model's parts that were switched, JSON ({@code BodyState}); null for all by default. */
+    @ExtendedAttribute
+    @Transient
+    private String partStates;
+
     public Joi getJoi() {
         return joi;
     }
@@ -86,6 +91,23 @@ public class Body extends ExtendableEntity {
 
     public void setName(String name) {
         this.name = name;
+    }
+
+    public String getPartStates() {
+        return partStates;
+    }
+
+    public void setPartStates(String partStates) {
+        this.partStates = partStates;
+    }
+
+    /** The part's id → the id of the state it was switched to ({@code BodyState}). */
+    public java.util.Map<String, String> partStateMap() {
+        return com.github.enerccio.joi.domain.bodies.BodyState.fromJson(partStates);
+    }
+
+    public void setPartStateMap(java.util.Map<String, String> states) {
+        this.partStates = com.github.enerccio.joi.domain.bodies.BodyState.toJson(states);
     }
 
 }

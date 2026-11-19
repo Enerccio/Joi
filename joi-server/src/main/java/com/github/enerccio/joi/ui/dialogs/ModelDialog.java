@@ -11,6 +11,7 @@ import com.github.enerccio.joi.domain.service.ModelConversionService;
 import com.github.enerccio.joi.domain.service.ModelService;
 import com.github.enerccio.joi.loc.J_L;
 import com.github.enerccio.joi.ui.JoiCssStyles;
+import com.github.enerccio.joi.ui.widgets.EditorSplit;
 import com.github.enerccio.joi.ui.bodies.AppearancePanel;
 import com.github.enerccio.joi.ui.bodies.ModelViewer;
 import com.github.enerccio.marginalia.CssStyles;
@@ -183,11 +184,7 @@ public class ModelDialog extends Dialog {
         previewColumn.addClassName(JoiCssStyles.MODEL_VIEWER);
         previewColumn.setFlexGrow(1, viewer);
 
-        HorizontalLayout body = new HorizontalLayout(sidebar, previewColumn);
-        body.setSizeFull();
-        body.setPadding(false);
-        body.setFlexGrow(1, previewColumn);
-        body.addClassName(CssStyles.OVERFLOW_HIDDEN);
+        com.vaadin.flow.component.splitlayout.SplitLayout body = EditorSplit.create(sidebar, previewColumn, "joi.model-dialog.split");
         add(body);
 
         Button exitButton = new Button(loc.getValue(L.LABEL_EXIT), e -> close());

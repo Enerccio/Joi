@@ -221,6 +221,18 @@ The state marked "default" is how she is by default; her description above alrea
         return "How you look in your body %s was described anew: %s".formatted(body, description.strip());
     }
 
+    /**
+     * A part of the body she is in was switched: what she calls the part, the name of its state now, whether the part
+     * is a group of toggles (with named states) rather than one toggle (shown or hidden), and how it looks now (null for
+     * not described).
+     */
+    public String eventPartSwitched(String part, String state, boolean group, String sentence) {
+        // "a part of you: eyes" reads for one part and for several ("your eyes was" would not)
+        String text = group ? "A part of you was switched: %s, now \"%s\".".formatted(part, state)
+                : "A part of you was switched: %s, now %s.".formatted(part, state);
+        return sentence == null || sentence.isBlank() ? text : text + " " + sentence.strip();
+    }
+
     /** The section of her system prompt about the body she is in ({@code BodyTemplateData}, the master's {@code {{#body}}}). */
     public String bodyPrompt() {
         return """

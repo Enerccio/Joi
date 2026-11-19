@@ -205,10 +205,9 @@ check) is in [MARGINALIA.md](MARGINALIA.md).
     "halo" by default) that the user can change, stored on the model by the toggle's id (`mesh:Scarf`,
     `key:Headgear/Hide Halo`), so the names survive a new conversion. They are read again when the dialog opens.
   - **The table** also shows the bodies a model is in ("Joi: Street"); a model in a body can't be deleted.
-  - **Next: the dialog's layout.** The model dialog's side column is cramped (toggle rows, groups, the appearance
-    section) while the 3D preview takes most of the width: make the column wider and put the two in a split layout
-    (Vaadin `SplitLayout`, the divider draggable, its position remembered), so the user can give the editing side
-    more room. The body dialog gets the same.
+  - **The dialogs' layout (built):** the model and body dialogs put the editing side and the 3D preview in a split
+    (`ui/widgets/EditorSplit`, a Vaadin `SplitLayout`, 40 % for the editing side at first); where the user leaves
+    the divider is kept in the browser per dialog (`JoiJavascriptLibrary.rememberSplit`, `localStorage`).
   - **Next steps** of the import (see Bodies below): prefab defaults (which toggles are on) and PhysBones → spring
     bones from the package.
   - **Export and import of a processed model (later):** one file in a unified format, for easy sharing: the
@@ -518,8 +517,8 @@ UI — nothing is deleted):
       (`body.described`) for each assistant in a body of that model.
     - **Her look now** is the description plus the sentence of each part off its default (`Appearance`):
       in her prompt, in the event of a switch, and later the answer of a `look_at_yourself` tool and the text of a
-      toggle event ("You took off your visor: your eyes are pale grey."), so she can react to it. The state comes
-      with the body state; until then each toggle is as the model comes.
+      toggle event ("You took off your visor: your eyes are pale grey."), so she can react to it. The state is the
+      body's (see *The body state* below).
     - **The default state (built):** the first box of each toggle row in the model dialog says whether the part is
       shown by default (stored on the model; a toggle not set is as the model comes). The preview shows the model so,
       the shots are taken so (each close-up switches only its part, the rest stays as by default), and a new body
@@ -549,7 +548,7 @@ UI — nothing is deleted):
     the body she is in, how she looks, the expressions she can show (moods and
     custom ones), the parts she can switch (only the parts described apart) with the names the user gave and the
     state they are in (a group's other states too), and
-    her other bodies. The tools to change them come with the body state (outfits, toggles).
+    her other bodies. Her tools to change them (`toggle_part`, `look_at_yourself`) come with the tool loop.
 - **Importing a body** is a guided step in the UI. Next to the model file the user gives what they have: their own
   description, screenshots (the creator's store page, in-world photos, their own renders), notes on what each toggle /
   outfit is. A multimodal LLM interprets all of it together with snapshots the renderer takes (front, three-quarter,
@@ -566,7 +565,15 @@ UI — nothing is deleted):
     outfit"), so she can react to it — comment, play along, or object and change it back.
   - **Joi** changes it herself with tools (`toggle_outfit`, `set_expression`, `switch_body`…) when she decides to — to
     match her mood, the conversation or a request — and the same state update reaches every display and the UI.
-  The renderer never owns the state; it only shows it. Toggles come from the model's capabilities (its meshes and
+  The renderer never owns the state; it only shows it.
+  - **The body state (built, the user's side):** a body keeps the state of each part described apart that is off its
+    default (`BodyState`, JSON on the body: the part's id → the state's id; a part not in it, or whose state is gone,
+    is in its default; the toggles in no part stay as by default). Another model on the body starts as it comes. The
+    body dialog's *Her parts* has a choice per part (a group's states, or shown / hidden; the default marked); a switch
+    is stored (`BodyService.switchPart`), the preview and her look follow, and when she is in the body and has chatted
+    she is told (`body.part_switched`: "A part of you was switched: eyes, now "blindfold"." and the state's sentence).
+    Her look (`Appearance`) and the parts in her prompt follow the body's state. The Looking Glass model is shown as it
+    comes for now. Next: her tools, and the nodes showing the state. Toggles come from the model's capabilities (its meshes and
   "hide X" shape keys, kept by the converter), but **only the described parts can be toggled** (the *Describe* box
   in the model's dialog): she can't change what she has no words for, and every toggle changes her look. The rest
   stay as the model comes, and are only tried on the preview. Her prompt and her tools list only the described parts.

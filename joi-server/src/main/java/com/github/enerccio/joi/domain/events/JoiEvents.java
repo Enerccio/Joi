@@ -24,6 +24,12 @@ public final class JoiEvents {
     /** How she looks in the body she is in was described anew (payload: {@code to}, the uuid of the body). */
     public static final String BODY_DESCRIBED = "body.described";
 
+    /**
+     * A part of the body she is in was switched (payload: {@code to}, the uuid of the body; {@code part}, the part's id;
+     * {@code fromState}, {@code toState}, the ids of the states; {@code by}, who switched it: {@code user}).
+     */
+    public static final String PART_SWITCHED = "body.part_switched";
+
     private JoiEvents() {
     }
 }

@@ -2,6 +2,7 @@ package com.github.enerccio.joi.domain.service.impl;
 
 import com.github.enerccio.joi.defaults.JoiDefaults;
 import com.github.enerccio.joi.domain.bodies.Appearance;
+import com.github.enerccio.joi.domain.bodies.BodyState;
 import com.github.enerccio.joi.domain.bodies.DescribedPart;
 import com.github.enerccio.joi.domain.bodies.ModelCapabilities;
 import com.github.enerccio.joi.domain.events.JoiEvents;
@@ -28,7 +29,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 
 public class BodyServiceImpl extends ExtendableServiceImpl<Body, BodyRepository> implements BodyService {
@@ -132,6 +135,10 @@ public class BodyServiceImpl extends ExtendableServiceImpl<Body, BodyRepository>
         JsonObject payload = new JsonObject();
         payload.addProperty("from", from);
         payload.addProperty("to", to);
+        return queue(joi, kind, text, payload);
+    }
+
+    private QueuedEvent queue(Joi joi, String kind, String text, JsonObject payload) throws Exception {
         QueuedEvent event = new QueuedEvent();
         event.setJoi(joi);
         event.setKind(kind);
@@ -145,8 +152,56 @@ public class BodyServiceImpl extends ExtendableServiceImpl<Body, BodyRepository>
     @CommonTxReadOnly
     public String appearance(Body body) throws Exception {
         Model model = body.getModel() == null ? null : modelService.find(body.getModel().getId());
-        // the state of the toggles comes with the body state; until then, as the model comes
-        return model == null || model.isDeleted() ? null : Appearance.of(model);
+        return model == null || model.isDeleted() ? null : Appearance.of(model, BodyState.toggles(model, body.partStateMap()));
+    }
+
+    /** The body's full model, null for none or a deleted one. */
+    private Model model(Body body) throws Exception {
+        Model model = body.getModel() == null ? null : modelService.find(body.getModel().getId());
+        return model == null || model.isDeleted() ? null : model;
+    }
+
+    @Override
+    @CommonTxReadOnly
+    public Map<String, Boolean> toggles(Body body) throws Exception {
+        Model model = model(body);
+        return model == null ? new LinkedHashMap<>() : BodyState.toggles(model, body.partStateMap());
+    }
+
+    @Override
+    @CommonTx
+    public List<QueuedEvent> switchPart(Body body, String partId, String stateId) throws Exception {
+        Body stored = find(body.getId());
+        Model model = model(stored);
+        ModelCapabilities capabilities = model == null ? null : ModelCapabilities.fromJson(model.getCapabilities());
+        DescribedPart part = model == null ? null : DescribedPart.of(model, capabilities).stream()
+                .filter(candidate -> candidate.id().equals(partId)).findFirst().orElse(null);
+        DescribedPart.State state = part == null ? null : BodyState.state(part, stateId);
+        if (state == null) {
+            throw new IllegalArgumentException("no such part or state: " + partId + " / " + stateId);
+        }
+        Map<String, String> states = stored.partStateMap();
+        DescribedPart.State before = BodyState.stateOf(model, part, states);
+        if (part.isDefault(state)) {
+            states.remove(part.id());
+        } else {
+            states.put(part.id(), state.id());
+        }
+        stored.setPartStateMap(states);
+        stored = save(stored);
+        List<QueuedEvent> events = new ArrayList<>();
+        if (stored.isActive() && (before == null || !before.id().equals(state.id())) && chatMessageService.hasAny(stored.getJoi())) {
+            JsonObject payload = new JsonObject();
+            payload.addProperty("to", stored.getUuid());
+            payload.addProperty("part", part.id());
+            payload.addProperty("fromState", before == null ? null : before.id());
+            payload.addProperty("toState", state.id());
+            payload.addProperty("by", "user");
+            String stateName = part.group() ? state.name() : DescribedPart.SHOWN.equals(state.id()) ? "shown" : "hidden";
+            events.add(queue(stored.getJoi(), JoiEvents.PART_SWITCHED,
+                    personaService.defaults().eventPartSwitched(part.name(), stateName, part.group(), part.sentence(model, state.id())), payload));
+        }
+        return events;
     }
 
     @Override
@@ -183,10 +238,10 @@ public class BodyServiceImpl extends ExtendableServiceImpl<Body, BodyRepository>
                     expressions.add(expression.name());
                 }
             }
-            // only the parts described apart can be switched; each in the state she is in (the body state comes later)
-            java.util.Map<String, Boolean> state = model.defaultShown(capabilities);
+            // only the parts described apart can be switched; each in the state the body is in
+            Map<String, String> states = active.partStateMap();
             for (DescribedPart part : DescribedPart.of(model, capabilities)) {
-                DescribedPart.State in = part.stateIn(state);
+                DescribedPart.State in = BodyState.stateOf(model, part, states);
                 if (part.group()) {
                     List<String> others = part.states().stream().filter(s -> s != in).map(DescribedPart.State::name).toList();
                     parts.add(part.name() + ": " + (in == null ? "?" : in.name()) + (others.isEmpty() ? "" : " (or " + String.join(", ", others) + ")"));
