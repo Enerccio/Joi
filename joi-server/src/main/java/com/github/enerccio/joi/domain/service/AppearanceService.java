@@ -53,11 +53,11 @@ public interface AppearanceService {
      * chatted is told how she looks now.
      *
      * @param toggleNames the toggle's id → the name, the ones the user kept
-     * @param parts       the toggle's id → its sentences, the ones the user kept
+     * @param parts       the part's id ({@code DescribedPart}) → the state's id → its sentence, the ones the user kept
      * @return the events queued, empty when none
      */
     List<QueuedEvent> apply(Model model, String description, Map<String, String> toggleNames,
-                            Map<String, AppearanceProposal.Part> parts) throws Exception;
+                            Map<String, Map<String, String>> parts) throws Exception;
 
     /** Forgets the proposal; returns the saved model. */
     Model discard(Model model) throws Exception;

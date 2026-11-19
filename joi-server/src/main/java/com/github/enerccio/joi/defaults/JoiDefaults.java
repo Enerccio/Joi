@@ -185,22 +185,23 @@ Improve it; keep what is right.
 {{.}}{{/currentDescription}}
 {{#toggles}}
 ===== THE TOGGLES =====
-number | mesh / key | name now | as the model comes
+number | mesh / key | name now | by default
 {{.}}{{/toggles}}
 
 Answer with one JSON object and nothing else:
 {"description": "...", "toggles": {"<toggle number>": "<name>", ...}}
 
-description: how she looks, in the second person ("You have long silver hair..."), in plain sentences, 80 to 200 words. Cover the build and height impression, the face, eyes and hair, the clothes and shoes, the accessories and anything unusual (ears, tail, horns, wings, markings). Describe what the images show; use the notes for what they can't show. Say nothing about the rendering itself (background, lighting, pose) and don't guess names or brands.{{#parts}} Leave these parts out, they are described apart because they can be taken off or hidden: {{.}}.{{/parts}}
+description: how she looks, in the second person ("You have long silver hair..."), in plain sentences, 80 to 200 words. Cover the build and height impression, the face, eyes and hair, the clothes and shoes, the accessories and anything unusual (ears, tail, horns, wings, markings). Describe what the images show; use the notes for what they can't show. Say nothing about the rendering itself (background, lighting, pose) and don't guess names or brands. Describe the avatar as the renders show it, which is how she is by default.{{#parts}} These parts can be switched and their other states are described apart, so describe them only as the renders show them: {{.}}.{{/parts}}
 
 toggles: for each toggle listed (by its number), a short name (one to three lowercase words) for the part it shows or hides, as she would call it ("halo", "left blade", "jacket"). Use the images and the names of the mesh and the key. Leave out a toggle you can't tell; keep a name {{user}} gave unless it is clearly wrong.
 """;
     }
 
-    /** The request for one toggle of a model, next to its close-ups shown and hidden ({@code PartImageTemplateData}). */
+    /** The request for one part of a model described apart, next to a close-up per state ({@code PartImageTemplateData}). */
     public String partImagePrompt() {
         return """
-You look at two close-ups of the same spot of a 3D avatar, "{{modelName}}", worn by an AI assistant as her body. A part of it can be shown or hidden: "{{partName}}" ({{partSource}}). The first image shows it shown, the second hidden.
+You look at close-ups of the same spot of a 3D avatar, "{{modelName}}", worn by an AI assistant as her body. A part of it can be switched: "{{partName}}" ({{partSource}}). Each image shows it in one state, in this order:
+{{states}}
 {{#appearance}}
 ===== HOW SHE LOOKS OTHERWISE =====
 {{.}}{{/appearance}}
@@ -208,11 +209,10 @@ You look at two close-ups of the same spot of a 3D avatar, "{{modelName}}", worn
 ===== {{user}}'S NOTES =====
 {{.}}{{/notes}}
 
-Answer with one JSON object and nothing else:
-{"shown": "...", "hidden": "..."}
+Answer with one JSON object and nothing else, a sentence for each state by its number:
+{"1": "...", "2": "..."}
 
-shown: one or two short sentences, in the second person, of how she looks there with the part shown ("A black visor with red markings covers your eyes.").
-hidden: the same with it hidden: what is there instead ("Your eyes are pale grey, with long lashes."), or that it is gone when nothing new shows. Describe only what the images show; say nothing about the rendering itself.
+The state marked "default" is how she is by default; her description above already has it. For it, one or two short sentences, in the second person, of how she looks there ("Your eyes are pale grey, with long lashes."). For each other state, what is different from the default, as news: what covers it or shows now ("A black visor with red markings covers your eyes."), or what is gone and what shows instead. When no state is marked, describe each as it is. Describe only what the images show; say nothing about the rendering itself.
 """;
     }
 
@@ -227,7 +227,7 @@ hidden: the same with it hidden: what is there instead ("Your eyes are pale grey
 You are in your body "{{bodyName}}".{{#if appearance}}
 {{appearance}}{{else}} Nobody has described how you look in it yet.{{/if}}{{#expressions}}
 Expressions your face can show: {{.}}.{{/expressions}}{{#parts}}
-Parts you can show or hide: {{.}}.{{/parts}}{{#otherBodies}}
+Parts you can switch: {{.}}.{{/parts}}{{#otherBodies}}
 Your other bodies: {{.}}.{{/otherBodies}}
 """;
     }

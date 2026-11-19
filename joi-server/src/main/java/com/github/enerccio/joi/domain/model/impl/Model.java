@@ -2,6 +2,7 @@ package com.github.enerccio.joi.domain.model.impl;
 
 import com.github.enerccio.joi.domain.collections.ConversionStatus;
 import com.github.enerccio.joi.domain.bodies.ModelCapabilities;
+import com.github.enerccio.joi.domain.bodies.ToggleGroup;
 import com.github.enerccio.joi.domain.collections.ModelFormat;
 import com.github.enerccio.joi.domain.collections.ProposalStatus;
 import com.github.enerccio.marginalia.domain.model.ExtendableEntity;
@@ -9,6 +10,9 @@ import com.github.enerccio.marginalia.domain.model.impl.Resource;
 import com.github.enerccio.marginalia.domain.traits.CleanupReference;
 import com.github.enerccio.marginalia.domain.traits.CleanupReference.Policy;
 import com.github.enerccio.marginalia.domain.traits.ExtendedAttribute;
+import com.google.gson.Gson;
+import com.google.gson.JsonParseException;
+import com.google.gson.reflect.TypeToken;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.JoinColumn;
@@ -223,6 +227,24 @@ public class Model extends ExtendableEntity {
     @ExtendedAttribute
     @Transient
     private String proposalProgress;
+
+    /**
+     * Which toggles are shown by default, the user's choice (JSON: the toggle's id → shown); a toggle not in it is as the
+     * model comes. The snapshots are taken in it and a new body comes in it.
+     */
+    @ExtendedAttribute
+    @Transient
+    private String defaultState;
+
+    /** The user's groups of toggles (JSON: {@code ToggleGroup}s), described as a whole. */
+    @ExtendedAttribute
+    @Transient
+    private String toggleGroups;
+
+    /** The sentences of the groups' states: {@code <group id>:<state id>} → the sentence. */
+    @ExtendedAttribute(inject = true, injectPrefix = "groupSentences")
+    @Transient
+    private Map<String, String> groupSentences = new LinkedHashMap<>();
 
     public String getCapabilities() {
         return capabilities;
@@ -535,6 +557,91 @@ public class Model extends ExtendableEntity {
 
     public void setProposalProgress(String proposalProgress) {
         this.proposalProgress = proposalProgress;
+    }
+
+    public String getDefaultState() {
+        return defaultState;
+    }
+
+    public void setDefaultState(String defaultState) {
+        this.defaultState = defaultState;
+    }
+
+    public String getToggleGroups() {
+        return toggleGroups;
+    }
+
+    public void setToggleGroups(String toggleGroups) {
+        this.toggleGroups = toggleGroups;
+    }
+
+    public Map<String, String> getGroupSentences() {
+        return groupSentences;
+    }
+
+    public void setGroupSentences(Map<String, String> groupSentences) {
+        this.groupSentences = groupSentences;
+    }
+
+    /** The user's groups of toggles. */
+    public List<ToggleGroup> toggleGroups() {
+        return ToggleGroup.listFromJson(toggleGroups);
+    }
+
+    /** The toggle's id → whether it is shown by default, as the user chose. */
+    public Map<String, Boolean> defaultStateMap() {
+        if (defaultState == null || defaultState.isBlank()) {
+            return new LinkedHashMap<>();
+        }
+        try {
+            Map<String, Boolean> read = new Gson().fromJson(defaultState, new TypeToken<LinkedHashMap<String, Boolean>>() {
+            }.getType());
+            return read == null ? new LinkedHashMap<>() : read;
+        } catch (JsonParseException e) {
+            return new LinkedHashMap<>();
+        }
+    }
+
+    public void setDefaultStateMap(Map<String, Boolean> state) {
+        this.defaultState = state == null || state.isEmpty() ? null : new Gson().toJson(state);
+    }
+
+    /**
+     * Whether the toggle is shown by default: as the default state of its group says, else as the user chose on the
+     * toggle, else as the model comes.
+     */
+    public boolean shownByDefault(ModelCapabilities.Toggle toggle) {
+        Boolean byGroup = groupDefault(toggleGroups(), toggle.id());
+        return byGroup != null ? byGroup : defaultStateMap().getOrDefault(toggle.id(), toggle.shown());
+    }
+
+    /** Every toggle's id → whether it is shown by default. */
+    public Map<String, Boolean> defaultShown(ModelCapabilities capabilities) {
+        Map<String, Boolean> chosen = defaultStateMap();
+        List<ToggleGroup> groups = toggleGroups();
+        Map<String, Boolean> state = new LinkedHashMap<>();
+        for (ModelCapabilities.Toggle toggle : capabilities == null ? List.<ModelCapabilities.Toggle>of() : capabilities.toggles()) {
+            Boolean byGroup = groupDefault(groups, toggle.id());
+            state.put(toggle.id(), byGroup != null ? byGroup : chosen.getOrDefault(toggle.id(), toggle.shown()));
+        }
+        return state;
+    }
+
+    /** What the default state of the toggle's group says of it; null when it is in no group or the group has no default. */
+    private static Boolean groupDefault(List<ToggleGroup> groups, String toggleId) {
+        for (ToggleGroup group : groups) {
+            if (group.toggles().contains(toggleId)) {
+                ToggleGroup.State state = group.defaultStateOf();
+                return state == null ? null : state.shown().get(toggleId);
+            }
+        }
+        return null;
+    }
+
+    /** What the toggle is called: the user's name, else its default name. */
+    public String toggleName(ModelCapabilities.Toggle toggle) {
+        String name = capabilityNames.get(toggle.id());
+        return name == null || name.isBlank() ? toggle.defaultName() : name;
     }
 
     /**

@@ -2,13 +2,13 @@ package com.github.enerccio.joi.ui.bodies;
 
 import com.flowingcode.vaadin.addons.fontawesome.FontAwesome.Solid;
 import com.github.enerccio.joi.domain.bodies.AppearanceProposal;
+import com.github.enerccio.joi.domain.bodies.DescribedPart;
 import com.github.enerccio.joi.domain.bodies.ModelCapabilities;
 import com.github.enerccio.joi.domain.bodies.ModelFiles;
 import com.github.enerccio.joi.domain.collections.ProposalStatus;
 import com.github.enerccio.joi.domain.model.impl.Model;
 import com.github.enerccio.joi.domain.service.AppearanceService;
 import com.github.enerccio.joi.domain.service.ModelService;
-import com.github.enerccio.joi.domain.service.impl.AppearanceServiceImpl;
 import com.github.enerccio.joi.loc.J_L;
 import com.github.enerccio.joi.ui.JoiCssStyles;
 import com.github.enerccio.marginalia.CssStyles;
@@ -51,10 +51,11 @@ import java.util.function.Supplier;
 /**
  * How she looks in a model (see {@code DESIGN.md} → Bodies, self-image), a section of the model dialog:
  * <ul>
- *     <li>the description of what never changes, and for each toggle described apart a sentence for shown and one for
- *     hidden, all editable (they are the model's, so every body of it and the export have them);</li>
- *     <li><i>Take snapshots</i>: the viewer renders the whole model and a close-up of each described toggle, shown and
- *     hidden; the user's images and notes;</li>
+ *     <li>the description of what never changes, and for each part described apart ({@link DescribedPart}: a group of
+ *     toggles, or a toggle) a sentence per state, all editable (they are the model's, so every body of it and the export
+ *     have them);</li>
+ *     <li><i>Take snapshots</i>: the viewer renders the whole model in its default state and a close-up of each part
+ *     described apart in each state; the user's images and notes;</li>
  *     <li><i>Propose a description</i>: {@link AppearanceService} asks a multimodal model, in the background; the
  *     proposal is reviewed here (edited, each name and part kept or not) before it is used.</li>
  * </ul>
@@ -110,9 +111,9 @@ public class AppearancePanel {
     private final Map<String, String> proposedNames = new LinkedHashMap<>();
     private final Map<String, Checkbox> partChoices = new LinkedHashMap<>();
     private final Map<String, TextArea[]> partAreas = new LinkedHashMap<>();
-    /** The snapshots the viewer sent, until it says they are all there; the close-ups' indexes → toggle ids. */
+    /** The snapshots the viewer sent, until it says they are all there; the close-ups' indexes → the parts. */
     private final Map<String, byte[]> pendingShots = new ConcurrentHashMap<>();
-    private final Map<Integer, String> pendingParts = new ConcurrentHashMap<>();
+    private final Map<Integer, DescribedPart> pendingParts = new ConcurrentHashMap<>();
     private Runnable stopListening = () -> {
     };
     private boolean loading;
@@ -252,7 +253,7 @@ public class AppearancePanel {
             showParts(capabilities);
 
             DateFormat format = DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT);
-            long closeUps = model.getSnapshots().keySet().stream().filter(shot -> shot.startsWith(AppearanceServiceImpl.PART_SHOT)).count();
+            long closeUps = model.getSnapshots().keySet().stream().filter(shot -> shot.startsWith(DescribedPart.SHOT)).count();
             snapshotInfo.setText(model.getSnapshots().isEmpty() || model.getSnapshotsAt() == null ? loc.getValue(J_L.MSG_NO_SNAPSHOTS)
                     : String.format(loc.getValue(J_L.MSG_SNAPSHOTS_TAKEN), format.format(model.getSnapshotsAt()), closeUps)
                     + (Objects.equals(hash, model.getSnapshotsHash()) ? "" : " " + loc.getValue(J_L.MSG_SNAPSHOTS_OUTDATED)));
@@ -281,24 +282,27 @@ public class AppearancePanel {
         }
     }
 
-    /** The sentences of the toggles described apart, editable. */
+    /** The sentences of the parts described apart, a text area per state, editable. */
     private void showParts(ModelCapabilities capabilities) {
         partRows.removeAll();
-        List<String> described = model.describedToggles(capabilities);
-        for (ModelCapabilities.Toggle toggle : capabilities == null ? List.<ModelCapabilities.Toggle>of() : capabilities.toggles()) {
-            if (!described.contains(toggle.id())) {
-                continue;
+        for (DescribedPart part : DescribedPart.of(model, capabilities)) {
+            for (DescribedPart.State state : part.states()) {
+                TextArea area = partArea(part.name() + " · " + stateName(part, state)
+                        + (part.isDefault(state) ? " · " + loc.getValue(J_L.LABEL_DEFAULT_STATE) : ""));
+                area.setValue(StringUtils.defaultString(part.sentence(model, state.id())));
+                area.addValueChangeListener(e -> edit(stored -> part.setSentence(stored, state.id(), e.getValue())));
+                partRows.add(area);
             }
-            String id = toggle.id();
-            TextArea shown = partArea(name(toggle) + " · " + loc.getValue(J_L.LABEL_PART_SHOWN));
-            shown.setValue(StringUtils.defaultString(model.getPartShown().get(id)));
-            shown.addValueChangeListener(e -> edit(stored -> put(stored.getPartShown(), id, e.getValue())));
-            TextArea hidden = partArea(name(toggle) + " · " + loc.getValue(J_L.LABEL_PART_HIDDEN));
-            hidden.setValue(StringUtils.defaultString(model.getPartHidden().get(id)));
-            hidden.addValueChangeListener(e -> edit(stored -> put(stored.getPartHidden(), id, e.getValue())));
-            partRows.add(shown, hidden);
         }
         partRows.setVisible(partRows.getComponentCount() > 0);
+    }
+
+    /** What a state is called here: "shown" / "hidden" for a toggle (localized), the user's name for a group's. */
+    private String stateName(DescribedPart part, DescribedPart.State state) {
+        if (part.group()) {
+            return state.name();
+        }
+        return loc.getValue(DescribedPart.SHOWN.equals(state.id()) ? J_L.LABEL_PART_SHOWN : J_L.LABEL_PART_HIDDEN);
     }
 
     /** A text area for a sentence of a part: small, growing to its text on demand. */
@@ -309,16 +313,8 @@ public class AppearancePanel {
         return area;
     }
 
-    private static void put(Map<String, String> sentences, String id, String sentence) {
-        if (StringUtils.isBlank(sentence)) {
-            sentences.remove(id);
-        } else {
-            sentences.put(id, sentence.strip());
-        }
-    }
-
     private String name(ModelCapabilities.Toggle toggle) {
-        return StringUtils.defaultIfBlank(model.getCapabilityNames().get(toggle.id()), toggle.defaultName());
+        return model.toggleName(toggle);
     }
 
     /** A thumbnail of an image of the model, with a button that removes it when it can be removed. */
@@ -347,18 +343,19 @@ public class AppearancePanel {
         into.add(item);
     }
 
-    /** What a shot shows: "full front", or the toggle's name and its state for a close-up. */
+    /** What a shot shows: "full front", or the part's name and its state for a close-up. */
     private String label(String shot) {
-        if (!shot.startsWith(AppearanceServiceImpl.PART_SHOT)) {
+        if (!shot.startsWith(DescribedPart.SHOT)) {
             return shot.replace('-', ' ');
         }
-        String rest = shot.substring(AppearanceServiceImpl.PART_SHOT.length());
-        int state = rest.lastIndexOf(':');
-        String id = rest.substring(0, state);
-        ModelCapabilities capabilities = ModelCapabilities.fromJson(model.getCapabilities());
-        String name = capabilities == null ? id : capabilities.toggles().stream().filter(t -> t.id().equals(id)).findFirst()
-                .map(this::name).orElse(id);
-        return name + " · " + loc.getValue(rest.endsWith(":shown") ? J_L.LABEL_PART_SHOWN : J_L.LABEL_PART_HIDDEN);
+        for (DescribedPart part : DescribedPart.of(model, ModelCapabilities.fromJson(model.getCapabilities()))) {
+            for (DescribedPart.State state : part.states()) {
+                if (part.shot(state.id()).equals(shot)) {
+                    return part.name() + " · " + stateName(part, state);
+                }
+            }
+        }
+        return shot.substring(DescribedPart.SHOT.length());
     }
 
     /** The status of the request, and the proposal to review when there is one. */
@@ -401,33 +398,48 @@ public class AppearancePanel {
                 proposedNames.put(toggle.id(), proposed);
                 proposedToggles.add(choice);
             }
-            AppearanceProposal.Part part = proposal.parts().get(toggle.id());
-            if (part != null) {
-                Checkbox use = new Checkbox(StringUtils.defaultIfBlank(proposed, current), true);
-                TextArea shown = partArea(loc.getValue(J_L.LABEL_PART_SHOWN));
-                shown.setValue(part.shown());
-                TextArea hidden = partArea(loc.getValue(J_L.LABEL_PART_HIDDEN));
-                hidden.setValue(part.hidden());
-                partChoices.put(toggle.id(), use);
-                partAreas.put(toggle.id(), new TextArea[]{shown, hidden});
-                proposedParts.add(use, shown, hidden);
+        }
+        for (DescribedPart part : DescribedPart.of(model, capabilities)) {
+            Map<String, String> sentences = proposal.parts().get(part.id());
+            if (sentences == null) {
+                continue;
             }
+            String proposed = part.group() ? null : proposal.toggles().get(part.id());
+            Checkbox use = new Checkbox(StringUtils.defaultIfBlank(proposed, part.name()), true);
+            proposedParts.add(use);
+            List<TextArea> areas = new ArrayList<>();
+            for (DescribedPart.State state : part.states()) {
+                TextArea area = partArea(stateName(part, state));
+                area.setValue(StringUtils.defaultString(sentences.get(state.id())));
+                areas.add(area);
+                proposedParts.add(area);
+            }
+            partChoices.put(part.id(), use);
+            partAreas.put(part.id(), areas.toArray(TextArea[]::new));
         }
     }
 
-    /** The toggles the close-ups are of, in the order given to the viewer. */
+    /** The parts the close-ups are of, in the order given to the viewer. */
     private List<ModelViewer.Part> parts() {
         ModelCapabilities capabilities = ModelCapabilities.fromJson(model.getCapabilities());
-        List<String> described = model.describedToggles(capabilities);
         List<ModelViewer.Part> parts = new ArrayList<>();
         pendingParts.clear();
-        for (ModelCapabilities.Toggle toggle : capabilities == null ? List.<ModelCapabilities.Toggle>of() : capabilities.toggles()) {
-            if (described.contains(toggle.id())) {
-                pendingParts.put(parts.size(), toggle.id());
-                parts.add(new ModelViewer.Part(parts.size(), toggle.mesh(), toggle.key(), toggle.hides()));
-            }
+        for (DescribedPart part : DescribedPart.of(model, capabilities)) {
+            List<ModelViewer.Toggle> toggles = part.toggles().stream()
+                    .map(toggle -> new ModelViewer.Toggle(toggle.mesh(), toggle.key(), toggle.hides(), null)).toList();
+            List<List<Boolean>> states = part.states().stream()
+                    .map(state -> part.toggles().stream().map(toggle -> state.shown().getOrDefault(toggle.id(), true)).toList()).toList();
+            pendingParts.put(parts.size(), part);
+            parts.add(new ModelViewer.Part(parts.size(), toggles, states));
         }
         return parts;
+    }
+
+    /** Every toggle in its default state, for the viewer. */
+    public static List<ModelViewer.Toggle> defaultToggles(Model model) {
+        ModelCapabilities capabilities = ModelCapabilities.fromJson(model.getCapabilities());
+        return capabilities == null ? List.of() : capabilities.toggles().stream()
+                .map(toggle -> new ModelViewer.Toggle(toggle.mesh(), toggle.key(), toggle.hides(), model.shownByDefault(toggle))).toList();
     }
 
     private void takeSnapshots() {
@@ -435,7 +447,7 @@ public class AppearancePanel {
         pendingShots.clear();
         snapshotButton.setEnabled(false);
         viewer.takeSnapshots(UploadHandler.inMemory((metadata, bytes) ->
-                pendingShots.put(StringUtils.removeEndIgnoreCase(metadata.fileName(), ".jpg"), bytes)), parts());
+                pendingShots.put(StringUtils.removeEndIgnoreCase(metadata.fileName(), ".jpg"), bytes)), defaultToggles(model), parts());
     }
 
     private void snapshotsTaken() {
@@ -447,11 +459,12 @@ public class AppearancePanel {
                     shots.put(shot, pendingShots.get(shot));
                 }
             }
-            for (Map.Entry<Integer, String> part : new java.util.TreeMap<>(pendingParts).entrySet()) {
-                for (boolean shown : new boolean[]{true, false}) {
-                    byte[] image = pendingShots.get("part-" + part.getKey() + (shown ? "-shown" : "-hidden"));
+            for (Map.Entry<Integer, DescribedPart> part : new java.util.TreeMap<>(pendingParts).entrySet()) {
+                List<DescribedPart.State> states = part.getValue().states();
+                for (int i = 0; i < states.size(); i++) {
+                    byte[] image = pendingShots.get("part-" + part.getKey() + "-" + i);
                     if (image != null) {
-                        shots.put(AppearanceServiceImpl.partShot(part.getValue(), shown), image);
+                        shots.put(part.getValue().shot(states.get(i).id()), image);
                     }
                 }
             }
@@ -465,7 +478,7 @@ public class AppearancePanel {
         }
     }
 
-    /** For tests: the viewer sent the snapshots (the close-ups named {@code part-<index>-shown}). */
+    /** For tests: the viewer sent the snapshots (the close-ups named {@code part-<index>-<state index>}). */
     public void snapshotsTakenForTest(Map<String, byte[]> shots) {
         parts();
         pendingShots.putAll(shots);
@@ -533,11 +546,18 @@ public class AppearancePanel {
                     names.put(choice.getKey(), proposedNames.get(choice.getKey()));
                 }
             }
-            Map<String, AppearanceProposal.Part> parts = new LinkedHashMap<>();
+            Map<String, Map<String, String>> parts = new LinkedHashMap<>();
+            Map<String, DescribedPart> described = new LinkedHashMap<>();
+            DescribedPart.of(model, ModelCapabilities.fromJson(model.getCapabilities())).forEach(part -> described.put(part.id(), part));
             for (Map.Entry<String, Checkbox> choice : partChoices.entrySet()) {
-                if (choice.getValue().getValue()) {
+                DescribedPart part = described.get(choice.getKey());
+                if (choice.getValue().getValue() && part != null) {
                     TextArea[] areas = partAreas.get(choice.getKey());
-                    parts.put(choice.getKey(), new AppearanceProposal.Part(areas[0].getValue(), areas[1].getValue()));
+                    Map<String, String> sentences = new LinkedHashMap<>();
+                    for (int i = 0; i < areas.length && i < part.states().size(); i++) {
+                        sentences.put(part.states().get(i).id(), areas[i].getValue());
+                    }
+                    parts.put(choice.getKey(), sentences);
                 }
             }
             appearanceService.apply(model, proposedDescription.getValue(), names, parts);
@@ -567,7 +587,7 @@ public class AppearancePanel {
         return toggleChoices;
     }
 
-    /** The proposed sentences of the parts (by the toggle's id: shown, hidden), for tests. */
+    /** The proposed sentences of the parts (by the part's id: one per state, in order; shown, hidden for a toggle), for tests. */
     public Map<String, TextArea[]> getPartAreas() {
         return partAreas;
     }

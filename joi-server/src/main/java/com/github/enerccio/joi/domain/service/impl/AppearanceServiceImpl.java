@@ -1,6 +1,7 @@
 package com.github.enerccio.joi.domain.service.impl;
 
 import com.github.enerccio.joi.domain.bodies.AppearanceProposal;
+import com.github.enerccio.joi.domain.bodies.DescribedPart;
 import com.github.enerccio.joi.domain.bodies.ModelCapabilities;
 import com.github.enerccio.joi.domain.collections.ProposalStatus;
 import com.github.enerccio.joi.domain.model.impl.Model;
@@ -65,8 +66,8 @@ public class AppearanceServiceImpl implements AppearanceService, DisposableBean 
     static final int MAX_IMAGE_SIDE = 1568;
     /** How long the model may take for one request. */
     static final long TIMEOUT_MINUTES = 10;
-    /** The prefix of the snapshots of a toggle: {@code part:<toggle id>:shown} / {@code :hidden}. */
-    public static final String PART_SHOT = "part:";
+    /** The prefix of the close-ups of a part: {@code part:<the part's id>:<the state's id>}. */
+    public static final String PART_SHOT = DescribedPart.SHOT;
 
     @Autowired
     private ModelService modelService;
@@ -97,9 +98,9 @@ public class AppearanceServiceImpl implements AppearanceService, DisposableBean 
     private final Set<Long> running = ConcurrentHashMap.newKeySet();
     private final Map<Long, List<Listener>> listeners = new ConcurrentHashMap<>();
 
-    /** The name of the snapshot of a toggle in a state. */
+    /** The name of the close-up of a toggle (described alone) in a state. */
     public static String partShot(String toggleId, boolean shown) {
-        return PART_SHOT + toggleId + (shown ? ":shown" : ":hidden");
+        return PART_SHOT + toggleId + ":" + (shown ? DescribedPart.SHOWN : DescribedPart.HIDDEN);
     }
 
     @Override
@@ -174,7 +175,7 @@ public class AppearanceServiceImpl implements AppearanceService, DisposableBean 
         });
     }
 
-    /** Asks for the whole model, then for each toggle described apart, and stores the proposal, or the error. */
+    /** Asks for the whole model, then for each part described apart, and stores the proposal, or the error. */
     Model run(Long id) throws Exception {
         Model model = modelService.find(id);
         try {
@@ -184,14 +185,14 @@ public class AppearanceServiceImpl implements AppearanceService, DisposableBean 
             }
             ModelCapabilities capabilities = ModelCapabilities.fromJson(model.getCapabilities());
             List<ModelCapabilities.Toggle> toggles = capabilities == null ? List.of() : capabilities.toggles();
-            List<String> described = model.describedToggles(capabilities);
+            List<DescribedPart> described = DescribedPart.of(model, capabilities);
             int total = 1 + described.size();
             progress(id, 0, total);
 
             List<String> lines = new ArrayList<>();
             for (ModelCapabilities.Toggle toggle : toggles) {
                 // numbered: a small model repeats a number more reliably than an id like "key:Body/Hide Blade L"
-                lines.add((lines.size() + 1) + " | " + source(toggle) + " | " + name(model, toggle) + " | " + (toggle.shown() ? "shown" : "hidden"));
+                lines.add((lines.size() + 1) + " | " + source(toggle) + " | " + name(model, toggle) + " | " + (model.shownByDefault(toggle) ? "shown" : "hidden"));
             }
             LLMChatMessage request = LLMChatMessage.of(LLMRole.USER, null);
             List<String> shots = new ArrayList<>();
@@ -217,8 +218,7 @@ public class AppearanceServiceImpl implements AppearanceService, DisposableBean 
             data.setNotes(StringUtils.defaultIfBlank(model.getNotes(), null));
             data.setCurrentDescription(StringUtils.defaultIfBlank(model.getAppearance(), null));
             data.setToggles(lines.isEmpty() ? null : String.join("\n", lines));
-            Model asked = model;
-            List<String> partNames = toggles.stream().filter(t -> described.contains(t.id())).map(t -> name(asked, t)).toList();
+            List<String> partNames = described.stream().map(DescribedPart::name).toList();
             data.setParts(partNames.isEmpty() ? null : String.join(", ", partNames));
             request.setContent(personaService.render(JoiPromptField.SELF_IMAGE_PROMPT, data));
 
@@ -233,32 +233,36 @@ public class AppearanceServiceImpl implements AppearanceService, DisposableBean 
                 }
             }
 
-            Map<String, AppearanceProposal.Part> parts = new LinkedHashMap<>();
+            Map<String, Map<String, String>> parts = new LinkedHashMap<>();
             int step = 1;
-            for (ModelCapabilities.Toggle toggle : toggles) {
-                if (!described.contains(toggle.id())) {
-                    continue;
-                }
+            for (DescribedPart describedPart : described) {
                 progress(id, step++, total);
-                File shown = modelService.imageFile(model, model.getSnapshots().get(partShot(toggle.id(), true)));
-                File hidden = modelService.imageFile(model, model.getSnapshots().get(partShot(toggle.id(), false)));
-                if (shown == null || hidden == null) {
-                    log.info("The appearance of model {}: no close-ups of {}", id, toggle.id());
+                List<File> closeUps = new ArrayList<>();
+                List<String> states = new ArrayList<>();
+                for (DescribedPart.State state : describedPart.states()) {
+                    closeUps.add(modelService.imageFile(model, model.getSnapshots().get(describedPart.shot(state.id()))));
+                    states.add((states.size() + 1) + " | " + describedPart.stateLine(model, state) + (describedPart.isDefault(state) ? " (default)" : ""));
+                }
+                if (closeUps.contains(null)) {
+                    log.info("The appearance of model {}: no close-ups of {}", id, describedPart.id());
                     continue;
                 }
                 PartImageTemplateData part = new PartImageTemplateData();
                 part.setModelName(data.getModelName());
-                part.setPartName(StringUtils.defaultIfBlank(names.get(toggle.id()), name(model, toggle)));
-                part.setPartSource(source(toggle));
+                String toggleName = describedPart.group() ? null : names.get(describedPart.id());
+                part.setPartName(StringUtils.defaultIfBlank(toggleName, describedPart.name()));
+                part.setPartSource(describedPart.source());
+                part.setStates(String.join("\n", states));
                 part.setAppearance(whole.description());
                 part.setNotes(data.getNotes());
                 LLMChatMessage partRequest = LLMChatMessage.of(LLMRole.USER, personaService.render(JoiPromptField.PART_IMAGE_PROMPT, part));
-                partRequest.addAttachment(image(shown, "shown.jpg"));
-                partRequest.addAttachment(image(hidden, "hidden.jpg"));
+                for (int i = 0; i < closeUps.size(); i++) {
+                    partRequest.addAttachment(image(closeUps.get(i), "state-" + (i + 1) + ".jpg"));
+                }
                 try {
-                    parts.put(toggle.id(), AppearanceProposal.parsePart(ask(ai, List.of(partRequest))));
+                    parts.put(describedPart.id(), AppearanceProposal.parsePart(ask(ai, List.of(partRequest)), describedPart));
                 } catch (IllegalArgumentException e) {
-                    log.info("The appearance of model {}: {} was not described: {}", id, toggle.id(), e.getMessage());
+                    log.info("The appearance of model {}: {} was not described: {}", id, describedPart.id(), e.getMessage());
                 }
             }
 
@@ -408,7 +412,7 @@ public class AppearanceServiceImpl implements AppearanceService, DisposableBean 
 
     @Override
     public List<QueuedEvent> apply(Model model, String description, Map<String, String> toggleNames,
-                                   Map<String, AppearanceProposal.Part> parts) throws Exception {
+                                   Map<String, Map<String, String>> parts) throws Exception {
         Model stored = modelService.find(model.getId());
         stored.setAppearance(StringUtils.defaultIfBlank(StringUtils.strip(description), null));
         ModelCapabilities capabilities = ModelCapabilities.fromJson(stored.getCapabilities());
@@ -421,10 +425,11 @@ public class AppearanceServiceImpl implements AppearanceService, DisposableBean 
                     stored.getCapabilityNames().put(toggle.id(), name);
                 }
             }
-            AppearanceProposal.Part part = parts.get(toggle.id());
-            if (part != null) {
-                put(stored.getPartShown(), toggle.id(), part.shown());
-                put(stored.getPartHidden(), toggle.id(), part.hidden());
+        }
+        for (DescribedPart part : DescribedPart.of(stored, capabilities)) {
+            Map<String, String> sentences = parts.get(part.id());
+            if (sentences != null) {
+                sentences.forEach((state, sentence) -> part.setSentence(stored, state, sentence));
             }
         }
         stored.setDescribedHash(stored.getSnapshotsHash());
@@ -433,14 +438,6 @@ public class AppearanceServiceImpl implements AppearanceService, DisposableBean 
         stored.setProposalError(null);
         Model saved = modelService.save(stored);
         return bodyService.modelDescribed(saved);
-    }
-
-    private static void put(Map<String, String> sentences, String id, String sentence) {
-        if (StringUtils.isBlank(sentence)) {
-            sentences.remove(id);
-        } else {
-            sentences.put(id, sentence.strip());
-        }
     }
 
     @Override

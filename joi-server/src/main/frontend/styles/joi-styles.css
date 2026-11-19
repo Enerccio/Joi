@@ -143,3 +143,23 @@
     top: 0;
     right: 0;
 }
+
+.toggle-group {
+    border: 1px solid var(--lumo-contrast-10pct);
+    border-radius: var(--lumo-border-radius-m);
+    padding: var(--lumo-space-s);
+    margin-bottom: var(--lumo-space-s);
+}
+
+.toggle-group-states {
+    display: flex;
+    flex-direction: column;
+}
+
+.toggle-group-state {
+    flex-wrap: wrap;
+}
+
+.toggle-group-state vaadin-text-field {
+    width: 9rem;
+}

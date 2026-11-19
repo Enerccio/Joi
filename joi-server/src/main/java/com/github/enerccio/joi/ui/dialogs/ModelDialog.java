@@ -113,6 +113,7 @@ public class ModelDialog extends Dialog {
     };
     private boolean loading;
     private AppearancePanel appearancePanel;
+    private com.github.enerccio.joi.ui.bodies.ToggleGroupsPanel groupsPanel;
 
     public ModelDialog(Model model) {
         this.model = model;
@@ -159,9 +160,12 @@ public class ModelDialog extends Dialog {
 
         viewer = new ModelViewer();
         viewer.setSizeFull();
-        viewer.addInfoListener(e -> previewInfo.setText(
-                (e.getVrm() == null ? "" : "VRM " + e.getVrm() + " · " + e.getExpressions() + " expressions · ")
-                        + String.format("%,d triangles · %d meshes · %d materials", e.getTriangles(), e.getMeshes(), e.getMaterials())));
+        viewer.addInfoListener(e -> {
+            previewInfo.setText((e.getVrm() == null ? "" : "VRM " + e.getVrm() + " · " + e.getExpressions() + " expressions · ")
+                    + String.format("%,d triangles · %d meshes · %d materials", e.getTriangles(), e.getMeshes(), e.getMaterials()));
+            // the preview shows the model in its default state, as the boxes of the toggles say
+            viewer.setToggles(AppearancePanel.defaultToggles(model));
+        });
         viewer.addErrorListener(e -> previewInfo.setText(e.getMessage()));
         appearancePanel = new AppearancePanel(viewer, () -> model, this::previewBodyFile, this::reloadModel);
         sidebar.add(appearancePanel.create());
@@ -294,7 +298,9 @@ public class ModelDialog extends Dialog {
         toggleRows = new VerticalLayout();
         toggleRows.setPadding(false);
         toggleRows.setSpacing(false);
-        capabilities = new VerticalLayout(title, capabilitiesInfo, expressionsTitle, expressionButtons, togglesTitle, toggleRows);
+        groupsPanel = new com.github.enerccio.joi.ui.bodies.ToggleGroupsPanel(() -> model, this::groupsChanged, this::tryState);
+        capabilities = new VerticalLayout(title, capabilitiesInfo, expressionsTitle, expressionButtons, togglesTitle, toggleRows,
+                groupsPanel.create());
         capabilities.setPadding(false);
     }
 
@@ -330,16 +336,19 @@ public class ModelDialog extends Dialog {
             button.addClickListener(e -> tryExpression(expression.name()));
             expressionButtons.add(button);
         }
+        java.util.Map<String, String> groupOf = new java.util.HashMap<>();
+        for (com.github.enerccio.joi.domain.bodies.ToggleGroup group : model.toggleGroups()) {
+            group.toggles().forEach(id -> groupOf.putIfAbsent(id, StringUtils.defaultIfBlank(group.name(), "?")));
+        }
         for (ModelCapabilities.Toggle toggle : read.toggles()) {
-            com.vaadin.flow.component.checkbox.Checkbox shown = new com.vaadin.flow.component.checkbox.Checkbox(toggle.shown());
-            shown.setTooltipText(toggle.key() == null ? toggle.mesh() : toggle.mesh() + " / " + toggle.key());
+            // shown by default: the preview, the snapshots and a new body are so
+            com.vaadin.flow.component.checkbox.Checkbox shown = new com.vaadin.flow.component.checkbox.Checkbox(model.shownByDefault(toggle));
+            shown.setTooltipText(loc.getValue(J_L.MSG_SHOWN_BY_DEFAULT_HINT));
             shown.addValueChangeListener(e -> {
-                if (toggle.key() == null) {
-                    viewer.setMeshVisible(toggle.mesh(), e.getValue());
-                } else {
-                    // a "Hide X" key at full weight hides the part
-                    viewer.setMorph(toggle.mesh(), toggle.key(), e.getValue() == toggle.hides() ? 0 : 1);
+                if (e.isFromClient()) {
+                    setDefault(toggle, e.getValue());
                 }
+                showToggle(toggle, e.getValue());
             });
             TextField name = new TextField();
             name.addThemeVariants(com.vaadin.flow.component.textfield.TextFieldVariant.LUMO_SMALL);
@@ -347,16 +356,98 @@ public class ModelDialog extends Dialog {
             name.setValue(model.getCapabilityNames().getOrDefault(toggle.id(), toggle.defaultName()));
             name.setHelperText(toggle.key() == null ? toggle.mesh() : toggle.mesh() + " / " + toggle.key());
             name.addValueChangeListener(e -> rename(toggle.id(), e.getValue(), toggle.defaultName()));
+            String group = groupOf.get(toggle.id());
             com.vaadin.flow.component.checkbox.Checkbox describe = new com.vaadin.flow.component.checkbox.Checkbox(
-                    loc.getValue(J_L.LABEL_DESCRIBE_TOGGLE), model.describedToggles(read).contains(toggle.id()));
-            describe.setTooltipText(loc.getValue(J_L.MSG_DESCRIBE_TOGGLE_HINT));
-            describe.addValueChangeListener(e -> describe(read, toggle.id(), e.getValue()));
+                    loc.getValue(J_L.LABEL_DESCRIBE_TOGGLE), group != null || model.describedToggles(read).contains(toggle.id()));
+            describe.setTooltipText(group != null ? String.format(loc.getValue(J_L.MSG_DESCRIBED_WITH_GROUP), group)
+                    : loc.getValue(J_L.MSG_DESCRIBE_TOGGLE_HINT));
+            describe.setEnabled(group == null);
+            describe.addValueChangeListener(e -> {
+                if (e.isFromClient()) {
+                    describe(read, toggle.id(), e.getValue());
+                }
+            });
             HorizontalLayout row = new HorizontalLayout(shown, name, describe);
             row.setWidthFull();
             row.setAlignItems(com.vaadin.flow.component.orderedlayout.FlexComponent.Alignment.BASELINE);
             row.setFlexGrow(1, name);
             toggleRows.add(row);
         }
+        groupsPanel.show();
+        refreshDescribed();
+    }
+
+    /** Shows or hides a toggle's part on the preview. */
+    private void showToggle(ModelCapabilities.Toggle toggle, boolean shown) {
+        if (toggle.key() == null) {
+            viewer.setMeshVisible(toggle.mesh(), shown);
+        } else {
+            // a "Hide X" key at full weight hides the part
+            viewer.setMorph(toggle.mesh(), toggle.key(), shown == toggle.hides() ? 0 : 1);
+        }
+    }
+
+    /** Stores whether the toggle is shown by default (as the model comes is not stored). */
+    private void setDefault(ModelCapabilities.Toggle toggle, boolean shown) {
+        java.util.Map<String, Boolean> state = model.defaultStateMap();
+        if (shown == toggle.shown()) {
+            state.remove(toggle.id());
+        } else {
+            state.put(toggle.id(), shown);
+        }
+        model.setDefaultStateMap(state);
+        store();
+        appearancePanel.show();
+    }
+
+    /** The groups were edited: stored, and the toggles and the parts shown anew. */
+    private void groupsChanged(List<com.github.enerccio.joi.domain.bodies.ToggleGroup> groups) {
+        model.setToggleGroups(com.github.enerccio.joi.domain.bodies.ToggleGroup.toJson(groups));
+        store();
+        try {
+            refreshDescribed();
+        } catch (Exception e) {
+            UIUtils.internalServerError(loc, e);
+        }
+        appearancePanel.show();
+    }
+
+    /** The describe boxes of the toggles follow the groups (a grouped toggle is described with its group). */
+    private void refreshDescribed() throws Exception {
+        java.util.Set<String> grouped = new java.util.HashSet<>();
+        model.toggleGroups().forEach(group -> grouped.addAll(group.toggles()));
+        ModelCapabilities read = ModelCapabilities.fromJson(model.getCapabilities());
+        if (read == null) {
+            return;
+        }
+        for (int i = 0; i < toggleRows.getComponentCount() && i < read.toggles().size(); i++) {
+            ModelCapabilities.Toggle toggle = read.toggles().get(i);
+            HorizontalLayout row = (HorizontalLayout) toggleRows.getComponentAt(i);
+            com.vaadin.flow.component.checkbox.Checkbox describe = (com.vaadin.flow.component.checkbox.Checkbox) row.getComponentAt(2);
+            com.vaadin.flow.component.checkbox.Checkbox shown = (com.vaadin.flow.component.checkbox.Checkbox) row.getComponentAt(0);
+            // a group with a default state sets its toggles' defaults
+            boolean fromGroup = model.toggleGroups().stream().anyMatch(group -> group.toggles().contains(toggle.id()) && group.defaultStateOf() != null);
+            shown.setEnabled(!fromGroup);
+            shown.setValue(model.shownByDefault(toggle));
+            boolean inGroup = grouped.contains(toggle.id());
+            describe.setEnabled(!inGroup);
+            describe.setValue(inGroup || model.describedToggles(read).contains(toggle.id()));
+        }
+    }
+
+    /** Shows a state of a group on the preview. */
+    private void tryState(java.util.Map<String, Boolean> state) {
+        ModelCapabilities read = ModelCapabilities.fromJson(model.getCapabilities());
+        if (read == null) {
+            return;
+        }
+        List<com.github.enerccio.joi.ui.bodies.ModelViewer.Toggle> toggles = new java.util.ArrayList<>();
+        for (ModelCapabilities.Toggle toggle : read.toggles()) {
+            if (state.containsKey(toggle.id())) {
+                toggles.add(new com.github.enerccio.joi.ui.bodies.ModelViewer.Toggle(toggle.mesh(), toggle.key(), toggle.hides(), state.get(toggle.id())));
+            }
+        }
+        viewer.setToggles(toggles);
     }
 
     /** Shows the expression on the preview; clicking it again clears it. */
@@ -442,6 +533,8 @@ public class ModelDialog extends Dialog {
                 stored.setCapabilityNames(model.getCapabilityNames());
                 stored.setDescribeToggles(model.getDescribeToggles());
                 stored.setDescribeTogglesChosen(model.getDescribeTogglesChosen());
+                stored.setDefaultState(model.getDefaultState());
+                stored.setToggleGroups(model.getToggleGroups());
                 if (model.getCapabilities() != null) {
                     stored.setCapabilities(model.getCapabilities());
                 }
@@ -687,5 +780,10 @@ public class ModelDialog extends Dialog {
     /** How she looks in the model, for tests. */
     public AppearancePanel getAppearancePanel() {
         return appearancePanel;
+    }
+
+    /** The groups of the toggles, for tests. */
+    public com.github.enerccio.joi.ui.bodies.ToggleGroupsPanel getGroupsPanel() {
+        return groupsPanel;
     }
 }

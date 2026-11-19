@@ -3,8 +3,9 @@ package com.github.enerccio.joi.domain.templates;
 import com.github.enerccio.joi.loc.J_L;
 
 /**
- * The data of the request for one toggle of a model ({@code JoiPromptField.PART_IMAGE_PROMPT}): what the multimodal
- * model gets next to the two close-ups of the part, shown and hidden.
+ * The data of the request for one part of a model described apart ({@code JoiPromptField.PART_IMAGE_PROMPT}): what
+ * the multimodal model gets next to the close-ups of the part, one per state (a toggle shown and hidden, or the
+ * states of a group the user made).
  */
 public class PartImageTemplateData extends JoiTemplateData {
 
@@ -12,11 +13,11 @@ public class PartImageTemplateData extends JoiTemplateData {
     @JoiTemplateDescription(loc = J_L.DESC_TEMPLATE_MODEL_NAME)
     private String modelName;
 
-    /** What the toggle is called ("visor"). */
+    /** What the part is called ("visor", "eyes"). */
     @JoiTemplateDescription(loc = J_L.DESC_TEMPLATE_PART_NAME)
     private String partName;
 
-    /** The mesh, or the mesh / the shape key, that shows or hides it. */
+    /** The mesh, or the mesh / the shape key, that shows or hides it; the toggles of a group. */
     @JoiTemplateDescription(loc = J_L.DESC_TEMPLATE_PART_SOURCE)
     private String partSource;
 
@@ -27,6 +28,18 @@ public class PartImageTemplateData extends JoiTemplateData {
     /** The user's notes. */
     @JoiTemplateDescription(loc = J_L.DESC_TEMPLATE_BODY_NOTES)
     private String notes;
+
+    /** The states, numbered in the order of the images ("1 | bare: blindfold hidden, iris shown"). */
+    @JoiTemplateDescription(loc = J_L.DESC_TEMPLATE_PART_STATES)
+    private String states;
+
+    public String getStates() {
+        return states;
+    }
+
+    public void setStates(String states) {
+        this.states = states;
+    }
 
     public String getModelName() {
         return modelName;

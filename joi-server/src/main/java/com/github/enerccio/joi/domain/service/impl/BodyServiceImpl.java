@@ -2,6 +2,7 @@ package com.github.enerccio.joi.domain.service.impl;
 
 import com.github.enerccio.joi.defaults.JoiDefaults;
 import com.github.enerccio.joi.domain.bodies.Appearance;
+import com.github.enerccio.joi.domain.bodies.DescribedPart;
 import com.github.enerccio.joi.domain.bodies.ModelCapabilities;
 import com.github.enerccio.joi.domain.events.JoiEvents;
 import com.github.enerccio.joi.domain.model.impl.Body;
@@ -182,9 +183,16 @@ public class BodyServiceImpl extends ExtendableServiceImpl<Body, BodyRepository>
                     expressions.add(expression.name());
                 }
             }
-            for (ModelCapabilities.Toggle toggle : capabilities.toggles()) {
-                String name = StringUtils.defaultIfBlank(model.getCapabilityNames().get(toggle.id()), toggle.defaultName());
-                parts.add(name + (toggle.shown() ? " (shown)" : " (hidden)"));
+            // only the parts described apart can be switched; each in the state she is in (the body state comes later)
+            java.util.Map<String, Boolean> state = model.defaultShown(capabilities);
+            for (DescribedPart part : DescribedPart.of(model, capabilities)) {
+                DescribedPart.State in = part.stateIn(state);
+                if (part.group()) {
+                    List<String> others = part.states().stream().filter(s -> s != in).map(DescribedPart.State::name).toList();
+                    parts.add(part.name() + ": " + (in == null ? "?" : in.name()) + (others.isEmpty() ? "" : " (or " + String.join(", ", others) + ")"));
+                } else {
+                    parts.add(part.name() + " (" + (in == null ? "?" : in.name()) + ")");
+                }
             }
         }
         List<String> others = bodies.stream().filter(body -> !body.isActive()).map(this::name).sorted(String.CASE_INSENSITIVE_ORDER).toList();

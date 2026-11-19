@@ -4,8 +4,9 @@
 //   format VRM, GLB, GLTF or FBX: the format of the model (of the main file in a zip)
 //   main   the path of the model file in the zip; absent when src is the model itself
 // Methods (the dialog tries what the model can do): setExpression(name, weight), setMeshVisible(name, visible),
-// setMorph(mesh, key, weight); they act on the model shown, nothing happens before it is. takeSnapshots(parts) renders the
-// snapshots of a model (the whole model, and close-ups of the parts shown and hidden) for the "snapshot-target" URL.
+// setMorph(mesh, key, weight), setToggles(json); they act on the model shown, nothing happens before it is.
+// takeSnapshots(request) renders the snapshots of a model (the whole model in its default state, and a close-up of
+// each part described apart in each of its states) for the "snapshot-target" URL.
 // It fires "model-info" ({triangles, meshes, materials, vrm, expressions}) once the model is shown and "model-error"
 // ({message}) when it can't be.
 import * as THREE from 'three';
@@ -289,23 +290,39 @@ class JoiModelViewer extends HTMLElement {
     });
   }
 
+  /** Sets toggles of the model shown: a JSON array of {mesh, key (null for the mesh itself), hides, shown}. */
+  setToggles(togglesJson) {
+    for (const toggle of togglesJson ? JSON.parse(togglesJson) : []) {
+      this._setToggle(toggle, toggle.shown);
+    }
+  }
+
   /**
    * Renders the snapshots of the model and POSTs each to the URL of the "snapshot-target" attribute, named after its
-   * shot: the shots of SHOTS (768 × 1024 JPEGs on a plain background, the model as it is shown now), then for each part
-   * a close-up shown and hidden (768 × 768, "part-<index>-shown" / "-hidden").
+   * shot: the model put in its default state, the shots of SHOTS (768 × 1024 JPEGs on a plain background), then for
+   * each part a close-up per state (768 × 768, "part-<index>-<state index>"). The toggles are put back as they were.
    * Fires "snapshots-taken" ({count}) when the server has them, "snapshots-error" ({message}) when not.
    *
-   * @param partsJson a JSON array of the toggles to take close-ups of: {index, mesh, key (null for the mesh itself),
-   *                  hides (whether the key at full weight hides the part)}
+   * @param requestJson {base: [{mesh, key, hides, shown}] (the default state of every toggle), parts: [{index,
+   *                    toggles: [{mesh, key, hides}], states: [[shown of each toggle]]}]}
    */
-  async takeSnapshots(partsJson) {
+  async takeSnapshots(requestJson) {
     try {
       if (!this._model || !this._renderer) {
         throw new Error('No model is shown');
       }
-      const parts = partsJson ? JSON.parse(partsJson) : [];
-      const images = this._snapshotSetup(768, 1024, camera => this._renderShots(camera));
-      images.push(...this._snapshotSetup(768, 768, camera => this._renderParts(camera, parts)));
+      const request = requestJson ? JSON.parse(requestJson) : {};
+      const base = request.base || [];
+      const parts = request.parts || [];
+      const saved = this._saveToggles(base.concat(...parts.map(part => part.toggles)));
+      let images;
+      try {
+        base.forEach(toggle => this._setToggle(toggle, toggle.shown));
+        images = this._snapshotSetup(768, 1024, camera => this._renderShots(camera));
+        images.push(...this._snapshotSetup(768, 768, camera => this._renderParts(camera, parts, base)));
+      } finally {
+        this._restoreToggles(saved);
+      }
       // one request per shot, as Vaadin's own uploads do (the raw file, its name in X-Filename)
       for (const image of images) {
         const blob = await (await fetch(image.url)).blob();
@@ -382,19 +399,27 @@ class JoiModelViewer extends HTMLElement {
   }
 
   /**
-   * A close-up of each part, shown and hidden: framed on the part (its mesh, or the vertices its shape key moves, with
-   * some of the model around it), from the side it is on. The parts are put back as they were.
+   * A close-up of each part in each of its states: framed on the part (its toggles' meshes, or the vertices their
+   * shape keys move, with some of the model around it), from the side it is on. Between parts the toggles go back to
+   * the default state.
    */
-  _renderParts(camera, parts) {
+  _renderParts(camera, parts, base) {
     const box = new THREE.Box3().setFromObject(this._model);
     const height = box.getSize(new THREE.Vector3()).y;
     const center = box.getCenter(new THREE.Vector3());
     const fov = THREE.MathUtils.degToRad(camera.fov / 2);
+    const byDefault = new Map(base.map(toggle => [toggle.mesh + '/' + (toggle.key || ''), toggle.shown]));
     const images = [];
     for (const part of parts) {
-      const node = this._node(part.mesh);
-      const partBox = node && this._partBox(node, part.key);
-      if (!partBox || partBox.isEmpty()) {
+      const partBox = new THREE.Box3();
+      for (const toggle of part.toggles) {
+        const node = this._node(toggle.mesh);
+        const toggleBox = node && this._partBox(node, toggle.key);
+        if (toggleBox && !toggleBox.isEmpty()) {
+          partBox.union(toggleBox);
+        }
+      }
+      if (partBox.isEmpty()) {
         continue;
       }
       const target = partBox.getCenter(new THREE.Vector3());
@@ -404,14 +429,16 @@ class JoiModelViewer extends HTMLElement {
       const dz = target.z - center.z;
       // the side the part is on: in front unless it is clearly behind or beside the body (a tail, a blade)
       const angle = Math.hypot(dx, dz) > height * 0.06 ? THREE.MathUtils.radToDeg(Math.atan2(dx, dz)) : 0;
-      const before = this._partState(node, part.key);
       try {
-        for (const shown of [true, false]) {
-          this._setPart(node, part, shown);
-          images.push(this._shoot(camera, 'part-' + part.index + '-' + (shown ? 'shown' : 'hidden'), target, distance, angle));
-        }
+        part.states.forEach((state, index) => {
+          part.toggles.forEach((toggle, i) => this._setToggle(toggle, state[i]));
+          images.push(this._shoot(camera, 'part-' + part.index + '-' + index, target, distance, angle));
+        });
       } finally {
-        this._restorePart(node, part.key, before);
+        part.toggles.forEach(toggle => {
+          const shown = byDefault.get(toggle.mesh + '/' + (toggle.key || ''));
+          this._setToggle(toggle, shown === undefined ? true : shown);
+        });
       }
     }
     return images;
@@ -473,18 +500,38 @@ class JoiModelViewer extends HTMLElement {
     return state;
   }
 
-  _setPart(node, part, shown) {
-    if (!part.key) {
+  /** Shows or hides the part of a toggle: its mesh, or its "Hide X" key (at full weight it hides the part). */
+  _setToggle(toggle, shown) {
+    const node = this._node(toggle.mesh);
+    if (!node) {
+      return;
+    }
+    if (!toggle.key) {
       node.visible = shown;
     } else {
-      this.setMorph(part.mesh, part.key, shown === part.hides ? 0 : 1);
+      this.setMorph(toggle.mesh, toggle.key, shown === toggle.hides ? 0 : 1);
     }
   }
 
-  _restorePart(node, key, state) {
-    node.visible = state.visible;
-    for (const [child, weight] of state.weights) {
-      child.morphTargetInfluences[child.morphTargetDictionary[key]] = weight;
+  /** How the toggles are now, to put them back. */
+  _saveToggles(toggles) {
+    const saved = [];
+    for (const toggle of toggles) {
+      const node = this._node(toggle.mesh);
+      if (node) {
+        saved.push({node, key: toggle.key, state: this._partState(node, toggle.key)});
+      }
+    }
+    return saved;
+  }
+
+  /** Puts the toggles back, the last saved first (a mesh saved twice ends as it was at first). */
+  _restoreToggles(saved) {
+    for (const {node, key, state} of saved.slice().reverse()) {
+      node.visible = state.visible;
+      for (const [child, weight] of state.weights) {
+        child.morphTargetInfluences[child.morphTargetDictionary[key]] = weight;
+      }
     }
   }
 

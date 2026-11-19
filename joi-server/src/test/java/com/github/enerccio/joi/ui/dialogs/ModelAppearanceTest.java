@@ -2,6 +2,9 @@ package com.github.enerccio.joi.ui.dialogs;
 
 import com.github.enerccio.joi.domain.bodies.Appearance;
 import com.github.enerccio.joi.domain.bodies.AppearanceProposal;
+import com.github.enerccio.joi.domain.bodies.DescribedPart;
+import com.github.enerccio.joi.domain.bodies.ModelCapabilities;
+import com.github.enerccio.joi.domain.bodies.ToggleGroup;
 import com.github.enerccio.joi.domain.bodies.ModelFiles;
 import com.github.enerccio.joi.domain.bodies.UnityFixtures;
 import com.github.enerccio.joi.domain.collections.ChatMessageType;
@@ -143,8 +146,8 @@ class ModelAppearanceTest extends PlatformTestBase {
         shots.put("face-front", image("jpg", 8, 8));
         shots.put("full-front", image("jpg", 6, 8));
         // the shape key toggles are described apart until the user chooses: the halo is part 0
-        shots.put("part-0-shown", image("jpg", 4, 4));
-        shots.put("part-0-hidden", image("jpg", 4, 4));
+        shots.put("part-0-0", image("jpg", 4, 4));
+        shots.put("part-0-1", image("jpg", 4, 4));
         panel.snapshotsTakenForTest(shots);
 
         Model stored = modelService.find(model.getId());
@@ -211,25 +214,26 @@ class ModelAppearanceTest extends PlatformTestBase {
                 {"description": "You have long silver hair and a black jacket.",
                  "toggles": {"2": "golden halo", "mesh:Nothing": "ghost", "Headgear": "headgear"}}
                 ```"""), MockLLMResponse.text("""
-                {"shown": "A golden halo floats above your head.", "hidden": "Nothing floats above your head."}"""));
+                {"1": "A golden halo floats above your head.", "2": "Nothing floats above your head."}"""));
         appearanceService.propose(model, null);
         Model proposed = awaitProposal();
         assertThat(proposed.getProposalStatus()).isEqualTo(ProposalStatus.DONE);
         AppearanceProposal proposal = AppearanceProposal.fromJson(proposed.getProposal());
         assertThat(proposal.description()).isEqualTo("You have long silver hair and a black jacket.");
         assertThat(proposal.toggles()).containsOnlyKeys(HALO, "mesh:Headgear");
-        assertThat(proposal.parts().get(HALO)).isEqualTo(new AppearanceProposal.Part("A golden halo floats above your head.",
-                "Nothing floats above your head."));
+        assertThat(proposal.parts().get(HALO)).containsExactly(Map.entry("shown", "A golden halo floats above your head."),
+                Map.entry("hidden", "Nothing floats above your head."));
 
         List<MockLLMRequest> requests = llm.getCompletionRequests();
         String whole = requests.get(requests.size() - 2).getRawBody();
         assertThat(whole).contains("The halo glows when she is happy.").contains("2 | Headgear / Hide Halo | halo | shown")
-                .contains("full front", "face front").contains("Ryuu").contains("Leave these parts out").doesNotContain("part:");
+                .contains("full front", "face front").contains("Ryuu").contains("These parts can be switched").doesNotContain("part:");
         // two shots and the photo, scaled down; not the close-ups
         assertThat(whole.split("\"type\":\"image_url\"", -1)).hasSize(4);
         assertThat(whole).doesNotContain("data:image/png");
         String part = requests.getLast().getRawBody();
-        assertThat(part).contains("\\\"golden halo\\\"").contains("Headgear / Hide Halo").contains("You have long silver hair");
+        assertThat(part).contains("\\\"golden halo\\\"").contains("Headgear / Hide Halo").contains("You have long silver hair")
+                .contains("1 | the part shown (default)").contains("2 | the part hidden");
         assertThat(part.split("\"type\":\"image_url\"", -1)).hasSize(3);
 
         AppearancePanel panel = panel();
@@ -248,12 +252,70 @@ class ModelAppearanceTest extends PlatformTestBase {
         assertThat(used.getCapabilityNames()).containsEntry(HALO, "golden halo");
         assertThat(panel.getAppearance().getValue()).isEqualTo(used.getAppearance());
 
-        // the description follows the state of the part
-        assertThat(Appearance.of(used)).isEqualTo("You have long silver hair and a black leather jacket. A golden halo glows above your head.");
+        // the description is of the model by default (the halo shown); a part off its default adds what changed
+        assertThat(Appearance.of(used)).isEqualTo("You have long silver hair and a black leather jacket.");
         assertThat(Appearance.of(used, Map.of(HALO, false))).isEqualTo("You have long silver hair and a black leather jacket. Nothing floats above your head.");
         List<QueuedEvent> events = queuedEventService.findWaiting(joi);
         assertThat(events).extracting(QueuedEvent::getKind).contains(JoiEvents.BODY_DESCRIBED);
-        assertThat(bodyService.prompt(joi)).contains("golden halo (shown)").contains("A golden halo glows above your head.");
+        assertThat(bodyService.prompt(joi)).contains("golden halo (shown)").doesNotContain("A golden halo glows above your head.");
+    }
+
+    @Test
+    void aGroupIsShotAndDescribedAsAWholeFromTheDefaultState() throws Exception {
+        visionModel();
+        Model stored = modelService.find(model.getId());
+        stored.setDefaultStateMap(Map.of(HALO, false));
+        model = modelService.save(stored);
+        ModelDialog dialog = new ModelDialog(modelService.find(model.getId()));
+        dialog.create();
+        ToggleGroup.State plain = new ToggleGroup.State("p", "plain", Map.of("mesh:Headgear", true, HALO, false));
+        ToggleGroup.State crowned = new ToggleGroup.State("c", "crowned", Map.of("mesh:Headgear", true, HALO, true));
+        dialog.getGroupsPanel().setGroupsForTest(List.of(new ToggleGroup("g1", "headgear", List.of("mesh:Headgear", HALO),
+                List.of(plain, crowned), "p")));
+        stored = modelService.find(model.getId());
+        assertThat(stored.toggleGroups()).extracting(ToggleGroup::name).containsExactly("headgear");
+        // the halo is in the group: it is described with it, not alone
+        assertThat(DescribedPart.of(stored, ModelCapabilities.fromJson(stored.getCapabilities()))).extracting(DescribedPart::id)
+                .containsExactly("group:g1");
+
+        AppearancePanel panel = dialog.getAppearancePanel();
+        panel.snapshotsTakenForTest(Map.of("full-front", image("jpg", 4, 4), "part-0-0", image("jpg", 4, 4),
+                "part-0-1", image("jpg", 4, 4)));
+        stored = modelService.find(model.getId());
+        assertThat(stored.getSnapshots()).containsKeys("part:group:g1:p", "part:group:g1:c");
+
+        llm.enqueue(MockLLMResponse.text("""
+                {"description": "You have long silver hair.", "toggles": {}}"""), MockLLMResponse.text("""
+                {"1": "A plain black headband sits in your hair.", "crowned": "A golden halo floats above your headband."}"""));
+        appearanceService.propose(stored, null);
+        Model proposed = awaitProposal();
+        assertThat(proposed.getProposalStatus()).isEqualTo(ProposalStatus.DONE);
+        List<MockLLMRequest> requests = llm.getCompletionRequests();
+        // the default state: the halo hidden
+        assertThat(requests.get(requests.size() - 2).getRawBody()).contains("2 | Headgear / Hide Halo | halo | hidden");
+        String part = requests.getLast().getRawBody();
+        assertThat(part).contains("1 | plain: headgear shown, halo hidden (default)").contains("2 | crowned: headgear shown, halo shown");
+        assertThat(part.split("\"type\":\"image_url\"", -1)).hasSize(3);
+
+        panel.show();
+        panel.useProposalForTest();
+        Model used = modelService.find(model.getId());
+        assertThat(used.getGroupSentences()).containsEntry("g1:p", "A plain black headband sits in your hair.")
+                .containsEntry("g1:c", "A golden halo floats above your headband.");
+        // plain is as by default: the description has it; crowned is news
+        assertThat(Appearance.of(used)).isEqualTo("You have long silver hair.");
+        assertThat(Appearance.of(used, Map.of(HALO, true))).isEqualTo("You have long silver hair. A golden halo floats above your headband.");
+        // the user makes crowned the group's default: its toggles' defaults follow, and plain becomes the news
+        used.setToggleGroups(ToggleGroup.toJson(List.of(used.toggleGroups().getFirst().withDefaultState("c"))));
+        used = modelService.save(used);
+        assertThat(used.shownByDefault(ModelCapabilities.fromJson(used.getCapabilities()).toggles().stream()
+                .filter(t -> t.id().equals(HALO)).findFirst().orElseThrow())).isTrue();
+        assertThat(Appearance.of(used)).isEqualTo("You have long silver hair.");
+        assertThat(Appearance.of(used, Map.of(HALO, false))).isEqualTo("You have long silver hair. A plain black headband sits in your hair.");
+        Body body = bodyService.create(joi, "Street");
+        body.setModel(used);
+        bodyService.save(body);
+        assertThat(bodyService.prompt(joi)).contains("Parts you can switch: headgear: crowned (or plain).");
     }
 
     @Test

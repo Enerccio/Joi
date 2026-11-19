@@ -205,16 +205,24 @@ check) is in [MARGINALIA.md](MARGINALIA.md).
     "halo" by default) that the user can change, stored on the model by the toggle's id (`mesh:Scarf`,
     `key:Headgear/Hide Halo`), so the names survive a new conversion. They are read again when the dialog opens.
   - **The table** also shows the bodies a model is in ("Joi: Street"); a model in a body can't be deleted.
+  - **Next: the dialog's layout.** The model dialog's side column is cramped (toggle rows, groups, the appearance
+    section) while the 3D preview takes most of the width: make the column wider and put the two in a split layout
+    (Vaadin `SplitLayout`, the divider draggable, its position remembered), so the user can give the editing side
+    more room. The body dialog gets the same.
   - **Next steps** of the import (see Bodies below): prefab defaults (which toggles are on) and PhysBones → spring
     bones from the package.
   - **Export and import of a processed model (later):** one file in a unified format, for easy sharing: the
     converted VRM with what was decided on it (the toggle names, the capabilities, the description and the sentences
-    of the parts, the conversion settings and report; optionally the snapshots, the user's images and notes), and
-    optionally the bodies around it (the Looking Glass variant). Importing it gives a ready model (and body) with no
-    conversion. What a user may share is up to their avatar's licence.
-    - **The file:** starts with the magic number `0x1DEA1A10` ("IDEAL AI 0"), then a header with the format
+    of the parts, the user's notes, the conversion settings and report), and optionally the bodies around it (the
+    Looking Glass variant). Importing it gives a ready model (and body) with no conversion. **No images:** the
+    snapshots and close-ups, and the user's reference images, only serve to make the description. They are
+    transient and replaceable: the importer takes new snapshots if they want to propose again, and adds their own
+    images. So the file is smaller, and a store page isn't passed on. What a user may share is up to their avatar's
+    licence.
+    - **The file** (`.joim`, "Joi model"; when exported and in a node's cache, a stream between the server and a
+      node): starts with the magic number `0x1DEA1A10` ("IDEAL AI 0"), then a header with the format
       version (a reader refuses a newer major version), then sections, each with its kind, its length and its hash: the metadata (the model's extended attributes, the capabilities, the proposal...) as
-      **JSONB** (binary JSON), the VRM and the images as raw bytes. Length-prefixed sections are read and written as
+      **JSONB** (binary JSON), the VRM as raw bytes. Length-prefixed sections are read and written as
       streams, never whole in memory, and a reader skips the kinds it doesn't know.
     - **Also the delivery to a node:** the same container fits, with a profile of only what a renderer needs (the
       VRM, the capabilities and toggle names, the state) and none of the review material (snapshots, the user's
@@ -486,9 +494,9 @@ UI — nothing is deleted):
   - **Self-image (built):** in the model dialog, once the model has a VRM. *Take snapshots* renders, as the preview shows
     the VRM (`takeSnapshots` of `<joi-model-viewer>`, lit from the camera): six shots of the whole model (full body
     front, three-quarter, profile and back, the face front and three-quarter; 768 × 1024 JPEGs on a plain grey
-    background, framed by the model's size and the VRM's head bone), and for each toggle **described apart** a
-    close-up shown and one hidden (768 × 768, framed on the part: its mesh, or the vertices its shape key moves, seen
-    from the side it is on). Each goes to the server like an upload; they are image resources of the user linked to
+    background, framed by the model's size and the VRM's head bone), in the model's default state, and for each
+    part **described apart** a close-up per state (768 × 768, framed on the part: its meshes, or the vertices its shape
+    keys move, seen from the side it is on). Each goes to the server like an upload; they are image resources of the user linked to
     the model, with the hash of its VRM, and a new set replaces the old one. Which toggles are described apart is a
     box (*Describe*) on each toggle row; until the user picks, the shape key toggles ("Hide Halo") are. The user adds
     **their images** (PNG, JPEG, WebP: store pages, photos) and **notes** (what a toggle is, what the images can't
@@ -496,10 +504,11 @@ UI — nothing is deleted):
     - *Propose a description* (`AppearanceService`, in the background, one at a time; images larger than 1568 px
       scaled down) goes to the user's deep reasoning model when it takes images, else their chat model. First the
       whole model (the shots, the user's images, the notes, the toggles numbered: the appearance prompt): the
-      description of **what never changes**, the described parts left out, and names for the toggles, by number
+      description of the model **by default** (the described parts as the renders show them), and names for the toggles, by number
       (small models garble ids; an id or a "mesh / key" is matched too). Then **each described toggle** with its two
-      close-ups (the part prompt, `PartImageTemplateData`): a sentence for **shown** ("A black visor with red markings
-      covers your eyes.") and one for **hidden** ("Your eyes are pale grey."). The dialog shows the progress. Both
+      close-ups (the part prompt, `PartImageTemplateData`): a sentence per state, the default one as it is ("A black
+      visor with red markings covers your eyes.") and the others as what changed ("The visor is gone: your eyes are
+      pale grey."). The dialog shows the progress. Both
       prompts are templates on the chain. Proposing uses the snapshots there are; only *Take snapshots* renders new
       ones.
     - The user **reviews** it (`AppearanceProposal`, kept on the model): edits the description, keeps or drops each
@@ -507,14 +516,39 @@ UI — nothing is deleted):
       editable on the model afterwards. They remember the hash they were made from: when the model changes, the
       dialog says the snapshots and the description are out of date. Using a new description is an event
       (`body.described`) for each assistant in a body of that model.
-    - **Her look now** is the description plus the sentence of each described toggle for its state (`Appearance`):
+    - **Her look now** is the description plus the sentence of each part off its default (`Appearance`):
       in her prompt, in the event of a switch, and later the answer of a `look_at_yourself` tool and the text of a
       toggle event ("You took off your visor: your eyes are pale grey."), so she can react to it. The state comes
       with the body state; until then each toggle is as the model comes.
+    - **The default state (built):** the first box of each toggle row in the model dialog says whether the part is
+      shown by default (stored on the model; a toggle not set is as the model comes). The preview shows the model so,
+      the shots are taken so (each close-up switches only its part, the rest stays as by default), and a new body
+      will come so. Changing it calls for new snapshots.
+    - **Groups (built):** in the model dialog's *Groups*, the user groups toggles and names the states of a group
+      ("eyes": "blindfold" with the band shown, "bare" with the band hidden and the iris and pupil shown), each with a
+      box per toggle and a button that shows it on the preview (`ToggleGroup`, `ui/bodies/ToggleGroupsPanel`). Each
+      state gets a close-up of the whole group (framed on all its toggles) and a sentence, so parts that only make
+      sense together are described together and the user says what covers what. A toggle is in one group at most and
+      is described with it; a described toggle in no group is a part of its own, with the states shown and hidden.
+      These are the **parts described apart** (`DescribedPart`), and only they can be switched. A group has a
+      **default state** the user marks (the editor asks for it); its toggles' defaults come from it (their own boxes
+      lock). The least covered state reads best as the default ("bare", so the blindfold is what changes: "A black
+      blindfold covers your eyes." added to a description of her eyes, not "the blindfold is gone" after a
+      description that has it). Until one is marked the shots take the toggles' own defaults and every state's
+      sentence is added. The part prompt
+      gets the states numbered in the order of the images, the default marked, and answers a sentence per number.
+    - **The default is the baseline.** The shots show the model by default, so the description of what never
+      changes has each part in its default state (the blindfold on, if that is the default). A part's other states
+      are **news**, what changed ("The blindfold is gone: your eyes are vibrant red."). Her look is the description
+      plus the sentence of each part **not** in its default state: the state it is in, matching, else the nearest
+      (the fewest toggles off). Changing a default moves the baseline, and calls for new snapshots and a new
+      description.
+      Outfits are the same idea for the whole body, so the editor can serve both.
     - Later: which expressions fit which mood, and outfits (sets of toggles) described as a whole.
   - **Her prompt** (`{{#body}}`, the body section: a template on the chain like every prompt, `BodyTemplateData`) says
     the body she is in, how she looks, the expressions she can show (moods and
-    custom ones), the parts she can show or hide with the names the user gave and their state as the model comes, and
+    custom ones), the parts she can switch (only the parts described apart) with the names the user gave and the
+    state they are in (a group's other states too), and
     her other bodies. The tools to change them come with the body state (outfits, toggles).
 - **Importing a body** is a guided step in the UI. Next to the model file the user gives what they have: their own
   description, screenshots (the creator's store page, in-world photos, their own renders), notes on what each toggle /
@@ -532,8 +566,10 @@ UI — nothing is deleted):
     outfit"), so she can react to it — comment, play along, or object and change it back.
   - **Joi** changes it herself with tools (`toggle_outfit`, `set_expression`, `switch_body`…) when she decides to — to
     match her mood, the conversation or a request — and the same state update reaches every display and the UI.
-  The renderer never owns the state; it only shows it. Toggles available on a body come from its capabilities (the
-  model's meshes and "hide X" shape keys, kept by the converter).
+  The renderer never owns the state; it only shows it. Toggles come from the model's capabilities (its meshes and
+  "hide X" shape keys, kept by the converter), but **only the described parts can be toggled** (the *Describe* box
+  in the model's dialog): she can't change what she has no words for, and every toggle changes her look. The rest
+  stay as the model comes, and are only tried on the preview. Her prompt and her tools list only the described parts.
 - **Outfits** follow the same rule. A body can have several outfits (named sets of toggles, e.g. "street", "armor",
   "casual") and removable pieces (scarf, gloves, shoes, accessories); some models ship alternative clothing meshes or
   "hide" keys for this. Outfits are defined per body (detected from the model where possible, named and edited in the
@@ -579,6 +615,45 @@ UI — nothing is deleted):
   - **Both ways:** Joi plays them with a tool (`play_animation`, listing what fits the active body and shot), e.g. waves
     hello, shrugs, dances when asked; you trigger them from the UI or a Stream Deck key and she is told.
   - Clips that leave the frame (a jump, a full-body dance) ask for a wider shot, so the camera follows.
+  - **Animation viewer and editor:** a dialog like the model's, with the clip played on a chosen body in the three.js
+    preview (play, pause, scrub, loop, speed, the camera presets). Its edits are kept on the clip, never in the file:
+    the name, the description, the tags, a trim (start, end, loop points), the speed, and which layer it plays on
+    (whole body, upper body, additive).
+    - **Descriptions:** each clip has a short description of what it shows and when it fits ("waves with the right
+      hand, a friendly hello"), proposed by a multimodal model from frames of the preview (the same way as the
+      self-image: a template on the chain, reviewed, editable) and written for her: she picks a clip by what it
+      says.
+    - **Groups:** the user groups clips and describes the group ("greetings", "happy idles", "thinking"). She sees
+      the groups and their descriptions first, and the clips of a group when she needs them, so a big library
+      doesn't fill her prompt. A clip can be in several groups. Playing a group plays one of its clips, picked at
+      random or by mood, so a repeated wave isn't always the same.
+  - **Bodies are paired with animations:** a body has the clips and groups it can play (all of the library by
+    default; the user removes what doesn't fit it, e.g. a clip that clips through a big tail or a skirt, and adds the
+    body's own clips). Her prompt and `play_animation` list only the clips and groups of the active body, and a
+    switch of body changes the list. Adding a clip or a group to a body is an event, staged like the rest.
+  - **Default animations, per state:** the user sets which clip or group plays for each of her states: **idle**,
+    **listening**, **thinking** (while the model works), **talking**, **waiting** for a tool, **sleeping** (privacy
+    mode, the night), and the start and end of a conversation. The library has defaults, a body can override
+    them (her idle in one body isn't the same as in another), and moods can override them too (a tired idle). The
+    renderer plays the default of the current state; a clip she plays herself goes on top and then gives way to it.
+  - **Storage and delivery:** a clip is a VRMA file plus its **metadata**, a JSONB document of its own (the
+    animation's schema, versioned like the container): the name, the description, the tags, the trim and loop
+    points, the speed, the layer, its groups, the source and its licence (Mixamo, a VRChat package, the user's own:
+    whether it may be shared), what was read from the file (duration, frame rate, the bones it moves, root motion
+    removed or not), and the hash of the VRMA. Groups, a body's clips and the default per state are JSONB documents
+    too. Frames of the preview made for the description are transient like a model's snapshots and are never stored
+    in a bundle.
+    - **Cached one by one, sent as a bundle:** a node caches each clip (its VRMA and its metadata) by hash, so an
+      edited description or trim re-sends a few bytes and never the motion. On connect the server sends a manifest
+      (the active body's clips, groups and defaults, with hashes), the node answers with the hashes it misses, and the
+      server streams those as one animation container, a section per clip: one request instead of a hundred, and a
+      broken transfer resumes at a section. Changes later are deltas the same way.
+    - **The animation container** is the same kind as a model's, with its own magic number `0x1DEA1AC7`, the
+      version header, the JSONB metadata sections and the VRMA bytes. It is a `.joia` file ("Joi animation")
+      when exported and in a node's cache; between the server and a node it is a stream.
+    - **Animation packs** for people: a `.joia` with another profile (clips, their metadata, groups,
+      defaults per state, the bodies they were meant for), to share or import a set ("my idles", "greetings") at
+      once. An export warns about, and leaves out, clips whose licence doesn't allow sharing (Mixamo's).
   - Later: generating motion from a text prompt with a text-to-motion model, saved into the library.
 - **Camera** is part of the same display state, per display, and works both ways too. Joi moves it with a tool
   (`set_shot`) over a fixed grid of presets instead of free coordinates: **framing** (face close-up, bust, waist up, full

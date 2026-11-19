@@ -1,6 +1,7 @@
 package com.github.enerccio.joi.ui.dialogs;
 
 import com.github.enerccio.joi.domain.bodies.Appearance;
+import com.github.enerccio.joi.domain.bodies.DescribedPart;
 import com.github.enerccio.joi.domain.bodies.ModelCapabilities;
 import com.github.enerccio.joi.domain.model.impl.Body;
 import com.github.enerccio.joi.domain.model.impl.Joi;
@@ -230,7 +231,7 @@ public class BodyDialog extends Dialog {
         ModelCapabilities capabilities = model == null ? null : ModelCapabilities.fromJson(model.getCapabilities());
         capabilitiesInfo.setText(model == null ? loc.getValue(J_L.MSG_BODY_NO_MODEL)
                 : capabilities == null ? loc.getValue(J_L.MSG_NO_CAPABILITIES)
-                : String.format(loc.getValue(J_L.MSG_BODY_CAPABILITIES), capabilities.expressions().size(), capabilities.toggles().size()));
+                : String.format(loc.getValue(J_L.MSG_BODY_CAPABILITIES), capabilities.expressions().size(), DescribedPart.of(model, capabilities).size()));
         description.setValue(StringUtils.defaultString(model == null ? null : Appearance.of(model)));
         boolean lookingGlass = lookingGlassSelect.getValue() != null;
         previewChoice.setVisible(lookingGlass);

@@ -169,9 +169,9 @@ class BodyDialogTest extends PlatformTestBase {
 
         assertThat(bodyService.prompt(joi)).isEqualTo("""
                 You are in your body "Street".
-                Silver hair, a black jacket & a "halo" that's gold. A golden halo floats above you.
+                Silver hair, a black jacket & a "halo" that's gold.
                 Expressions your face can show: happy.
-                Parts you can show or hide: headgear (shown), golden halo (shown).
+                Parts you can switch: golden halo (shown).
                 Your other bodies: Armor.""");
     }
 }

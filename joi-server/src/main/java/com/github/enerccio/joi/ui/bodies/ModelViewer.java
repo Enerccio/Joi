@@ -64,19 +64,44 @@ public class ModelViewer extends Component implements HasSize, HasStyle {
         getElement().callJsFunction("setMorph", mesh, key, weight);
     }
 
-    /** A toggle to take close-ups of, shown and hidden ({@code part-<index>-shown.jpg}). */
-    public record Part(int index, String mesh, String key, boolean hides) {
+    /**
+     * A toggle of the model.
+     *
+     * @param hides whether its shape key at full weight hides the part
+     * @param shown whether to show it (where a state is set)
+     */
+    public record Toggle(String mesh, String key, boolean hides, Boolean shown) {
     }
 
     /**
-     * Takes the snapshots of the model shown (front, three-quarter, profile and back of the full body, the face from the
-     * front and three-quarter, then a close-up of each part shown and hidden) and sends them to the handler, one file per
-     * shot named after it ({@code full-front.jpg}, {@code part-3-hidden.jpg}). A {@link SnapshotsEvent} follows once the
-     * server has them all, a {@link SnapshotsErrorEvent} when not.
+     * A part to take close-ups of, one per state ({@code part-<index>-<state index>.jpg}).
+     *
+     * @param states for each state, whether each of the toggles is shown
      */
-    public void takeSnapshots(UploadHandler handler, List<Part> parts) {
+    public record Part(int index, List<Toggle> toggles, List<List<Boolean>> states) {
+    }
+
+    /** What the snapshots are taken in: the default state of every toggle, and the parts' states. */
+    private record SnapshotRequest(List<Toggle> base, List<Part> parts) {
+    }
+
+    /** Shows or hides toggles on the preview. */
+    public void setToggles(List<Toggle> toggles) {
+        getElement().callJsFunction("setToggles", new Gson().toJson(toggles));
+    }
+
+    /**
+     * Takes the snapshots of the model shown, put in its default state (front, three-quarter, profile and back of the
+     * full body, the face from the front and three-quarter, then a close-up of each part in each of its states) and sends
+     * them to the handler, one file per shot named after it ({@code full-front.jpg}, {@code part-3-1.jpg}). The preview
+     * is put back as it was. A {@link SnapshotsEvent} follows once the server has them all, a {@link SnapshotsErrorEvent}
+     * when not.
+     *
+     * @param base the default state of every toggle
+     */
+    public void takeSnapshots(UploadHandler handler, List<Toggle> base, List<Part> parts) {
         getElement().setAttribute("snapshot-target", handler);
-        getElement().callJsFunction("takeSnapshots", new Gson().toJson(parts));
+        getElement().callJsFunction("takeSnapshots", new Gson().toJson(new SnapshotRequest(base, parts)));
     }
 
     /** Shows nothing. */

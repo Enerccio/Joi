@@ -16,20 +16,14 @@ import java.util.Map;
  *
  * @param description how she looks, the parts that never change, in the second person ("You have long silver hair...")
  * @param toggles     names for the toggles: the toggle's id ({@code key:Headgear/Hide Halo}) → the name
- * @param parts       the toggles described apart: the toggle's id → a sentence for each state
+ * @param parts       the parts described apart ({@link DescribedPart}): the part's id → the state's id → its sentence
  * @param model       the name of the model that proposed it
  * @param at          when
  */
-public record AppearanceProposal(String description, Map<String, String> toggles, Map<String, Part> parts, String model, Date at) {
+public record AppearanceProposal(String description, Map<String, String> toggles, Map<String, Map<String, String>> parts,
+                                 String model, Date at) {
 
     private static final Gson GSON = new GsonBuilder().disableHtmlEscaping().create();
-
-    /**
-     * @param shown  how she looks there with the part shown
-     * @param hidden how she looks there with it hidden (what is there instead)
-     */
-    public record Part(String shown, String hidden) {
-    }
 
     public String toJson() {
         return GSON.toJson(this);
@@ -95,22 +89,35 @@ public record AppearanceProposal(String description, Map<String, String> toggles
     }
 
     /**
-     * Reads the answer to the request for one toggle: {@code shown} and {@code hidden}.
+     * Reads the answer to the request for one part: a sentence for each state, by its number in the request (its id
+     * or its name are taken too, and "shown" / "hidden" for a toggle).
      *
+     * @return the state's id → its sentence
      * @throws IllegalArgumentException when there is no such object or a state is missing
      */
-    public static Part parsePart(String answer) {
+    public static Map<String, String> parsePart(String answer, DescribedPart part) {
         JsonObject object = object(answer);
-        String shown = string(object, "shown");
-        String hidden = string(object, "hidden");
-        if (shown == null || hidden == null) {
-            throw new IllegalArgumentException("The model did not describe both states");
+        Map<String, String> sentences = new LinkedHashMap<>();
+        for (int i = 0; i < part.states().size(); i++) {
+            DescribedPart.State state = part.states().get(i);
+            String sentence = null;
+            for (String key : new String[]{String.valueOf(i + 1), state.id(), state.name()}) {
+                for (Map.Entry<String, JsonElement> entry : object.entrySet()) {
+                    if (sentence == null && entry.getKey().strip().equalsIgnoreCase(key)) {
+                        sentence = string(object, entry.getKey());
+                    }
+                }
+            }
+            if (sentence == null) {
+                throw new IllegalArgumentException("The model did not describe the state " + state.name());
+            }
+            sentences.put(state.id(), sentence);
         }
-        return new Part(shown, hidden);
+        return sentences;
     }
 
     /** The same proposal with these names and parts. */
-    public AppearanceProposal with(Map<String, String> toggles, Map<String, Part> parts) {
+    public AppearanceProposal with(Map<String, String> toggles, Map<String, Map<String, String>> parts) {
         return new AppearanceProposal(description, toggles, parts, model, at);
     }
 }

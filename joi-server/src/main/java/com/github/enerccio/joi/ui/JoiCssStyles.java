@@ -44,4 +44,7 @@ public final class JoiCssStyles {
     public static final String MODEL_VIEWER = "model-viewer";
     /** The thumbnails of a body's snapshots and images. */
     public static final String BODY_THUMBNAILS = "body-thumbnails";
+    public static final String TOGGLE_GROUP = "toggle-group";
+    public static final String TOGGLE_GROUP_STATES = "toggle-group-states";
+    public static final String TOGGLE_GROUP_STATE = "toggle-group-state";
 }
