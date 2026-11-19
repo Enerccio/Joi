@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Enerccio/joi/protocol/v1/ToolCall.schema.json",
+  "title": "ToolCall",
+  "description": "tool_call: run a tool of the node. The node checks the arguments and its harness again, and answers with tool_result.",
+  "type": "object",
+  "properties": {
+    "callId": {
+      "type": "string",
+      "description": "The id of the call; the answers refer to it.",
+      "pattern": "^[A-Za-z0-9._:-]{1,64}$"
+    },
+    "tool": {
+      "type": "string",
+      "description": "The name in the manifest, without the node's name.",
+      "pattern": "^[a-z][a-z0-9_]{0,63}$"
+    },
+    "arguments": {
+      "type": "object",
+      "description": "The arguments."
+    },
+    "turn": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "The id of the say whose turn called it, null when the turn did not come from this node."
+    },
+    "timeoutSeconds": {
+      "type": "integer",
+      "description": "How long the server waits for the result after the last frame about the call (an approval that is asked waits for the user).",
+      "minimum": 1
+    }
+  },
+  "required": [
+    "callId",
+    "tool",
+    "arguments",
+    "timeoutSeconds"
+  ]
+}

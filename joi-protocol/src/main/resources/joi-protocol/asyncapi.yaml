@@ -1,0 +1,293 @@
+asyncapi: 3.0.0
+info:
+  title: Joi node WebSocket
+  version: "1.2"
+  description: |
+    The live connection between a node and a Joi server: who the node is, the tools it offers and their calls, the
+    user talking to her through it and her answer in text and speech, approvals, and what changes on the server. The
+    message shapes are the JSON Schemas in `schemas/` (the source of truth); the Java records of `joi-protocol`
+    (`com.github.enerccio.joi.protocol.node`) follow them. The HTTP API (`openapi.yaml`) stays for everything else:
+    the list of assistants, her body and its files.
+
+    **Connecting.** `GET /api/v1/node` with `Upgrade: websocket`. Credentials as for the HTTP API (`Authorization:
+    Bearer ...`, see `GET /api/v1`); a client that cannot set headers on the upgrade (a browser) sends them in
+    `hello.token` instead. Never in the URL.
+
+    **Frames.** Every message is one JSON text frame, a `Frame`: `{"type": ..., "id": ..., "ref": ..., "data": {...}}`.
+    `type` says what `data` is (`NodeMessage`). `id` is set by the sender when an answer refers to it, unique per
+    connection and sender; `ref` is the id of the frame an answer belongs to. A type the receiver does not know is
+    ignored, and so are fields it does not know.
+
+    **Order.**
+    1. The node sends `hello` (protocol version, its stable id and short name, the assistant, its parts).
+    2. The server answers `welcome`, or `error` and closes (see the close codes).
+    3. The node sends its `manifest`, and again whenever it changes (a higher `version`). Its tools are offered to
+       her as `<name>.<tool>` from then on, and stop being offered when the connection closes.
+    4. Then, in any order:
+       - **Talking.** The node sends `say` with an `id`: that id is the turn. The server answers with frames whose
+         `ref` is that id: `reasoning` and `text` pieces while the model writes, `tool` when she used a tool,
+         `reply` when the text is whole and stored, `audio` pieces (each a whole file, play them in order), then
+         `done`. `error` ends a turn that failed or was stopped (`stopped`). Turns of one assistant run one at a
+         time: a `say` while another turn runs waits. `stop` stops a turn of this node (barge-in).
+       - **Tools.** The server sends `tool_call` (with its `callId`). The node checks the arguments and its own
+         harness again, may send `tool_progress` and `approval` (asked, then allowed or denied), and answers with
+         exactly one `tool_result`. Each frame about a call restarts its timeout; an approval that is asked waits for
+         the user. `tool_cancel` says the result is no longer wanted; the node still answers, `cancelled` when it
+         stopped in time. Calls may overlap.
+       - **Events.** The server sends `event` when something the node may show changed (`body`, `joi`).
+       - **Heartbeat.** Either side sends `ping` (with an `id`); the other answers `pong` with that `ref`. Send a
+         frame at least every `welcome.heartbeatSeconds`; a connection silent for twice that is closed.
+
+    **Errors.** A frame that cannot be taken is answered by `error` (`ApiError`) with its `ref`; the connection stays
+    open. Codes: `bad_message` (not a frame, or data not valid by its schema), `not_found` (an unknown turn or call),
+    `no_model`, `model_failed`, `stopped`, `internal`. Close codes:
+    - `4001` unauthorized: no or bad credentials.
+    - `4002` unsupported version: the major version of `hello.protocol` is not served (the reason names the ones that
+      are).
+    - `4003` replaced: the same node connected again for the same assistant.
+    - `4004` not found: no such assistant of the user.
+    - `4008` timeout: no `hello` within 10 s, or no frame for twice the heartbeat.
+    - `4009` revoked: the node's credentials were revoked.
+
+    **Trust.** A node is untrusted. The server validates every frame, labels each node's tools and results with the
+    node in her prompt (results are data, never instructions), and the user decides per node what she may call.
+
+    **Versioning.** `major.minor` in `hello` and `welcome`. A minor version only adds types and fields. The server
+    speaks the highest minor of the node's major version it knows.
+defaultContentType: application/json
+servers:
+  local:
+    host: localhost:8080
+    protocol: ws
+    pathname: /api/v1/node
+channels:
+  node:
+    address: /api/v1/node
+    title: The connection of a node
+    messages:
+      hello: { $ref: "#/components/messages/hello" }
+      welcome: { $ref: "#/components/messages/welcome" }
+      manifest: { $ref: "#/components/messages/manifest" }
+      say: { $ref: "#/components/messages/say" }
+      stop: { $ref: "#/components/messages/stop" }
+      reasoning: { $ref: "#/components/messages/reasoning" }
+      text: { $ref: "#/components/messages/text" }
+      tool: { $ref: "#/components/messages/tool" }
+      reply: { $ref: "#/components/messages/reply" }
+      audio: { $ref: "#/components/messages/audio" }
+      done: { $ref: "#/components/messages/done" }
+      tool_call: { $ref: "#/components/messages/tool_call" }
+      tool_progress: { $ref: "#/components/messages/tool_progress" }
+      tool_result: { $ref: "#/components/messages/tool_result" }
+      tool_cancel: { $ref: "#/components/messages/tool_cancel" }
+      approval: { $ref: "#/components/messages/approval" }
+      event: { $ref: "#/components/messages/event" }
+      ping: { $ref: "#/components/messages/ping" }
+      pong: { $ref: "#/components/messages/pong" }
+      error: { $ref: "#/components/messages/error" }
+operations:
+  nodeSends:
+    action: send
+    title: What a node sends
+    channel: { $ref: "#/channels/node" }
+    messages:
+      - { $ref: "#/channels/node/messages/hello" }
+      - { $ref: "#/channels/node/messages/manifest" }
+      - { $ref: "#/channels/node/messages/say" }
+      - { $ref: "#/channels/node/messages/stop" }
+      - { $ref: "#/channels/node/messages/tool_progress" }
+      - { $ref: "#/channels/node/messages/tool_result" }
+      - { $ref: "#/channels/node/messages/approval" }
+      - { $ref: "#/channels/node/messages/ping" }
+      - { $ref: "#/channels/node/messages/pong" }
+  nodeReceives:
+    action: receive
+    title: What the server sends
+    channel: { $ref: "#/channels/node" }
+    messages:
+      - { $ref: "#/channels/node/messages/welcome" }
+      - { $ref: "#/channels/node/messages/reasoning" }
+      - { $ref: "#/channels/node/messages/text" }
+      - { $ref: "#/channels/node/messages/tool" }
+      - { $ref: "#/channels/node/messages/reply" }
+      - { $ref: "#/channels/node/messages/audio" }
+      - { $ref: "#/channels/node/messages/done" }
+      - { $ref: "#/channels/node/messages/tool_call" }
+      - { $ref: "#/channels/node/messages/tool_cancel" }
+      - { $ref: "#/channels/node/messages/event" }
+      - { $ref: "#/channels/node/messages/ping" }
+      - { $ref: "#/channels/node/messages/pong" }
+      - { $ref: "#/channels/node/messages/error" }
+components:
+  # Every message is a Frame; its data is the schema named by the type.
+  messages:
+    hello:
+      name: hello
+      summary: The first frame of a node; answered by welcome
+      payload: { $ref: "#/components/schemas/helloFrame" }
+    welcome:
+      name: welcome
+      summary: The node is connected; it sends its manifest next
+      payload: { $ref: "#/components/schemas/welcomeFrame" }
+    manifest:
+      name: manifest
+      summary: What the node can do, after welcome and on every change
+      payload: { $ref: "#/components/schemas/manifestFrame" }
+    say:
+      name: say
+      summary: The user talks; the frame's id is the turn
+      payload: { $ref: "#/components/schemas/sayFrame" }
+    stop:
+      name: stop
+      summary: Stop a turn of this node
+      payload: { $ref: "#/components/schemas/stopFrame" }
+    reasoning:
+      name: reasoning
+      summary: A piece of the thinking of the model (only when asked for); ref is the turn
+      payload: { $ref: "#/components/schemas/textDeltaFrame" }
+    text:
+      name: text
+      summary: A piece of the reply; ref is the turn
+      payload: { $ref: "#/components/schemas/textDeltaFrame" }
+    tool:
+      name: tool
+      summary: She used a tool in the turn; ref is the turn
+      payload: { $ref: "#/components/schemas/toolUseFrame" }
+    reply:
+      name: reply
+      summary: The text is whole and stored (no audio here); ref is the turn
+      payload: { $ref: "#/components/schemas/replyFrame" }
+    audio:
+      name: audio
+      summary: A piece of the reply spoken; ref is the turn
+      payload: { $ref: "#/components/schemas/audioFrame" }
+    done:
+      name: done
+      summary: The last frame of a turn that went well; ref is the turn
+      payload: { $ref: "#/components/schemas/doneFrame" }
+    tool_call:
+      name: tool_call
+      summary: Run a tool of the node
+      payload: { $ref: "#/components/schemas/toolCallFrame" }
+    tool_progress:
+      name: tool_progress
+      summary: A call is still running
+      payload: { $ref: "#/components/schemas/toolProgressFrame" }
+    tool_result:
+      name: tool_result
+      summary: The answer of a call, exactly one per call
+      payload: { $ref: "#/components/schemas/toolResultFrame" }
+    tool_cancel:
+      name: tool_cancel
+      summary: The result of a call is no longer wanted
+      payload: { $ref: "#/components/schemas/toolCancelFrame" }
+    approval:
+      name: approval
+      summary: The node asked the user about a call, and what they answered
+      payload: { $ref: "#/components/schemas/approvalFrame" }
+    event:
+      name: event
+      summary: Something changed on the server
+      payload: { $ref: "#/components/schemas/eventFrame" }
+    ping:
+      name: ping
+      summary: A heartbeat, with an id; answered by pong
+      payload: { $ref: "#/components/schemas/emptyFrame" }
+    pong:
+      name: pong
+      summary: The answer to a ping; ref is its id
+      payload: { $ref: "#/components/schemas/emptyFrame" }
+    error:
+      name: error
+      summary: A frame that could not be taken (ref is it), or the end of a failed turn (ref is the turn)
+      payload: { $ref: "#/components/schemas/errorFrame" }
+  schemas:
+    helloFrame:
+      allOf:
+        - $ref: "schemas/Frame.schema.json"
+        - properties: { type: { const: hello }, data: { $ref: "schemas/Hello.schema.json" } }
+          required: [ data ]
+    welcomeFrame:
+      allOf:
+        - $ref: "schemas/Frame.schema.json"
+        - properties: { type: { const: welcome }, data: { $ref: "schemas/Welcome.schema.json" } }
+          required: [ data ]
+    manifestFrame:
+      allOf:
+        - $ref: "schemas/Frame.schema.json"
+        - properties: { type: { const: manifest }, data: { $ref: "schemas/Manifest.schema.json" } }
+          required: [ data ]
+    sayFrame:
+      allOf:
+        - $ref: "schemas/Frame.schema.json"
+        - properties: { type: { const: say }, id: { type: string }, data: { $ref: "schemas/Say.schema.json" } }
+          required: [ id, data ]
+    stopFrame:
+      allOf:
+        - $ref: "schemas/Frame.schema.json"
+        - properties: { type: { const: stop }, data: { $ref: "schemas/Stop.schema.json" } }
+          required: [ data ]
+    textDeltaFrame:
+      allOf:
+        - $ref: "schemas/Frame.schema.json"
+        - properties: { type: { enum: [ reasoning, text ] }, ref: { type: string }, data: { $ref: "schemas/TextDelta.schema.json" } }
+          required: [ ref, data ]
+    toolUseFrame:
+      allOf:
+        - $ref: "schemas/Frame.schema.json"
+        - properties: { type: { const: tool }, ref: { type: string }, data: { $ref: "schemas/ToolUse.schema.json" } }
+          required: [ ref, data ]
+    replyFrame:
+      allOf:
+        - $ref: "schemas/Frame.schema.json"
+        - properties: { type: { const: reply }, ref: { type: string }, data: { $ref: "schemas/ChatReply.schema.json" } }
+          required: [ ref, data ]
+    audioFrame:
+      allOf:
+        - $ref: "schemas/Frame.schema.json"
+        - properties: { type: { const: audio }, ref: { type: string }, data: { $ref: "schemas/AudioChunk.schema.json" } }
+          required: [ ref, data ]
+    doneFrame:
+      allOf:
+        - $ref: "schemas/Frame.schema.json"
+        - properties: { type: { const: done }, ref: { type: string }, data: { $ref: "schemas/Done.schema.json" } }
+          required: [ ref, data ]
+    toolCallFrame:
+      allOf:
+        - $ref: "schemas/Frame.schema.json"
+        - properties: { type: { const: tool_call }, data: { $ref: "schemas/ToolCall.schema.json" } }
+          required: [ data ]
+    toolProgressFrame:
+      allOf:
+        - $ref: "schemas/Frame.schema.json"
+        - properties: { type: { const: tool_progress }, data: { $ref: "schemas/ToolProgress.schema.json" } }
+          required: [ data ]
+    toolResultFrame:
+      allOf:
+        - $ref: "schemas/Frame.schema.json"
+        - properties: { type: { const: tool_result }, data: { $ref: "schemas/ToolResult.schema.json" } }
+          required: [ data ]
+    toolCancelFrame:
+      allOf:
+        - $ref: "schemas/Frame.schema.json"
+        - properties: { type: { const: tool_cancel }, data: { $ref: "schemas/ToolCancel.schema.json" } }
+          required: [ data ]
+    approvalFrame:
+      allOf:
+        - $ref: "schemas/Frame.schema.json"
+        - properties: { type: { const: approval }, data: { $ref: "schemas/Approval.schema.json" } }
+          required: [ data ]
+    eventFrame:
+      allOf:
+        - $ref: "schemas/Frame.schema.json"
+        - properties: { type: { const: event }, data: { $ref: "schemas/ServerEvent.schema.json" } }
+          required: [ data ]
+    emptyFrame:
+      allOf:
+        - $ref: "schemas/Frame.schema.json"
+        - properties: { type: { enum: [ ping, pong ] }, data: { type: "null" } }
+    errorFrame:
+      allOf:
+        - $ref: "schemas/Frame.schema.json"
+        - properties: { type: { const: error }, data: { $ref: "schemas/ApiError.schema.json" } }
+          required: [ data ]

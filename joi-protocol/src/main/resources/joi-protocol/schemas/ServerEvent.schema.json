@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Enerccio/joi/protocol/v1/ServerEvent.schema.json",
+  "title": "ServerEvent",
+  "description": "event: something changed on the server that the node may show. Unknown names are ignored.",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "body (the body she is in, its parts or animations: read GET /jois/{id}/body again), joi (her name, mood, voice: read GET /jois/{id} again)."
+    },
+    "at": {
+      "type": "string",
+      "description": "When (ISO 8601 date and time).",
+      "format": "date-time"
+    }
+  },
+  "required": [
+    "name",
+    "at"
+  ]
+}

@@ -1,0 +1,34 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Enerccio/joi/protocol/v1/Approval.schema.json",
+  "title": "Approval",
+  "description": "approval: the node asked the user about a call (ask tier), and what they answered.",
+  "type": "object",
+  "properties": {
+    "callId": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9._:-]{1,64}$"
+    },
+    "state": {
+      "$ref": "ApprovalState.schema.json"
+    },
+    "scope": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "When allowed: once or session."
+    },
+    "via": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "How it was answered: click, voice, deck..."
+    }
+  },
+  "required": [
+    "callId",
+    "state"
+  ]
+}

@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Enerccio/joi/protocol/v1/Stop.schema.json",
+  "title": "Stop",
+  "description": "stop: stop a turn of this node, its text and the speech not yet sent (the user talked over her).",
+  "type": "object",
+  "properties": {
+    "turn": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "The id of the say, null for the turn running now.",
+      "pattern": "^[A-Za-z0-9._:-]{1,64}$"
+    }
+  },
+  "required": []
+}

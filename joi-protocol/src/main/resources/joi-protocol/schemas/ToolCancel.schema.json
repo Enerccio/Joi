@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Enerccio/joi/protocol/v1/ToolCancel.schema.json",
+  "title": "ToolCancel",
+  "description": "tool_cancel: the server no longer wants the result (the turn was stopped or timed out). The node answers with a tool_result, cancelled when it stopped in time.",
+  "type": "object",
+  "properties": {
+    "callId": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9._:-]{1,64}$"
+    },
+    "reason": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Why, for people."
+    }
+  },
+  "required": [
+    "callId"
+  ]
+}

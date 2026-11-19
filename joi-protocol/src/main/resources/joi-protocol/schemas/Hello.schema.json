@@ -1,0 +1,63 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Enerccio/joi/protocol/v1/Hello.schema.json",
+  "title": "Hello",
+  "description": "hello, the first frame of a node: who it is and which assistant it is for.",
+  "type": "object",
+  "properties": {
+    "protocol": {
+      "type": "string",
+      "description": "The version the node speaks, major.minor.",
+      "pattern": "^[0-9]+\\.[0-9]+$"
+    },
+    "nodeId": {
+      "type": "string",
+      "description": "The stable id of the node, chosen by it once and kept (a UUID).",
+      "pattern": "^[A-Za-z0-9._:-]{1,64}$"
+    },
+    "name": {
+      "type": "string",
+      "description": "The short name of the node (desk, phone, kitchen): its tools are offered as <name>.<tool>.",
+      "pattern": "^[a-z][a-z0-9_-]{0,31}$"
+    },
+    "kind": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "What it is: desktop, phone, pi, car..."
+    },
+    "software": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "The program and its version (joi-node 0.1.0)."
+    },
+    "joi": {
+      "type": "string",
+      "description": "The id of the assistant this connection is for."
+    },
+    "parts": {
+      "type": "array",
+      "items": {
+        "$ref": "NodePart.schema.json"
+      },
+      "description": "What the node implements; unknown parts are ignored."
+    },
+    "token": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "The credentials, for a client that cannot send an Authorization header on the upgrade."
+    }
+  },
+  "required": [
+    "protocol",
+    "nodeId",
+    "name",
+    "joi",
+    "parts"
+  ]
+}

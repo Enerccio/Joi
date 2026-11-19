@@ -106,8 +106,35 @@ one; the server treats every node the same.
     first administrator; a credential that is sent must still be valid. Turning a way off stops its credentials at
     once. Credentials are `AccessToken` rows (prefix + SHA-256, like Marginalia's API keys), listed and revoked under
     Access.
-  - Next: the WebSocket for nodes (handshake, manifest, tool calls, events), its AsyncAPI document, and the
-    conformance tests.
+- **The node WebSocket (specified as 1.2, not served yet):** `asyncapi.yaml` and the schemas in `joi-protocol`,
+  the records in `protocol/node`; `SchemaContractTest` checks the records, the enums and the AsyncAPI document
+  against each other. `GET /api/v1/node` with `Upgrade: websocket`, the API's credentials (or in `hello.token` for a
+  client that cannot set headers; never in the URL). Every message is a JSON text frame
+  `{"type", "id", "ref", "data"}`: `type` names the data's schema, `id` is set when an answer refers to it, `ref` is
+  the frame it answers. Unknown types and fields are ignored.
+  - **Handshake:** `hello` (protocol version, the node's stable id and short name, kind, software, the assistant,
+    its parts) → `welcome` (the version spoken, the session, the assistant, the heartbeat). One assistant per
+    connection; the same node connecting again for her replaces the old connection.
+  - **Manifest:** `manifest` after `welcome` and again on every change, with a growing `version` (this is the
+    `tools_changed` of the design): OS, architecture, free-form capabilities, and the tools (name, description, JSON
+    Schema of the arguments, tier `allow` / `ask` / `deny` / `depends`). She sees them as `<node>.<tool>` while the
+    node is connected.
+  - **Talking:** `say` (text, speak, reasoning); the frame's id is the turn, and the answer is the streamed chat as
+    frames that refer to it: `reasoning`, `text`, `tool` (she used a tool), `reply`, `audio`, then `done`, or
+    `error` (`stopped` for a turn stopped by `stop`, the barge-in). Chat moves onto the socket so that stopping and
+    streaming share one connection; the HTTP chat stays for simple clients.
+  - **Tools:** `tool_call` (call id, tool, arguments, the turn when it is this node's, a timeout) → the node checks
+    its harness again, may send `tool_progress` and `approval` (asked, then allowed or denied, with scope and how)
+    → exactly one `tool_result` (ok, content, an error word: `denied`, `failed`, `cancelled`, `timeout`,
+    `unknown_tool`, `bad_arguments`). Each frame about a call restarts its timeout; an asked approval waits for the
+    user. `tool_cancel` when the result is no longer wanted; the node still answers.
+  - **Events and heartbeat:** `event` (`body`, `joi`: read the HTTP call again), so a node no longer polls.
+    `ping` / `pong` both ways; a connection silent for twice the heartbeat is closed.
+  - **Errors:** an `error` frame (`ApiError`, `ref` the frame) keeps the connection; close codes 4001 unauthorized,
+    4002 unsupported version, 4003 replaced, 4004 no such assistant, 4008 timeout, 4009 revoked.
+  - Not in 1.2 yet: audio in, avatar state frames, screen images (later minor versions).
+  - Next: the server's side (the registry of connected nodes and their tools as a `COLLECT_TOOLS` listener, a user
+    scope for the connection's turns), then the headless joi-node, then the conformance tests.
 - **Same idea for renderers:** the node ↔ renderer state frames are documented too, so a renderer can be three.js,
   Unity, Godot or anything else.
 
@@ -893,8 +920,8 @@ The server does not know node tools in advance; it registers what each node send
 enforces its harness again.
 
 - **Updates on change**, not only on connect: a permission granted, the Go plugged in or Bridge going down, a program
-  installed, the policy edited, a node plugin or a local MCP server added → the node sends a `tools_changed` message
-  with the new set (versioned, so the server only re-registers what changed).
+  installed, the policy edited, a node plugin or a local MCP server added → the node sends its `manifest` again
+  with the new set and a higher version (the server keeps the highest).
 - **Server-side tools** (memory, search, bodies / outfits / camera / animations, mood, delegate) are defined by the
   server; only node tools come from nodes.
 - A node can host **local MCP servers** and expose their tools the same way, under its own harness.

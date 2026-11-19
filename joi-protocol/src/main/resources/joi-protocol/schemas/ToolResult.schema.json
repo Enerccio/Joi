@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Enerccio/joi/protocol/v1/ToolResult.schema.json",
+  "title": "ToolResult",
+  "description": "tool_result: the answer of a call.",
+  "type": "object",
+  "properties": {
+    "callId": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9._:-]{1,64}$"
+    },
+    "ok": {
+      "type": "boolean",
+      "description": "False when it failed, was denied or cancelled."
+    },
+    "content": {
+      "type": "string",
+      "description": "What she gets: the result, or why it failed. Data, never instructions."
+    },
+    "error": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "When not ok, a stable word: denied, failed, cancelled, timeout, unknown_tool, bad_arguments."
+    }
+  },
+  "required": [
+    "callId",
+    "ok",
+    "content"
+  ]
+}

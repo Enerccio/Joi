@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Enerccio/joi/protocol/v1/Say.schema.json",
+  "title": "Say",
+  "description": "say: what the user said at the node. The frame's id is the id of the turn; her answer comes in frames that refer to it.",
+  "type": "object",
+  "properties": {
+    "text": {
+      "type": "string",
+      "description": "The words of the user.",
+      "minLength": 1
+    },
+    "speak": {
+      "type": [
+        "boolean",
+        "null"
+      ],
+      "description": "Speak the reply too, in audio frames (default true)."
+    },
+    "reasoning": {
+      "type": [
+        "boolean",
+        "null"
+      ],
+      "description": "Send the thinking of the model too (default false)."
+    }
+  },
+  "required": [
+    "text"
+  ]
+}

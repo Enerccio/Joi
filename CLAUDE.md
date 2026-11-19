@@ -61,7 +61,8 @@ with the code.
 
 ## Layout
 
-- `joi-protocol/` — the public API: JSON Schemas and `openapi.yaml` in `src/main/resources/joi-protocol` (the source of
+- `joi-protocol/` — the public API: JSON Schemas, `openapi.yaml` (HTTP) and `asyncapi.yaml` (the node WebSocket, 1.2,
+  not served yet; records in `protocol/node`) in `src/main/resources/joi-protocol` (the source of
   truth; `SchemaContractTest` checks the records against them), records in `com.github.enerccio.joi.protocol`, Gson
   only. A change of the API changes the schema, the record and `DESIGN.md` → The node protocol together.
   The `.joim` and `.joia` containers (`protocol/joim`, `protocol/joia`, documented in `joim.md` and `joia.md` there;

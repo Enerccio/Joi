@@ -1,12 +1,14 @@
 package com.github.enerccio.joi.protocol;
 
 import com.github.enerccio.joi.protocol.http.*;
+import com.github.enerccio.joi.protocol.node.*;
 import com.github.enerccio.joi.protocol.oauth.DeviceAuthorization;
 import com.github.enerccio.joi.protocol.oauth.OAuthError;
 import com.github.enerccio.joi.protocol.oauth.OAuthMetadata;
 import com.github.enerccio.joi.protocol.oauth.TokenResponse;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.google.gson.annotations.SerializedName;
@@ -38,7 +40,13 @@ class SchemaContractTest {
             JoiSummary.class, JoiList.class, Personality.class, Voice.class, JoiInfo.class, ChatRequest.class, Audio.class, Usage.class,
             ChatReply.class, TextDelta.class, AudioChunk.class, Done.class, ApiError.class, DeviceAuthorization.class,
             TokenResponse.class, OAuthError.class, OAuthMetadata.class, Download.class, BodyModel.class, BodyPart.class,
-            BodyAnimation.class, BodyAnimations.class, BodyInfo.class);
+            BodyAnimation.class, BodyAnimations.class, BodyInfo.class, Frame.class, Hello.class, Welcome.class, Manifest.class,
+            ToolDefinition.class, Say.class, Stop.class, ToolUse.class, ToolCall.class, ToolProgress.class, ToolResult.class,
+            ToolCancel.class, Approval.class, ServerEvent.class);
+
+    /** The enums with a schema of their own: the values are the schema's enum. */
+    static final List<Class<? extends Enum<?>>> ENUMS = List.of(AuthMethod.class, NodePart.class, ToolTier.class,
+            ApprovalState.class);
 
     /** As the server writes them: nulls included, so that "null" and "missing" are both checked against the schemas. */
     static final Gson GSON = new GsonBuilder().serializeNulls().create();
@@ -61,20 +69,49 @@ class SchemaContractTest {
     void everySchemaHasItsType() throws IOException {
         Set<String> names = new HashSet<>();
         RECORDS.forEach(r -> names.add(r.getSimpleName()));
-        names.add(AuthMethod.class.getSimpleName());
+        ENUMS.forEach(e -> names.add(e.getSimpleName()));
+        names.add(NodeMessage.class.getSimpleName());
         for (String name : names) {
             assertThat(getClass().getResource("/joi-protocol/schemas/" + name + ".schema.json")).as(name).isNotNull();
         }
         assertThat(getClass().getResource("/joi-protocol/openapi.yaml")).isNotNull();
+        assertThat(getClass().getResource("/joi-protocol/asyncapi.yaml")).isNotNull();
     }
 
     @Test
-    void theAuthMethodsAreTheEnum() throws IOException {
-        JsonObject schema = read("AuthMethod");
-        List<String> values = new ArrayList<>();
-        schema.getAsJsonArray("enum").forEach(v -> values.add(v.getAsString()));
-        List<String> names = Arrays.stream(AuthMethod.values()).map(m -> GSON.toJson(m).replace("\"", "")).toList();
-        assertThat(values).containsExactlyElementsOf(names);
+    void theEnumsAreTheirSchemas() throws IOException {
+        for (Class<? extends Enum<?>> type : ENUMS) {
+            JsonObject schema = read(type.getSimpleName());
+            List<String> names = Arrays.stream(type.getEnumConstants()).map(m -> GSON.toJson(m).replace("\"", "")).toList();
+            assertThat(values(schema.getAsJsonArray("enum"))).as(type.getSimpleName()).containsExactlyElementsOf(names);
+        }
+    }
+
+    @Test
+    void theNodeMessagesAreTheirSchemaAndTheAsyncApi() throws IOException {
+        List<String> types = Arrays.stream(NodeMessage.values()).map(NodeMessage::type).toList();
+        assertThat(values(read("NodeMessage").getAsJsonArray("enum"))).containsExactlyInAnyOrderElementsOf(types);
+        String asyncApi;
+        try (InputStream in = getClass().getResourceAsStream("/joi-protocol/asyncapi.yaml")) {
+            asyncApi = new String(in.readAllBytes(), StandardCharsets.UTF_8);
+        }
+        // what each side sends: the messages of the two operations
+        String sends = asyncApi.substring(asyncApi.indexOf("  nodeSends:"), asyncApi.indexOf("  nodeReceives:"));
+        String receives = asyncApi.substring(asyncApi.indexOf("  nodeReceives:"), asyncApi.indexOf("\ncomponents:"));
+        for (NodeMessage message : NodeMessage.values()) {
+            assertThat(NodeMessage.of(message.type())).isEqualTo(message);
+            if (message.dataClass() != null) {
+                assertThat(RECORDS).contains(message.dataClass());
+            }
+            String channel = "\n      " + message.type() + ": { $ref: \"#/components/messages/" + message.type() + "\" }";
+            assertThat(asyncApi).as(message.type()).contains(channel);
+            String operation = "/messages/" + message.type() + "\" }";
+            boolean toServer = message.direction() != NodeMessage.Direction.TO_NODE;
+            boolean toNode = message.direction() != NodeMessage.Direction.TO_SERVER;
+            assertThat(sends.contains(operation)).as(message.type() + " sent by the node").isEqualTo(toServer);
+            assertThat(receives.contains(operation)).as(message.type() + " sent by the server").isEqualTo(toNode);
+        }
+        assertThat(NodeMessage.of("hologram")).isNull();
     }
 
     @Test
@@ -119,6 +156,70 @@ class SchemaContractTest {
     }
 
     @Test
+    void nodeSamplesAreValid() {
+        JsonObject path = new JsonObject();
+        path.addProperty("type", "string");
+        JsonObject properties = new JsonObject();
+        properties.add("path", path);
+        JsonObject parameters = new JsonObject();
+        parameters.addProperty("type", "object");
+        parameters.add("properties", properties);
+        JsonObject arguments = new JsonObject();
+        arguments.addProperty("path", "~/notes.md");
+
+        Hello hello = new Hello(JoiProtocol.NODE_VERSION, "6f1d-4c2a", "desk", "desktop", "joi-node 0.1.0", "2f0c",
+                List.of(NodePart.TOOLS, NodePart.AUDIO_OUT, NodePart.APPROVALS), null);
+        valid(hello);
+        valid(new Hello("1.2", "n1", "kitchen-pi", null, null, "2f0c", List.of(), "joi_x"));
+        valid(new Welcome("1.2", "joi-server", "0.1.0", "s1", new JoiSummary("2f0c", "Joi", null), 30));
+        JsonObject capabilities = new JsonObject();
+        capabilities.addProperty("microphone", true);
+        Manifest manifest = new Manifest(3, "macos 26.1", "aarch64", capabilities,
+                List.of(new ToolDefinition("read_file", "Reads a text file", parameters, ToolTier.ALLOW),
+                        new ToolDefinition("shell", "Runs a command", parameters, ToolTier.ASK)));
+        valid(manifest);
+        valid(new Manifest(0, null, null, null, List.of()));
+        valid(new Say("What's on my calendar?", null, null));
+        valid(new Say("Hi", false, true));
+        valid(new Stop(null));
+        valid(new Stop("t1"));
+        valid(new ToolUse("desk.read_file", "{\"path\":\"~/notes.md\"}", "milk, eggs", true));
+        valid(new ToolUse("desk.shell", "{}", null, false));
+        valid(new ToolCall("c1", "read_file", arguments, "t1", 60));
+        valid(new ToolCall("c2", "shell", new JsonObject(), null, 60));
+        valid(new ToolProgress("c1", "Reading"));
+        valid(new ToolResult("c1", true, "milk, eggs", null));
+        valid(new ToolResult("c2", false, "The user said no", "denied"));
+        valid(new ToolCancel("c2", null));
+        valid(new Approval("c2", ApprovalState.ASKED, null, null));
+        valid(new Approval("c2", ApprovalState.ALLOWED, "session", "voice"));
+        valid(new ServerEvent("body", "2026-11-19T12:00:00Z"));
+
+        valid(new Frame("hello", null, null, GSON.toJsonTree(hello)));
+        valid(new Frame("say", "t1", null, GSON.toJsonTree(new Say("Hi", null, null))));
+        valid(new Frame("text", null, "t1", GSON.toJsonTree(new TextDelta("Hel"))));
+        valid(new Frame("ping", "p1", null, null));
+        valid(new Frame("pong", null, "p1", null));
+    }
+
+    @Test
+    void invalidNodeMessagesAreCaught() {
+        assertThat(errors(Frame.class, "{\"id\": \"t1\"}")).isNotEmpty();
+        assertThat(errors(Frame.class, "{\"type\": \"Say!\"}")).isNotEmpty();
+        assertThat(errors(Frame.class, "{\"type\": \"say\", \"id\": \"has space\"}")).isNotEmpty();
+        assertThat(errors(Hello.class, "{\"protocol\": \"1.2\", \"nodeId\": \"n\", \"name\": \"My Desk\", \"joi\": \"j\", \"parts\": []}"))
+                .isNotEmpty();
+        assertThat(errors(Hello.class, "{\"protocol\": \"1.2\", \"nodeId\": \"n\", \"name\": \"desk\", \"joi\": \"j\", \"parts\": [\"telepathy\"]}"))
+                .isNotEmpty();
+        assertThat(errors(ToolDefinition.class, "{\"name\": \"desk.shell\", \"description\": \"d\", \"parameters\": {}, \"tier\": \"ask\"}"))
+                .isNotEmpty();
+        assertThat(errors(ToolDefinition.class, "{\"name\": \"shell\", \"description\": \"d\", \"parameters\": {}, \"tier\": \"maybe\"}"))
+                .isNotEmpty();
+        assertThat(errors(ToolResult.class, "{\"callId\": \"c1\", \"ok\": true}")).isNotEmpty();
+        assertThat(errors(Say.class, "{\"text\": \"\"}")).isNotEmpty();
+    }
+
+    @Test
     void invalidMessagesAreCaught() {
         assertThat(errors(ChatRequest.class, "{\"text\": \"\"}")).isNotEmpty();
         assertThat(errors(ChatRequest.class, "{\"speak\": true}")).isNotEmpty();
@@ -152,6 +253,12 @@ class SchemaContractTest {
         } catch (NoSuchFieldException e) {
             throw new IllegalStateException(e);
         }
+    }
+
+    private static List<String> values(JsonArray array) {
+        List<String> values = new ArrayList<>();
+        array.forEach(v -> values.add(v.getAsString()));
+        return values;
     }
 
     private JsonObject read(String name) throws IOException {

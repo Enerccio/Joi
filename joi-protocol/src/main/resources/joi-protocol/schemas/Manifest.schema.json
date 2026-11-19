@@ -1,0 +1,46 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Enerccio/joi/protocol/v1/Manifest.schema.json",
+  "title": "Manifest",
+  "description": "manifest: what the node can do, sent after welcome and again whenever it changes.",
+  "type": "object",
+  "properties": {
+    "version": {
+      "type": "integer",
+      "description": "Grows with each change; the server keeps the highest.",
+      "minimum": 0
+    },
+    "os": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "The operating system (macos 26.1)."
+    },
+    "arch": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "The architecture (aarch64)."
+    },
+    "capabilities": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "description": "What the node has, free form: microphone, screen capture, accessibility, HUD, installed programs, the holographic display, the policy summary."
+    },
+    "tools": {
+      "type": "array",
+      "items": {
+        "$ref": "ToolDefinition.schema.json"
+      },
+      "description": "Every tool the node offers now; one that is gone is no longer offered."
+    }
+  },
+  "required": [
+    "version",
+    "tools"
+  ]
+}

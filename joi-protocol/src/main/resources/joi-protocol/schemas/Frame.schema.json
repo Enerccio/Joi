@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Enerccio/joi/protocol/v1/Frame.schema.json",
+  "title": "Frame",
+  "description": "Every WebSocket message: a JSON text frame with its type, an optional id, the id it answers and its data.",
+  "type": "object",
+  "properties": {
+    "type": {
+      "type": "string",
+      "description": "The kind of message (NodeMessage). Unknown types are ignored.",
+      "pattern": "^[a-z][a-z_]{0,31}$"
+    },
+    "id": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Set by the sender when an answer refers to it (a say is the id of its turn); unique per connection and sender.",
+      "pattern": "^[A-Za-z0-9._:-]{1,64}$"
+    },
+    "ref": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "The id of the frame this one answers or belongs to.",
+      "pattern": "^[A-Za-z0-9._:-]{1,64}$"
+    },
+    "data": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "description": "The message itself; its schema is given by the type. Null or missing for ping and pong."
+    }
+  },
+  "required": [
+    "type"
+  ]
+}

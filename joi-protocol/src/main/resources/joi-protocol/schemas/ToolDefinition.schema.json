@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Enerccio/joi/protocol/v1/ToolDefinition.schema.json",
+  "title": "ToolDefinition",
+  "description": "A tool of a node, as she sees it.",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "Unique in the node.",
+      "pattern": "^[a-z][a-z0-9_]{0,63}$"
+    },
+    "description": {
+      "type": "string",
+      "description": "What it does, for the model.",
+      "minLength": 1
+    },
+    "parameters": {
+      "type": "object",
+      "description": "A JSON Schema (draft 2020-12) of the arguments, an object."
+    },
+    "tier": {
+      "$ref": "ToolTier.schema.json"
+    }
+  },
+  "required": [
+    "name",
+    "description",
+    "parameters",
+    "tier"
+  ]
+}

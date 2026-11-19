@@ -1,0 +1,42 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Enerccio/joi/protocol/v1/Welcome.schema.json",
+  "title": "Welcome",
+  "description": "welcome, the answer to hello: the node is connected.",
+  "type": "object",
+  "properties": {
+    "protocol": {
+      "type": "string",
+      "description": "The version the server speaks on this connection, major.minor.",
+      "pattern": "^[0-9]+\\.[0-9]+$"
+    },
+    "server": {
+      "type": "string",
+      "description": "The program of the server."
+    },
+    "version": {
+      "type": "string",
+      "description": "Its version."
+    },
+    "session": {
+      "type": "string",
+      "description": "The id of this connection."
+    },
+    "joi": {
+      "$ref": "JoiSummary.schema.json"
+    },
+    "heartbeatSeconds": {
+      "type": "integer",
+      "description": "Send a frame (a ping when nothing else) at least this often; the server closes a silent connection after twice this.",
+      "minimum": 1
+    }
+  },
+  "required": [
+    "protocol",
+    "server",
+    "version",
+    "session",
+    "joi",
+    "heartbeatSeconds"
+  ]
+}

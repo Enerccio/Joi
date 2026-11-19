@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Enerccio/joi/protocol/v1/NodePart.schema.json",
+  "title": "NodePart",
+  "description": "What a node implements.",
+  "type": "string",
+  "enum": [
+    "tools",
+    "audio-in",
+    "audio-out",
+    "avatar",
+    "approvals",
+    "screen"
+  ]
+}

@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Enerccio/joi/protocol/v1/ToolTier.schema.json",
+  "title": "ToolTier",
+  "description": "The harness tier of a tool: allow (runs silently), ask (the user approves it on the node), deny (never runs), depends (on its arguments; the node decides per call).",
+  "type": "string",
+  "enum": [
+    "allow",
+    "ask",
+    "deny",
+    "depends"
+  ]
+}

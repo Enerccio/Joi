@@ -1,0 +1,95 @@
+package com.github.enerccio.joi.protocol.node;
+
+import com.github.enerccio.joi.protocol.http.ApiError;
+import com.github.enerccio.joi.protocol.http.AudioChunk;
+import com.github.enerccio.joi.protocol.http.ChatReply;
+import com.github.enerccio.joi.protocol.http.Done;
+import com.github.enerccio.joi.protocol.http.TextDelta;
+
+/**
+ * The types of {@link Frame}s of the node WebSocket and what their data is. The order and the rules are in
+ * {@code asyncapi.yaml}: {@code hello}, {@code welcome}, {@code manifest}, then anything; a {@code say} is answered by
+ * frames that refer to it, as a streamed chat ({@code reasoning}, {@code text}, {@code tool}, {@code reply},
+ * {@code audio}, then {@code done} or {@code error}).
+ */
+public enum NodeMessage {
+    /** {@link Hello}, node to server, the first frame. */
+    HELLO("hello", Direction.TO_SERVER, Hello.class),
+    /** {@link Welcome}, the answer to hello. */
+    WELCOME("welcome", Direction.TO_NODE, Welcome.class),
+    /** {@link Manifest}, after welcome and whenever it changes. */
+    MANIFEST("manifest", Direction.TO_SERVER, Manifest.class),
+    /** {@link Say}: the user talks; the id of the frame is the turn. */
+    SAY("say", Direction.TO_SERVER, Say.class),
+    /** {@link Stop} a turn of the node. */
+    STOP("stop", Direction.TO_SERVER, Stop.class),
+    /** {@link TextDelta} of the thinking (only when asked for). */
+    REASONING("reasoning", Direction.TO_NODE, TextDelta.class),
+    /** {@link TextDelta} of the reply. */
+    TEXT("text", Direction.TO_NODE, TextDelta.class),
+    /** {@link ToolUse}: she used a tool. */
+    TOOL("tool", Direction.TO_NODE, ToolUse.class),
+    /** {@link ChatReply} without audio: the text is whole and stored. */
+    REPLY("reply", Direction.TO_NODE, ChatReply.class),
+    /** {@link AudioChunk}: a piece of the reply spoken. */
+    AUDIO("audio", Direction.TO_NODE, AudioChunk.class),
+    /** {@link Done}: the last frame of a turn that went well. */
+    DONE("done", Direction.TO_NODE, Done.class),
+    /** {@link ToolCall}: run a tool of the node. */
+    TOOL_CALL("tool_call", Direction.TO_NODE, ToolCall.class),
+    /** {@link ToolProgress} of a call. */
+    TOOL_PROGRESS("tool_progress", Direction.TO_SERVER, ToolProgress.class),
+    /** {@link ToolResult} of a call. */
+    TOOL_RESULT("tool_result", Direction.TO_SERVER, ToolResult.class),
+    /** {@link ToolCancel}: the result is no longer wanted. */
+    TOOL_CANCEL("tool_cancel", Direction.TO_NODE, ToolCancel.class),
+    /** {@link Approval} of a call, asked and answered on the node. */
+    APPROVAL("approval", Direction.TO_SERVER, Approval.class),
+    /** {@link ServerEvent}: something changed on the server. */
+    EVENT("event", Direction.TO_NODE, ServerEvent.class),
+    /** No data; answered with pong. */
+    PING("ping", Direction.BOTH, null),
+    /** No data; refers to the ping. */
+    PONG("pong", Direction.BOTH, null),
+    /** {@link ApiError}: a frame that could not be taken (refers to it), or the end of a failed turn. */
+    ERROR("error", Direction.TO_NODE, ApiError.class);
+
+    /** Who sends a type. */
+    public enum Direction {
+        TO_SERVER, TO_NODE, BOTH
+    }
+
+    private final String type;
+    private final Direction direction;
+    private final Class<? extends Record> dataClass;
+
+    NodeMessage(String type, Direction direction, Class<? extends Record> dataClass) {
+        this.type = type;
+        this.direction = direction;
+        this.dataClass = dataClass;
+    }
+
+    /** The {@link Frame#type()}. */
+    public String type() {
+        return type;
+    }
+
+    public Direction direction() {
+        return direction;
+    }
+
+    /** What {@link Frame#data()} holds, null for none. */
+    public Class<? extends Record> dataClass() {
+        return dataClass;
+    }
+
+    /** The type of a frame, null for one this version does not know (ignore it). */
+    public static NodeMessage of(String type) {
+        for (NodeMessage message : values()) {
+            if (message.type.equals(type)) {
+                return message;
+            }
+        }
+        return null;
+    }
+}

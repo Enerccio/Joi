@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Enerccio/joi/protocol/v1/ApprovalState.schema.json",
+  "title": "ApprovalState",
+  "description": "Where an approval is: asked (the node waits for the user), allowed, denied.",
+  "type": "string",
+  "enum": [
+    "asked",
+    "allowed",
+    "denied"
+  ]
+}

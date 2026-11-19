@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Enerccio/joi/protocol/v1/ToolProgress.schema.json",
+  "title": "ToolProgress",
+  "description": "tool_progress: a call is still running.",
+  "type": "object",
+  "properties": {
+    "callId": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9._:-]{1,64}$"
+    },
+    "message": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "What it does now, for people."
+    }
+  },
+  "required": [
+    "callId"
+  ]
+}
