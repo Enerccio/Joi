@@ -25,12 +25,15 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Configurable;
 
 import java.text.DateFormat;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 
 /**
- * The animation packs of the user ({@link AnimationPack}, see {@code DESIGN.md} → Bodies, animations): a table with the
- * name, the description, how many clips and when it was added, Open and Delete (its clips stay in the library);
- * <i>Add pack</i> and Open show the {@link AnimationPackDialog} (clips chosen from the library, previewed on a body).
+ * The animations of the user ({@link AnimationPack}, see {@code DESIGN.md} → Bodies, animations): a table with
+ * checkboxes (Delete selected), the name, the description, how many steps and when it was added, Open and Delete (its
+ * clips stay in the library); <i>Add animation</i> and Open show the {@link AnimationPackDialog} (steps of clips of the
+ * library, previewed on a body).
  */
 @Configurable
 public class AnimationPacksPart implements WorkspacePart {
@@ -43,19 +46,27 @@ public class AnimationPacksPart implements WorkspacePart {
 
     private Grid<AnimationPack> grid;
     private Button addButton;
+    private Button deleteSelectedButton;
 
     @Override
     public Component create() {
         H4 title = new H4(loc.getValue(J_L.LABEL_ANIMATION_PACKS));
         addButton = new Button(loc.getValue(J_L.LABEL_ADD_ANIMATION_PACK), Solid.PLUS.create(), e -> open(new AnimationPack()));
         addButton.setThemeName("primary");
-        HorizontalLayout header = new HorizontalLayout(title, addButton);
+        deleteSelectedButton = new Button(loc.getValue(L.LABEL_DELETE_SELECTED), Solid.TRASH.create(), e -> deleteSelected());
+        deleteSelectedButton.setThemeName("error");
+        deleteSelectedButton.setEnabled(false);
+        HorizontalLayout buttons = new HorizontalLayout(deleteSelectedButton, addButton);
+        buttons.setAlignItems(FlexComponent.Alignment.CENTER);
+        HorizontalLayout header = new HorizontalLayout(title, buttons);
         header.setWidthFull();
         header.setAlignItems(FlexComponent.Alignment.CENTER);
         header.setJustifyContentMode(FlexComponent.JustifyContentMode.BETWEEN);
 
         DateFormat format = DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT);
         grid = new Grid<>(AnimationPack.class, false);
+        grid.setSelectionMode(Grid.SelectionMode.MULTI);
+        grid.addSelectionListener(e -> deleteSelectedButton.setEnabled(!e.getAllSelectedItems().isEmpty()));
         grid.setSizeFull();
         grid.addColumn(pack -> StringUtils.defaultIfBlank(pack.getName(), loc.getValue(J_L.LABEL_NEW_ANIMATION_PACK)))
                 .setHeader(loc.getValue(L.LABEL_NAME))
@@ -63,8 +74,8 @@ public class AnimationPacksPart implements WorkspacePart {
         grid.addColumn(pack -> StringUtils.abbreviate(StringUtils.defaultString(pack.getDescription()), 120))
                 .setHeader(loc.getValue(L.LABEL_DESCRIPTION))
                 .setFlexGrow(2);
-        grid.addColumn(pack -> pack.getClips().size())
-                .setHeader(loc.getValue(J_L.LABEL_CLIPS))
+        grid.addColumn(pack -> pack.steps().size())
+                .setHeader(loc.getValue(J_L.LABEL_ANIMATION_STEPS))
                 .setFlexGrow(0)
                 .setWidth("90px");
         grid.addColumn(pack -> pack.getCreation() == null ? "" : format.format(pack.getCreation()))
@@ -74,7 +85,7 @@ public class AnimationPacksPart implements WorkspacePart {
         grid.addComponentColumn(this::actions)
                 .setHeader("")
                 .setFlexGrow(0)
-                .setWidth(UIConstants.TOOL_COLUMN_SIZE_HUGE);
+                .setWidth(UIConstants.TOOL_COLUMN_SIZE_TRIPLE);
         grid.addItemDoubleClickListener(e -> open(e.getItem()));
 
         VerticalLayout layout = new VerticalLayout(header, grid);
@@ -103,6 +114,25 @@ public class AnimationPacksPart implements WorkspacePart {
         HorizontalLayout actions = new HorizontalLayout(openButton, deleteButton);
         actions.setSpacing(true);
         return actions;
+    }
+
+    /** Deletes the animations checked in the table, once confirmed (their clips stay). */
+    private void deleteSelected() {
+        List<AnimationPack> selected = new ArrayList<>(grid.getSelectedItems());
+        if (selected.isEmpty()) {
+            return;
+        }
+        ConfirmDialog.show(String.format(loc.getValue(J_L.MSG_CONFIRM_DELETE_ANIMATIONS), selected.size()), () -> {
+            try {
+                for (AnimationPack pack : selected) {
+                    packService.delete(packService.find(pack.getId()), false);
+                }
+                grid.deselectAll();
+                refresh();
+            } catch (Exception ex) {
+                UIUtils.internalServerError(loc, ex);
+            }
+        });
     }
 
     /** Shows the dialog of the pack, a new one (not stored until it has a name or a clip) or a stored one. */

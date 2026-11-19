@@ -128,13 +128,30 @@
     overflow: hidden;
 }
 
-.animation-playback {
+.animation-strip {
     flex-wrap: wrap;
+    align-items: center;
+    gap: var(--lumo-space-xs);
+    padding: var(--lumo-space-s) 0;
 }
 
-.animation-playback > vaadin-checkbox {
-    flex: none;
+.animation-strip-arrow {
+    color: var(--lumo-secondary-text-color);
+}
+
+.animation-step {
+    padding: var(--lumo-space-xs) var(--lumo-space-s);
+    border: 1px solid var(--lumo-contrast-20pct);
+    border-radius: var(--lumo-border-radius-m);
+    font-size: var(--lumo-font-size-s);
     white-space: nowrap;
+    cursor: pointer;
+}
+
+.animation-step.playing {
+    background: var(--lumo-primary-color-10pct);
+    border-color: var(--lumo-primary-color);
+    color: var(--lumo-primary-text-color);
 }
 
 .conversion-log {

@@ -40,17 +40,20 @@ public class Animation extends ExtendableEntity {
     @Transient
     private List<String> tags = new ArrayList<>();
 
-    /** Whether it plays in a loop (an idle) or once (a wave); null for once. */
+    /**
+     * Whether it plays in a loop (an idle) or once (a wave); null for once. Animations decide how a clip plays (their
+     * {@code AnimationStep}s): this is only what a new step of the clip starts from, set before steps had it.
+     */
     @ExtendedAttribute
     @Transient
     private Boolean loop;
 
-    /** Whether her hips keep their spot on the floor (the clip's moving about is left out); null for no. */
+    /** Whether her hips keep their spot on the floor (the clip's moving about is left out); null for no. As the loop. */
     @ExtendedAttribute
     @Transient
     private Boolean inPlace;
 
-    /** How fast it plays, 1 for as made; null for 1. */
+    /** How fast it plays, 1 for as made; null for 1. As the loop. */
     @ExtendedAttribute
     @Transient
     private Double speed;

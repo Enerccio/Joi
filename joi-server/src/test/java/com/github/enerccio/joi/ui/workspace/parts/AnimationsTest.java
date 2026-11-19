@@ -1,5 +1,6 @@
 package com.github.enerccio.joi.ui.workspace.parts;
 
+import com.github.enerccio.joi.domain.animations.AnimationStep;
 import com.github.enerccio.joi.domain.animations.VrmaTestFiles;
 import com.github.enerccio.joi.domain.bodies.ModelFiles;
 import com.github.enerccio.joi.domain.bodies.SpringBonesTestFiles;
@@ -78,7 +79,7 @@ class AnimationsTest extends PlatformTestBase {
     }
 
     private static List<String> names(AnimationPackDialog dialog) {
-        return dialog.getClips().getDataProvider().fetch(new Query<>()).map(Animation::getName).toList();
+        return dialog.getSteps().getDataProvider().fetch(new Query<>()).map(step -> step.clip().getName()).toList();
     }
 
     @Test
@@ -111,20 +112,17 @@ class AnimationsTest extends PlatformTestBase {
         dialog.create();
         dialog.getNameField().setValue("Wave");
         dialog.getTagsField().setValue("Hello, wave, hello ,");
-        dialog.getLoop().setValue(true);
-        dialog.getInPlace().setValue(true);
 
         Animation stored = animationService.find(clip.getId());
         assertThat(stored.getName()).isEqualTo("Wave");
         assertThat(stored.getTags()).containsExactly("hello", "wave");
-        assertThat(stored.loops()).isTrue();
-        assertThat(stored.playsInPlace()).isTrue();
-        assertThat(stored.speedOrDefault()).isEqualTo(1.0);
     }
 
     @Test
-    void aPackListsClipsOfTheLibrary() throws Exception {
+    void anAnimationIsStepsOfClips() throws Exception {
         Animation wave = upload("wave.vrma");
+        wave.setLoop(true);
+        wave = animationService.save(wave);
         Animation bow = upload("bow.vrma");
 
         AnimationPackDialog dialog = new AnimationPackDialog(new AnimationPack());
@@ -133,21 +131,63 @@ class AnimationsTest extends PlatformTestBase {
         assertThat(dialog.getPreview().getBodySelect().getListDataView().getItems().toList()).containsExactly(body.getId());
         assertThat(dialog.getChoice().getListDataView().getItems().map(Animation::getName).toList()).containsExactly("bow", "wave");
 
-        // adding the first clips stores a new pack, with the body it is previewed on
+        // adding the first clips stores a new animation, with the body it is previewed on; a step starts as its clip was set
         dialog.getChoice().setValue(Set.of(wave));
         dialog.addChosenForTest();
         AnimationPack pack = packService.find(dialog.getPack().getId());
-        assertThat(pack.getClips()).containsExactly(wave.getUuid());
+        assertThat(pack.clipUuids()).containsExactly(wave.getUuid());
+        assertThat(pack.steps().getFirst().loop()).isTrue();
         assertThat(pack.getPreviewBodyId()).isEqualTo(body.getId());
         assertThat(names(dialog)).containsExactly("wave");
-        assertThat(dialog.getChoice().getListDataView().getItems().map(Animation::getName).toList()).containsExactly("bow");
 
-        dialog.getChoice().setValue(Set.of(bow));
+        // a clip can be in several steps: the whole library stays to choose from
+        assertThat(dialog.getChoice().getListDataView().getItems().map(Animation::getName).toList()).containsExactly("bow", "wave");
+        dialog.getChoice().setValue(Set.of(bow, wave));
         dialog.addChosenForTest();
+        assertThat(names(dialog)).containsExactly("wave", "bow", "wave");
+
+        // a step is set in the table and moved; the whole animation loops
+        dialog.updateStepForTest(1, step -> step.withSpeed(1.5).withInPlace(true));
+        dialog.moveStepForTest(1, -1);
+        dialog.getLoopField().setValue(true);
         AnimationPackDialog reopened = new AnimationPackDialog(packService.find(pack.getId()));
         reopened.create();
-        assertThat(names(reopened)).containsExactly("wave", "bow");
+        assertThat(names(reopened)).containsExactly("bow", "wave", "wave");
+        AnimationStep first = reopened.getPack().steps().getFirst();
+        assertThat(first.speed()).isEqualTo(1.5);
+        assertThat(first.inPlace()).isTrue();
+        assertThat(first.loop()).isFalse();
+        assertThat(reopened.getPack().loops()).isTrue();
         assertThat(reopened.getPreview().getBodySelect().getValue()).isEqualTo(body.getId());
+        // nothing is chosen in the table: the whole animation plays
+        assertThat(reopened.getSteps().getSelectedItems()).isEmpty();
+    }
+
+    @Test
+    void addedClipsAppendTheirDescriptionsAndAPackIsMadeFromAClip() throws Exception {
+        Animation wave = upload("wave.vrma");
+        wave.setDescription("You wave hello. ");
+        wave = animationService.save(wave);
+        Animation bow = upload("bow.vrma");
+        bow.setDescription("You bow.");
+        bow = animationService.save(bow);
+        Animation nod = upload("nod.vrma");
+
+        AnimationPackDialog made = part.createPackForTest(wave);
+        AnimationPack pack = packService.find(made.getPack().getId());
+        assertThat(pack.getName()).isEqualTo("wave");
+        assertThat(pack.getDescription()).isEqualTo("You wave hello.");
+        assertThat(pack.clipUuids()).containsExactly(wave.getUuid());
+        assertThat(made.getDescriptionField().getValue()).isEqualTo("You wave hello.");
+
+        // a clip without a description adds nothing; a clip already in it adds a step, not its text again
+        made.getChoice().setValue(Set.of(bow, nod));
+        made.addChosenForTest();
+        assertThat(made.getDescriptionField().getValue()).isEqualTo("You wave hello.\nYou bow.");
+        packService.addClips(made.getPack(), List.of(bow));
+        AnimationPack stored = packService.find(pack.getId());
+        assertThat(stored.getDescription()).isEqualTo("You wave hello.\nYou bow.");
+        assertThat(stored.steps()).hasSize(4);
     }
 
     @Test
@@ -169,6 +209,6 @@ class AnimationsTest extends PlatformTestBase {
         // deleting a clip takes it out of its packs
         animationService.delete(wave, false);
         assertThat(packService.clips(packService.find(greetings.getId()))).extracting(Animation::getName).containsExactly("bow");
-        assertThat(packService.find(greetings.getId()).getClips()).containsExactly(bow.getUuid());
+        assertThat(packService.find(greetings.getId()).clipUuids()).containsExactly(bow.getUuid());
     }
 }

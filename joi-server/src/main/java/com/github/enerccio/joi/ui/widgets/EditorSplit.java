@@ -21,9 +21,17 @@ public final class EditorSplit {
      * @param storageKey where the position is kept, one per dialog
      */
     public static SplitLayout create(Component editor, Component preview, String storageKey) {
+        return create(editor, preview, storageKey, DEFAULT_POSITION);
+    }
+
+    /**
+     * @param storageKey where the position is kept, one per dialog
+     * @param position   the share of the editing side when the user hasn't moved the divider, in percent
+     */
+    public static SplitLayout create(Component editor, Component preview, String storageKey, double position) {
         SplitLayout split = new SplitLayout(editor, preview);
         split.setSizeFull();
-        split.setSplitterPosition(DEFAULT_POSITION);
+        split.setSplitterPosition(position);
         split.addClassName(JoiCssStyles.EDITOR_SPLIT);
         JoiJavascriptLibrary.rememberSplit(split, storageKey);
         return split;

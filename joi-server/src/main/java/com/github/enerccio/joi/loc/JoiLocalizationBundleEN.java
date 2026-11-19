@@ -227,10 +227,10 @@ public class JoiLocalizationBundleEN extends TextBundleBase<J_L> {
         setValue(J_L.LABEL_EXPRESSIONS, "Expressions");
         setValue(J_L.LABEL_TOGGLES, "Toggles");
 
-        setValue(J_L.LABEL_ANIMATIONS, "Animations");
-        setValue(J_L.LABEL_ANIMATION_PACKS, "Animation packs");
-        setValue(J_L.LABEL_ADD_ANIMATION_PACK, "Add pack");
-        setValue(J_L.LABEL_NEW_ANIMATION_PACK, "New pack");
+        setValue(J_L.LABEL_ANIMATIONS, "Clips");
+        setValue(J_L.LABEL_ANIMATION_PACKS, "Animations");
+        setValue(J_L.LABEL_ADD_ANIMATION_PACK, "Add animation");
+        setValue(J_L.LABEL_NEW_ANIMATION_PACK, "New animation");
         setValue(J_L.LABEL_CLIPS, "Clips");
         setValue(J_L.LABEL_UPLOAD_ANIMATIONS, "Upload clips");
         setValue(J_L.LABEL_PREVIEW_BODY, "Preview on");
@@ -242,8 +242,14 @@ public class JoiLocalizationBundleEN extends TextBundleBase<J_L> {
         setValue(J_L.LABEL_ANIMATION_IN_PLACE, "In place");
         setValue(J_L.LABEL_CHOOSE_CLIPS, "Clips from the library");
         setValue(J_L.LABEL_ADD_CLIPS, "Add");
-        setValue(J_L.LABEL_REMOVE_FROM_PACK, "Remove from the pack");
-        setValue(J_L.LABEL_IN_PACKS, "In packs");
+        setValue(J_L.LABEL_CREATE_PACK_FROM_CLIP, "New animation of this clip");
+        setValue(J_L.LABEL_ANIMATION_STEPS, "Steps");
+        setValue(J_L.LABEL_CLIP, "Clip");
+        setValue(J_L.LABEL_LOOP_ANIMATION, "Loop the whole animation");
+        setValue(J_L.LABEL_PLAY_ANIMATION, "Play");
+        setValue(J_L.LABEL_FINISH_ANIMATION, "Finish");
+        setValue(J_L.LABEL_REMOVE_FROM_PACK, "Remove the step");
+        setValue(J_L.LABEL_IN_PACKS, "In animations");
         setValue(J_L.LABEL_ANIMATION_SOURCE, "Converted from");
 
         // --- ENUM ---
@@ -360,7 +366,7 @@ public class JoiLocalizationBundleEN extends TextBundleBase<J_L> {
 
         setValue(J_L.MSG_NOT_A_VRMA, "Not a clip: upload .vrma, .fbx or .bvh files.");
         setValue(J_L.MSG_ANIMATION_ADDED, "Clip added: %s");
-        setValue(J_L.MSG_ANIMATION_PACK_HINT, "A pack lists clips of your library (the Animations tab); a clip can be in several packs. Choose a clip in the table to play it, open it to edit it.");
+        setValue(J_L.MSG_ANIMATION_PACK_HINT, "The steps play in order. A looping step repeats until the animation is finished (her state changes, or Finish here), then the steps after it play once. Choose a step to play it alone while you set it; Play plays the whole animation.");
         setValue(J_L.MSG_NO_PREVIEW_BODIES, "No body to preview on yet: give an assistant a body with a model.");
         setValue(J_L.MSG_ANIMATION_INFO, "%s · moves %d bones%s");
         setValue(J_L.MSG_ANIMATION_EXPRESSIONS, " and expressions");
@@ -369,9 +375,13 @@ public class JoiLocalizationBundleEN extends TextBundleBase<J_L> {
         setValue(J_L.MSG_ANIMATION_CONVERTED, "%s: %d clips added");
         setValue(J_L.MSG_ANIMATION_CONVERSION_FAILED, "%s could not be converted: %s");
         setValue(J_L.MSG_ANIMATION_SOURCE, " · from %s");
-        setValue(J_L.MSG_NO_CLIPS_YET, "No clips yet: upload them in the Animations tab.");
-        setValue(J_L.MSG_ANIMATIONS_HINT, "Clips are VRM animations (.vrma): they move the humanoid bones, so they play on any body. An FBX (Mixamo and the like) or a BVH is converted with Blender, a clip per take. The clips of VRChat packages (.anim) come later. Put clips together in the Animation packs tab.");
-        setValue(J_L.MSG_CONFIRM_DELETE_CLIP, "Delete the clip? It is taken out of the packs it is in.");
+        setValue(J_L.MSG_NO_CLIPS_YET, "No clips yet: upload them in the Clips tab.");
+        setValue(J_L.MSG_ANIMATIONS_HINT, "Clips are VRM animations (.vrma): they move the humanoid bones, so they play on any body. An FBX (Mixamo and the like) or a BVH is converted with Blender, a clip per take. The clips of VRChat packages (.anim) come later. Put clips together into animations in the Animations tab.");
+        setValue(J_L.MSG_CONFIRM_DELETE_CLIP, "Delete the clip? It is taken out of the animations it is in.");
+        setValue(J_L.MSG_CONFIRM_DELETE_CLIPS, "Delete %d clips? They are taken out of the animations they are in.");
+        setValue(J_L.MSG_CONFIRM_DELETE_ANIMATIONS, "Delete %d animations? Their clips stay in the library.");
+        setValue(J_L.MSG_LOOP_ANIMATION_HINT, "After its last step it starts again, until it is finished. For clips that don't loop on their own: a wave and a nod, again and again.");
+        setValue(J_L.MSG_FINISH_ANIMATION_HINT, "A looping step ends its round, then the rest plays once: as when her state changes.");
         setValue(J_L.MSG_ANIMATION_DESCRIPTION_HINT, "What it shows and when it fits, for her: she picks a clip by what it says.");
         setValue(J_L.MSG_ANIMATION_IN_PLACE_HINT, "Her hips keep their spot on the floor: a walk or a dance that moves about stays put.");
 

@@ -10,12 +10,14 @@ import com.vaadin.flow.server.streams.UploadHandler;
 import com.vaadin.flow.shared.Registration;
 
 import java.io.File;
+import java.util.ArrayList;
 import java.util.List;
 
 /**
  * The 3D preview of a model: three.js with three-vrm (the renderer's code, see {@code DESIGN.md} → Renderers) in the
  * {@code <joi-model-viewer>} element of {@code frontend/joi-model-viewer.js}. It shows a VRM, a glTF / GLB or an FBX,
- * alone or from a zip with its textures; the user orbits it with the mouse. It plays animation clips (VRMA) on a VRM.
+ * alone or from a zip with its textures; the user orbits it with the mouse. It plays animations (steps of VRMA clips) on
+ * a VRM.
  * The files are served to the browser of this session only (a {@link DownloadHandler} of the element).
  */
 @Tag("joi-model-viewer")
@@ -104,35 +106,71 @@ public class ModelViewer extends Component implements HasSize, HasStyle {
     }
 
     /**
-     * Plays a clip (a VRMA) on the model shown, or on the next one once it is shown; a model shown later plays it again
-     * until {@link #stopAnimation()}. An {@link AnimationStartedEvent} follows, or an {@link AnimationErrorEvent}.
+     * A step of an animation to play.
      *
+     * @param vrma    the clip's file
+     * @param loop    whether it repeats until {@link #finishAnimation()}
+     * @param speed   how fast it plays, 1 for as made
      * @param inPlace whether the hips keep their spot on the floor (a walk or a dance that moves about stays put)
      */
+    public record PlayStep(File vrma, boolean loop, double speed, boolean inPlace) {
+    }
+
+    private record JsStep(int src, boolean loop, double speed, boolean inPlace) {
+    }
+
+    private record JsSequence(List<JsStep> steps, boolean loop) {
+    }
+
+    /** How many "animation-src-N" attributes are set. */
+    private int animationSources;
+
+    /** Plays a clip (a VRMA), see {@link #playSequence}. */
     public void playAnimation(File vrma, boolean loop, double speed, boolean inPlace) {
-        getElement().setAttribute("animation-src", DownloadHandler.forFile(vrma, vrma.getName()).inline());
-        getElement().callJsFunction("playAnimation", loop, speed, inPlace);
+        playSequence(List.of(new PlayStep(vrma, loop, speed, inPlace)), false);
     }
 
-    /** Whether the clip playing keeps its hips on their spot; it starts again. */
-    public void setAnimationInPlace(boolean inPlace) {
-        getElement().callJsFunction("setAnimationInPlace", inPlace);
+    /**
+     * Plays an animation on the model shown, or on the next one once it is shown; a model shown later plays it again
+     * until {@link #stopAnimation()}. The steps play in order; a looping step repeats until {@link #finishAnimation()},
+     * then the steps after it play. An {@link AnimationStartedEvent} follows and an {@link AnimationStepEvent} per step
+     * and round, or an {@link AnimationErrorEvent}.
+     *
+     * @param loop whether the animation starts again after its last step, until finished
+     */
+    public void playSequence(List<PlayStep> steps, boolean loop) {
+        removeAnimationSources();
+        List<File> files = new ArrayList<>();
+        List<JsStep> jsSteps = new ArrayList<>();
+        for (PlayStep step : steps) {
+            int src = files.indexOf(step.vrma());
+            if (src < 0) {
+                src = files.size();
+                files.add(step.vrma());
+                getElement().setAttribute("animation-src-" + src, DownloadHandler.forFile(step.vrma(), step.vrma().getName()).inline());
+            }
+            jsSteps.add(new JsStep(src, step.loop(), step.speed(), step.inPlace()));
+        }
+        animationSources = files.size();
+        getElement().callJsFunction("playSequence", new Gson().toJson(new JsSequence(jsSteps, loop)));
     }
 
-    /** Stops the clip and puts the model back at rest. */
+    /** Lets a looping step end its round and the rest of the animation play once. */
+    public void finishAnimation() {
+        getElement().callJsFunction("finishAnimation");
+    }
+
+    /** Stops the animation and puts the model back at rest. */
     public void stopAnimation() {
         getElement().callJsFunction("stopAnimation");
-        getElement().removeAttribute("animation-src");
+        removeAnimationSources();
     }
 
-    /** Whether the clip playing loops. */
-    public void setAnimationLoop(boolean loop) {
-        getElement().callJsFunction("setAnimationLoop", loop);
-    }
-
-    /** How fast the clip plays (1 as made). */
-    public void setAnimationSpeed(double speed) {
-        getElement().callJsFunction("setAnimationSpeed", speed);
+    private void removeAnimationSources() {
+        for (int i = 0; i < animationSources; i++) {
+            getElement().removeAttribute("animation-src-" + i);
+        }
+        animationSources = 0;
     }
 
     /** Pauses the clip where it is, or plays it on. */
@@ -256,7 +294,32 @@ public class ModelViewer extends Component implements HasSize, HasStyle {
         }
     }
 
-    /** A clip played once came to its end. */
+    /** A step of the animation started, or started another round. */
+    @DomEvent("animation-step")
+    public static class AnimationStepEvent extends ComponentEvent<ModelViewer> {
+
+        private final int index;
+        private final int repeats;
+
+        public AnimationStepEvent(ModelViewer source, boolean fromClient, @EventData("event.detail.index") int index,
+                                  @EventData("event.detail.repeats") int repeats) {
+            super(source, fromClient);
+            this.index = index;
+            this.repeats = repeats;
+        }
+
+        /** The step, from 0. */
+        public int getIndex() {
+            return index;
+        }
+
+        /** Which round of it this is, from 1. */
+        public int getRepeats() {
+            return repeats;
+        }
+    }
+
+    /** The animation came to its end (it holds its last frame). */
     @DomEvent("animation-finished")
     public static class AnimationFinishedEvent extends ComponentEvent<ModelViewer> {
 
@@ -283,6 +346,10 @@ public class ModelViewer extends Component implements HasSize, HasStyle {
 
     public Registration addAnimationStartedListener(com.vaadin.flow.component.ComponentEventListener<AnimationStartedEvent> listener) {
         return addListener(AnimationStartedEvent.class, listener);
+    }
+
+    public Registration addAnimationStepListener(com.vaadin.flow.component.ComponentEventListener<AnimationStepEvent> listener) {
+        return addListener(AnimationStepEvent.class, listener);
     }
 
     public Registration addAnimationFinishedListener(com.vaadin.flow.component.ComponentEventListener<AnimationFinishedEvent> listener) {

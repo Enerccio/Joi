@@ -1,5 +1,6 @@
 package com.github.enerccio.joi.domain.service.impl;
 
+import com.github.enerccio.joi.domain.animations.AnimationStep;
 import com.github.enerccio.joi.domain.model.impl.Animation;
 import com.github.enerccio.joi.domain.model.impl.AnimationPack;
 import com.github.enerccio.joi.domain.model.impl.Body;
@@ -38,45 +39,108 @@ public class AnimationPackServiceImpl extends ExtendableServiceImpl<AnimationPac
 
     @Override
     @CommonTxReadOnly
-    public List<Animation> clips(AnimationPack pack) throws Exception {
-        if (pack == null || pack.getClips().isEmpty()) {
+    public List<Step> steps(AnimationPack pack) throws Exception {
+        List<AnimationStep> steps = pack == null ? List.of() : pack.steps();
+        if (steps.isEmpty()) {
             return List.of();
         }
         Map<String, Animation> byUuid = new HashMap<>();
         for (Animation clip : animationService.findAllForUser()) {
             byUuid.put(clip.getUuid(), clip);
         }
-        List<Animation> clips = new ArrayList<>();
-        for (String uuid : pack.getClips()) {
-            Animation clip = byUuid.get(uuid);
+        List<Step> resolved = new ArrayList<>();
+        for (int i = 0; i < steps.size(); i++) {
+            Animation clip = byUuid.get(steps.get(i).clip());
             if (clip != null) {
-                clips.add(clip);
+                resolved.add(new Step(i, steps.get(i), clip));
             }
         }
-        return clips;
+        return resolved;
+    }
+
+    @Override
+    @CommonTxReadOnly
+    public List<Animation> clips(AnimationPack pack) throws Exception {
+        return steps(pack).stream().map(Step::clip).toList();
     }
 
     @Override
     @CommonTx
     public AnimationPack addClips(AnimationPack pack, Collection<Animation> clips) throws Exception {
         AnimationPack stored = find(pack.getId());
-        List<String> uuids = new ArrayList<>(stored.getClips());
+        List<AnimationStep> steps = stored.steps();
+        Set<String> present = new HashSet<>(stored.clipUuids());
+        StringBuilder description = new StringBuilder(StringUtils.defaultString(StringUtils.stripEnd(stored.getDescription(), null)));
         for (Animation clip : clips) {
-            if (!uuids.contains(clip.getUuid())) {
-                uuids.add(clip.getUuid());
+            steps.add(AnimationStep.of(clip));
+            String text = StringUtils.strip(clip.getDescription());
+            if (present.add(clip.getUuid()) && StringUtils.isNotEmpty(text)) {
+                if (!description.isEmpty()) {
+                    description.append('\n');
+                }
+                description.append(text);
             }
         }
-        stored.setClips(uuids);
+        stored.setStepList(steps);
+        stored.setDescription(StringUtils.defaultIfEmpty(description.toString(), null));
         return save(stored);
+    }
+
+    @Override
+    @CommonTx
+    public AnimationPack createFrom(Animation clip) throws Exception {
+        AnimationPack pack = new AnimationPack();
+        pack.setName(clip.getName());
+        return addClips(save(pack), List.of(clip));
+    }
+
+    @Override
+    @CommonTx
+    public AnimationPack updateStep(AnimationPack pack, int index, AnimationStep step) throws Exception {
+        AnimationPack stored = find(pack.getId());
+        List<AnimationStep> steps = stored.steps();
+        if (index >= 0 && index < steps.size()) {
+            steps.set(index, step);
+            stored.setStepList(steps);
+            stored = save(stored);
+        }
+        return stored;
+    }
+
+    @Override
+    @CommonTx
+    public AnimationPack moveStep(AnimationPack pack, int index, int delta) throws Exception {
+        AnimationPack stored = find(pack.getId());
+        List<AnimationStep> steps = stored.steps();
+        int target = index + delta;
+        if (index >= 0 && index < steps.size() && target >= 0 && target < steps.size()) {
+            steps.add(target, steps.remove(index));
+            stored.setStepList(steps);
+            stored = save(stored);
+        }
+        return stored;
+    }
+
+    @Override
+    @CommonTx
+    public AnimationPack removeStep(AnimationPack pack, int index) throws Exception {
+        AnimationPack stored = find(pack.getId());
+        List<AnimationStep> steps = stored.steps();
+        if (index >= 0 && index < steps.size()) {
+            steps.remove(index);
+            stored.setStepList(steps);
+            stored = save(stored);
+        }
+        return stored;
     }
 
     @Override
     @CommonTx
     public AnimationPack removeClip(AnimationPack pack, Animation clip) throws Exception {
         AnimationPack stored = find(pack.getId());
-        List<String> uuids = new ArrayList<>(stored.getClips());
-        uuids.remove(clip.getUuid());
-        stored.setClips(uuids);
+        List<AnimationStep> steps = stored.steps();
+        steps.removeIf(step -> step.clip().equals(clip.getUuid()));
+        stored.setStepList(steps);
         return save(stored);
     }
 
@@ -85,7 +149,7 @@ public class AnimationPackServiceImpl extends ExtendableServiceImpl<AnimationPac
     public List<AnimationPack> packsWith(Animation clip) throws Exception {
         List<AnimationPack> packs = new ArrayList<>();
         for (AnimationPack pack : findAllByName()) {
-            if (pack.getClips().contains(clip.getUuid())) {
+            if (pack.clipUuids().contains(clip.getUuid())) {
                 packs.add(pack);
             }
         }

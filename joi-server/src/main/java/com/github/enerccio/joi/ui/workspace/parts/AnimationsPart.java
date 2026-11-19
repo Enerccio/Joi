@@ -11,6 +11,7 @@ import com.github.enerccio.joi.domain.service.AnimationService;
 import com.github.enerccio.joi.domain.service.ModelService;
 import com.github.enerccio.joi.loc.J_L;
 import com.github.enerccio.joi.ui.dialogs.AnimationDialog;
+import com.github.enerccio.joi.ui.dialogs.AnimationPackDialog;
 import com.github.enerccio.joi.ui.workspace.WorkspacePart;
 import com.github.enerccio.marginalia.CssStyles;
 import com.github.enerccio.marginalia.UIConstants;
@@ -47,8 +48,9 @@ import java.util.Map;
 /**
  * The user's library of animation clips ({@link Animation}, see {@code DESIGN.md} → Bodies, animations): the upload
  * (a VRMA is added as it is; an FBX or a BVH is converted with Blender, a clip per take, in the background) and a table
- * with the name, the length, the tags, where it came from, the packs it is in and when it was added, Open and Delete
- * (it leaves its packs). Open shows the {@link AnimationDialog}. Packs of clips are the Animation packs tab.
+ * with checkboxes (Delete selected), the name, the length, the tags, where it came from, the animations it is in and
+ * when it was added, Open, New animation (of the clip, named after it, opened at once) and Delete (it leaves its
+ * animations). Open shows the {@link AnimationDialog}. Packs of clips are the Animation packs tab.
  */
 @Configurable
 public class AnimationsPart implements WorkspacePart {
@@ -69,6 +71,7 @@ public class AnimationsPart implements WorkspacePart {
     private ModelService modelService;
 
     private Grid<Animation> grid;
+    private Button deleteSelectedButton;
     private Upload upload;
     private Button uploadButton;
     private ProgressBar converting;
@@ -87,7 +90,12 @@ public class AnimationsPart implements WorkspacePart {
         uploadButton = new Button(loc.getValue(J_L.LABEL_UPLOAD_ANIMATIONS), Solid.UPLOAD.create());
         uploadButton.setThemeName("primary");
         upload.setUploadButton(uploadButton);
-        HorizontalLayout header = new HorizontalLayout(title, upload);
+        deleteSelectedButton = new Button(loc.getValue(L.LABEL_DELETE_SELECTED), Solid.TRASH.create(), e -> deleteSelected());
+        deleteSelectedButton.setThemeName("error");
+        deleteSelectedButton.setEnabled(false);
+        HorizontalLayout buttons = new HorizontalLayout(deleteSelectedButton, upload);
+        buttons.setAlignItems(FlexComponent.Alignment.CENTER);
+        HorizontalLayout header = new HorizontalLayout(title, buttons);
         header.setWidthFull();
         header.setAlignItems(FlexComponent.Alignment.CENTER);
         header.setJustifyContentMode(FlexComponent.JustifyContentMode.BETWEEN);
@@ -103,6 +111,8 @@ public class AnimationsPart implements WorkspacePart {
         DateFormat format = DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT);
         grid = new Grid<>(Animation.class, false);
         grid.setSizeFull();
+        grid.setSelectionMode(Grid.SelectionMode.MULTI);
+        grid.addSelectionListener(e -> deleteSelectedButton.setEnabled(!e.getAllSelectedItems().isEmpty()));
         grid.addColumn(Animation::getName).setHeader(loc.getValue(L.LABEL_NAME)).setFlexGrow(2);
         grid.addColumn(clip -> AnimationDialog.length(clip.getDuration()))
                 .setHeader(loc.getValue(J_L.LABEL_ANIMATION_LENGTH)).setFlexGrow(0).setWidth("90px");
@@ -113,7 +123,7 @@ public class AnimationsPart implements WorkspacePart {
         grid.addColumn(this::packNames).setHeader(loc.getValue(J_L.LABEL_IN_PACKS)).setFlexGrow(1);
         grid.addColumn(clip -> clip.getCreation() == null ? "" : format.format(clip.getCreation()))
                 .setHeader(loc.getValue(L.LABEL_CREATED)).setFlexGrow(0).setWidth(UIConstants.DATE_COLUMN_SIZE);
-        grid.addComponentColumn(this::actions).setHeader("").setFlexGrow(0).setWidth(UIConstants.TOOL_COLUMN_SIZE_HUGE);
+        grid.addComponentColumn(this::actions).setHeader("").setFlexGrow(0).setWidth(UIConstants.TOOL_COLUMN_SIZE_GIANT);
         grid.addItemDoubleClickListener(e -> open(e.getItem()));
 
         VerticalLayout layout = new VerticalLayout(header, hint, convertingInfo, converting, grid);
@@ -139,6 +149,8 @@ public class AnimationsPart implements WorkspacePart {
     private Component actions(Animation clip) {
         Button openButton = new Button(Solid.FOLDER_OPEN.create(), e -> open(clip));
         openButton.setTooltipText(loc.getValue(L.LABEL_OPEN));
+        Button packButton = new Button(Solid.LAYER_GROUP.create(), e -> createPack(clip));
+        packButton.setTooltipText(loc.getValue(J_L.LABEL_CREATE_PACK_FROM_CLIP));
         Button deleteButton = new Button(Solid.TRASH.create(), e ->
                 ConfirmDialog.show(loc.getValue(J_L.MSG_CONFIRM_DELETE_CLIP), () -> {
                     try {
@@ -150,9 +162,28 @@ public class AnimationsPart implements WorkspacePart {
                 }));
         deleteButton.setThemeName("error tertiary");
         deleteButton.setTooltipText(loc.getValue(L.LABEL_DELETE));
-        HorizontalLayout actions = new HorizontalLayout(openButton, deleteButton);
+        HorizontalLayout actions = new HorizontalLayout(openButton, packButton, deleteButton);
         actions.setSpacing(true);
         return actions;
+    }
+
+    /** Deletes the clips checked in the table, once confirmed (they leave their animations). */
+    private void deleteSelected() {
+        List<Animation> selected = new ArrayList<>(grid.getSelectedItems());
+        if (selected.isEmpty()) {
+            return;
+        }
+        ConfirmDialog.show(String.format(loc.getValue(J_L.MSG_CONFIRM_DELETE_CLIPS), selected.size()), () -> {
+            try {
+                for (Animation clip : selected) {
+                    animationService.delete(clip, false);
+                }
+                grid.deselectAll();
+                refresh();
+            } catch (Exception ex) {
+                UIUtils.internalServerError(loc, ex);
+            }
+        });
     }
 
     private void open(Animation clip) {
@@ -164,6 +195,27 @@ public class AnimationsPart implements WorkspacePart {
         } catch (Exception e) {
             UIUtils.internalServerError(loc, e);
         }
+    }
+
+    /** Makes a new pack of the clip (named after it, with its description) and opens it. */
+    private void createPack(Animation clip) {
+        try {
+            AnimationPackDialog dialog = new AnimationPackDialog(packService.createFrom(animationService.find(clip.getId())));
+            dialog.setOnClose(this::refreshQuietly);
+            dialog.create();
+            dialog.open();
+            refresh();
+        } catch (Exception e) {
+            UIUtils.internalServerError(loc, e);
+        }
+    }
+
+    /** Makes a new pack of the clip, for tests; returns its dialog. */
+    AnimationPackDialog createPackForTest(Animation clip) throws Exception {
+        AnimationPack pack = packService.createFrom(animationService.find(clip.getId()));
+        AnimationPackDialog dialog = new AnimationPackDialog(pack);
+        dialog.create();
+        return dialog;
     }
 
     /** A file was uploaded: a VRMA joins the library, an FBX or a BVH is converted first. */

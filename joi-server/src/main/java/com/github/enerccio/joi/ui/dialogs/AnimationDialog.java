@@ -13,13 +13,9 @@ import com.github.enerccio.marginalia.loc.L;
 import com.github.enerccio.marginalia.loc.Localization;
 import com.github.enerccio.marginalia.utils.UIUtils;
 import com.vaadin.flow.component.button.Button;
-import com.vaadin.flow.component.checkbox.Checkbox;
 import com.vaadin.flow.component.dialog.Dialog;
 import com.vaadin.flow.component.html.Span;
-import com.vaadin.flow.component.orderedlayout.FlexComponent;
-import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
-import com.vaadin.flow.component.textfield.NumberField;
 import com.vaadin.flow.component.textfield.TextArea;
 import com.vaadin.flow.component.textfield.TextField;
 import org.apache.commons.lang3.StringUtils;
@@ -32,10 +28,10 @@ import java.util.List;
 import java.util.Locale;
 
 /**
- * One animation clip of the user's library ({@link Animation}), full screen: on the left what the user decides on it
- * (its name, description, tags, whether it loops, plays in place, its speed) and what was read from it (its length,
- * the bones it moves, where it came from, the packs it is in); on the right it plays in a {@link ClipPreview} on a
- * body of their assistants. Changes are stored at once and change the clip playing.
+ * One clip of the user's library ({@link Animation}), full screen: on the left what the user decides on it (its name,
+ * description, tags) and what was read from it (its length, the bones it moves, where it came from, the animations it
+ * is in); on the right it plays in a loop in a {@link ClipPreview} on a body of their assistants. How it plays (loop,
+ * speed, in place) is decided by each animation it is in. Changes are stored at once.
  */
 @Configurable
 public class AnimationDialog extends Dialog {
@@ -55,9 +51,6 @@ public class AnimationDialog extends Dialog {
     private TextField name;
     private TextArea description;
     private TextField tags;
-    private Checkbox loop;
-    private Checkbox inPlace;
-    private NumberField speed;
     private ClipPreview preview;
     private boolean filling;
 
@@ -84,17 +77,6 @@ public class AnimationDialog extends Dialog {
         tags = new TextField(loc.getValue(J_L.LABEL_ANIMATION_TAGS));
         tags.setWidthFull();
         tags.setHelperText(loc.getValue(J_L.MSG_ANIMATION_TAGS_HINT));
-        loop = new Checkbox(loc.getValue(J_L.LABEL_ANIMATION_LOOP));
-        inPlace = new Checkbox(loc.getValue(J_L.LABEL_ANIMATION_IN_PLACE));
-        inPlace.setTooltipText(loc.getValue(J_L.MSG_ANIMATION_IN_PLACE_HINT));
-        speed = new NumberField(loc.getValue(J_L.LABEL_SPEED));
-        speed.setMin(0.1);
-        speed.setMax(4);
-        speed.setStep(0.1);
-        speed.setStepButtonsVisible(true);
-        HorizontalLayout playback = new HorizontalLayout(loop, inPlace, speed);
-        playback.setAlignItems(FlexComponent.Alignment.BASELINE);
-        playback.addClassName(JoiCssStyles.ANIMATION_PLAYBACK);
 
         Span info = new Span(info(loc, clip));
         info.addClassName(CssStyles.HINT_TEXT);
@@ -110,29 +92,14 @@ public class AnimationDialog extends Dialog {
             name.setValue(StringUtils.defaultString(clip.getName()));
             description.setValue(StringUtils.defaultString(clip.getDescription()));
             tags.setValue(String.join(", ", clip.getTags()));
-            loop.setValue(clip.loops());
-            inPlace.setValue(clip.playsInPlace());
-            speed.setValue(clip.speedOrDefault());
         } finally {
             filling = false;
         }
         name.addValueChangeListener(e -> store());
         description.addValueChangeListener(e -> store());
         tags.addValueChangeListener(e -> store());
-        loop.addValueChangeListener(e -> {
-            preview.getViewer().setAnimationLoop(Boolean.TRUE.equals(e.getValue()));
-            store();
-        });
-        inPlace.addValueChangeListener(e -> {
-            preview.getViewer().setAnimationInPlace(Boolean.TRUE.equals(e.getValue()));
-            store();
-        });
-        speed.addValueChangeListener(e -> {
-            preview.getViewer().setAnimationSpeed(speed());
-            store();
-        });
 
-        VerticalLayout sidebar = new VerticalLayout(name, description, tags, playback, info, inPacks);
+        VerticalLayout sidebar = new VerticalLayout(name, description, tags, info, inPacks);
         sidebar.setPadding(false);
         sidebar.addClassName(JoiCssStyles.MODEL_SIDEBAR);
 
@@ -177,11 +144,6 @@ public class AnimationDialog extends Dialog {
         return tags;
     }
 
-    private double speed() {
-        Double value = speed.getValue();
-        return value == null || value <= 0 ? 1 : value;
-    }
-
     private void store() {
         if (filling) {
             return;
@@ -191,9 +153,6 @@ public class AnimationDialog extends Dialog {
             stored.setName(StringUtils.defaultIfBlank(StringUtils.strip(name.getValue()), stored.getFileName()));
             stored.setDescription(StringUtils.defaultIfBlank(description.getValue(), null));
             stored.setTags(tags(tags.getValue()));
-            stored.setLoop(Boolean.TRUE.equals(loop.getValue()));
-            stored.setInPlace(Boolean.TRUE.equals(inPlace.getValue()) ? true : null);
-            stored.setSpeed(speed() == 1 ? null : speed());
             clip = animationService.save(stored);
             setHeaderTitle(StringUtils.defaultString(clip.getName()));
         } catch (Exception e) {
@@ -212,13 +171,5 @@ public class AnimationDialog extends Dialog {
 
     public TextField getTagsField() {
         return tags;
-    }
-
-    public Checkbox getLoop() {
-        return loop;
-    }
-
-    public Checkbox getInPlace() {
-        return inPlace;
     }
 }

@@ -31,12 +31,16 @@ import java.io.File;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.List;
 import java.util.function.Consumer;
+import java.util.function.IntConsumer;
 
 /**
- * The 3D preview of animation clips (the clip and pack dialogs): the {@link ModelViewer} showing a body of the user's
- * assistants in the state of its parts, the choice of that body, and Pause and Stop. A clip played goes on playing when
- * the body changes. The body chosen last is the next preview's, for the session.
+ * The 3D preview of clips and animations (the clip and animation dialogs): the {@link ModelViewer} showing a body of
+ * the user's assistants in the state of its parts, the choice of that body, and Pause and Stop. An animation's dialog
+ * also gets Play (the whole animation), Finish (a looping step ends its round and the rest plays) and a strip of its
+ * steps under the viewer, the one playing marked, with the rounds of a looping one; a step clicked there plays alone.
+ * What plays goes on playing when the body changes. The body chosen last is the next preview's, for the session.
  */
 @Configurable(preConstruction = true)
 public class ClipPreview extends VerticalLayout {
@@ -63,8 +67,17 @@ public class ClipPreview extends VerticalLayout {
     private final ModelViewer viewer = new ModelViewer();
     private final Span info = new Span();
     private final Button pauseButton;
+    private final Button playButton;
+    private final Button finishButton;
+    private final HorizontalLayout strip = new HorizontalLayout();
+    private final List<Span> chips = new ArrayList<>();
+    private List<Boolean> chipLoops = List.of();
     private boolean paused;
     private Consumer<Long> onBodyChosen = id -> {
+    };
+    private Runnable onPlay = () -> {
+    };
+    private IntConsumer onStepChosen = index -> {
     };
 
     /**
@@ -99,12 +112,18 @@ public class ClipPreview extends VerticalLayout {
             showBody();
         });
 
+        playButton = new Button(loc.getValue(J_L.LABEL_PLAY_ANIMATION), Solid.PLAY.create(), e -> onPlay.run());
+        playButton.setThemeName("primary");
+        playButton.setVisible(false);
+        finishButton = new Button(loc.getValue(J_L.LABEL_FINISH_ANIMATION), Solid.FORWARD_STEP.create(), e -> finish());
+        finishButton.setTooltipText(loc.getValue(J_L.MSG_FINISH_ANIMATION_HINT));
+        finishButton.setVisible(false);
         pauseButton = new Button(Solid.PAUSE.create(), e -> setPaused(!paused));
         pauseButton.setTooltipText(loc.getValue(J_L.LABEL_PAUSE));
         Button stopButton = new Button(Solid.STOP.create(), e -> stop());
         stopButton.setTooltipText(loc.getValue(L.LABEL_STOP));
         info.addClassName(CssStyles.HINT_TEXT);
-        HorizontalLayout header = new HorizontalLayout(bodySelect, pauseButton, stopButton, info);
+        HorizontalLayout header = new HorizontalLayout(bodySelect, playButton, finishButton, pauseButton, stopButton, info);
         header.setAlignItems(FlexComponent.Alignment.BASELINE);
         header.setWrap(true);
 
@@ -113,8 +132,13 @@ public class ClipPreview extends VerticalLayout {
         viewer.addErrorListener(e -> info.setText(e.getMessage()));
         viewer.addAnimationStartedListener(e -> info.setText(""));
         viewer.addAnimationErrorListener(e -> info.setText(e.getMessage()));
+        viewer.addAnimationStepListener(e -> markStep(e.getIndex(), e.getRepeats()));
+        viewer.addAnimationFinishedListener(e -> markStep(-1, 0));
+        strip.addClassName(JoiCssStyles.ANIMATION_STRIP);
+        strip.setWidthFull();
+        strip.setVisible(false);
 
-        add(header, viewer);
+        add(header, viewer, strip);
         setPadding(false);
         setSpacing(false);
         addClassName(JoiCssStyles.MODEL_VIEWER);
@@ -131,7 +155,67 @@ public class ClipPreview extends VerticalLayout {
         } : onBodyChosen;
     }
 
-    /** Plays the clip as it is set (loop, speed, in place); null stops. */
+    /** What Play runs (it plays the whole animation); shows Play, Finish and the strip of steps. */
+    public void setOnPlay(Runnable onPlay) {
+        this.onPlay = onPlay == null ? () -> {
+        } : onPlay;
+        playButton.setVisible(onPlay != null);
+        finishButton.setVisible(onPlay != null);
+        strip.setVisible(onPlay != null);
+    }
+
+    /** What runs when a step is clicked in the strip (its position in the steps shown). */
+    public void setOnStepChosen(IntConsumer onStepChosen) {
+        this.onStepChosen = onStepChosen == null ? index -> {
+        } : onStepChosen;
+    }
+
+    /** Shows the steps of the animation in the strip, by their clips' names. */
+    public void setSteps(List<AnimationPackService.Step> steps) {
+        strip.removeAll();
+        chips.clear();
+        List<Boolean> loops = new ArrayList<>();
+        for (int i = 0; i < steps.size(); i++) {
+            AnimationPackService.Step step = steps.get(i);
+            if (i > 0) {
+                Span arrow = new Span("→");
+                arrow.addClassName(JoiCssStyles.ANIMATION_STRIP_ARROW);
+                strip.add(arrow);
+            }
+            Span chip = new Span();
+            chip.addClassName(JoiCssStyles.ANIMATION_STEP);
+            int position = i;
+            chip.addClickListener(e -> onStepChosen.accept(position));
+            chips.add(chip);
+            loops.add(step.step().loop());
+            strip.add(chip);
+        }
+        chipLoops = loops;
+        for (int i = 0; i < chips.size(); i++) {
+            chips.get(i).setText(chipText(steps.get(i).clip().getName(), loops.get(i), 0));
+        }
+        chipNames = steps.stream().map(step -> StringUtils.defaultString(step.clip().getName())).toList();
+    }
+
+    private List<String> chipNames = List.of();
+
+    private static String chipText(String name, boolean loop, int repeats) {
+        return (loop ? "⟲ " : "") + StringUtils.defaultString(name) + (loop && repeats > 1 ? " ×" + repeats : "");
+    }
+
+    /** Marks the step playing (its position), -1 for none. */
+    private void markStep(int index, int repeats) {
+        for (int i = 0; i < chips.size(); i++) {
+            boolean current = i == index && soloStep < 0 || i == soloStep && index >= 0;
+            chips.get(i).getElement().getClassList().set(JoiCssStyles.ANIMATION_STEP_PLAYING, current);
+            chips.get(i).setText(chipText(chipNames.get(i), chipLoops.get(i), current ? repeats : 0));
+        }
+    }
+
+    /** The step played alone (its position), -1 when the whole animation plays. */
+    private int soloStep = -1;
+
+    /** Plays the clip alone, in a loop, to see it; null stops. */
     public void play(Animation clip) {
         try {
             File file = clip == null ? null : animationService.file(clip);
@@ -140,16 +224,61 @@ public class ClipPreview extends VerticalLayout {
                 return;
             }
             setPaused(false);
-            viewer.playAnimation(file, clip.loops(), clip.speedOrDefault(), clip.playsInPlace());
+            soloStep = -1;
+            viewer.playAnimation(file, true, 1, clip.playsInPlace());
         } catch (Exception e) {
             UIUtils.internalServerError(loc, e);
         }
     }
 
-    /** Stops the clip and puts her back at rest. */
+    /** Plays a step of the animation alone (its position in the strip), in a loop, as it is set (speed, in place). */
+    public void playStep(int position, AnimationPackService.Step step) {
+        try {
+            File file = animationService.file(step.clip());
+            if (file == null) {
+                stop();
+                return;
+            }
+            setPaused(false);
+            soloStep = position;
+            viewer.playAnimation(file, true, step.step().speedOrDefault(), step.step().inPlace());
+        } catch (Exception e) {
+            UIUtils.internalServerError(loc, e);
+        }
+    }
+
+    /** Plays the whole animation: its steps in order, starting again after the last when it loops. */
+    public void playSequence(List<AnimationPackService.Step> steps, boolean loop) {
+        try {
+            List<ModelViewer.PlayStep> play = new ArrayList<>();
+            for (AnimationPackService.Step step : steps) {
+                File file = animationService.file(step.clip());
+                if (file != null) {
+                    play.add(new ModelViewer.PlayStep(file, step.step().loop(), step.step().speedOrDefault(), step.step().inPlace()));
+                }
+            }
+            if (play.isEmpty()) {
+                stop();
+                return;
+            }
+            setPaused(false);
+            soloStep = -1;
+            viewer.playSequence(play, loop);
+        } catch (Exception e) {
+            UIUtils.internalServerError(loc, e);
+        }
+    }
+
+    /** Lets a looping step end its round and the rest play once. */
+    public void finish() {
+        viewer.finishAnimation();
+    }
+
+    /** Stops the animation and puts her back at rest. */
     public void stop() {
         viewer.stopAnimation();
         setPaused(false);
+        markStep(-1, 0);
     }
 
     /** The viewer, for the changes to the clip playing (loop, speed, in place). */

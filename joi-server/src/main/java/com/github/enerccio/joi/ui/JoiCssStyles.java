@@ -53,6 +53,10 @@ public final class JoiCssStyles {
     public static final String TOGGLE_GROUP = "toggle-group";
     public static final String TOGGLE_GROUP_STATES = "toggle-group-states";
     public static final String TOGGLE_GROUP_STATE = "toggle-group-state";
-    /** The animation pack dialog: how a clip plays (loop, speed), kept on one line. */
-    public static final String ANIMATION_PLAYBACK = "animation-playback";
+    /** The strip of an animation's steps under its preview, the one playing marked. */
+    public static final String ANIMATION_STRIP = "animation-strip";
+    public static final String ANIMATION_STRIP_ARROW = "animation-strip-arrow";
+    public static final String ANIMATION_STEP = "animation-step";
+    /** On the step of the strip playing now. */
+    public static final String ANIMATION_STEP_PLAYING = "playing";
 }

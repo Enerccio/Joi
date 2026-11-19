@@ -650,14 +650,25 @@ UI — nothing is deleted):
 - **Animations** live in an **animation library** on the server, shared by all bodies: because every body has a
   humanoid rig (VRM humanoid / Unity Humanoid), a clip made for one plays on all of them (retargeting).
   - **Built so far:** the user's **library of clips** (`Animation`: a VRMA file as a resource of the user, with its
-    name, description, tags, loop, speed and "in place", what was read from the file — the length, the bones it
-    moves, whether it moves expressions; `VrmaFiles` reads only the JSON chunk — and the FBX or BVH and take it was
-    converted from) and **packs** (`AnimationPack`: a name, a description, its clips by uuid, the body it is previewed
-    on). Two tabs: **Animations** uploads clips and lists the library (`AnimationsPart`, `AnimationDialog` edits a
-    clip and plays it); **Animation packs** puts clips of the library together (`AnimationPacksPart`,
-    `AnimationPackDialog`). A clip can be in several packs; deleting a pack keeps its clips, deleting a clip takes it
-    out of its packs. Clips play in the three.js preview on any body of her assistants, in the state of its parts
-    (`ClipPreview`, `@pixiv/three-vrm-animation` retargets them; "in place" keeps the hips on their spot).
+    name, description and tags, what was read from the file — the length, the bones it moves, whether it moves
+    expressions; `VrmaFiles` reads only the JSON chunk — and the FBX or BVH and take it was converted from) and
+    **animations** (`AnimationPack`, an "animation" in the UI): what she plays. A clip alone does nothing. An
+    animation is a name, a description, its **steps** in order and whether the whole animation loops, and the body it
+    is previewed on. A step (`AnimationStep`, JSON on the animation) is a clip and how it plays there: whether it
+    loops, its speed, in place. A looping step repeats until the animation is **finished** (her state changes, she or
+    the user stops it), then the steps after it play once: "jumping jacks" is the start once, the jumps looping, the
+    stop once. A looping animation starts again after its last step until it is finished: clips that don't loop on
+    their own, a wave and a nod, again and again. The clip's old loop, speed and in-place are only what a new step
+    of it starts from. Two tabs: **Clips** uploads clips and lists the library (`AnimationsPart`; `AnimationDialog`
+    edits a clip and plays it in a loop; a clip's **New animation** button makes an animation of it, named after it);
+    **Animations** (`AnimationPacksPart`, `AnimationPackDialog`) edits the steps in a table (loop, speed, in place,
+    moved up and down) and plays the animation on open and on Play, Finish ending a looping step; a step chosen in the
+    table or in the strip of steps under the preview (`ClipPreview`, the step playing marked, with its rounds) plays
+    alone. Both tables have checkboxes and Delete selected. A clip added to an animation appends its description to
+    the animation's, on a line of its own. A clip can be in several animations and steps; deleting an animation keeps
+    its clips, deleting a clip takes it out of its animations. Clips play in the three.js preview on any body of her
+    assistants, in the state of its parts (`@pixiv/three-vrm-animation` retargets them; `joi-model-viewer.js`
+    `playSequence` plays the steps, cut from one to the next with no blending yet).
   - **FBX and BVH** are converted on the server (`AnimationConversionService`, `convert_animation.py`, headless
     Blender, one Blender at a time with the models' conversions: `Blender`): the VRM add-on maps the bones to the
     humanoid (it knows Mixamo, Unreal, Biped, VRoid, MMD... and guesses from the skeleton's shape) and exports each
@@ -685,10 +696,11 @@ UI — nothing is deleted):
       hand, a friendly hello"), proposed by a multimodal model from frames of the preview (the same way as the
       self-image: a template on the chain, reviewed, editable) and written for her: she picks a clip by what it
       says.
-    - **Groups:** the user groups clips and describes the group ("greetings", "happy idles", "thinking"). She sees
-      the groups and their descriptions first, and the clips of a group when she needs them, so a big library
-      doesn't fill her prompt. A clip can be in several groups. Playing a group plays one of its clips, picked at
-      random or by mood, so a repeated wave isn't always the same.
+    - **Groups (later):** the user groups animations (not clips: she plays animations) and describes the group
+      ("greetings", "happy idles", "thinking"). She sees the groups and their descriptions first, and the animations
+      of a group when she needs them, so a big library doesn't fill her prompt. An animation can be in several
+      groups. Playing a group plays one of its animations, picked at random or by mood, so a repeated wave isn't
+      always the same.
   - **Bodies are paired with animations:** a body has the clips and groups it can play (all of the library by
     default; the user removes what doesn't fit it, e.g. a clip that clips through a big tail or a skirt, and adds the
     body's own clips). Her prompt and `play_animation` list only the clips and groups of the active body, and a

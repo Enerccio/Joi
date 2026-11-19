@@ -8,11 +8,13 @@
 // they act on the model shown, nothing happens before it is.
 // takeSnapshots(request) renders the snapshots of a model (the whole model in its default state, and a close-up of
 // each part described apart in each of its states) for the "snapshot-target" URL.
-// playAnimation(loop, speed, inPlace) plays the VRMA at the "animation-src" URL on the model (now, or once it is shown: a
-// new model plays it again; in place: the hips keep their spot on the floor, they only go up and down),
-// stopAnimation() puts her back at rest; setAnimationLoop(loop), setAnimationSpeed(speed), setAnimationInPlace(inPlace)
-// and setAnimationPaused(paused) change the clip playing. It fires "animation-started" ({duration}), "animation-finished"
-// (a clip played once ended) and "animation-error" ({message}).
+// playSequence(json) plays an animation, steps of VRMA clips at the "animation-src-N" URLs, on the model (now, or once it
+// is shown: a new model plays it again): each step loops or plays once, at its speed, in place or not (the hips keep
+// their spot on the floor, they only go up and down); the animation can start again after its last step.
+// finishAnimation() lets a looping step end its round and the rest play once; stopAnimation() puts her back at rest;
+// setAnimationPaused(paused) pauses. It fires "animation-started" ({duration} of one round), "animation-step"
+// ({index, repeats}) as a step starts or repeats, "animation-finished" (the animation ended) and "animation-error"
+// ({message}).
 // It fires "model-info" ({triangles, meshes, materials, vrm, expressions}) once the model is shown and "model-error"
 // ({message}) when it can't be.
 import * as THREE from 'three';
@@ -283,56 +285,48 @@ class JoiModelViewer extends HTMLElement {
     manager.setValue(name, weight);
   }
 
-  /** Plays the clip at the "animation-src" URL, now or once a model is shown. */
-  playAnimation(loop, speed, inPlace) {
-    const url = this.getAttribute('animation-src');
-    if (!url) {
+  /**
+   * Plays an animation, now or once a model is shown: {steps: [{src, loop, speed, inPlace}], loop}, src the index of
+   * its file in the "animation-src-N" attributes. The steps play in order; a looping step repeats until
+   * finishAnimation(), then the steps after it play; a looping animation starts again after its last step, until
+   * finished. It holds the last frame at the end.
+   */
+  playSequence(json) {
+    const sequence = typeof json === 'string' ? JSON.parse(json) : json;
+    const steps = (sequence && sequence.steps || []).map(step => ({
+      url: this.getAttribute('animation-src-' + step.src),
+      loop: !!step.loop,
+      speed: step.speed > 0 ? step.speed : 1,
+      inPlace: !!step.inPlace
+    })).filter(step => step.url);
+    if (!steps.length) {
+      this.stopAnimation();
       return;
     }
-    this._animation = {url, loop: !!loop, speed: speed > 0 ? speed : 1, inPlace: !!inPlace};
+    this._animation = {steps, loop: !!sequence.loop};
     this._animationPaused = false;
     if (this._vrm) {
       this._startAnimation();
     }
   }
 
-  /** Stops the clip and puts her back at rest. */
+  /** Lets a looping step end its round and the animation play to its end, once. */
+  finishAnimation() {
+    if (!this._animation || this._finishing) {
+      return;
+    }
+    this._finishing = true;
+    if (this._action) {
+      // a repeating action set to once plays the round it is in to its end, then fires "finished"
+      this._action.setLoop(THREE.LoopOnce, Infinity);
+    }
+  }
+
+  /** Stops the animation and puts her back at rest. */
   stopAnimation() {
     this._animation = null;
     this._animationId = (this._animationId || 0) + 1;
     this._stopMixer();
-  }
-
-  setAnimationLoop(loop) {
-    if (this._animation) {
-      this._animation.loop = !!loop;
-    }
-    if (this._action) {
-      this._action.setLoop(loop ? THREE.LoopRepeat : THREE.LoopOnce, Infinity);
-      if (loop && !this._action.isRunning()) {
-        this._action.reset().play();
-      }
-    }
-  }
-
-  setAnimationSpeed(speed) {
-    const value = speed > 0 ? speed : 1;
-    if (this._animation) {
-      this._animation.speed = value;
-    }
-    if (this._mixer) {
-      this._mixer.timeScale = value;
-    }
-  }
-
-  /** Keeps the hips on their spot (or lets the clip move her about): the clip starts again. */
-  setAnimationInPlace(inPlace) {
-    if (this._animation && this._animation.inPlace !== !!inPlace) {
-      this._animation.inPlace = !!inPlace;
-      if (this._vrm) {
-        this._startAnimation();
-      }
-    }
   }
 
   setAnimationPaused(paused) {
@@ -344,39 +338,86 @@ class JoiModelViewer extends HTMLElement {
     const vrm = this._vrm;
     const id = this._animationId = (this._animationId || 0) + 1;
     try {
-      const loader = new GLTFLoader();
-      loader.register(parser => new VRMAnimationLoaderPlugin(parser));
-      const gltf = await loader.loadAsync(animation.url);
-      if (id !== this._animationId || vrm !== this._vrm) {
-        return;
-      }
-      const vrmAnimation = gltf.userData.vrmAnimations && gltf.userData.vrmAnimations[0];
-      if (!vrmAnimation) {
-        throw new Error('the file has no VRM animation');
+      const loaded = new Map();
+      const clips = [];
+      for (const step of animation.steps) {
+        if (!loaded.has(step.url)) {
+          const loader = new GLTFLoader();
+          loader.register(parser => new VRMAnimationLoaderPlugin(parser));
+          const gltf = await loader.loadAsync(step.url);
+          if (id !== this._animationId || vrm !== this._vrm) {
+            return;
+          }
+          const vrmAnimation = gltf.userData.vrmAnimations && gltf.userData.vrmAnimations[0];
+          if (!vrmAnimation) {
+            throw new Error('the file has no VRM animation');
+          }
+          // hips that rest at the floor would scale the clip's movement of the hips by a height of 0 (NaN): left out
+          const restHips = vrmAnimation.restHipsPosition;
+          if (!restHips || !(Math.abs(restHips.y) > 1e-6)) {
+            vrmAnimation.humanoidTracks.translation.delete('hips');
+          }
+          loaded.set(step.url, vrmAnimation);
+        }
+        const clip = createVRMAnimationClip(loaded.get(step.url), vrm);
+        if (step.inPlace) {
+          this._keepInPlace(clip, vrm);
+        }
+        clips.push(clip);
       }
       this._stopMixer();
-      // hips that rest at the floor would scale the clip's movement of the hips by a height of 0 (NaN): left out
-      const restHips = vrmAnimation.restHipsPosition;
-      if (!restHips || !(Math.abs(restHips.y) > 1e-6)) {
-        vrmAnimation.humanoidTracks.translation.delete('hips');
-      }
-      const clip = createVRMAnimationClip(vrmAnimation, vrm);
-      if (animation.inPlace) {
-        this._keepInPlace(clip, vrm);
-      }
       this._mixer = new THREE.AnimationMixer(vrm.scene);
-      this._mixer.timeScale = animation.speed;
-      this._action = this._mixer.clipAction(clip);
-      this._action.setLoop(animation.loop ? THREE.LoopRepeat : THREE.LoopOnce, Infinity);
-      this._action.clampWhenFinished = true;
-      this._mixer.addEventListener('finished', () => this.dispatchEvent(new CustomEvent('animation-finished')));
-      this._action.play();
-      this.dispatchEvent(new CustomEvent('animation-started', {detail: {duration: Number(clip.duration.toFixed(3))}}));
+      this._clips = clips;
+      this._finishing = false;
+      this._mixer.addEventListener('finished', () => this._stepEnded(id));
+      this._mixer.addEventListener('loop', () => {
+        this._repeats++;
+        this._stepEvent();
+      });
+      this._playStep(0);
+      const duration = clips.reduce((sum, clip, i) => sum + clip.duration / animation.steps[i].speed, 0);
+      this.dispatchEvent(new CustomEvent('animation-started', {detail: {duration: Number(duration.toFixed(3))}}));
     } catch (e) {
       if (id === this._animationId) {
         this.dispatchEvent(new CustomEvent('animation-error', {detail: {message: String(e && e.message || e)}}));
       }
     }
+  }
+
+  _playStep(index) {
+    const step = this._animation.steps[index];
+    if (this._action) {
+      this._action.stop();
+    }
+    this._mixer.timeScale = step.speed;
+    this._action = this._mixer.clipAction(this._clips[index]);
+    this._action.reset();
+    this._action.setLoop(step.loop && !this._finishing ? THREE.LoopRepeat : THREE.LoopOnce, Infinity);
+    this._action.clampWhenFinished = true;
+    this._action.play();
+    this._stepIndex = index;
+    this._repeats = 1;
+    this._stepEvent();
+  }
+
+  _stepEnded(id) {
+    const animation = this._animation;
+    if (!animation || id !== this._animationId) {
+      return;
+    }
+    const next = this._stepIndex + 1;
+    if (next < animation.steps.length) {
+      this._playStep(next);
+    } else if (animation.loop && !this._finishing) {
+      this._playStep(0);
+    } else {
+      this._finishing = false;
+      this.dispatchEvent(new CustomEvent('animation-finished'));
+    }
+  }
+
+  _stepEvent() {
+    this.dispatchEvent(new CustomEvent('animation-step', {detail: {index: this._stepIndex, repeats: this._repeats}}));
   }
 
   /** Holds the hips of the clip on the floor where they start: only their height moves. */
@@ -403,6 +444,8 @@ class JoiModelViewer extends HTMLElement {
       this._mixer = null;
       this._action = null;
     }
+    this._clips = null;
+    this._finishing = false;
     const vrm = this._vrm;
     if (vrm) {
       if (vrm.humanoid) {
