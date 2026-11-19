@@ -19,6 +19,12 @@ public interface ChatMessageService extends ExtendableService<ChatMessage, ChatM
     /** The last {@code limit} messages, oldest first. */
     List<ChatMessage> findLatest(Joi joi, int limit) throws Exception;
 
+    /**
+     * The {@code limit} messages before the message (sent earlier, or at the same time and stored earlier), oldest
+     * first: the earlier page of a transcript that shows the message first.
+     */
+    List<ChatMessage> findBefore(Joi joi, ChatMessage first, int limit) throws Exception;
+
     /** When each of the assistants was last talked to, by her id; one that never was is not in the map. */
     Map<Long, Date> findLastSentAt(Collection<Joi> jois) throws Exception;
 

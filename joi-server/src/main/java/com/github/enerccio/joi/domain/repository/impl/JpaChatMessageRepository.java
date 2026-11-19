@@ -29,6 +29,16 @@ public class JpaChatMessageRepository extends JpaExtendableRepository<ChatMessag
     }
 
     @Override
+    public List<ChatMessage> findBefore(Joi joi, ChatMessage first, int limit) throws Exception {
+        List<ChatMessage> earlier = new ArrayList<>(entityManager.createQuery("SELECT m FROM ChatMessage m WHERE m.deleted = false AND m.joi = :joi "
+                        + "AND (m.sentAt < :sentAt OR (m.sentAt = :sentAt AND m.id < :id)) ORDER BY m.sentAt DESC, m.id DESC", ChatMessage.class)
+                .setParameter("joi", joi).setParameter("sentAt", first.getSentAt()).setParameter("id", first.getId())
+                .setMaxResults(limit).getResultList());
+        Collections.reverse(earlier);
+        return earlier;
+    }
+
+    @Override
     public Map<Long, Date> findLastSentAt(Collection<Joi> jois) throws Exception {
         Map<Long, Date> last = new HashMap<>();
         List<Long> ids = jois.stream().map(Joi::getId).filter(java.util.Objects::nonNull).toList();

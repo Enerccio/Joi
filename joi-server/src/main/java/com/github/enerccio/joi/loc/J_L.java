@@ -103,6 +103,8 @@ public enum J_L implements LocalizationKey {
     LABEL_APPROVE,
     LABEL_DENY,
     LABEL_FIRST_ADMINISTRATOR,
+    LABEL_REASONING,
+    LABEL_EVENT,
 
     // --- ENUM ---
     ENUM_TEXT_LLM_TYPE_AUXILIARY,
@@ -168,6 +170,8 @@ public enum J_L implements LocalizationKey {
     MSG_DEVICE_APPROVED,
     MSG_DEVICE_UNKNOWN,
     MSG_API_OFF,
+    MSG_LOADING_EARLIER_MESSAGES,
+    MSG_NO_CHATS,
 
     // --- DESC ---
     DESC_TEMPLATE_PERSONALITY,

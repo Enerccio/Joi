@@ -113,6 +113,8 @@ public class JoiLocalizationBundleEN extends TextBundleBase<J_L> {
         setValue(J_L.LABEL_APPROVE, "Approve");
         setValue(J_L.LABEL_DENY, "Deny");
         setValue(J_L.LABEL_FIRST_ADMINISTRATOR, "the first administrator");
+        setValue(J_L.LABEL_REASONING, "Reasoning");
+        setValue(J_L.LABEL_EVENT, "Event");
 
         // --- ENUM ---
         setValue(J_L.ENUM_TEXT_LLM_TYPE_AUXILIARY, "Auxiliary");
@@ -192,6 +194,8 @@ public class JoiLocalizationBundleEN extends TextBundleBase<J_L> {
         setValue(J_L.MSG_DEVICE_APPROVED, "The device is connected.");
         setValue(J_L.MSG_DEVICE_UNKNOWN, "No device waits for this code: it may have expired.");
         setValue(J_L.MSG_API_OFF, "The administrator has turned off tokens and devices.");
+        setValue(J_L.MSG_LOADING_EARLIER_MESSAGES, "Loading earlier messages…");
+        setValue(J_L.MSG_NO_CHATS, "No chats yet.");
 
         // --- DESC ---
         setValue(J_L.DESC_TEMPLATE_PERSONALITY, "The personality, rendered ({{user}} and {{char}} work in it).");

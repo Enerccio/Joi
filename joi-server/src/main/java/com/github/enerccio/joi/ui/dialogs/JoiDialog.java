@@ -5,6 +5,7 @@ import com.github.enerccio.joi.domain.model.impl.QueuedEvent;
 import com.github.enerccio.joi.domain.service.JoiService;
 import com.github.enerccio.joi.loc.J_L;
 import com.github.enerccio.joi.ui.dialogs.joi.JoiAboutPart;
+import com.github.enerccio.joi.ui.dialogs.joi.JoiChatsPart;
 import com.github.enerccio.joi.ui.dialogs.joi.JoiDialogPart;
 import com.github.enerccio.joi.ui.dialogs.joi.JoiNothingYetPart;
 import com.github.enerccio.joi.ui.dialogs.joi.JoiTemplatesPart;
@@ -31,7 +32,8 @@ import java.util.Map;
  * <ul>
  *     <li>About: her name, what she calls the user, her personality, the models of the roles and her voice;</li>
  *     <li>Templates: her prompts;</li>
- *     <li>Memories, Summaries, Chats: empty for now.</li>
+ *     <li>Memories, Summaries: empty for now;</li>
+ *     <li>Chats: her conversation, read only ({@link JoiChatsPart}).</li>
  * </ul>
  * An empty field is not set: the user's setting is used, shown greyed out.
  */
@@ -51,6 +53,7 @@ public class JoiDialog extends Dialog {
     private final Map<JoiDialogPart, Component> parts = new LinkedHashMap<>();
     private JoiAboutPart aboutPart;
     private JoiTemplatesPart templatesPart;
+    private JoiChatsPart chatsPart;
 
     public JoiDialog(Joi joi) {
         this.joi = joi;
@@ -73,7 +76,7 @@ public class JoiDialog extends Dialog {
         aboutPart = new JoiAboutPart(this);
         templatesPart = new JoiTemplatesPart(this);
         for (JoiDialogPart part : List.of(aboutPart, templatesPart, new JoiNothingYetPart(J_L.LABEL_MEMORIES),
-                new JoiNothingYetPart(J_L.LABEL_SUMMARIES), new JoiNothingYetPart(J_L.LABEL_CHATS))) {
+                new JoiNothingYetPart(J_L.LABEL_SUMMARIES), chatsPart = new JoiChatsPart())) {
             Component content = part.create();
             parts.put(part, content);
             tabs.add(loc.getValue(part.caption()), content);
@@ -81,6 +84,17 @@ public class JoiDialog extends Dialog {
         for (JoiDialogPart part : parts.keySet()) {
             part.load(joi);
         }
+        tabs.addSelectedChangeListener(e -> {
+            for (Map.Entry<JoiDialogPart, Component> entry : parts.entrySet()) {
+                if (entry.getValue().equals(tabs.getComponent(e.getSelectedTab()))) {
+                    try {
+                        entry.getKey().shown();
+                    } catch (Exception ex) {
+                        UIUtils.internalServerError(loc, ex);
+                    }
+                }
+            }
+        });
 
         VerticalLayout layout = new VerticalLayout(tabs);
         layout.setSizeFull();
@@ -147,6 +161,11 @@ public class JoiDialog extends Dialog {
     /** The About tab, for tests. */
     public JoiAboutPart getAboutPart() {
         return aboutPart;
+    }
+
+    /** The Chats tab, for tests. */
+    public JoiChatsPart getChatsPart() {
+        return chatsPart;
     }
 
     /** The Templates tab, for tests. */

@@ -28,6 +28,12 @@ public class ChatMessageServiceImpl extends ExtendableServiceImpl<ChatMessage, C
 
     @Override
     @CommonTxReadOnly
+    public List<ChatMessage> findBefore(Joi joi, ChatMessage first, int limit) throws Exception {
+        return getRepository().findBefore(joi, first, limit);
+    }
+
+    @Override
+    @CommonTxReadOnly
     public Map<Long, Date> findLastSentAt(Collection<Joi> jois) throws Exception {
         return getRepository().findLastSentAt(jois);
     }

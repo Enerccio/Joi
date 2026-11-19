@@ -18,4 +18,8 @@ public interface JoiDialogPart {
 
     /** Shows the assistant. */
     void load(Joi joi) throws Exception;
+
+    /** The tab was selected. */
+    default void shown() throws Exception {
+    }
 }
