@@ -168,10 +168,10 @@ A fact is worth remembering when it will still be true and useful in a week: who
     // the self-image of a body: a multimodal model describes it from snapshots ({@code BodySelfImageService})
     // ----------------------------------------------------------------------------------------------------------------
 
-    /** The request for a body's self-image, next to the images ({@code SelfImageTemplateData}). */
+    /** The request for a model's appearance, next to its snapshots and the user's images ({@code SelfImageTemplateData}). */
     public String selfImagePrompt() {
         return """
-You look at images of a 3D avatar and describe it for {{char}}, the AI assistant who lives in it, so she knows how she looks. The avatar is her body "{{bodyName}}".
+You look at images of a 3D avatar and describe it for the AI assistant who lives in it, so she knows how she looks. The avatar is "{{modelName}}".
 {{#snapshots}}
 The first images are renders of it: {{.}}.{{/snapshots}}
 {{#references}}
@@ -191,9 +191,28 @@ number | mesh / key | name now | as the model comes
 Answer with one JSON object and nothing else:
 {"description": "...", "toggles": {"<toggle number>": "<name>", ...}}
 
-description: how she looks, in the second person ("You have long silver hair..."), in plain sentences, 80 to 200 words. Cover the build and height impression, the face, eyes and hair, the clothes and shoes, the accessories and anything unusual (ears, tail, horns, wings, markings). Describe what the images show; use the notes for what they can't show. Say nothing about the rendering itself (background, lighting, pose) and don't guess names or brands.
+description: how she looks, in the second person ("You have long silver hair..."), in plain sentences, 80 to 200 words. Cover the build and height impression, the face, eyes and hair, the clothes and shoes, the accessories and anything unusual (ears, tail, horns, wings, markings). Describe what the images show; use the notes for what they can't show. Say nothing about the rendering itself (background, lighting, pose) and don't guess names or brands.{{#parts}} Leave these parts out, they are described apart because they can be taken off or hidden: {{.}}.{{/parts}}
 
 toggles: for each toggle listed (by its number), a short name (one to three lowercase words) for the part it shows or hides, as she would call it ("halo", "left blade", "jacket"). Use the images and the names of the mesh and the key. Leave out a toggle you can't tell; keep a name {{user}} gave unless it is clearly wrong.
+""";
+    }
+
+    /** The request for one toggle of a model, next to its close-ups shown and hidden ({@code PartImageTemplateData}). */
+    public String partImagePrompt() {
+        return """
+You look at two close-ups of the same spot of a 3D avatar, "{{modelName}}", worn by an AI assistant as her body. A part of it can be shown or hidden: "{{partName}}" ({{partSource}}). The first image shows it shown, the second hidden.
+{{#appearance}}
+===== HOW SHE LOOKS OTHERWISE =====
+{{.}}{{/appearance}}
+{{#notes}}
+===== {{user}}'S NOTES =====
+{{.}}{{/notes}}
+
+Answer with one JSON object and nothing else:
+{"shown": "...", "hidden": "..."}
+
+shown: one or two short sentences, in the second person, of how she looks there with the part shown ("A black visor with red markings covers your eyes.").
+hidden: the same with it hidden: what is there instead ("Your eyes are pale grey, with long lashes."), or that it is gone when nothing new shows. Describe only what the images show; say nothing about the rendering itself.
 """;
     }
 

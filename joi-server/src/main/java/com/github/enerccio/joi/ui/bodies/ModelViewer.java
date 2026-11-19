@@ -14,7 +14,10 @@ import com.vaadin.flow.server.streams.DownloadHandler;
 import com.vaadin.flow.server.streams.UploadHandler;
 import com.vaadin.flow.shared.Registration;
 
+import com.google.gson.Gson;
+
 import java.io.File;
+import java.util.List;
 
 /**
  * The 3D preview of a model: three.js with three-vrm (the renderer's code, see {@code DESIGN.md} → Renderers) in the
@@ -61,14 +64,19 @@ public class ModelViewer extends Component implements HasSize, HasStyle {
         getElement().callJsFunction("setMorph", mesh, key, weight);
     }
 
+    /** A toggle to take close-ups of, shown and hidden ({@code part-<index>-shown.jpg}). */
+    public record Part(int index, String mesh, String key, boolean hides) {
+    }
+
     /**
      * Takes the snapshots of the model shown (front, three-quarter, profile and back of the full body, the face from the
-     * front and three-quarter) and sends them to the handler, one file per shot named after it ({@code full-front.jpg}).
-     * A {@link SnapshotsEvent} follows once the server has them all, a {@link SnapshotsErrorEvent} when not.
+     * front and three-quarter, then a close-up of each part shown and hidden) and sends them to the handler, one file per
+     * shot named after it ({@code full-front.jpg}, {@code part-3-hidden.jpg}). A {@link SnapshotsEvent} follows once the
+     * server has them all, a {@link SnapshotsErrorEvent} when not.
      */
-    public void takeSnapshots(UploadHandler handler) {
+    public void takeSnapshots(UploadHandler handler, List<Part> parts) {
         getElement().setAttribute("snapshot-target", handler);
-        getElement().callJsFunction("takeSnapshots");
+        getElement().callJsFunction("takeSnapshots", new Gson().toJson(parts));
     }
 
     /** Shows nothing. */

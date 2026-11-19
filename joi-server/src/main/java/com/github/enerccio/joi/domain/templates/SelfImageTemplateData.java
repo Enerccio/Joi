@@ -3,14 +3,14 @@ package com.github.enerccio.joi.domain.templates;
 import com.github.enerccio.joi.loc.J_L;
 
 /**
- * The data of the request for a body's self-image ({@code JoiPromptField.SELF_IMAGE_PROMPT}): what the multimodal
- * model gets next to the images. {@code {{char}}} is the assistant whose body it is.
+ * The data of the request for a model's appearance ({@code JoiPromptField.SELF_IMAGE_PROMPT}): what the multimodal
+ * model gets next to the snapshots of the whole model and the user's images.
  */
 public class SelfImageTemplateData extends JoiTemplateData {
 
-    /** The body's name. */
-    @JoiTemplateDescription(loc = J_L.DESC_TEMPLATE_BODY_NAME)
-    private String bodyName;
+    /** The model's name. */
+    @JoiTemplateDescription(loc = J_L.DESC_TEMPLATE_MODEL_NAME)
+    private String modelName;
 
     /** The snapshots, in the order of the images ("full front, full back, ..."); empty when there are none. */
     @JoiTemplateDescription(loc = J_L.DESC_TEMPLATE_SNAPSHOTS)
@@ -28,16 +28,20 @@ public class SelfImageTemplateData extends JoiTemplateData {
     @JoiTemplateDescription(loc = J_L.DESC_TEMPLATE_CURRENT_DESCRIPTION)
     private String currentDescription;
 
+    /** The names of the toggles described apart (left out of the description), comma separated; empty when none. */
+    @JoiTemplateDescription(loc = J_L.DESC_TEMPLATE_DESCRIBED_PARTS)
+    private String parts;
+
     /** A line per toggle: its number, the mesh / key, its name now, shown or hidden as the model comes. */
     @JoiTemplateDescription(loc = J_L.DESC_TEMPLATE_TOGGLES)
     private String toggles;
 
-    public String getBodyName() {
-        return bodyName;
+    public String getModelName() {
+        return modelName;
     }
 
-    public void setBodyName(String bodyName) {
-        this.bodyName = bodyName;
+    public void setModelName(String modelName) {
+        this.modelName = modelName;
     }
 
     public String getSnapshots() {
@@ -78,5 +82,13 @@ public class SelfImageTemplateData extends JoiTemplateData {
 
     public void setToggles(String toggles) {
         this.toggles = toggles;
+    }
+
+    public String getParts() {
+        return parts;
+    }
+
+    public void setParts(String parts) {
+        this.parts = parts;
     }
 }

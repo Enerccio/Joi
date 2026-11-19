@@ -62,6 +62,11 @@ public class JoiUserSetting extends BaseUserSetting implements PersonaAttributes
     @Transient
     private String selfImagePrompt;
 
+    /** The request for one toggle of a model, described from two close-ups. */
+    @ExtendedAttribute
+    @Transient
+    private String partImagePrompt;
+
     /** The section of her system prompt about the body she is in ({@code {{#body}}}). */
     @ExtendedAttribute
     @Transient
@@ -176,6 +181,16 @@ public class JoiUserSetting extends BaseUserSetting implements PersonaAttributes
     @Override
     public void setSelfImagePrompt(String selfImagePrompt) {
         this.selfImagePrompt = selfImagePrompt;
+    }
+
+    @Override
+    public String getPartImagePrompt() {
+        return partImagePrompt;
+    }
+
+    @Override
+    public void setPartImagePrompt(String partImagePrompt) {
+        this.partImagePrompt = partImagePrompt;
     }
 
     @Override

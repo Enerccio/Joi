@@ -1,22 +1,7 @@
 package com.github.enerccio.joi.ui.dialogs;
 
-import com.flowingcode.vaadin.addons.fontawesome.FontAwesome.Solid;
-import com.github.enerccio.joi.domain.bodies.BodyProposal;
+import com.github.enerccio.joi.domain.bodies.Appearance;
 import com.github.enerccio.joi.domain.bodies.ModelCapabilities;
-import com.github.enerccio.joi.domain.bodies.ModelFiles;
-import com.github.enerccio.joi.domain.collections.ProposalStatus;
-import com.github.enerccio.joi.domain.service.BodySelfImageService;
-import com.github.enerccio.marginalia.domain.model.impl.AI;
-import com.github.enerccio.marginalia.ui.widgets.Notification;
-import com.vaadin.flow.component.UI;
-import com.vaadin.flow.component.button.ButtonVariant;
-import com.vaadin.flow.component.checkbox.Checkbox;
-import com.vaadin.flow.component.html.Div;
-import com.vaadin.flow.component.html.H4;
-import com.vaadin.flow.component.html.Image;
-import com.vaadin.flow.component.upload.Upload;
-import com.vaadin.flow.server.streams.DownloadHandler;
-import com.vaadin.flow.server.streams.UploadHandler;
 import com.github.enerccio.joi.domain.model.impl.Body;
 import com.github.enerccio.joi.domain.model.impl.Joi;
 import com.github.enerccio.joi.domain.model.impl.Model;
@@ -30,6 +15,8 @@ import com.github.enerccio.marginalia.CssStyles;
 import com.github.enerccio.marginalia.loc.L;
 import com.github.enerccio.marginalia.loc.Localization;
 import com.github.enerccio.marginalia.utils.UIUtils;
+import com.github.enerccio.marginalia.ui.widgets.ResizableTextArea;
+import com.github.enerccio.joi.ui.widgets.PromptAreas;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.dialog.Dialog;
 import com.vaadin.flow.component.html.Span;
@@ -44,23 +31,15 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Configurable;
 
 import java.io.File;
-import java.text.DateFormat;
-import java.util.ArrayList;
 import java.util.LinkedHashMap;
-import java.util.List;
 import java.util.Map;
-import java.util.Objects;
-import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * One body of an assistant ({@link Body}), full screen: on the left its name, its models (the full one and the one
- * for the Looking Glass, from the user's models with a VRM) and how she looks in it; on the right the
+ * for the Looking Glass, from the user's models with a VRM) and how she looks in it (the model's description, put
+ * together for the state of the body: it is described and edited in the model's dialog); on the right the
  * {@link ModelViewer 3D preview} of either model. Changes are stored at once; a new body is stored once it gets a name
  * or a model (her first body is the one she is in).
- * <p>
- * Her <b>self-image</b> (once the body has a model): the viewer takes snapshots of the full model, the user adds images
- * and notes, and {@link BodySelfImageService} asks a multimodal model for the description and the toggle names. The
- * proposal is reviewed here (the description edited, each name kept or not) before it is used.
  */
 @Configurable
 public class BodyDialog extends Dialog {
@@ -77,24 +56,12 @@ public class BodyDialog extends Dialog {
     @Autowired
     private JoiService joiService;
 
-    @Autowired
-    private BodySelfImageService selfImageService;
-
     private final Joi joi;
     private Body body;
     private Runnable onClose = () -> {
     };
     /** The user's models a body can be made of, by id. */
     private final Map<Long, Model> models = new LinkedHashMap<>();
-    /** Something the user does that can fail. */
-    @FunctionalInterface
-    private interface Action {
-        void run() throws Exception;
-    }
-
-    /** The order of the snapshots (the viewer's shots). */
-    private static final List<String> SHOT_ORDER = List.of("full-front", "full-three-quarter", "full-profile", "full-back",
-            "face-front", "face-three-quarter");
     private TextField nameField;
     private Select<Long> modelSelect;
     private Select<Long> lookingGlassSelect;
@@ -103,30 +70,6 @@ public class BodyDialog extends Dialog {
     private RadioButtonGroup<Boolean> previewChoice;
     private ModelViewer viewer;
     private Span previewInfo;
-
-    private VerticalLayout selfImage;
-    private Span describedInfo;
-    private Button snapshotButton;
-    private Span snapshotInfo;
-    private Div snapshotThumbnails;
-    private Upload referenceUpload;
-    private Div referenceThumbnails;
-    private TextArea notes;
-    private Button proposeButton;
-    private Span proposalStatus;
-    private VerticalLayout proposalPanel;
-    private TextArea proposedDescription;
-    private VerticalLayout proposedToggles;
-    private final Map<String, Checkbox> toggleChoices = new LinkedHashMap<>();
-    private final Map<String, String> proposedNames = new LinkedHashMap<>();
-    /** The snapshots the viewer sent, until it says they are all there. */
-    private final Map<String, byte[]> pendingShots = new ConcurrentHashMap<>();
-    private Runnable stopListening = () -> {
-    };
-    private boolean loading;
-    /** The images the thumbnails show now: they are drawn again only when these change (each is a download). */
-    private List<String> shownSnapshots = List.of();
-    private List<String> shownReferences = List.of();
 
     /**
      * @param body the stored body, null for a new one
@@ -161,10 +104,7 @@ public class BodyDialog extends Dialog {
         nameField = new TextField(loc.getValue(L.LABEL_NAME));
         nameField.setWidthFull();
         nameField.setValue(body == null ? "" : StringUtils.defaultString(body.getName()));
-        nameField.addValueChangeListener(e -> {
-            store();
-            showSelfImage();
-        });
+        nameField.addValueChangeListener(e -> store());
 
         modelSelect = modelSelect(J_L.LABEL_BODY_MODEL);
         modelSelect.setEmptySelectionAllowed(true);
@@ -172,7 +112,6 @@ public class BodyDialog extends Dialog {
         modelSelect.addValueChangeListener(e -> {
             store();
             showModel();
-            showSelfImage();
         });
 
         lookingGlassSelect = modelSelect(J_L.LABEL_LOOKING_GLASS_MODEL);
@@ -191,18 +130,11 @@ public class BodyDialog extends Dialog {
 
         description = new TextArea(loc.getValue(J_L.LABEL_APPEARANCE));
         description.setWidthFull();
-        description.addClassName(JoiCssStyles.BODY_APPEARANCE);
-        description.setHelperText(loc.getValue(J_L.MSG_APPEARANCE_HINT));
-        description.setValue(body == null ? "" : StringUtils.defaultString(body.getDescription()));
-        description.addValueChangeListener(e -> {
-            if (!loading) {
-                store();
-            }
-        });
+        description.setReadOnly(true);
+        ResizableTextArea.install(loc, description, PromptAreas.TEMPLATE_HEIGHT);
+        description.setHelperText(loc.getValue(J_L.MSG_BODY_APPEARANCE_HINT));
 
-        createSelfImage();
-
-        VerticalLayout sidebar = new VerticalLayout(nameField, modelSelect, lookingGlassSelect, modelHint, capabilitiesInfo, description, selfImage);
+        VerticalLayout sidebar = new VerticalLayout(nameField, modelSelect, lookingGlassSelect, modelHint, capabilitiesInfo, description);
         sidebar.setPadding(false);
         sidebar.addClassName(JoiCssStyles.MODEL_SIDEBAR);
 
@@ -213,12 +145,6 @@ public class BodyDialog extends Dialog {
         viewer.addInfoListener(e -> previewInfo.setText(String.format("%,d triangles · %d meshes · %d materials",
                 e.getTriangles(), e.getMeshes(), e.getMaterials())));
         viewer.addErrorListener(e -> previewInfo.setText(e.getMessage()));
-        viewer.addSnapshotsListener(e -> snapshotsTaken());
-        viewer.addSnapshotsErrorListener(e -> {
-            pendingShots.clear();
-            snapshotButton.setEnabled(true);
-            Notification.warning(String.format(loc.getValue(J_L.MSG_SNAPSHOTS_FAILED), e.getMessage()));
-        });
         previewChoice = new RadioButtonGroup<>();
         previewChoice.setItems(false, true);
         previewChoice.setItemLabelGenerator(lookingGlass -> loc.getValue(lookingGlass ? J_L.LABEL_PREVIEW_LOOKING_GLASS : J_L.LABEL_PREVIEW_FULL));
@@ -249,15 +175,10 @@ public class BodyDialog extends Dialog {
 
         addOpenedChangeListener(e -> {
             if (!e.isOpened()) {
-                stopListening.run();
                 onClose.run();
             }
         });
         showModel();
-        showSelfImage();
-        if (body != null && selfImageService.isRunning(body)) {
-            listen();
-        }
         nameField.focus();
     }
 
@@ -296,10 +217,6 @@ public class BodyDialog extends Dialog {
             body.setModel(modelId == null ? null : models.get(modelId));
             Long lookingGlassId = lookingGlassSelect.getValue();
             body.setLookingGlassModel(lookingGlassId == null ? null : models.get(lookingGlassId));
-            body.setDescription(StringUtils.defaultIfBlank(description.getValue(), null));
-            if (notes != null) {
-                body.setNotes(StringUtils.defaultIfBlank(notes.getValue(), null));
-            }
             body = bodyService.save(body);
             updateTitle();
         } catch (Exception e) {
@@ -314,6 +231,7 @@ public class BodyDialog extends Dialog {
         capabilitiesInfo.setText(model == null ? loc.getValue(J_L.MSG_BODY_NO_MODEL)
                 : capabilities == null ? loc.getValue(J_L.MSG_NO_CAPABILITIES)
                 : String.format(loc.getValue(J_L.MSG_BODY_CAPABILITIES), capabilities.expressions().size(), capabilities.toggles().size()));
+        description.setValue(StringUtils.defaultString(model == null ? null : Appearance.of(model)));
         boolean lookingGlass = lookingGlassSelect.getValue() != null;
         previewChoice.setVisible(lookingGlass);
         if (!lookingGlass) {
@@ -336,308 +254,6 @@ public class BodyDialog extends Dialog {
         } catch (Exception e) {
             UIUtils.internalServerError(loc, e);
         }
-    }
-
-    // ----------------------------------------------------------------------------------------------------------------
-    // the self-image: snapshots, the user's images and notes, the LLM's proposal to review
-    // ----------------------------------------------------------------------------------------------------------------
-
-    private void createSelfImage() throws Exception {
-        H4 title = new H4(loc.getValue(J_L.LABEL_SELF_IMAGE));
-        Span hint = new Span(loc.getValue(J_L.MSG_SELF_IMAGE_HINT));
-        hint.addClassName(CssStyles.HINT_TEXT);
-        describedInfo = new Span();
-        describedInfo.addClassName(CssStyles.HINT_TEXT);
-
-        snapshotButton = new Button(loc.getValue(J_L.LABEL_TAKE_SNAPSHOTS), Solid.CAMERA.create(), e -> takeSnapshots());
-        snapshotInfo = new Span();
-        snapshotInfo.addClassName(CssStyles.HINT_TEXT);
-        snapshotThumbnails = new Div();
-        snapshotThumbnails.addClassName(JoiCssStyles.BODY_THUMBNAILS);
-
-        File folder = modelService.uploadFolder();
-        UploadHandler handler = UploadHandler.toFile((metadata, file) -> referenceUploaded(file, metadata.fileName()),
-                metadata -> ModelFiles.uploadFile(folder, metadata.fileName()));
-        referenceUpload = new Upload(handler);
-        referenceUpload.setAcceptedFileTypes(".png", ".jpg", ".jpeg", ".webp");
-        referenceUpload.setWidthFull();
-        referenceUpload.setUploadButton(new Button(loc.getValue(J_L.LABEL_UPLOAD_IMAGES), Solid.UPLOAD.create()));
-        referenceUpload.addAllFinishedListener(e -> referenceUpload.clearFileList());
-        Span referencesTitle = new Span(loc.getValue(J_L.LABEL_REFERENCE_IMAGES));
-        referenceThumbnails = new Div();
-        referenceThumbnails.addClassName(JoiCssStyles.BODY_THUMBNAILS);
-
-        notes = new TextArea(loc.getValue(J_L.LABEL_BODY_NOTES));
-        notes.setWidthFull();
-        notes.setHelperText(loc.getValue(J_L.MSG_BODY_NOTES_HINT));
-        notes.setValue(body == null ? "" : StringUtils.defaultString(body.getNotes()));
-        notes.addValueChangeListener(e -> store());
-
-        proposeButton = new Button(loc.getValue(J_L.LABEL_PROPOSE_DESCRIPTION), Solid.MAGIC.create(), e -> propose());
-        proposeButton.setThemeName("primary");
-        proposalStatus = new Span();
-        proposalStatus.addClassName(CssStyles.HINT_TEXT);
-
-        proposedDescription = new TextArea(loc.getValue(J_L.LABEL_PROPOSED_DESCRIPTION));
-        proposedDescription.setWidthFull();
-        proposedDescription.addClassName(JoiCssStyles.BODY_APPEARANCE);
-        Span togglesTitle = new Span(loc.getValue(J_L.LABEL_PROPOSED_TOGGLE_NAMES));
-        proposedToggles = new VerticalLayout();
-        proposedToggles.setPadding(false);
-        proposedToggles.setSpacing(false);
-        Button useButton = new Button(loc.getValue(J_L.LABEL_USE_PROPOSAL), e -> useProposal());
-        useButton.setThemeName("primary");
-        Button discardButton = new Button(loc.getValue(J_L.LABEL_DISCARD_PROPOSAL), e -> discardProposal());
-        discardButton.setThemeName("tertiary");
-        proposalPanel = new VerticalLayout(proposedDescription, togglesTitle, proposedToggles, new HorizontalLayout(useButton, discardButton));
-        proposalPanel.setPadding(false);
-
-        selfImage = new VerticalLayout(title, hint, describedInfo, snapshotButton, snapshotInfo, snapshotThumbnails,
-                referencesTitle, referenceUpload, referenceThumbnails, notes, proposeButton, proposalStatus, proposalPanel);
-        selfImage.setPadding(false);
-    }
-
-    /** The self-image of the stored body: hidden until it has a model. */
-    private void showSelfImage() {
-        try {
-            boolean shown = body != null && modelSelect.getValue() != null;
-            selfImage.setVisible(shown);
-            if (!shown) {
-                return;
-            }
-            body = bodyService.find(body.getId());
-            String hash = bodyService.modelHash(body);
-            describedInfo.setVisible(body.getDescribedHash() != null);
-            describedInfo.setText(loc.getValue(Objects.equals(hash, body.getDescribedHash()) ? J_L.MSG_DESCRIBED_CURRENT : J_L.MSG_DESCRIBED_OUTDATED));
-
-            DateFormat format = DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT);
-            snapshotInfo.setText(body.getSnapshots().isEmpty() || body.getSnapshotsAt() == null ? loc.getValue(J_L.MSG_NO_SNAPSHOTS)
-                    : String.format(loc.getValue(J_L.MSG_SNAPSHOTS_TAKEN), format.format(body.getSnapshotsAt()))
-                    + (Objects.equals(hash, body.getSnapshotsHash()) ? "" : " " + loc.getValue(J_L.MSG_SNAPSHOTS_OUTDATED)));
-            List<String> snapshots = List.copyOf(body.getSnapshots().values());
-            if (!snapshots.equals(shownSnapshots)) {
-                shownSnapshots = snapshots;
-                snapshotThumbnails.removeAll();
-                for (Map.Entry<String, String> shot : body.getSnapshots().entrySet()) {
-                    thumbnail(snapshotThumbnails, shot.getValue(), shot.getKey(), null);
-                }
-            }
-            List<String> references = List.copyOf(body.getReferences().keySet());
-            if (!references.equals(shownReferences)) {
-                shownReferences = references;
-                referenceThumbnails.removeAll();
-                for (Map.Entry<String, String> reference : body.getReferences().entrySet()) {
-                    thumbnail(referenceThumbnails, reference.getKey(), reference.getValue(), () -> {
-                        body = bodyService.removeReference(body, reference.getKey());
-                        showSelfImage();
-                    });
-                }
-            }
-            showProposal();
-        } catch (Exception e) {
-            UIUtils.internalServerError(loc, e);
-        }
-    }
-
-    /** A thumbnail of an image of the body, with a button that removes it when it can be removed. */
-    private void thumbnail(Div into, String resourceId, String name, Action remove) throws Exception {
-        File file = bodyService.imageFile(body, resourceId);
-        if (file == null) {
-            return;
-        }
-        Image image = new Image(DownloadHandler.forFile(file, name).inline(), name);
-        image.setTitle(name);
-        Div item = new Div(image);
-        if (remove != null) {
-            Button removeButton = new Button(Solid.TIMES.create(), e -> {
-                try {
-                    remove.run();
-                } catch (Exception ex) {
-                    UIUtils.internalServerError(loc, ex);
-                }
-            });
-            removeButton.addThemeVariants(ButtonVariant.LUMO_SMALL, ButtonVariant.LUMO_ERROR, ButtonVariant.LUMO_ICON);
-            removeButton.setTooltipText(loc.getValue(L.LABEL_DELETE));
-            item.add(removeButton);
-        }
-        into.add(item);
-    }
-
-    /** The status of the request, and the proposal to review when there is one. */
-    private void showProposal() throws Exception {
-        boolean running = selfImageService.isRunning(body);
-        AI ai = selfImageService.model(joiService.find(joi.getId()));
-        proposeButton.setEnabled(!running && ai != null && !(body.getSnapshots().isEmpty() && body.getReferences().isEmpty()));
-        BodyProposal proposal = running ? null : BodyProposal.fromJson(body.getProposal());
-        if (running) {
-            proposalStatus.setText(String.format(loc.getValue(J_L.MSG_PROPOSAL_RUNNING), ai == null ? "" : ai.getName()));
-        } else if (body.getProposalStatus() == ProposalStatus.FAILED) {
-            proposalStatus.setText(String.format(loc.getValue(J_L.MSG_PROPOSAL_FAILED), body.getProposalError()));
-        } else if (proposal != null) {
-            proposalStatus.setText(String.format(loc.getValue(J_L.MSG_PROPOSAL_FROM), proposal.model(),
-                    DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT).format(proposal.at())));
-        } else {
-            proposalStatus.setText(ai == null ? loc.getValue(J_L.MSG_NO_VISION_MODEL) : "");
-        }
-        proposalStatus.setVisible(!proposalStatus.getText().isEmpty());
-
-        proposalPanel.setVisible(proposal != null);
-        toggleChoices.clear();
-        proposedNames.clear();
-        proposedToggles.removeAll();
-        if (proposal == null) {
-            return;
-        }
-        proposedDescription.setValue(StringUtils.defaultString(proposal.description()));
-        Model model = modelSelect.getValue() == null ? null : modelService.find(modelSelect.getValue());
-        ModelCapabilities capabilities = model == null ? null : ModelCapabilities.fromJson(model.getCapabilities());
-        for (ModelCapabilities.Toggle toggle : capabilities == null ? List.<ModelCapabilities.Toggle>of() : capabilities.toggles()) {
-            String proposed = proposal.toggles().get(toggle.id());
-            String current = StringUtils.defaultIfBlank(model.getCapabilityNames().get(toggle.id()), toggle.defaultName());
-            if (proposed == null || proposed.equals(current)) {
-                continue;
-            }
-            Checkbox choice = new Checkbox(current + " → " + proposed, true);
-            choice.setTooltipText(toggle.key() == null ? toggle.mesh() : toggle.mesh() + " / " + toggle.key());
-            toggleChoices.put(toggle.id(), choice);
-            proposedNames.put(toggle.id(), proposed);
-            proposedToggles.add(choice);
-        }
-    }
-
-    private void takeSnapshots() {
-        if (Boolean.TRUE.equals(previewChoice.getValue())) {
-            previewChoice.setValue(false);
-            showPreview();
-        }
-        pendingShots.clear();
-        snapshotButton.setEnabled(false);
-        viewer.takeSnapshots(UploadHandler.inMemory((metadata, bytes) ->
-                pendingShots.put(StringUtils.removeEndIgnoreCase(metadata.fileName(), ".jpg"), bytes)));
-    }
-
-    private void snapshotsTaken() {
-        snapshotButton.setEnabled(true);
-        try {
-            Map<String, byte[]> shots = new LinkedHashMap<>();
-            for (String shot : SHOT_ORDER) {
-                if (pendingShots.containsKey(shot)) {
-                    shots.put(shot, pendingShots.get(shot));
-                }
-            }
-            pendingShots.keySet().stream().filter(shot -> !shots.containsKey(shot)).sorted().forEach(shot -> shots.put(shot, pendingShots.get(shot)));
-            pendingShots.clear();
-            if (!shots.isEmpty()) {
-                body = bodyService.storeSnapshots(body, shots);
-            }
-            showSelfImage();
-        } catch (Exception e) {
-            UIUtils.internalServerError(loc, e);
-        }
-    }
-
-    /** For tests: the viewer sent the snapshots. */
-    void snapshotsTakenForTest(Map<String, byte[]> shots) {
-        pendingShots.putAll(shots);
-        snapshotsTaken();
-    }
-
-    private void referenceUploaded(File file, String fileName) {
-        try {
-            body = bodyService.addReference(body, file, fileName);
-            showSelfImage();
-        } catch (IllegalArgumentException e) {
-            Notification.warning(e.getMessage());
-        } catch (Exception e) {
-            UIUtils.internalServerError(loc, e);
-        }
-    }
-
-    /** For tests: an image was uploaded. */
-    void referenceUploadedForTest(File file, String fileName) {
-        referenceUploaded(file, fileName);
-    }
-
-    private void propose() {
-        try {
-            selfImageService.propose(body, null);
-            listen();
-            showSelfImage();
-        } catch (IllegalStateException e) {
-            Notification.warning(e.getMessage());
-        } catch (Exception e) {
-            UIUtils.internalServerError(loc, e);
-        }
-    }
-
-    /** Shows the end of the running request when it comes. */
-    private void listen() {
-        UI ui = UI.getCurrent();
-        stopListening.run();
-        stopListening = selfImageService.listen(body, finished -> ui.access(this::showSelfImage));
-    }
-
-    private void useProposal() {
-        try {
-            Map<String, String> names = new LinkedHashMap<>();
-            for (Map.Entry<String, Checkbox> choice : toggleChoices.entrySet()) {
-                if (choice.getValue().getValue()) {
-                    names.put(choice.getKey(), proposedNames.get(choice.getKey()));
-                }
-            }
-            bodyService.applyProposal(body, proposedDescription.getValue(), names);
-            body = bodyService.find(body.getId());
-            reloadModels();
-            loading = true;
-            try {
-                description.setValue(StringUtils.defaultString(body.getDescription()));
-            } finally {
-                loading = false;
-            }
-            showModel();
-            showSelfImage();
-        } catch (Exception e) {
-            UIUtils.internalServerError(loc, e);
-        }
-    }
-
-    /** The models again, after the toggle names changed. */
-    private void reloadModels() throws Exception {
-        for (Long id : new ArrayList<>(models.keySet())) {
-            Model model = modelService.find(id);
-            if (model != null) {
-                models.put(id, model);
-            }
-        }
-    }
-
-    private void discardProposal() {
-        try {
-            body = bodyService.discardProposal(body);
-            showSelfImage();
-        } catch (Exception e) {
-            UIUtils.internalServerError(loc, e);
-        }
-    }
-
-    /** The proposal's description, for tests. */
-    public TextArea getProposedDescription() {
-        return proposedDescription;
-    }
-
-    /** The choices of the proposed toggle names (by the toggle's id), for tests. */
-    Map<String, Checkbox> getToggleChoices() {
-        return toggleChoices;
-    }
-
-    /** Uses the proposal as reviewed, for tests. */
-    void useProposalForTest() {
-        useProposal();
-    }
-
-    /** The notes, for tests. */
-    public TextArea getNotes() {
-        return notes;
     }
 
     private void updateTitle() throws Exception {

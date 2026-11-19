@@ -1,6 +1,7 @@
 package com.github.enerccio.joi.domain.service.impl;
 
 import com.github.enerccio.joi.domain.bodies.ModelCapabilities;
+import com.github.enerccio.joi.domain.bodies.ImageType;
 import com.github.enerccio.joi.domain.bodies.ModelFiles;
 import com.github.enerccio.joi.domain.collections.ModelFormat;
 import com.github.enerccio.joi.domain.model.impl.Model;
@@ -21,7 +22,11 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
+import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.Comparator;
 import java.util.List;
 
@@ -189,5 +194,101 @@ public class ModelServiceImpl extends ExtendableServiceImpl<Model, ModelReposito
         }
         Resource resource = resourceService.find(model.getResource().getId());
         return resource == null ? null : resourceService.getResourceFile(resource);
+    }
+    @Override
+    @CommonTx
+    public Model storeSnapshots(Model model, Map<String, byte[]> shots) throws Exception {
+        Model stored = find(model.getId());
+        File folder = uploadFolder();
+        Map<String, String> before = new LinkedHashMap<>(stored.getSnapshots());
+        Map<String, String> snapshots = new LinkedHashMap<>();
+        for (Map.Entry<String, byte[]> shot : shots.entrySet()) {
+            if (StringUtils.isBlank(shot.getKey()) || ImageType.of(shot.getValue()) != ImageType.JPEG) {
+                throw new IllegalArgumentException("not a snapshot: " + shot.getKey());
+            }
+            String name = shot.getKey().toLowerCase(java.util.Locale.ROOT).replaceAll("[^a-z0-9]+", "-") + ".jpg";
+            File file = ModelFiles.uploadFile(folder, name);
+            Files.write(file.toPath(), shot.getValue());
+            Resource resource = storeImage(file, name, ImageType.JPEG.mimeType());
+            resourceService.link(resource, Model.class, stored.getId());
+            snapshots.put(shot.getKey(), String.valueOf(resource.getId()));
+        }
+        stored.setSnapshots(snapshots);
+        stored.setSnapshotsHash(bodyHash(stored));
+        stored.setSnapshotsAt(new java.util.Date());
+        Model saved = save(stored);
+        forget(before.values());
+        return saved;
+    }
+
+    @Override
+    @CommonTx
+    public Model addReference(Model model, File file, String fileName) throws Exception {
+        File folder = configuration.getResourcesFolder(currentUser).getCanonicalFile();
+        if (!folder.equals(file.getCanonicalFile().getParentFile())) {
+            throw new IllegalArgumentException("not an upload file: " + file);
+        }
+        byte[] head;
+        try (InputStream in = Files.newInputStream(file.toPath())) {
+            head = in.readNBytes(16);
+        }
+        ImageType type = ImageType.of(head);
+        if (type == null) {
+            Files.deleteIfExists(file.toPath());
+            throw new IllegalArgumentException("not an image: " + fileName);
+        }
+        Model stored = find(model.getId());
+        String name = StringUtils.defaultIfBlank(fileName, file.getName());
+        Resource resource = storeImage(file, name, type.mimeType());
+        resourceService.link(resource, Model.class, stored.getId());
+        stored.getReferences().put(String.valueOf(resource.getId()), name);
+        return save(stored);
+    }
+
+    @Override
+    @CommonTx
+    public Model removeReference(Model model, String resourceId) throws Exception {
+        Model stored = find(model.getId());
+        if (stored.getReferences().remove(resourceId) != null) {
+            forget(List.of(resourceId));
+        }
+        return save(stored);
+    }
+
+    @Override
+    @CommonTxReadOnly
+    public File imageFile(Model model, String resourceId) throws Exception {
+        if (resourceId == null || !(model.getSnapshots().containsValue(resourceId) || model.getReferences().containsKey(resourceId))) {
+            return null;
+        }
+        Resource resource = resourceService.find(Long.valueOf(resourceId));
+        return resource == null || resource.isDeleted() || resource.getOwner() == null
+                || !resource.getOwner().getId().equals(currentUser.getId()) ? null : resourceService.getResourceFile(resource);
+    }
+
+    /**
+     * A resource of the current user for an image in their folder of resources: the file moves to their folder of
+     * images, where the platform keeps the files of images.
+     */
+    private Resource storeImage(File file, String originalName, String contentType) throws Exception {
+        File images = configuration.getImagesFolder(currentUser);
+        Files.createDirectories(images.toPath());
+        File moved = new File(images, file.getName());
+        Files.move(file.toPath(), moved.toPath(), StandardCopyOption.REPLACE_EXISTING);
+        return store(moved, originalName, contentType);
+    }
+
+    /** Deletes the resources (by id) the model no longer has. */
+    private void forget(Collection<String> resourceIds) throws Exception {
+        List<String> uuids = new ArrayList<>();
+        for (String id : resourceIds) {
+            Resource resource = resourceService.find(Long.valueOf(id));
+            if (resource != null && !resource.isDeleted()) {
+                uuids.add(resource.getUuid());
+            }
+        }
+        if (!uuids.isEmpty()) {
+            resourceService.softDelete(uuids);
+        }
     }
 }

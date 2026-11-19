@@ -1,7 +1,9 @@
 package com.github.enerccio.joi.domain.model.impl;
 
 import com.github.enerccio.joi.domain.collections.ConversionStatus;
+import com.github.enerccio.joi.domain.bodies.ModelCapabilities;
 import com.github.enerccio.joi.domain.collections.ModelFormat;
+import com.github.enerccio.joi.domain.collections.ProposalStatus;
 import com.github.enerccio.marginalia.domain.model.ExtendableEntity;
 import com.github.enerccio.marginalia.domain.model.impl.Resource;
 import com.github.enerccio.marginalia.domain.traits.CleanupReference;
@@ -30,6 +32,11 @@ import java.util.Map;
  * An FBX (alone, in a zip or in a Unity package) is <b>converted</b> to a VRM on the server
  * ({@code ModelConversionService}, Blender): the result is a second resource of the model, with the report of what
  * the conversion found and did. The user chooses which FBX is the avatar and which meshes to leave out.
+ * <p>
+ * How she looks in it (see {@code DESIGN.md} → Bodies, self-image) belongs to the model too: the snapshots the renderer
+ * takes (the whole model and a close-up of each toggle described apart, shown and hidden), the user's notes and images,
+ * the description of what never changes and a sentence per state of each described toggle, proposed by a multimodal
+ * model and reviewed. A body puts them together for the state it is in ({@code Appearance}).
  * <p>
  * The resource is the only column (the reference); the rest is extended attributes.
  */
@@ -144,6 +151,78 @@ public class Model extends ExtendableEntity {
     @ExtendedAttribute(inject = true, injectPrefix = "capabilityNames")
     @Transient
     private Map<String, String> capabilityNames = new LinkedHashMap<>();
+
+    /** What the user knows of the model (what a toggle is, where it is from), for the description. */
+    @ExtendedAttribute
+    @Transient
+    private String notes;
+
+    /** The snapshots the renderer took: the shot ({@code full-front}, {@code part:<toggle id>:shown}) → the resource's id. */
+    @ExtendedAttribute(inject = true, injectPrefix = "snapshots")
+    @Transient
+    private Map<String, String> snapshots = new LinkedHashMap<>();
+
+    /** The hash of the VRM the snapshots are of. */
+    @ExtendedAttribute
+    @Transient
+    private String snapshotsHash;
+
+    @ExtendedAttribute
+    @Transient
+    private Date snapshotsAt;
+
+    /** The images the user gave (store page, in-world photos): the resource's id → the file's name. */
+    @ExtendedAttribute(inject = true, injectPrefix = "references")
+    @Transient
+    private Map<String, String> references = new LinkedHashMap<>();
+
+    /** How she looks in it, the parts that never change (the toggles are described apart), in the second person. */
+    @ExtendedAttribute
+    @Transient
+    private String appearance;
+
+    /** How a described toggle looks shown: the toggle's id → a sentence. */
+    @ExtendedAttribute(inject = true, injectPrefix = "partShown")
+    @Transient
+    private Map<String, String> partShown = new LinkedHashMap<>();
+
+    /** How it looks hidden (what is there instead): the toggle's id → a sentence. */
+    @ExtendedAttribute(inject = true, injectPrefix = "partHidden")
+    @Transient
+    private Map<String, String> partHidden = new LinkedHashMap<>();
+
+    /** The toggles described apart, when the user chose them ({@link #describeTogglesChosen}). */
+    @ExtendedAttribute(inject = true, injectPrefix = "describeToggles")
+    @Transient
+    private List<String> describeToggles = new ArrayList<>();
+
+    /** Whether the user chose the toggles to describe; else the shape key toggles are. */
+    @ExtendedAttribute
+    @Transient
+    private Boolean describeTogglesChosen;
+
+    /** The hash of the VRM the description was made from, null when it was not proposed from snapshots. */
+    @ExtendedAttribute
+    @Transient
+    private String describedHash;
+
+    /** The LLM's last proposal to review (JSON: {@code AppearanceProposal}), null for none. */
+    @ExtendedAttribute
+    @Transient
+    private String proposal;
+
+    @ExtendedAttribute
+    @Transient
+    private ProposalStatus proposalStatus;
+
+    @ExtendedAttribute
+    @Transient
+    private String proposalError;
+
+    /** How far the running request is ("3 / 16"). */
+    @ExtendedAttribute
+    @Transient
+    private String proposalProgress;
 
     public String getCapabilities() {
         return capabilities;
@@ -336,5 +415,140 @@ public class Model extends ExtendableEntity {
 
     public void setFileCount(Integer fileCount) {
         this.fileCount = fileCount;
+    }
+
+    public String getNotes() {
+        return notes;
+    }
+
+    public void setNotes(String notes) {
+        this.notes = notes;
+    }
+
+    public Map<String, String> getSnapshots() {
+        return snapshots;
+    }
+
+    public void setSnapshots(Map<String, String> snapshots) {
+        this.snapshots = snapshots;
+    }
+
+    public String getSnapshotsHash() {
+        return snapshotsHash;
+    }
+
+    public void setSnapshotsHash(String snapshotsHash) {
+        this.snapshotsHash = snapshotsHash;
+    }
+
+    public Date getSnapshotsAt() {
+        return snapshotsAt;
+    }
+
+    public void setSnapshotsAt(Date snapshotsAt) {
+        this.snapshotsAt = snapshotsAt;
+    }
+
+    public Map<String, String> getReferences() {
+        return references;
+    }
+
+    public void setReferences(Map<String, String> references) {
+        this.references = references;
+    }
+
+    public String getAppearance() {
+        return appearance;
+    }
+
+    public void setAppearance(String appearance) {
+        this.appearance = appearance;
+    }
+
+    public Map<String, String> getPartShown() {
+        return partShown;
+    }
+
+    public void setPartShown(Map<String, String> partShown) {
+        this.partShown = partShown;
+    }
+
+    public Map<String, String> getPartHidden() {
+        return partHidden;
+    }
+
+    public void setPartHidden(Map<String, String> partHidden) {
+        this.partHidden = partHidden;
+    }
+
+    public List<String> getDescribeToggles() {
+        return describeToggles;
+    }
+
+    public void setDescribeToggles(List<String> describeToggles) {
+        this.describeToggles = describeToggles;
+    }
+
+    public Boolean getDescribeTogglesChosen() {
+        return describeTogglesChosen;
+    }
+
+    public void setDescribeTogglesChosen(Boolean describeTogglesChosen) {
+        this.describeTogglesChosen = describeTogglesChosen;
+    }
+
+    public String getDescribedHash() {
+        return describedHash;
+    }
+
+    public void setDescribedHash(String describedHash) {
+        this.describedHash = describedHash;
+    }
+
+    public String getProposal() {
+        return proposal;
+    }
+
+    public void setProposal(String proposal) {
+        this.proposal = proposal;
+    }
+
+    public ProposalStatus getProposalStatus() {
+        return proposalStatus;
+    }
+
+    public void setProposalStatus(ProposalStatus proposalStatus) {
+        this.proposalStatus = proposalStatus;
+    }
+
+    public String getProposalError() {
+        return proposalError;
+    }
+
+    public void setProposalError(String proposalError) {
+        this.proposalError = proposalError;
+    }
+
+    public String getProposalProgress() {
+        return proposalProgress;
+    }
+
+    public void setProposalProgress(String proposalProgress) {
+        this.proposalProgress = proposalProgress;
+    }
+
+    /**
+     * The toggles described apart (each with a sentence for shown and one for hidden): the ones the user chose, else
+     * the shape key toggles ("Hide Halo", "Visor Off"), which are made to be switched.
+     */
+    public List<String> describedToggles(ModelCapabilities capabilities) {
+        if (capabilities == null) {
+            return List.of();
+        }
+        List<String> ids = capabilities.toggles().stream().map(ModelCapabilities.Toggle::id).toList();
+        if (Boolean.TRUE.equals(describeTogglesChosen)) {
+            return ids.stream().filter(describeToggles::contains).toList();
+        }
+        return capabilities.toggles().stream().filter(toggle -> toggle.key() != null).map(ModelCapabilities.Toggle::id).toList();
     }
 }

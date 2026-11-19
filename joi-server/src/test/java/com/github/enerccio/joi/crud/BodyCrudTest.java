@@ -40,14 +40,12 @@ class BodyCrudTest extends ExtendableCrudContract<Body> {
         body.setJoi(joi);
         body.setModel(model);
         body.setName("Street");
-        body.setDescription("Silver hair, a black jacket.");
         return body;
     }
 
     @Override
     protected void assertCreated(Body loaded) {
         assertThat(loaded.getName()).isEqualTo("Street");
-        assertThat(loaded.getDescription()).isEqualTo("Silver hair, a black jacket.");
         assertThat(loaded.getModel().getId()).isEqualTo(model.getId());
         assertThat(loaded.getLookingGlassModel()).isNull();
         assertThat(loaded.isActive()).isFalse();
@@ -65,6 +63,5 @@ class BodyCrudTest extends ExtendableCrudContract<Body> {
         assertThat(loaded.isActive()).isTrue();
         assertThat(loaded.getLookingGlassModel().getId()).isEqualTo(model.getId());
         assertThat(loaded.getName()).isEqualTo("Armor");
-        assertThat(loaded.getDescription()).isEqualTo("Silver hair, a black jacket.");
     }
 }

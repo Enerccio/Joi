@@ -42,8 +42,6 @@ public final class JoiCssStyles {
     public static final String CONVERSION_LOG = "conversion-log";
     /** The 3D preview of a model. */
     public static final String MODEL_VIEWER = "model-viewer";
-    /** The appearance description of a body. */
-    public static final String BODY_APPEARANCE = "body-appearance";
     /** The thumbnails of a body's snapshots and images. */
     public static final String BODY_THUMBNAILS = "body-thumbnails";
 }

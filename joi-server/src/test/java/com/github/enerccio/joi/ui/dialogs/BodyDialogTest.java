@@ -88,6 +88,9 @@ class BodyDialogTest extends PlatformTestBase {
     @Test
     void aNewBodyIsStoredOnceItHasANameAndOffersOnlyModelsWithAVrm() throws Exception {
         Model ryuu = vrm("Ryuu");
+        ryuu = modelService.find(ryuu.getId());
+        ryuu.setAppearance("Silver hair, a black jacket.");
+        ryuu = modelService.save(ryuu);
         Model fbx = new Model();
         fbx.setName("Unconverted");
         modelService.save(fbx);
@@ -100,12 +103,12 @@ class BodyDialogTest extends PlatformTestBase {
 
         dialog.getNameField().setValue("Street");
         dialog.getModelSelect().setValue(ryuu.getId());
-        dialog.getDescription().setValue("Silver hair, a black jacket.");
+        // how she looks is the model's, shown read only
+        assertThat(dialog.getDescription().getValue()).isEqualTo("Silver hair, a black jacket.");
         Body body = bodyService.find(dialog.getBody().getId());
         assertThat(body.getName()).isEqualTo("Street");
         assertThat(body.getModel().getId()).isEqualTo(ryuu.getId());
         assertThat(body.getLookingGlassModel()).isNull();
-        assertThat(body.getDescription()).isEqualTo("Silver hair, a black jacket.");
         assertThat(body.isActive()).isTrue();
         assertThat(bodyService.findByModel(modelService.find(ryuu.getId()))).extracting(Body::getId).containsExactly(body.getId());
     }
@@ -121,9 +124,6 @@ class BodyDialogTest extends PlatformTestBase {
         assertThat(bodyService.find(street.getId()).isActive()).isFalse();
 
         chatted();
-        armor = bodyService.find(armor.getId());
-        armor.setDescription("Heavy plate.");
-        bodyService.save(armor);
         assertThat(bodyService.activate(joi, armor)).isEmpty();
         List<QueuedEvent> events = bodyService.activate(joi, bodyService.find(street.getId()));
         assertThat(events).hasSize(1);
@@ -157,17 +157,19 @@ class BodyDialogTest extends PlatformTestBase {
         Model ryuu = vrm("Ryuu");
         ryuu = modelService.find(ryuu.getId());
         ryuu.getCapabilityNames().put("key:Headgear/Hide Halo", "golden halo");
+        ryuu.setAppearance("Silver hair, a black jacket & a \"halo\" that's gold.");
+        ryuu.getPartShown().put("key:Headgear/Hide Halo", "A golden halo floats above you.");
+        ryuu.getPartHidden().put("key:Headgear/Hide Halo", "Nothing floats above you.");
         modelService.save(ryuu);
 
         Body street = bodyService.create(joi, "Street");
         street.setModel(ryuu);
-        street.setDescription("Silver hair, a black jacket & a \"halo\" that's gold.");
         bodyService.save(street);
         bodyService.create(joi, "Armor");
 
         assertThat(bodyService.prompt(joi)).isEqualTo("""
                 You are in your body "Street".
-                Silver hair, a black jacket & a "halo" that's gold.
+                Silver hair, a black jacket & a "halo" that's gold. A golden halo floats above you.
                 Expressions your face can show: happy.
                 Parts you can show or hide: headgear (shown), golden halo (shown).
                 Your other bodies: Armor.""");

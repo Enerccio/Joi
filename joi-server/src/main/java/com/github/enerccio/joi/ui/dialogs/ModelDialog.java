@@ -11,6 +11,7 @@ import com.github.enerccio.joi.domain.service.ModelConversionService;
 import com.github.enerccio.joi.domain.service.ModelService;
 import com.github.enerccio.joi.loc.J_L;
 import com.github.enerccio.joi.ui.JoiCssStyles;
+import com.github.enerccio.joi.ui.bodies.AppearancePanel;
 import com.github.enerccio.joi.ui.bodies.ModelViewer;
 import com.github.enerccio.marginalia.CssStyles;
 import com.github.enerccio.marginalia.loc.L;
@@ -18,6 +19,8 @@ import com.github.enerccio.marginalia.loc.Localization;
 import com.github.enerccio.marginalia.loc.LocalizationKey;
 import com.github.enerccio.marginalia.ui.widgets.Notification;
 import com.github.enerccio.marginalia.utils.UIUtils;
+import com.github.enerccio.marginalia.ui.widgets.ResizableTextArea;
+import com.github.enerccio.joi.ui.widgets.PromptAreas;
 import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.checkbox.CheckboxGroup;
@@ -109,6 +112,7 @@ public class ModelDialog extends Dialog {
     private Runnable stopListening = () -> {
     };
     private boolean loading;
+    private AppearancePanel appearancePanel;
 
     public ModelDialog(Model model) {
         this.model = model;
@@ -159,6 +163,8 @@ public class ModelDialog extends Dialog {
                 (e.getVrm() == null ? "" : "VRM " + e.getVrm() + " · " + e.getExpressions() + " expressions · ")
                         + String.format("%,d triangles · %d meshes · %d materials", e.getTriangles(), e.getMeshes(), e.getMaterials())));
         viewer.addErrorListener(e -> previewInfo.setText(e.getMessage()));
+        appearancePanel = new AppearancePanel(viewer, () -> model, this::previewBodyFile, this::reloadModel);
+        sidebar.add(appearancePanel.create());
         previewChoice = new RadioButtonGroup<>();
         previewChoice.setItems(false, true);
         previewChoice.setItemLabelGenerator(converted -> loc.getValue(converted ? J_L.LABEL_PREVIEW_CONVERTED : J_L.LABEL_PREVIEW_UPLOADED));
@@ -187,10 +193,12 @@ public class ModelDialog extends Dialog {
         addOpenedChangeListener(e -> {
             if (!e.isOpened()) {
                 stopListening.run();
+                appearancePanel.stop();
                 onClose.run();
             }
         });
         showFile();
+        appearancePanel.listen();
         nameField.focus();
     }
 
@@ -236,6 +244,8 @@ public class ModelDialog extends Dialog {
         meshesHint.addClassName(CssStyles.HINT_TEXT);
 
         dropKeys = new TextArea(loc.getValue(J_L.LABEL_DROP_SHAPE_KEYS));
+
+        ResizableTextArea.install(loc, dropKeys, PromptAreas.TEXT_HEIGHT);
         dropKeys.setWidthFull();
         dropKeys.addValueChangeListener(e -> {
             if (!loading) {
@@ -244,6 +254,7 @@ public class ModelDialog extends Dialog {
             }
         });
         bakeKeys = new TextArea(loc.getValue(J_L.LABEL_BAKE_SHAPE_KEYS));
+        ResizableTextArea.install(loc, bakeKeys, PromptAreas.TEXT_HEIGHT);
         bakeKeys.setWidthFull();
         bakeKeys.addValueChangeListener(e -> {
             if (!loading) {
@@ -336,7 +347,11 @@ public class ModelDialog extends Dialog {
             name.setValue(model.getCapabilityNames().getOrDefault(toggle.id(), toggle.defaultName()));
             name.setHelperText(toggle.key() == null ? toggle.mesh() : toggle.mesh() + " / " + toggle.key());
             name.addValueChangeListener(e -> rename(toggle.id(), e.getValue(), toggle.defaultName()));
-            HorizontalLayout row = new HorizontalLayout(shown, name);
+            com.vaadin.flow.component.checkbox.Checkbox describe = new com.vaadin.flow.component.checkbox.Checkbox(
+                    loc.getValue(J_L.LABEL_DESCRIBE_TOGGLE), model.describedToggles(read).contains(toggle.id()));
+            describe.setTooltipText(loc.getValue(J_L.MSG_DESCRIBE_TOGGLE_HINT));
+            describe.addValueChangeListener(e -> describe(read, toggle.id(), e.getValue()));
+            HorizontalLayout row = new HorizontalLayout(shown, name, describe);
             row.setWidthFull();
             row.setAlignItems(com.vaadin.flow.component.orderedlayout.FlexComponent.Alignment.BASELINE);
             row.setFlexGrow(1, name);
@@ -352,6 +367,37 @@ public class ModelDialog extends Dialog {
         } else {
             viewer.setExpression(name, 1);
             triedExpression = name;
+        }
+    }
+
+    /** Marks a toggle to be described apart (or not); from then on the toggles to describe are the user's choice. */
+    private void describe(ModelCapabilities capabilities, String id, boolean described) {
+        List<String> ids = new java.util.ArrayList<>(model.describedToggles(capabilities));
+        ids.remove(id);
+        if (described) {
+            ids.add(id);
+        }
+        model.setDescribeToggles(ids);
+        model.setDescribeTogglesChosen(true);
+        store();
+        appearancePanel.show();
+    }
+
+    /** Shows the VRM the snapshots are of: the converted one, else the upload (a .vrm or .glb itself). */
+    private void previewBodyFile() {
+        if (model.getConvertedResourceId() != null && !Boolean.TRUE.equals(previewChoice.getValue())) {
+            previewChoice.setValue(true);
+            showPreview();
+        }
+    }
+
+    /** The model as stored, after the appearance panel changed it (the names of the toggles). */
+    private void reloadModel() {
+        try {
+            model = modelService.find(model.getId());
+            showCapabilities();
+        } catch (Exception e) {
+            UIUtils.internalServerError(loc, e);
         }
     }
 
@@ -394,6 +440,8 @@ public class ModelDialog extends Dialog {
                 stored.setBakeShapeKeys(model.getBakeShapeKeys());
                 stored.setMaxTextureSize(model.getMaxTextureSize());
                 stored.setCapabilityNames(model.getCapabilityNames());
+                stored.setDescribeToggles(model.getDescribeToggles());
+                stored.setDescribeTogglesChosen(model.getDescribeTogglesChosen());
                 if (model.getCapabilities() != null) {
                     stored.setCapabilities(model.getCapabilities());
                 }
@@ -500,6 +548,7 @@ public class ModelDialog extends Dialog {
         previewChoice.setValue(converted);
         showPreview();
         showCapabilities();
+        appearancePanel.show();
     }
 
     private void showPreview() {
@@ -633,5 +682,10 @@ public class ModelDialog extends Dialog {
     /** The mesh checklist, for tests. */
     CheckboxGroup<String> getMeshes() {
         return meshes;
+    }
+
+    /** How she looks in the model, for tests. */
+    public AppearancePanel getAppearancePanel() {
+        return appearancePanel;
     }
 }

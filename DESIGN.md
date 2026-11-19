@@ -208,9 +208,18 @@ check) is in [MARGINALIA.md](MARGINALIA.md).
   - **Next steps** of the import (see Bodies below): prefab defaults (which toggles are on) and PhysBones → spring
     bones from the package.
   - **Export and import of a processed model (later):** one file in a unified format, for easy sharing: the
-    converted VRM with what was decided on it (the toggle names, the capabilities, the conversion settings and
-    report), and optionally the body around it (the appearance description, the Looking Glass variant). Importing
-    it gives a ready model (and body) with no conversion. What a user may share is up to their avatar's licence.
+    converted VRM with what was decided on it (the toggle names, the capabilities, the description and the sentences
+    of the parts, the conversion settings and report; optionally the snapshots, the user's images and notes), and
+    optionally the bodies around it (the Looking Glass variant). Importing it gives a ready model (and body) with no
+    conversion. What a user may share is up to their avatar's licence.
+    - **The file:** starts with the magic number `0x1DEA1A10` ("IDEAL AI 0"), then a header with the format
+      version (a reader refuses a newer major version), then sections, each with its kind, its length and its hash: the metadata (the model's extended attributes, the capabilities, the proposal...) as
+      **JSONB** (binary JSON), the VRM and the images as raw bytes. Length-prefixed sections are read and written as
+      streams, never whole in memory, and a reader skips the kinds it doesn't know.
+    - **Also the delivery to a node:** the same container fits, with a profile of only what a renderer needs (the
+      VRM, the capabilities and toggle names, the state) and none of the review material (snapshots, the user's
+      images and notes, the proposal: larger, and private). The section hashes are the node's cache keys, so a new
+      description doesn't re-send the VRM, and a broken download resumes at a section. See Bodies → Storage.
 - **Moods, event rules:** see below.
 - **Chat:** text chat in the browser (a node without hands), useful before voice works.
 
@@ -463,30 +472,46 @@ UI — nothing is deleted):
 - A **Body** is a model file plus its **capabilities** (expressions, visemes, animations, outfit toggles), read from
   the model itself, and an **appearance description**.
 - **Built:** `Body` (table `bodies`) belongs to an assistant and points to the user's models: the full one and,
-  optionally, a lighter one for the Looking Glass (else the full one is shown there too). Its name and appearance
-  description are extended attributes; what it can do is its model's (`ModelCapabilities`, the toggle names stored on
-  the model). One body of hers is **active** (a column): the first one she gets, then the one she is put into. In her
+  optionally, a lighter one for the Looking Glass (else the full one is shown there too). Its name is an extended
+  attribute; what it can do and how she looks in it are its model's (`ModelCapabilities`, the toggle names, the
+  description). One body of hers is **active** (a column): the first one she gets, then the one she is put into. In her
   dialog the **Bodies** tab lists them (her body now, name, the models; put her into one, Open, Delete); the body
   dialog (full screen) has the name, the two models (only models with a VRM: converted, or uploaded as .vrm / .glb),
   how she looks, and the 3D preview of either model.
   - **She is told** (a `body.switched` event, like the persona changes, once she has chatted): when she gets her
     first body, is put into another one, or loses hers (the active body deleted). The text has how she looks now.
-  - **Self-image (built):** in the body dialog, once the body has a model. *Take snapshots* renders six shots of
-    the full model as the preview shows it (`takeSnapshots` of `<joi-model-viewer>`: full body front, three-quarter,
-    profile and back, the face front and three-quarter; 768 × 1024 JPEGs on a plain grey background, framed by the
-    model's size and the VRM's head bone) and sends each to the server like an upload. They are image resources of
-    the user linked to the body, with the hash of the model's VRM; a new set replaces the old one. The user adds
+  - **How she looks belongs to the model (built):** the appearance is the model's, not the body's: every body of
+    a model, of any assistant, looks the same, and the export carries it. The body dialog shows it read only, put
+    together for the body's state (`Appearance`); it is described and edited in the model dialog.
+  - **Self-image (built):** in the model dialog, once the model has a VRM. *Take snapshots* renders, as the preview shows
+    the VRM (`takeSnapshots` of `<joi-model-viewer>`, lit from the camera): six shots of the whole model (full body
+    front, three-quarter, profile and back, the face front and three-quarter; 768 × 1024 JPEGs on a plain grey
+    background, framed by the model's size and the VRM's head bone), and for each toggle **described apart** a
+    close-up shown and one hidden (768 × 768, framed on the part: its mesh, or the vertices its shape key moves, seen
+    from the side it is on). Each goes to the server like an upload; they are image resources of the user linked to
+    the model, with the hash of its VRM, and a new set replaces the old one. Which toggles are described apart is a
+    box (*Describe*) on each toggle row; until the user picks, the shape key toggles ("Hide Halo") are. The user adds
     **their images** (PNG, JPEG, WebP: store pages, photos) and **notes** (what a toggle is, what the images can't
-    show). *Propose a description* sends all of it, with the toggles (id, mesh / key, name, state), to her deep
-    reasoning model when it takes images, else her chat model (`BodySelfImageService`, in the background, one at a
-    time; images larger than 1568 px are scaled down), with the self-image prompt (a template on the chain,
-    `SelfImageTemplateData`). Proposing uses the snapshots there are; only *Take snapshots* renders new ones. The
-    model answers with JSON: the description in the second person and names for the toggles, by their number in the
-    request (small models garble ids; an id or a "mesh / key" is matched too). It is kept on the body (`BodyProposal`). The user **reviews** it: edits the
-    description, keeps or drops each new name, then *Use it* (the description becomes the body's, the names the
-    model's) or *Discard*. The description remembers the hash it was made from: when the model changes, the dialog
-    says the snapshots and the description are out of date. Using a new description of the body she is in is an
-    event for her (`body.described`). Later: which expressions fit which mood, and snapshots per outfit.
+    show).
+    - *Propose a description* (`AppearanceService`, in the background, one at a time; images larger than 1568 px
+      scaled down) goes to the user's deep reasoning model when it takes images, else their chat model. First the
+      whole model (the shots, the user's images, the notes, the toggles numbered: the appearance prompt): the
+      description of **what never changes**, the described parts left out, and names for the toggles, by number
+      (small models garble ids; an id or a "mesh / key" is matched too). Then **each described toggle** with its two
+      close-ups (the part prompt, `PartImageTemplateData`): a sentence for **shown** ("A black visor with red markings
+      covers your eyes.") and one for **hidden** ("Your eyes are pale grey."). The dialog shows the progress. Both
+      prompts are templates on the chain. Proposing uses the snapshots there are; only *Take snapshots* renders new
+      ones.
+    - The user **reviews** it (`AppearanceProposal`, kept on the model): edits the description, keeps or drops each
+      new name and each part's sentences, then *Use it* or *Discard*. The description and the sentences stay
+      editable on the model afterwards. They remember the hash they were made from: when the model changes, the
+      dialog says the snapshots and the description are out of date. Using a new description is an event
+      (`body.described`) for each assistant in a body of that model.
+    - **Her look now** is the description plus the sentence of each described toggle for its state (`Appearance`):
+      in her prompt, in the event of a switch, and later the answer of a `look_at_yourself` tool and the text of a
+      toggle event ("You took off your visor: your eyes are pale grey."), so she can react to it. The state comes
+      with the body state; until then each toggle is as the model comes.
+    - Later: which expressions fit which mood, and outfits (sets of toggles) described as a whole.
   - **Her prompt** (`{{#body}}`, the body section: a template on the chain like every prompt, `BodyTemplateData`) says
     the body she is in, how she looks, the expressions she can show (moods and
     custom ones), the parts she can show or hide with the names the user gave and their state as the model comes, and
@@ -496,8 +521,8 @@ UI — nothing is deleted):
   outfit is. A multimodal LLM interprets all of it together with snapshots the renderer takes (front, three-quarter,
   profile, face, each outfit) and proposes the appearance description, names for the outfits and toggles ("Hide Halo"
   → "halo"), and which expressions fit which mood. The user reviews and edits the proposal before the body is saved.
-- **Self-image:** the result is the body's appearance description (per outfit), editable in the UI and tied to a hash
-  of the model; when the model changes, the snapshots are retaken and the LLM proposes an update to review. Joi gets
+- **Self-image:** the result is the model's appearance description (what never changes, and each toggle described
+  apart, shown and hidden), editable in the UI and tied to a hash of the model; when the model changes, the snapshots are retaken and the LLM proposes an update to review. Joi gets
   the active body's description in her prompt (she knows how she looks), its capabilities as tools (`play_animation`,
   `set_expression`, `toggle_outfit`, `look_at`), and the list of her other bodies (she or you can switch).
 - **Toggles work both ways.** The body's state (active body, outfit parts, eyepatch up / down, halo, effects,
@@ -563,10 +588,18 @@ UI — nothing is deleted):
   cuts). On the Looking Glass the framing maps to the view diameter and target, and angles stay near frontal because
   of the narrow view cone. The self-image snapshots use the same presets.
 - **Several bodies**; each display holds its own active body.
+- **Her bodies are a list assigned to her**, one of them active (built: `Body` rows of the assistant, the `active`
+  flag). She can only switch between the bodies on her list (`switch_body` offers just those), and so can the UI for
+  her. On connect a node is sent each body of her list it has not cached (by the content hashes), so a switch is
+  instant, never a download in the middle of a conversation. Adding a body to her list (or removing one, or a new
+  version of its model) syncs the nodes connected now, in the background, and is an event for her ("you have a new
+  body: Armor"), staged like other configuration changes. Removing a body tells the nodes they may drop it from
+  their cache.
 - **Storage:** the server owns the bodies (converted model, description, capabilities, content hash). Nodes cache by
   hash, download a body the first time it is shown (resumable, with a cache limit), and serve it to their local
   renderer. Conversion (headless Blender, or Unity for the Unity renderer) runs on the server, so nodes never need
-  Blender or Unity. The node sees a body as an opaque hashed file for one renderer type.
+  Blender or Unity. The node sees a body as an opaque hashed file for one renderer type: likely the export
+  container with the node's profile (see UI → Bodies → Export).
 - Users bring their own avatars, from wherever they get them.
 
 ### Events (what happens around Joi)
@@ -958,6 +991,9 @@ with avatars whose shaders match the installed Poiyomi.
 5. Deeper OS actions, long-term memory, MCP, proactive events.
 
 ## Open decisions
+
+- **Which binary JSON** for the export container's JSONB sections (CBOR, BSON, Smile...): one with a streaming
+  reader and writer in Java and in the renderer's language.
 
 - ~~Extract Marginalia's platform layer first, or copy~~ — extracted: `marginalia-platform` on Marginalia's `dev`;
   Spring XML, `persistence.xml` and Flyway stay per application (see [MARGINALIA.md](MARGINALIA.md)).

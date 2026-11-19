@@ -8,6 +8,7 @@ import com.github.enerccio.marginalia.domain.service.ExtendableService;
 
 import java.io.File;
 import java.util.List;
+import java.util.Map;
 
 /** The 3D models of a user (what bodies are made of). */
 public interface ModelService extends ExtendableService<Model, ModelRepository> {
@@ -58,6 +59,30 @@ public interface ModelService extends ExtendableService<Model, ModelRepository> 
 
     /** The format of the {@link #bodyFile}: VRM when converted, else the upload's. */
     ModelFormat bodyFormat(Model model);
+
+    /**
+     * Stores the snapshots the renderer took of the model's VRM as image resources of the user, in place of the ones
+     * before, with the hash of the VRM they are of.
+     *
+     * @param shots the shot ({@code full-front}, {@code part:<toggle id>:shown}) → the JPEG
+     * @return the saved model
+     */
+    Model storeSnapshots(Model model, Map<String, byte[]> shots) throws Exception;
+
+    /**
+     * Makes an uploaded image one of the model's references (images the user gave, for the description).
+     *
+     * @param file an uploaded file in the {@link #uploadFolder}
+     * @return the saved model
+     * @throws IllegalArgumentException when it is not a PNG, JPEG or WebP image (the file is deleted)
+     */
+    Model addReference(Model model, File file, String fileName) throws Exception;
+
+    /** Removes a reference image; returns the saved model. */
+    Model removeReference(Model model, String resourceId) throws Exception;
+
+    /** The file of a snapshot or a reference of the model, null when it is not one of the model's. */
+    File imageFile(Model model, String resourceId) throws Exception;
 
     /**
      * Reads what the model can do from its VRM (the converted one, else the uploaded .vrm or .glb) into

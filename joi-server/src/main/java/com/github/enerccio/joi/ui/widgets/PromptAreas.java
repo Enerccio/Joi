@@ -46,6 +46,7 @@ public final class PromptAreas {
             case FACTS_PROMPT -> J_L.LABEL_FACTS_PROMPT;
             case BODY_PROMPT -> J_L.LABEL_BODY_PROMPT;
             case SELF_IMAGE_PROMPT -> J_L.LABEL_SELF_IMAGE_PROMPT;
+            case PART_IMAGE_PROMPT -> J_L.LABEL_PART_IMAGE_PROMPT;
         };
     }
 

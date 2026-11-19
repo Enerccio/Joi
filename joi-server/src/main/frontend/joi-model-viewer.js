@@ -4,8 +4,8 @@
 //   format VRM, GLB, GLTF or FBX: the format of the model (of the main file in a zip)
 //   main   the path of the model file in the zip; absent when src is the model itself
 // Methods (the dialog tries what the model can do): setExpression(name, weight), setMeshVisible(name, visible),
-// setMorph(mesh, key, weight); they act on the model shown, nothing happens before it is. takeSnapshots() renders the
-// shots of a body and sends them to the "snapshot-target" URL.
+// setMorph(mesh, key, weight); they act on the model shown, nothing happens before it is. takeSnapshots(parts) renders the
+// snapshots of a model (the whole model, and close-ups of the parts shown and hidden) for the "snapshot-target" URL.
 // It fires "model-info" ({triangles, meshes, materials, vrm, expressions}) once the model is shown and "model-error"
 // ({message}) when it can't be.
 import * as THREE from 'three';
@@ -290,15 +290,22 @@ class JoiModelViewer extends HTMLElement {
   }
 
   /**
-   * Renders the snapshots of the model (the shots of SHOTS, 768 × 1024 JPEGs on a plain background, the model as it is
-   * shown now) and POSTs each to the URL of the "snapshot-target" attribute, named after its shot. Fires "snapshots-taken" ({count}) when the server has them, "snapshots-error" ({message}) when not.
+   * Renders the snapshots of the model and POSTs each to the URL of the "snapshot-target" attribute, named after its
+   * shot: the shots of SHOTS (768 × 1024 JPEGs on a plain background, the model as it is shown now), then for each part
+   * a close-up shown and hidden (768 × 768, "part-<index>-shown" / "-hidden").
+   * Fires "snapshots-taken" ({count}) when the server has them, "snapshots-error" ({message}) when not.
+   *
+   * @param partsJson a JSON array of the toggles to take close-ups of: {index, mesh, key (null for the mesh itself),
+   *                  hides (whether the key at full weight hides the part)}
    */
-  async takeSnapshots() {
+  async takeSnapshots(partsJson) {
     try {
       if (!this._model || !this._renderer) {
         throw new Error('No model is shown');
       }
-      const images = this._renderShots(768, 1024);
+      const parts = partsJson ? JSON.parse(partsJson) : [];
+      const images = this._snapshotSetup(768, 1024, camera => this._renderShots(camera));
+      images.push(...this._snapshotSetup(768, 768, camera => this._renderParts(camera, parts)));
       // one request per shot, as Vaadin's own uploads do (the raw file, its name in X-Filename)
       for (const image of images) {
         const blob = await (await fetch(image.url)).blob();
@@ -316,21 +323,13 @@ class JoiModelViewer extends HTMLElement {
     }
   }
 
-  /** Renders each shot synchronously (no frame of the loop in between) and puts the view back as it was. */
-  _renderShots(width, height) {
+  /**
+   * Renders with a camera of the size on a plain background, synchronously (no frame of the loop in between), and puts
+   * the view back as it was.
+   */
+  _snapshotSetup(width, height, render) {
     const renderer = this._renderer;
-    const box = new THREE.Box3().setFromObject(this._model);
-    const size = box.getSize(new THREE.Vector3());
-    const center = box.getCenter(new THREE.Vector3());
-    const head = this._headPosition(box, size);
     const camera = new THREE.PerspectiveCamera(30, width / height, this._camera.near, this._camera.far);
-    const fov = THREE.MathUtils.degToRad(camera.fov / 2);
-    // the whole model in the frame: its height, and its widest side (a T-pose's arms) across the narrower width
-    const across = Math.atan(Math.tan(fov) * width / height);
-    const fullDistance = Math.max(size.y * 0.55 / Math.tan(fov), Math.max(size.x, size.z) * 0.55 / Math.tan(across))
-        + Math.max(size.x, size.z) / 2;
-    const faceDistance = (size.y * 0.09) / Math.tan(fov);
-
     const before = {size: renderer.getSize(new THREE.Vector2()), ratio: renderer.getPixelRatio(),
       background: this._scene.background, grid: this._grid ? this._grid.visible : false};
     renderer.setPixelRatio(1);
@@ -339,24 +338,8 @@ class JoiModelViewer extends HTMLElement {
     if (this._grid) {
       this._grid.visible = false;
     }
-    const images = [];
     try {
-      for (const shot of SHOTS) {
-        const target = shot.face ? head : center;
-        const distance = shot.face ? faceDistance : fullDistance;
-        const angle = THREE.MathUtils.degToRad(shot.angle);
-        camera.position.set(target.x + Math.sin(angle) * distance, target.y, target.z + Math.cos(angle) * distance);
-        camera.near = distance / 100;
-        camera.far = distance * 100;
-        camera.updateProjectionMatrix();
-        camera.lookAt(target);
-        if (this._vrm) {
-          this._vrm.update(0);
-        }
-        this._aimLight(camera, target);
-        renderer.render(this._scene, camera);
-        images.push({name: shot.name, url: renderer.domElement.toDataURL('image/jpeg', 0.9)});
-      }
+      return render(camera);
     } finally {
       renderer.setPixelRatio(before.ratio);
       renderer.setSize(before.size.x, before.size.y, false);
@@ -365,7 +348,144 @@ class JoiModelViewer extends HTMLElement {
         this._grid.visible = before.grid;
       }
     }
+  }
+
+  /** Points the camera at the target from the angle (degrees around the model, 0 = its front) and takes the image. */
+  _shoot(camera, name, target, distance, angleDegrees) {
+    const angle = THREE.MathUtils.degToRad(angleDegrees);
+    camera.position.set(target.x + Math.sin(angle) * distance, target.y, target.z + Math.cos(angle) * distance);
+    camera.near = distance / 100;
+    camera.far = distance * 100;
+    camera.updateProjectionMatrix();
+    camera.lookAt(target);
+    if (this._vrm) {
+      this._vrm.update(0);
+    }
+    this._aimLight(camera, target);
+    this._renderer.render(this._scene, camera);
+    return {name, url: this._renderer.domElement.toDataURL('image/jpeg', 0.9)};
+  }
+
+  _renderShots(camera) {
+    const box = new THREE.Box3().setFromObject(this._model);
+    const size = box.getSize(new THREE.Vector3());
+    const center = box.getCenter(new THREE.Vector3());
+    const head = this._headPosition(box, size);
+    const fov = THREE.MathUtils.degToRad(camera.fov / 2);
+    // the whole model in the frame: its height, and its widest side (a T-pose's arms) across the narrower width
+    const across = Math.atan(Math.tan(fov) * camera.aspect);
+    const fullDistance = Math.max(size.y * 0.55 / Math.tan(fov), Math.max(size.x, size.z) * 0.55 / Math.tan(across))
+        + Math.max(size.x, size.z) / 2;
+    const faceDistance = (size.y * 0.09) / Math.tan(fov);
+    return SHOTS.map(shot => this._shoot(camera, shot.name, shot.face ? head : center,
+        shot.face ? faceDistance : fullDistance, shot.angle));
+  }
+
+  /**
+   * A close-up of each part, shown and hidden: framed on the part (its mesh, or the vertices its shape key moves, with
+   * some of the model around it), from the side it is on. The parts are put back as they were.
+   */
+  _renderParts(camera, parts) {
+    const box = new THREE.Box3().setFromObject(this._model);
+    const height = box.getSize(new THREE.Vector3()).y;
+    const center = box.getCenter(new THREE.Vector3());
+    const fov = THREE.MathUtils.degToRad(camera.fov / 2);
+    const images = [];
+    for (const part of parts) {
+      const node = this._node(part.mesh);
+      const partBox = node && this._partBox(node, part.key);
+      if (!partBox || partBox.isEmpty()) {
+        continue;
+      }
+      const target = partBox.getCenter(new THREE.Vector3());
+      const extent = Math.max(partBox.getSize(new THREE.Vector3()).length(), height * 0.18);
+      const distance = extent * 0.75 / Math.tan(fov);
+      const dx = target.x - center.x;
+      const dz = target.z - center.z;
+      // the side the part is on: in front unless it is clearly behind or beside the body (a tail, a blade)
+      const angle = Math.hypot(dx, dz) > height * 0.06 ? THREE.MathUtils.radToDeg(Math.atan2(dx, dz)) : 0;
+      const before = this._partState(node, part.key);
+      try {
+        for (const shown of [true, false]) {
+          this._setPart(node, part, shown);
+          images.push(this._shoot(camera, 'part-' + part.index + '-' + (shown ? 'shown' : 'hidden'), target, distance, angle));
+        }
+      } finally {
+        this._restorePart(node, part.key, before);
+      }
+    }
     return images;
+  }
+
+  /** Where a part is: its mesh, or the vertices of the meshes its shape key moves, in the world. */
+  _partBox(node, key) {
+    node.updateWorldMatrix(true, true);
+    if (!key) {
+      return new THREE.Box3().setFromObject(node, true);
+    }
+    const box = new THREE.Box3();
+    const vertex = new THREE.Vector3();
+    node.traverse(child => {
+      if (!child.isMesh || !child.morphTargetDictionary || !(key in child.morphTargetDictionary)) {
+        return;
+      }
+      const position = child.geometry.attributes.position;
+      const morph = child.geometry.morphAttributes.position && child.geometry.morphAttributes.position[child.morphTargetDictionary[key]];
+      if (!morph) {
+        return;
+      }
+      const relative = child.geometry.morphTargetsRelative;
+      const moved = i => {
+        const dx = morph.getX(i) - (relative ? 0 : position.getX(i));
+        const dy = morph.getY(i) - (relative ? 0 : position.getY(i));
+        const dz = morph.getZ(i) - (relative ? 0 : position.getZ(i));
+        return dx * dx + dy * dy + dz * dz;
+      };
+      // exported keys often move the whole mesh a hair: only what moves by a twentieth of the most is the part
+      let most = 0;
+      for (let i = 0; i < position.count; i++) {
+        most = Math.max(most, moved(i));
+      }
+      const least = most * 0.05 * 0.05;
+      for (let i = 0; i < position.count; i++) {
+        if (most === 0 || moved(i) < least) {
+          continue;
+        }
+        vertex.fromBufferAttribute(position, i);
+        if (child.isSkinnedMesh && child.applyBoneTransform) {
+          child.applyBoneTransform(i, vertex);
+        }
+        box.expandByPoint(vertex.applyMatrix4(child.matrixWorld));
+      }
+    });
+    return box;
+  }
+
+  _partState(node, key) {
+    const state = {visible: node.visible, weights: []};
+    if (key) {
+      node.traverse(child => {
+        if (child.morphTargetDictionary && key in child.morphTargetDictionary) {
+          state.weights.push([child, child.morphTargetInfluences[child.morphTargetDictionary[key]]]);
+        }
+      });
+    }
+    return state;
+  }
+
+  _setPart(node, part, shown) {
+    if (!part.key) {
+      node.visible = shown;
+    } else {
+      this.setMorph(part.mesh, part.key, shown === part.hides ? 0 : 1);
+    }
+  }
+
+  _restorePart(node, key, state) {
+    node.visible = state.visible;
+    for (const [child, weight] of state.weights) {
+      child.morphTargetInfluences[child.morphTargetDictionary[key]] = weight;
+    }
   }
 
   /** Puts the key light above and to the right of the camera, pointed at what it looks at. */

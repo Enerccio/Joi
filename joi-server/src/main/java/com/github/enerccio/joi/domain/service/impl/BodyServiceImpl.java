@@ -1,8 +1,8 @@
 package com.github.enerccio.joi.domain.service.impl;
 
 import com.github.enerccio.joi.defaults.JoiDefaults;
+import com.github.enerccio.joi.domain.bodies.Appearance;
 import com.github.enerccio.joi.domain.bodies.ModelCapabilities;
-import com.github.enerccio.joi.domain.bodies.ModelFiles;
 import com.github.enerccio.joi.domain.events.JoiEvents;
 import com.github.enerccio.joi.domain.model.impl.Body;
 import com.github.enerccio.joi.domain.model.impl.Joi;
@@ -17,28 +17,17 @@ import com.github.enerccio.joi.domain.service.JoiService;
 import com.github.enerccio.joi.domain.service.ModelService;
 import com.github.enerccio.joi.domain.service.PersonaService;
 import com.github.enerccio.joi.domain.service.QueuedEventService;
-import com.github.enerccio.marginalia.Configuration;
-import com.github.enerccio.marginalia.domain.model.impl.Resource;
-import com.github.enerccio.marginalia.domain.service.ResourceService;
 import com.github.enerccio.marginalia.domain.service.impl.ExtendableServiceImpl;
 import com.github.enerccio.marginalia.domain.traits.CommonTx;
 import com.github.enerccio.marginalia.domain.traits.CommonTxReadOnly;
 import com.github.enerccio.marginalia.utils.AppClock;
 import com.google.gson.JsonObject;
-import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 
-import java.io.File;
-import java.io.InputStream;
-import java.nio.file.Files;
-import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Comparator;
-import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
 
 public class BodyServiceImpl extends ExtendableServiceImpl<Body, BodyRepository> implements BodyService {
@@ -58,11 +47,6 @@ public class BodyServiceImpl extends ExtendableServiceImpl<Body, BodyRepository>
     @Autowired
     private JoiService joiService;
 
-    @Autowired
-    private ResourceService resourceService;
-
-    @Autowired
-    private Configuration configuration;
 
     @Override
     @CommonTxReadOnly
@@ -138,7 +122,7 @@ public class BodyServiceImpl extends ExtendableServiceImpl<Body, BodyRepository>
         }
         JoiDefaults defaults = personaService.defaults();
         events.add(queue(joi, JoiEvents.BODY_SWITCHED, defaults.eventBodySwitched(from == null ? null : name(from),
-                        to == null ? null : name(to), to == null ? null : to.getDescription()),
+                        to == null ? null : name(to), to == null ? null : appearance(to)),
                 from == null ? null : from.getUuid(), to == null ? null : to.getUuid()));
         return events;
     }
@@ -158,182 +142,26 @@ public class BodyServiceImpl extends ExtendableServiceImpl<Body, BodyRepository>
 
     @Override
     @CommonTxReadOnly
-    public String modelHash(Body body) throws Exception {
+    public String appearance(Body body) throws Exception {
         Model model = body.getModel() == null ? null : modelService.find(body.getModel().getId());
-        return model == null || model.isDeleted() ? null : modelService.bodyHash(model);
+        // the state of the toggles comes with the body state; until then, as the model comes
+        return model == null || model.isDeleted() ? null : Appearance.of(model);
     }
 
     @Override
     @CommonTx
-    public Body storeSnapshots(Body body, Map<String, byte[]> shots) throws Exception {
-        Body stored = find(body.getId());
-        File folder = modelService.uploadFolder();
-        Map<String, String> before = new LinkedHashMap<>(stored.getSnapshots());
-        Map<String, String> snapshots = new LinkedHashMap<>();
-        for (Map.Entry<String, byte[]> shot : shots.entrySet()) {
-            String name = shot.getKey().replaceAll("[^a-z0-9-]", "");
-            if (name.isEmpty() || ImageType.of(shot.getValue()) != ImageType.JPEG) {
-                throw new IllegalArgumentException("not a snapshot: " + shot.getKey());
-            }
-            File file = ModelFiles.uploadFile(folder, name + ".jpg");
-            Files.write(file.toPath(), shot.getValue());
-            Resource resource = store(file, name + ".jpg", "image/jpeg");
-            resourceService.link(resource, Body.class, stored.getId());
-            snapshots.put(name, String.valueOf(resource.getId()));
-        }
-        stored.setSnapshots(snapshots);
-        stored.setSnapshotsHash(modelHash(stored));
-        stored.setSnapshotsAt(AppClock.now());
-        Body saved = save(stored);
-        forget(before.values());
-        return saved;
-    }
-
-    @Override
-    @CommonTx
-    public Body addReference(Body body, File file, String fileName) throws Exception {
-        File folder = modelService.uploadFolder().getCanonicalFile();
-        if (!folder.equals(file.getCanonicalFile().getParentFile())) {
-            throw new IllegalArgumentException("not an upload file: " + file);
-        }
-        byte[] head;
-        try (InputStream in = Files.newInputStream(file.toPath())) {
-            head = in.readNBytes(16);
-        }
-        ImageType type = ImageType.of(head);
-        if (type == null) {
-            Files.deleteIfExists(file.toPath());
-            throw new IllegalArgumentException("not an image: " + fileName);
-        }
-        Body stored = find(body.getId());
-        Resource resource = store(file, StringUtils.defaultIfBlank(fileName, file.getName()), type.mimeType);
-        resourceService.link(resource, Body.class, stored.getId());
-        stored.getReferences().put(String.valueOf(resource.getId()), StringUtils.defaultIfBlank(fileName, file.getName()));
-        return save(stored);
-    }
-
-    @Override
-    @CommonTx
-    public Body removeReference(Body body, String resourceId) throws Exception {
-        Body stored = find(body.getId());
-        if (stored.getReferences().remove(resourceId) != null) {
-            forget(List.of(resourceId));
-        }
-        return save(stored);
-    }
-
-    @Override
-    @CommonTxReadOnly
-    public File imageFile(Body body, String resourceId) throws Exception {
-        if (resourceId == null || !(body.getSnapshots().containsValue(resourceId) || body.getReferences().containsKey(resourceId))) {
-            return null;
-        }
-        Resource resource = resourceService.find(Long.valueOf(resourceId));
-        return resource == null || resource.isDeleted() || resource.getOwner() == null
-                || !resource.getOwner().getId().equals(currentUser.getId()) ? null : resourceService.getResourceFile(resource);
-    }
-
-    @Override
-    @CommonTx
-    public List<QueuedEvent> applyProposal(Body body, String description, Map<String, String> toggleNames) throws Exception {
-        Body stored = find(body.getId());
-        String before = stored.getDescription();
-        stored.setDescription(StringUtils.defaultIfBlank(StringUtils.strip(description), null));
-        stored.setDescribedHash(stored.getSnapshotsHash());
-        stored.setProposal(null);
-        stored.setProposalStatus(null);
-        stored.setProposalError(null);
-        Body saved = save(stored);
-        Model model = saved.getModel() == null ? null : modelService.find(saved.getModel().getId());
-        if (model != null && !toggleNames.isEmpty()) {
-            ModelCapabilities capabilities = ModelCapabilities.fromJson(model.getCapabilities());
-            for (ModelCapabilities.Toggle toggle : capabilities == null ? List.<ModelCapabilities.Toggle>of() : capabilities.toggles()) {
-                String name = StringUtils.strip(toggleNames.get(toggle.id()));
-                if (StringUtils.isBlank(name) || name.equals(toggle.defaultName())) {
-                    model.getCapabilityNames().remove(toggle.id());
-                } else if (toggleNames.containsKey(toggle.id())) {
-                    model.getCapabilityNames().put(toggle.id(), name);
-                }
-            }
-            modelService.save(model);
-        }
+    public List<QueuedEvent> modelDescribed(Model model) throws Exception {
         List<QueuedEvent> events = new ArrayList<>();
-        if (saved.isActive() && saved.getDescription() != null && !Objects.equals(before, saved.getDescription())
-                && chatMessageService.hasAny(saved.getJoi())) {
-            events.add(queue(saved.getJoi(), JoiEvents.BODY_DESCRIBED,
-                    personaService.defaults().eventBodyDescribed(name(saved), saved.getDescription()), null, saved.getUuid()));
+        JoiDefaults defaults = personaService.defaults();
+        for (Body body : findByModel(model)) {
+            String appearance = appearance(body);
+            if (body.isActive() && appearance != null && body.getModel() != null && body.getModel().getId().equals(model.getId())
+                    && chatMessageService.hasAny(body.getJoi())) {
+                events.add(queue(body.getJoi(), JoiEvents.BODY_DESCRIBED, defaults.eventBodyDescribed(name(body), appearance),
+                        null, body.getUuid()));
+            }
         }
         return events;
-    }
-
-    @Override
-    @CommonTx
-    public Body discardProposal(Body body) throws Exception {
-        Body stored = find(body.getId());
-        stored.setProposal(null);
-        stored.setProposalStatus(null);
-        stored.setProposalError(null);
-        return save(stored);
-    }
-
-    /**
-     * A resource of the current user for an image in their folder of resources: the file moves to their folder of
-     * images, where the platform keeps the files of images.
-     */
-    private Resource store(File file, String originalName, String contentType) throws Exception {
-        File images = configuration.getImagesFolder(currentUser);
-        Files.createDirectories(images.toPath());
-        File moved = new File(images, file.getName());
-        Files.move(file.toPath(), moved.toPath(), StandardCopyOption.REPLACE_EXISTING);
-        file = moved;
-        Resource resource = new Resource();
-        resource.setOriginalName(originalName);
-        resource.setMimeType(contentType);
-        resource.setPath(file.getName());
-        resource.setSize(file.length());
-        try (InputStream in = Files.newInputStream(file.toPath())) {
-            resource.setHash(DigestUtils.sha256Hex(in));
-        }
-        return resourceService.save(resource);
-    }
-
-    /** Deletes the resources (by id) the body no longer has. */
-    private void forget(Collection<String> resourceIds) throws Exception {
-        List<String> uuids = new ArrayList<>();
-        for (String id : resourceIds) {
-            Resource resource = resourceService.find(Long.valueOf(id));
-            if (resource != null && !resource.isDeleted()) {
-                uuids.add(resource.getUuid());
-            }
-        }
-        if (!uuids.isEmpty()) {
-            resourceService.softDelete(uuids);
-        }
-    }
-
-    /** The images a body takes, by their first bytes. */
-    enum ImageType {
-        PNG("image/png"), JPEG("image/jpeg"), WEBP("image/webp");
-
-        final String mimeType;
-
-        ImageType(String mimeType) {
-            this.mimeType = mimeType;
-        }
-
-        static ImageType of(byte[] head) {
-            if (head.length >= 8 && (head[0] & 0xFF) == 0x89 && head[1] == 'P' && head[2] == 'N' && head[3] == 'G') {
-                return PNG;
-            }
-            if (head.length >= 3 && (head[0] & 0xFF) == 0xFF && (head[1] & 0xFF) == 0xD8 && (head[2] & 0xFF) == 0xFF) {
-                return JPEG;
-            }
-            if (head.length >= 12 && head[0] == 'R' && head[1] == 'I' && head[2] == 'F' && head[3] == 'F'
-                    && head[8] == 'W' && head[9] == 'E' && head[10] == 'B' && head[11] == 'P') {
-                return WEBP;
-            }
-            return null;
-        }
     }
 
     @Override
@@ -362,7 +190,7 @@ public class BodyServiceImpl extends ExtendableServiceImpl<Body, BodyRepository>
         List<String> others = bodies.stream().filter(body -> !body.isActive()).map(this::name).sorted(String.CASE_INSENSITIVE_ORDER).toList();
         BodyTemplateData data = new BodyTemplateData();
         data.setBodyName(name(active));
-        data.setAppearance(StringUtils.defaultIfBlank(StringUtils.strip(active.getDescription()), null));
+        data.setAppearance(StringUtils.defaultIfBlank(StringUtils.strip(appearance(active)), null));
         data.setExpressions(expressions.isEmpty() ? null : String.join(", ", expressions));
         data.setParts(parts.isEmpty() ? null : String.join(", ", parts));
         data.setOtherBodies(others.isEmpty() ? null : String.join(", ", others));

@@ -249,8 +249,8 @@
         <property name="repository" ref="bodyRepository" />
     </bean>
 
-    <!-- her self-image: a multimodal model describes a body from its snapshots; one request at a time -->
-    <bean class="com.github.enerccio.joi.domain.service.impl.BodySelfImageServiceImpl" />
+    <!-- how she looks in a model: a multimodal model describes it from its snapshots; one request at a time -->
+    <bean class="com.github.enerccio.joi.domain.service.impl.AppearanceServiceImpl" />
 
     <!-- converting an FBX to VRM with Blender (joi.blender = JOI_BLENDER, empty: Blender.app on macOS, else blender
          on the PATH); one conversion at a time -->

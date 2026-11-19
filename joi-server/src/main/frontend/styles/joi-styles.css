@@ -122,10 +122,6 @@
     gap: var(--lumo-space-xs);
 }
 
-.body-appearance textarea {
-    min-height: 14rem;
-}
-
 .body-thumbnails {
     display: flex;
     flex-wrap: wrap;

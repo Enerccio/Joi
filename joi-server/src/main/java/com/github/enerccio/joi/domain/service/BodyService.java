@@ -7,9 +7,7 @@ import com.github.enerccio.joi.domain.model.impl.QueuedEvent;
 import com.github.enerccio.joi.domain.repository.BodyRepository;
 import com.github.enerccio.marginalia.domain.service.ExtendableService;
 
-import java.io.File;
 import java.util.List;
-import java.util.Map;
 
 /** The bodies of the assistants (see {@code DESIGN.md} → Bodies). */
 public interface BodyService extends ExtendableService<Body, BodyRepository> {
@@ -44,47 +42,22 @@ public interface BodyService extends ExtendableService<Body, BodyRepository> {
      */
     List<QueuedEvent> deleteBody(Body body) throws Exception;
 
-    /** The hash of the file the body shows of its model (its VRM), null when it has none. */
-    String modelHash(Body body) throws Exception;
-
     /**
-     * Stores the snapshots the renderer took of the body's model as resources of the user, in place of the ones
-     * before, with the hash of the model they are of.
-     *
-     * @param shots the shot ({@code full-front}) → the JPEG
+     * How she looks in the body now: its model's description for the state it is in ({@code Appearance}); null when it
+     * has no model or the model is not described.
      */
-    Body storeSnapshots(Body body, Map<String, byte[]> shots) throws Exception;
+    String appearance(Body body) throws Exception;
 
     /**
-     * Makes an uploaded image one of the body's references (images the user gave, for the LLM).
+     * The model's description changed: each assistant who is in a body of it and has chatted is told how she looks now.
      *
-     * @param file an uploaded file in the user's folder of resources ({@code ModelService#uploadFolder})
-     * @throws IllegalArgumentException when it is not a PNG, JPEG or WebP image (the file is deleted)
-     */
-    Body addReference(Body body, File file, String fileName) throws Exception;
-
-    /** Removes a reference image. */
-    Body removeReference(Body body, String resourceId) throws Exception;
-
-    /** The file of a snapshot or a reference of the body, null when it is not one of the body's. */
-    File imageFile(Body body, String resourceId) throws Exception;
-
-    /**
-     * Uses the proposal as reviewed: the description becomes the body's (tied to the hash of the snapshots' model)
-     * and the toggle names go to the model; the proposal is gone. When she is in this body and has chatted, she is
-     * told how she looks now.
-     *
-     * @param toggleNames the toggle's id → the name, the ones the user kept
      * @return the events queued, empty when none
      */
-    List<QueuedEvent> applyProposal(Body body, String description, Map<String, String> toggleNames) throws Exception;
-
-    /** Forgets the proposal. */
-    Body discardProposal(Body body) throws Exception;
+    List<QueuedEvent> modelDescribed(Model model) throws Exception;
 
     /**
-     * The section of her prompt about her body ({@code {{#body}}}): its name, how she looks, the expressions and the
-     * parts she can show or hide (named by the user), and her other bodies. Null when she is in none.
+     * The section of her prompt about her body ({@code {{#body}}}, a template): its name, how she looks, the expressions
+     * and the parts she can show or hide (named by the user), and her other bodies. Null when she is in none.
      */
     String prompt(Joi joi) throws Exception;
 }
