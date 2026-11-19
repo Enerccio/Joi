@@ -25,8 +25,9 @@ The config (JSON) names the files and what to change; everything but the files h
 
 What is left out is the user's choice (removeMeshes, dropShapeKeys, bakeShapeKeys); nothing is filtered on its own.
 
-What it does not carry over: the Poiyomi look (only the color, normal and emission textures go into MToon), PhysBones
-(spring bones are guessed by the add-on), VRCFury, contacts, particles and animator states.
+What it does not carry over: the Poiyomi look (only the color, normal and emission textures go into MToon), PhysBones,
+VRCFury, contacts, particles and animator states. Spring bones are not made here: Joi writes them into the VRM
+afterwards (SpringBones, guessed from the bones' names and changed by the user).
 """
 import json
 import re
@@ -492,13 +493,6 @@ def prune_shape_keys(arm, cfg):
         log("shape keys", obj.name, before, "->", after)
 
 
-def setup_springs(arm):
-    bpy.ops.vrm.assign_spring_bone1_automatically(armature_object_name=arm.name)
-    springs = arm.data.vrm_addon_extension.spring_bone1.springs
-    report["springs"] = len(springs)
-    log("springs", len(springs), "joints", sum(len(s.joints) for s in springs))
-
-
 def setup_meta(arm, cfg):
     meta = arm.data.vrm_addon_extension.vrm1.meta
     meta.vrm_name = cfg.get("name") or "avatar"
@@ -529,8 +523,6 @@ def main():
         setup_expressions(arm, cfg)
         if cfg.get("pruneShapeKeys", True):
             prune_shape_keys(arm, cfg)
-        log("step springs")
-        setup_springs(arm)
         setup_meta(arm, cfg)
         report["triangles"] = sum(triangles(o) for o in bpy.data.objects if o.type == "MESH")
         log("triangles", report["triangles"])

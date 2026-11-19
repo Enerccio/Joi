@@ -2,6 +2,9 @@ package com.github.enerccio.joi.domain.service;
 
 import com.github.enerccio.joi.domain.bodies.ConversionReport;
 import com.github.enerccio.joi.domain.bodies.ModelFiles;
+import com.github.enerccio.joi.domain.bodies.ModelCapabilities;
+import com.github.enerccio.joi.domain.bodies.SpringBonesTestFiles;
+import com.github.enerccio.joi.domain.bodies.SpringChain;
 import com.github.enerccio.joi.domain.bodies.UnityFixtures;
 import com.github.enerccio.joi.domain.collections.ConversionStatus;
 import com.github.enerccio.joi.domain.model.impl.Model;
@@ -61,6 +64,11 @@ class ModelConversionTest extends PlatformTestBase {
      * A Blender that copies its config next to the test (to look at), writes a report and, unless told to fail, the VRM.
      */
     private void fakeBlender(boolean fail) throws Exception {
+        fakeBlender(fail, null);
+    }
+
+    /** @param vrm what the converter writes; a text that is not a VRM when null */
+    private void fakeBlender(boolean fail, File vrm) throws Exception {
         Path script = dir.resolve(fail ? "blender-fail.sh" : "blender.sh");
         String config = dir.resolve("seen-config.json").toString();
         Files.writeString(script, """
@@ -75,9 +83,9 @@ class ModelConversionTest extends PlatformTestBase {
                   exit 1
                 fi
                 echo '{"meshes":[{"name":"Body","triangles":100,"shapeKeys":2},{"name":"Gun","triangles":50,"shapeKeys":0,"removed":true}],"materials":[{"name":"Body","unity":"M_Body","by":"meta","textured":true}],"expressions":[{"name":"happy","keys":["Smile"]}],"humanoidMissing":[],"warnings":[],"triangles":100,"springs":3}' > "$report"
-                printf 'glTF-converted' > "$out"
+                %s
                 echo "[convert] done"
-                """.formatted(config, fail));
+                """.formatted(config, fail, vrm == null ? "printf 'glTF-converted' > \"$out\"" : "cp '" + vrm + "' \"$out\""));
         script.toFile().setExecutable(true);
         ((ModelConversionServiceImpl) conversionService).setBlender(script.toString());
     }
@@ -149,6 +157,29 @@ class ModelConversionTest extends PlatformTestBase {
         convertAndWait(model);
         model = modelService.find(model.getId());
         assertThat(modelService.convertedFile(model)).isNotEqualTo(first).hasContent("glTF-converted");
+    }
+
+    @Test
+    void theSpringBonesAreGuessedAtTheFirstConversionAndKeptAtTheNext() throws Exception {
+        fakeBlender(false, SpringBonesTestFiles.vrm(dir.resolve("converted.vrm").toFile()));
+        Model model = uploadedPackage();
+        List<String> lines = convertAndWait(model);
+        assertThat(lines).contains("Spring bones: 3 chains, 3 springs.");
+        model = modelService.find(model.getId());
+        List<SpringChain> guessed = SpringChain.listFromJson(model.getSpringChains());
+        assertThat(guessed).extracting(SpringChain::root).containsExactly("Tail Root", "Hair Root", "Scarf Root");
+        assertThat(model.getAppliedSpringChains()).isEqualTo(model.getSpringChains());
+        assertThat(ConversionReport.parse(model.getConversionReport()).springs()).isEqualTo(3);
+        assertThat(ModelCapabilities.json(modelService.convertedFile(model)).getAsJsonObject("extensions").has("VRMC_springBone")).isTrue();
+
+        // the user's chains survive a new conversion
+        model.setSpringChains(SpringChain.toJson(List.of(guessed.get(0).withEnabled(false))));
+        model = modelService.save(model);
+        lines = convertAndWait(model);
+        assertThat(lines).contains("Spring bones: 0 chains, 0 springs.");
+        model = modelService.find(model.getId());
+        assertThat(SpringChain.listFromJson(model.getSpringChains())).containsExactly(guessed.get(0).withEnabled(false));
+        assertThat(ModelCapabilities.json(modelService.convertedFile(model)).getAsJsonObject("extensions").has("VRMC_springBone")).isFalse();
     }
 
     @Test

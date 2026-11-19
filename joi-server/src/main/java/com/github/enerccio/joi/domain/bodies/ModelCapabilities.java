@@ -246,8 +246,8 @@ public record ModelCapabilities(String vrm, List<Expression> expressions, List<T
         return REQUIRED_BONES.stream().filter(bone -> !bones.contains(bone)).toList();
     }
 
-    /** The JSON chunk of a binary glTF. */
-    static JsonObject json(File file) throws IOException {
+    /** The JSON chunk of a binary glTF (the binary chunk is not read). */
+    public static JsonObject json(File file) throws IOException {
         try (InputStream in = Files.newInputStream(file.toPath()); DataInputStream data = new DataInputStream(in)) {
             byte[] header = data.readNBytes(20);
             if (header.length < 20) {

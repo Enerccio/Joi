@@ -241,6 +241,16 @@ public class Model extends ExtendableEntity {
     @Transient
     private String toggleGroups;
 
+    /** The chains of bones that swing (JSON: {@code SpringChain}s); null until guessed at a conversion or set. */
+    @ExtendedAttribute
+    @Transient
+    private String springChains;
+
+    /** The chains as last written into the converted VRM, to tell whether the ones shown are applied. */
+    @ExtendedAttribute
+    @Transient
+    private String appliedSpringChains;
+
     /** The sentences of the groups' states: {@code <group id>:<state id>} → the sentence. */
     @ExtendedAttribute(inject = true, injectPrefix = "groupSentences")
     @Transient
@@ -565,6 +575,22 @@ public class Model extends ExtendableEntity {
 
     public void setDefaultState(String defaultState) {
         this.defaultState = defaultState;
+    }
+
+    public String getSpringChains() {
+        return springChains;
+    }
+
+    public void setSpringChains(String springChains) {
+        this.springChains = springChains;
+    }
+
+    public String getAppliedSpringChains() {
+        return appliedSpringChains;
+    }
+
+    public void setAppliedSpringChains(String appliedSpringChains) {
+        this.appliedSpringChains = appliedSpringChains;
     }
 
     public String getToggleGroups() {

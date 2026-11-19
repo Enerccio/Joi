@@ -14,6 +14,7 @@ import com.github.enerccio.joi.ui.JoiCssStyles;
 import com.github.enerccio.joi.ui.widgets.EditorSplit;
 import com.github.enerccio.joi.ui.bodies.AppearancePanel;
 import com.github.enerccio.joi.ui.bodies.ModelViewer;
+import com.github.enerccio.joi.ui.bodies.SpringBonesPanel;
 import com.github.enerccio.marginalia.CssStyles;
 import com.github.enerccio.marginalia.loc.L;
 import com.github.enerccio.marginalia.loc.Localization;
@@ -115,6 +116,7 @@ public class ModelDialog extends Dialog {
     private boolean loading;
     private AppearancePanel appearancePanel;
     private com.github.enerccio.joi.ui.bodies.ToggleGroupsPanel groupsPanel;
+    private SpringBonesPanel springsPanel;
 
     public ModelDialog(Model model) {
         this.model = model;
@@ -168,6 +170,8 @@ public class ModelDialog extends Dialog {
             viewer.setToggles(AppearancePanel.defaultToggles(model));
         });
         viewer.addErrorListener(e -> previewInfo.setText(e.getMessage()));
+        springsPanel = new SpringBonesPanel(() -> model, stored -> model = stored, this::springsApplied, viewer);
+        sidebar.add(springsPanel.create());
         appearancePanel = new AppearancePanel(viewer, () -> model, this::previewBodyFile, this::reloadModel);
         sidebar.add(appearancePanel.create());
         previewChoice = new RadioButtonGroup<>();
@@ -638,6 +642,16 @@ public class ModelDialog extends Dialog {
         previewChoice.setValue(converted);
         showPreview();
         showCapabilities();
+        springsPanel.show();
+        appearancePanel.show();
+    }
+
+    /** The spring bones were written into a new VRM: the preview shows it. */
+    private void springsApplied(Model applied) {
+        model = applied;
+        if (Boolean.TRUE.equals(previewChoice.getValue())) {
+            showPreview();
+        }
         appearancePanel.show();
     }
 
@@ -775,6 +789,10 @@ public class ModelDialog extends Dialog {
     }
 
     /** How she looks in the model, for tests. */
+    public SpringBonesPanel getSpringsPanel() {
+        return springsPanel;
+    }
+
     public AppearancePanel getAppearancePanel() {
         return appearancePanel;
     }

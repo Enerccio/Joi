@@ -44,6 +44,8 @@ public final class JoiCssStyles {
     public static final String CONVERSION_LOG = "conversion-log";
     /** The body dialog: the choices of the state of each part. */
     public static final String BODY_PARTS = "body-parts";
+    /** A chain of spring bones in the model dialog: its box, how it moves, its bones. */
+    public static final String SPRING_CHAIN = "spring-chain";
     /** The 3D preview of a model. */
     public static final String MODEL_VIEWER = "model-viewer";
     /** The thumbnails of a body's snapshots and images. */

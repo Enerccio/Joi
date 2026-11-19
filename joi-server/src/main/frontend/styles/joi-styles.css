@@ -184,3 +184,17 @@
 .toggle-group-state vaadin-text-field {
     width: 9rem;
 }
+
+.spring-chain {
+    flex-wrap: wrap;
+    align-items: baseline;
+}
+
+.spring-chain vaadin-checkbox {
+    flex: 1 1 10rem;
+    min-width: 0;
+}
+
+.spring-chain vaadin-select {
+    width: 7rem;
+}

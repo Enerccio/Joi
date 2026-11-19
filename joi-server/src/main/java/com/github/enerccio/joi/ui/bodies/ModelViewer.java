@@ -85,6 +85,11 @@ public class ModelViewer extends Component implements HasSize, HasStyle {
     private record SnapshotRequest(List<Toggle> base, List<Part> parts) {
     }
 
+    /** Sways the model from side to side (or stops), so its spring bones are seen moving. */
+    public void setSway(boolean sway) {
+        getElement().callJsFunction("setSway", sway);
+    }
+
     /** Shows or hides toggles on the preview. */
     public void setToggles(List<Toggle> toggles) {
         getElement().callJsFunction("setToggles", new Gson().toJson(toggles));

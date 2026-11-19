@@ -45,6 +45,17 @@ public interface ModelService extends ExtendableService<Model, ModelRepository> 
      */
     void attachConverted(Model model, File vrm) throws Exception;
 
+    /**
+     * Writes the model's spring chains ({@link Model#getSpringChains()}, guessed when it has none) into its converted
+     * VRM: a new file in place of the old one. The look doesn't change, so snapshots and a description that were current
+     * stay current. The applied chains are kept ({@link Model#getAppliedSpringChains()}).
+     *
+     * @return the saved model
+     * @throws IllegalStateException when the model has no converted VRM
+     * @throws java.io.IOException   when the VRM is not a VRM 1.0
+     */
+    Model applySprings(Model model) throws Exception;
+
     /** The converted VRM of the model, null when it has none. */
     File convertedFile(Model model) throws Exception;
 

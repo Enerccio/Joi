@@ -2,6 +2,8 @@ package com.github.enerccio.joi.domain.service.impl;
 
 import com.github.enerccio.joi.domain.bodies.ConversionSource;
 import com.github.enerccio.joi.domain.bodies.ModelFiles;
+import com.github.enerccio.joi.domain.bodies.SpringBones;
+import com.github.enerccio.joi.domain.bodies.SpringChain;
 import com.github.enerccio.joi.domain.collections.ConversionStatus;
 import com.github.enerccio.joi.domain.model.impl.Model;
 import com.github.enerccio.joi.domain.service.ModelConversionService;
@@ -170,6 +172,8 @@ public class ModelConversionServiceImpl implements ModelConversionService, Dispo
         String error = null;
         String report = null;
         File vrm = null;
+        List<SpringChain> springChains = null;
+        int springCount = 0;
         try {
             Model model = modelService.find(id);
             File upload = modelService.file(model);
@@ -227,7 +231,19 @@ public class ModelConversionServiceImpl implements ModelConversionService, Dispo
                 throw new IllegalStateException(reported != null ? reported : "Blender ended with " + process.exitValue());
             }
             vrm = ModelFiles.uploadFile(modelService.uploadFolder(), "model.vrm");
-            Files.move(output, vrm.toPath(), StandardCopyOption.REPLACE_EXISTING);
+            // the spring bones: the model's chains, guessed from the bones' names at its first conversion
+            try {
+                SpringBones.Result springs = SpringBones.write(output.toFile(), vrm,
+                        SpringChain.listFromJson(modelService.find(id).getSpringChains()));
+                springChains = springs.chains();
+                springCount = springs.springs();
+                emit(id, tail, "Spring bones: " + springs.chains().stream().filter(SpringChain::enabled).count() + " chains, "
+                        + springs.springs() + " springs.");
+                Files.deleteIfExists(output);
+            } catch (IOException e) {
+                emit(id, tail, "Spring bones were not written: " + e.getMessage());
+                Files.move(output, vrm.toPath(), StandardCopyOption.REPLACE_EXISTING);
+            }
         } catch (Exception e) {
             error = StringUtils.defaultIfBlank(e.getMessage(), e.getClass().getSimpleName());
             emit(id, tail, "FAILED: " + error);
@@ -247,6 +263,12 @@ public class ModelConversionServiceImpl implements ModelConversionService, Dispo
         }
         model.setConversionStatus(error == null ? ConversionStatus.DONE : ConversionStatus.FAILED);
         model.setConversionError(error);
+        if (springChains != null && error == null) {
+            String chains = SpringChain.toJson(springChains);
+            model.setSpringChains(chains);
+            model.setAppliedSpringChains(chains);
+            report = withSprings(report, springCount);
+        }
         model.setConversionReport(report);
         model.setConversionLog(String.join("\n", tail));
         return modelService.save(model);
@@ -279,6 +301,20 @@ public class ModelConversionServiceImpl implements ModelConversionService, Dispo
         }
         config.put("bakeShapeKeys", bake);
         return config;
+    }
+
+    /** The report with the number of springs written (the converter leaves them to Joi). */
+    private String withSprings(String report, int springs) {
+        if (report == null) {
+            return null;
+        }
+        try {
+            com.google.gson.JsonObject json = com.google.gson.JsonParser.parseString(report).getAsJsonObject();
+            json.addProperty("springs", springs);
+            return gson.toJson(json);
+        } catch (Exception e) {
+            return report;
+        }
     }
 
     private String reportedError(String report) {

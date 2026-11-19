@@ -189,7 +189,7 @@ check) is in [MARGINALIA.md](MARGINALIA.md).
       textures; deleted afterwards). Unity's GUIDs resolve the files: each `.mat` gives its textures and the FBX's
       `.meta` maps each FBX material to its `.mat` (`externalObjects`); without metas the materials match by name.
       The humanoid rig comes from the `.meta` (else the add-on guesses), visemes and blink from the VRChat names,
-      the moods by the names of the face keys, the spring bones by the add-on's guess.
+      the moods by the names of the face keys. Spring bones are not made by the converter (see below).
     - **What is left out is the user's choice**, nothing is filtered on its own: the avatar FBX (when there are
       several), the meshes (a checklist, known from the first conversion's report: props, alternative outfits),
       shape keys to delete (names or parts of names) or to bake in (always on), and the largest texture (2048).
@@ -208,16 +208,36 @@ check) is in [MARGINALIA.md](MARGINALIA.md).
   - **The dialogs' layout (built):** the model and body dialogs put the editing side and the 3D preview in a split
     (`ui/widgets/EditorSplit`, a Vaadin `SplitLayout`, 40 % for the editing side at first); where the user leaves
     the divider is kept in the browser per dialog (`JoiJavascriptLibrary.rememberSplit`, `localStorage`).
-  - **Next steps** of the import (see Bodies below): prefab defaults (which toggles are on) and PhysBones → spring
-    bones from the package.
+  - **Spring bones (built):** the bones that swing as she moves (hair, a tail, ears, cloth) are written into the
+    converted VRM by Joi, not by Blender (`SpringBones`; only the VRM's JSON chunk is rewritten, the binary is copied).
+    - **Guessed from the bones' names** at the first conversion: below the humanoid bones, a bone named hair / bang /
+      twin / braid, tail, ears, or scarf / ribbon / skirt / cape / strap… starts a chain (`SpringChain`) with a preset
+      for how it moves (hair, tail, ears, cloth, stiff: stiffness, gravity, drag, hit radius). Body parts and the face
+      (breasts, butt, genitals, jiggle bones, tongue, cheeks, fingers, toes, eyes) are never guessed nor offered. A
+      bone named "root" or "base" only holds others: its children start the springs. Each straight run of bones is one
+      spring; a single bone has no tip to swing to and is left out.
+    - **Colliders** on her head (a sphere above the head bone, in world up whatever the bone's axes), neck, chest,
+      spine, hips, upper legs and upper arms (capsules to the next bone), sized by the height of her hips.
+    - **The model dialog** lists the chains: a box to switch one off, its preset, its bones, removing one, starting a
+      chain from another bone (a chain inside another takes that part of it), guessing again, and **Apply to the
+      model**, which writes a new VRM in place of the old one. The look doesn't change, so snapshots and a description
+      that were current stay current. "Sway her" turns the preview from side to side to see them move.
+    - The chains are stored on the model by the bones' names, so a new conversion keeps the user's chains.
+    - Only a converted VRM 1.0 gets them; an uploaded VRM keeps its own.
+    - **Not from the prefab:** a VRChat package's prefabs refer to the FBX's objects by Unity's local IDs, with no
+      table to their names. Meshes and materials hash as xxHash64 of `"Type:<type>-><name><n>"`, but the GameObjects,
+      transforms and renderers (which the PhysBones and the starting toggles point at) use another hash we couldn't
+      reproduce. The prefab is not needed: the starting toggles are the model's default state (the FBX's own weights,
+      then the user's choice), and the guessed chains with presets replace the PhysBones' exact values, which don't
+      carry over to VRM one to one anyway.
   - **Export and import of a processed model (later):** one file in a unified format, for easy sharing: the
     converted VRM with what was decided on it (the toggle names, the capabilities, the description and the sentences
     of the parts, the user's notes, the conversion settings and report), and optionally the bodies around it (the
     Looking Glass variant). Importing it gives a ready model (and body) with no conversion. **No images:** the
     snapshots and close-ups, and the user's reference images, only serve to make the description. They are
     transient and replaceable: the importer takes new snapshots if they want to propose again, and adds their own
-    images. So the file is smaller, and a store page isn't passed on. What a user may share is up to their avatar's
-    licence.
+    images. So the file is smaller, and a store page isn't passed on. What a user shares is up to them: Joi checks
+    no licences.
     - **The file** (`.joim`, "Joi model"; when exported and in a node's cache, a stream between the server and a
       node): starts with the magic number `0x1DEA1A10` ("IDEAL AI 0"), then a header with the format
       version (a reader refuses a newer major version), then sections, each with its kind, its length and its hash: the metadata (the model's extended attributes, the capabilities, the proposal...) as
@@ -645,9 +665,9 @@ UI — nothing is deleted):
     renderer plays the default of the current state; a clip she plays herself goes on top and then gives way to it.
   - **Storage and delivery:** a clip is a VRMA file plus its **metadata**, a JSONB document of its own (the
     animation's schema, versioned like the container): the name, the description, the tags, the trim and loop
-    points, the speed, the layer, its groups, the source and its licence (Mixamo, a VRChat package, the user's own:
-    whether it may be shared), what was read from the file (duration, frame rate, the bones it moves, root motion
-    removed or not), and the hash of the VRMA. Groups, a body's clips and the default per state are JSONB documents
+    points, the speed, the layer, its groups, where it came from (Mixamo, a VRChat package, the user's own), what
+    was read from the file (duration, frame rate, the bones it moves, root motion removed or not), and the hash of
+    the VRMA. Groups, a body's clips and the default per state are JSONB documents
     too. Frames of the preview made for the description are transient like a model's snapshots and are never stored
     in a bundle.
     - **Cached one by one, sent as a bundle:** a node caches each clip (its VRMA and its metadata) by hash, so an
@@ -660,7 +680,7 @@ UI — nothing is deleted):
       when exported and in a node's cache; between the server and a node it is a stream.
     - **Animation packs** for people: a `.joia` with another profile (clips, their metadata, groups,
       defaults per state, the bodies they were meant for), to share or import a set ("my idles", "greetings") at
-      once. An export warns about, and leaves out, clips whose licence doesn't allow sharing (Mixamo's).
+      once. What a user shares is up to them: Joi doesn't check licences or leave clips out.
   - Later: generating motion from a text prompt with a text-to-motion model, saved into the library.
 - **Camera** is part of the same display state, per display, and works both ways too. Joi moves it with a tool
   (`set_shot`) over a fixed grid of presets instead of free coordinates: **framing** (face close-up, bust, waist up, full
@@ -963,8 +983,9 @@ The good source of models is VRChat avatars, and porting them is the hard part:
 
 - **Easy:** the Unity humanoid rig (the mapping is in the FBX's `.meta`), the standard `vrc.v_*` visemes and
   `vrc.blink`, ARKit face shapes when present, named expression shape keys, outfit meshes and "hide X" keys.
-- **Hard:** the look (Poiyomi / lilToon are Unity-only: matcaps, rim, decals, hue shift are lost in MToon), PhysBones →
-  spring bones, VRCFury / contacts / particles / animator logic (VRChat-only, skipped).
+- **Hard:** the look (Poiyomi / lilToon are Unity-only: matcaps, rim, decals, hue shift are lost in MToon), PhysBones
+  (replaced by spring bones guessed from the bones' names), VRCFury / contacts / particles / animator logic
+  (VRChat-only, skipped).
 - **Licences** of bought avatars differ; that is up to the user.
 - **Performance:** the Go renders 66 views per frame, so a 180k-triangle model is ~12M triangles per frame. The test
   avatar is a detailed PC avatar; the cost belongs to the model and the display, not to Joi. Options:
@@ -998,8 +1019,9 @@ in `tmp/`, never committed):
   worry).
 - Textures to 2048; emission only where the material has an emission map (otherwise MToon glows white).
 - Result: 181k triangles, 100 MB VRM (morph targets and PNG textures; to slim later).
-- Missing: spring bones (the automatic guess found none — convert PhysBones from the prefab next), the hair tint
-  (Poiyomi decals / hue shift), MToon shade texture.
+- Spring bones: the add-on's automatic guess found none; Joi's guess by name finds the tail, the cat ears, the ears,
+  the hair (62 bones) and the scarf.
+- Missing: the hair tint (Poiyomi decals / hue shift), MToon shade texture.
 
 ### `spikes/avatar-vrm/viewer` — three-vrm + Looking Glass WebXR
 

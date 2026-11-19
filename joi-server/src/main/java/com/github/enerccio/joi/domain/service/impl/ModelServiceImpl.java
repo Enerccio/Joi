@@ -3,6 +3,8 @@ package com.github.enerccio.joi.domain.service.impl;
 import com.github.enerccio.joi.domain.bodies.ModelCapabilities;
 import com.github.enerccio.joi.domain.bodies.ImageType;
 import com.github.enerccio.joi.domain.bodies.ModelFiles;
+import com.github.enerccio.joi.domain.bodies.SpringBones;
+import com.github.enerccio.joi.domain.bodies.SpringChain;
 import com.github.enerccio.joi.domain.collections.ModelFormat;
 import com.github.enerccio.joi.domain.model.impl.Model;
 import com.github.enerccio.joi.domain.repository.ModelRepository;
@@ -14,6 +16,7 @@ import com.github.enerccio.marginalia.domain.service.impl.ExtendableServiceImpl;
 import com.github.enerccio.marginalia.domain.traits.CommonTx;
 import com.github.enerccio.marginalia.domain.traits.CommonTxReadOnly;
 import org.apache.commons.codec.digest.DigestUtils;
+import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.FilenameUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -107,6 +110,45 @@ public class ModelServiceImpl extends ExtendableServiceImpl<Model, ModelReposito
     @Override
     @CommonTx
     public void attachConverted(Model model, File vrm) throws Exception {
+        linkConverted(model, vrm);
+        model.setConvertedAt(new java.util.Date());
+    }
+
+    @Override
+    @CommonTx
+    public Model applySprings(Model model) throws Exception {
+        Model stored = find(model.getId());
+        stored.setSpringChains(model.getSpringChains());
+        File current = convertedFile(stored);
+        if (current == null) {
+            throw new IllegalStateException("the model has no converted VRM");
+        }
+        File out = ModelFiles.uploadFile(uploadFolder(), "model.vrm");
+        SpringBones.Result result;
+        try {
+            result = SpringBones.write(current, out, SpringChain.listFromJson(stored.getSpringChains()));
+        } catch (IOException e) {
+            FileUtils.deleteQuietly(out);
+            throw e;
+        }
+        String before = bodyHash(stored);
+        linkConverted(stored, out);
+        String after = bodyHash(stored);
+        // spring bones don't change how she looks: what was current stays current
+        if (before != null && before.equals(stored.getSnapshotsHash())) {
+            stored.setSnapshotsHash(after);
+        }
+        if (before != null && before.equals(stored.getDescribedHash())) {
+            stored.setDescribedHash(after);
+        }
+        String chains = SpringChain.toJson(result.chains());
+        stored.setSpringChains(chains);
+        stored.setAppliedSpringChains(chains);
+        return save(stored);
+    }
+
+    /** Links the VRM as the model's converted file, in place of the one before (deleted); reads its capabilities. */
+    private void linkConverted(Model model, File vrm) throws Exception {
         File folder = configuration.getResourcesFolder(currentUser).getCanonicalFile();
         if (!folder.equals(vrm.getCanonicalFile().getParentFile())) {
             throw new IllegalArgumentException("not in the folder of resources: " + vrm);
@@ -117,7 +159,6 @@ public class ModelServiceImpl extends ExtendableServiceImpl<Model, ModelReposito
         Long previous = model.getConvertedResourceId();
         model.setConvertedResourceId(resource.getId());
         model.setConvertedFileSize(resource.getSize());
-        model.setConvertedAt(new java.util.Date());
         try {
             model.setCapabilities(ModelCapabilities.read(vrm).toJson());
         } catch (IOException e) {

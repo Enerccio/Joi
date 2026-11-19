@@ -4,7 +4,8 @@
 //   format VRM, GLB, GLTF or FBX: the format of the model (of the main file in a zip)
 //   main   the path of the model file in the zip; absent when src is the model itself
 // Methods (the dialog tries what the model can do): setExpression(name, weight), setMeshVisible(name, visible),
-// setMorph(mesh, key, weight), setToggles(json); they act on the model shown, nothing happens before it is.
+// setMorph(mesh, key, weight), setToggles(json), setSway(on) (turns her from side to side, to see the spring bones move);
+// they act on the model shown, nothing happens before it is.
 // takeSnapshots(request) renders the snapshots of a model (the whole model in its default state, and a close-up of
 // each part described apart in each of its states) for the "snapshot-target" URL.
 // It fires "model-info" ({triangles, meshes, materials, vrm, expressions}) once the model is shown and "model-error"
@@ -112,6 +113,10 @@ class JoiModelViewer extends HTMLElement {
   _frame() {
     const delta = this._clock.getDelta();
     if (this._vrm) {
+      if (this._sway) {
+        this._swayTime = (this._swayTime || 0) + delta;
+        this._swayPose(1);
+      }
       this._vrm.update(delta);
     }
     this._controls.update();
@@ -269,6 +274,31 @@ class JoiModelViewer extends HTMLElement {
     manager.setValue(name, weight);
   }
 
+  /** Turns her hips and body from side to side, so the spring bones (hair, tail, cloth) are seen moving. */
+  setSway(on) {
+    this._sway = !!on;
+    if (!this._sway) {
+      this._swayPose(0);
+    }
+  }
+
+  /** The sway's pose now, at the amount (0 puts her back at rest). */
+  _swayPose(amount) {
+    const humanoid = this._vrm && this._vrm.humanoid;
+    if (!humanoid) {
+      return;
+    }
+    const t = this._swayTime || 0;
+    const hips = humanoid.getNormalizedBoneNode('hips');
+    const spine = humanoid.getNormalizedBoneNode('spine');
+    if (hips) {
+      hips.rotation.y = amount * 0.45 * Math.sin(t * 2.2);
+    }
+    if (spine) {
+      spine.rotation.z = amount * 0.12 * Math.sin(t * 2.2 + 0.6);
+    }
+  }
+
   /** Shows or hides a mesh by the name of its node. */
   setMeshVisible(name, visible) {
     const node = this._node(name);
@@ -315,6 +345,8 @@ class JoiModelViewer extends HTMLElement {
       const base = request.base || [];
       const parts = request.parts || [];
       const saved = this._saveToggles(base.concat(...parts.map(part => part.toggles)));
+      // the snapshots show her at rest, even while she sways
+      this._swayPose(0);
       let images;
       try {
         base.forEach(toggle => this._setToggle(toggle, toggle.shown));
