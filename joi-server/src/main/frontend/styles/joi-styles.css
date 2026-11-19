@@ -103,6 +103,11 @@
     background: var(--lumo-primary-color-10pct);
 }
 
+.memory-editor {
+    padding: 0 var(--lumo-space-m) var(--lumo-space-m) var(--lumo-space-xl);
+    box-sizing: border-box;
+}
+
 .chat-toolbar {
     display: flex;
     align-items: center;

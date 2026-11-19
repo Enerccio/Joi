@@ -7,6 +7,7 @@ import com.github.enerccio.joi.loc.J_L;
 import com.github.enerccio.joi.ui.dialogs.joi.JoiAboutPart;
 import com.github.enerccio.joi.ui.dialogs.joi.JoiBodiesPart;
 import com.github.enerccio.joi.ui.dialogs.joi.JoiChatsPart;
+import com.github.enerccio.joi.ui.dialogs.joi.JoiMemoriesPart;
 import com.github.enerccio.joi.ui.dialogs.joi.JoiDialogPart;
 import com.github.enerccio.joi.ui.dialogs.joi.JoiNothingYetPart;
 import com.github.enerccio.joi.ui.dialogs.joi.JoiTemplatesPart;
@@ -56,6 +57,7 @@ public class JoiDialog extends Dialog {
     private JoiAboutPart aboutPart;
     private JoiTemplatesPart templatesPart;
     private JoiChatsPart chatsPart;
+    private JoiMemoriesPart memoriesPart;
     private JoiBodiesPart bodiesPart;
 
     public JoiDialog(Joi joi) {
@@ -78,7 +80,7 @@ public class JoiDialog extends Dialog {
         tabs.setTabsWidth("200px");
         aboutPart = new JoiAboutPart(this);
         templatesPart = new JoiTemplatesPart(this);
-        for (JoiDialogPart part : List.of(aboutPart, bodiesPart = new JoiBodiesPart(), templatesPart, new JoiNothingYetPart(J_L.LABEL_MEMORIES),
+        for (JoiDialogPart part : List.of(aboutPart, bodiesPart = new JoiBodiesPart(), templatesPart, memoriesPart = new JoiMemoriesPart(),
                 new JoiNothingYetPart(J_L.LABEL_SUMMARIES), chatsPart = new JoiChatsPart())) {
             Component content = part.create();
             parts.put(part, content);
@@ -167,6 +169,10 @@ public class JoiDialog extends Dialog {
     }
 
     /** The Chats tab, for tests. */
+    public JoiMemoriesPart getMemoriesPart() {
+        return memoriesPart;
+    }
+
     public JoiChatsPart getChatsPart() {
         return chatsPart;
     }

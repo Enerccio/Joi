@@ -38,6 +38,11 @@ public class Memory extends ExtendableEntity {
     @CleanupReference(Policy.WEAK)
     private ChatMessage sourceMessage;
 
+    /** What the user calls it in the Memories tab; not put into a prompt. */
+    @ExtendedAttribute
+    @Transient
+    private String name;
+
     @ExtendedAttribute
     @Fulltextable
     @Transient
@@ -89,6 +94,14 @@ public class Memory extends ExtendableEntity {
 
     public void setSourceMessage(ChatMessage sourceMessage) {
         this.sourceMessage = sourceMessage;
+    }
+
+    public String getName() {
+        return name;
+    }
+
+    public void setName(String name) {
+        this.name = name;
     }
 
     public String getText() {

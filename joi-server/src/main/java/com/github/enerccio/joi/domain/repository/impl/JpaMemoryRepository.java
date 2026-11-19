@@ -20,4 +20,10 @@ public class JpaMemoryRepository extends JpaExtendableRepository<Memory> impleme
         return entityManager.createQuery("SELECT m FROM Memory m WHERE m.deleted = false AND m.joi = :joi AND m.importance = :importance ORDER BY m.id ASC", Memory.class)
                 .setParameter("joi", joi).setParameter("importance", importance).getResultList();
     }
+
+    @Override
+    public List<Memory> findAll(Joi joi) throws Exception {
+        return entityManager.createQuery("SELECT m FROM Memory m WHERE m.deleted = false AND m.joi = :joi ORDER BY m.id DESC", Memory.class)
+                .setParameter("joi", joi).getResultList();
+    }
 }

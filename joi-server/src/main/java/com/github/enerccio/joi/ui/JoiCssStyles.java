@@ -40,6 +40,11 @@ public final class JoiCssStyles {
     /** The row above the transcript: the hint and the delete of the checked messages. */
     public static final String CHAT_TOOLBAR = "chat-toolbar";
 
+    /** The grid of the Memories tab. */
+    public static final String MEMORY_GRID = "memory-grid";
+    /** The fields of a memory, opened under its row. */
+    public static final String MEMORY_EDITOR = "memory-editor";
+
     /** The model and body dialogs: the column of the fields beside the preview. */
     public static final String MODEL_SIDEBAR = "model-sidebar";
     /** The model and body dialogs: the split of the fields and the preview ({@code EditorSplit}). */

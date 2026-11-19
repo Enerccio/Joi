@@ -152,8 +152,14 @@ check) is in [MARGINALIA.md](MARGINALIA.md).
     the right, an event in the middle with its kind), her reasoning folded when she thought, her response in Markdown,
     and when, which model, which node. It opens with the last 30 messages at the bottom; scrolling to the top loads
     the 30 before, keeping the message the user reads in place (the platform's lazy edges, as in Marginalia's story;
-    nothing is dropped, unlike there). Editing, deleting and branching come with the conversation work.
-  - **Memories**, **Summaries:** empty for now.
+    nothing is dropped, unlike there). A message is deleted by its trash button, or checked (shift-click checks a
+    range) and deleted with the others. Editing and branching come with the conversation work.
+  - **Memories (built):** a grid of her memories, one row each (name, type, from you or her, created), newest first.
+    A row opens into the memory: its name (only for the user, never in a prompt), its type (`MemoryImportance`), its
+    keywords and its text in a growing text area, stored as typed. *Add memory* adds an approved one of medium
+    importance at the top, open. Deleted by the row's trash button, or checked (shift-click checks a range) and
+    deleted together.
+  - **Summaries:** empty for now.
 - **API access (built):** User Settings → Access lists the user's tokens and devices (created, expires, last used,
   revoke), with *Create token* and *Connect a device*; Administration → API access chooses what is offered and how long
   OAuth tokens live. See The node protocol.

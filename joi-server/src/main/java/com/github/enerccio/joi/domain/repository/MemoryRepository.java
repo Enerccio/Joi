@@ -12,4 +12,7 @@ public interface MemoryRepository extends ExtendableRepository<Memory> {
 
     /** The memories of the importance. */
     List<Memory> findByImportance(Joi joi, MemoryImportance importance) throws Exception;
+
+    /** All her memories, the newest first. */
+    List<Memory> findAll(Joi joi) throws Exception;
 }

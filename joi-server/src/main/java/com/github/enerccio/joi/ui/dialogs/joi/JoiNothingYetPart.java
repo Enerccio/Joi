@@ -11,7 +11,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Configurable;
 
 /**
- * A tab that has nothing to show yet: the memories, the summaries and the chats come with the conversation.
+ * A tab that has nothing to show yet: the summaries come with the conversation.
  */
 @Configurable
 public class JoiNothingYetPart implements JoiDialogPart {
