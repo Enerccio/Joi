@@ -5,6 +5,7 @@ import com.github.enerccio.joi.domain.bodies.DescribedPart;
 import com.github.enerccio.joi.domain.bodies.ModelCapabilities;
 import com.github.enerccio.joi.domain.bodies.joim.JoimMetadata;
 import com.github.enerccio.joi.domain.chat.ChatService;
+import com.github.enerccio.joi.domain.chat.turn.TurnInput;
 import com.github.enerccio.joi.domain.chat.ChatService.NoModelException;
 import com.github.enerccio.joi.domain.model.impl.AnimationPack;
 import com.github.enerccio.joi.domain.model.impl.Body;
@@ -54,6 +55,8 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
@@ -367,8 +370,7 @@ public class JoiApi implements DisposableBean {
         }
         ChatService.Result result;
         try {
-            result = chatService.chat(joi, request.text(), request.node(), request.speakOrDefault(), false, new ChatService.Listener() {
-            });
+            result = await(chatService.chat(joi, new TurnInput(request.text(), request.node(), request.speakOrDefault(), false), null));
         } catch (NoModelException | IllegalArgumentException e) {
             throw e;
         } catch (Exception e) {
@@ -389,8 +391,8 @@ public class JoiApi implements DisposableBean {
             }
         }, KEEP_ALIVE_SECONDS, KEEP_ALIVE_SECONDS, TimeUnit.SECONDS);
         try {
-            ChatService.Result result = chatService.chat(joi, request.text(), request.node(), request.speakOrDefault(), true,
-                    new ChatService.Listener() {
+            ChatService.Result result = await(chatService.chat(joi,
+                    new TurnInput(request.text(), request.node(), request.speakOrDefault(), true), new ChatService.Listener() {
                         @Override
                         public void onReasoning(String delta) throws Exception {
                             if (reasoning) {
@@ -412,7 +414,7 @@ public class JoiApi implements DisposableBean {
                         public void onAudio(int index, String text, byte[] audio) throws Exception {
                             send(events, StreamEvent.AUDIO, new AudioChunk(index, text, AudioKind.of(audio).mime(), base64(audio)));
                         }
-                    });
+                    }));
             send(events, StreamEvent.DONE, new Done(result.message().getUuid(), result.speechError()));
         } catch (Exception e) {
             log.warn("API: the streamed chat of {} failed", joi.getUuid(), e);
@@ -424,6 +426,18 @@ public class JoiApi implements DisposableBean {
             }
         } finally {
             alive.cancel(false);
+        }
+    }
+
+    /** Waits for the turn: the call holds the request scope the turn runs in. Its failure is thrown as it is. */
+    private static ChatService.Result await(CompletableFuture<ChatService.Result> turn) throws Exception {
+        try {
+            return turn.get();
+        } catch (InterruptedException e) {
+            turn.cancel(true);
+            throw e;
+        } catch (ExecutionException e) {
+            throw e.getCause() instanceof Exception cause ? cause : e;
         }
     }
 

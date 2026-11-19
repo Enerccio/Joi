@@ -288,6 +288,29 @@ AIs) — ported right away. Grok (xAI), Mistral, DeepSeek, OpenRouter, Ollama, L
 OpenAI-compatible, so they are covered by the same protocol. Only Bedrock / Azure / Vertex hosting differ (auth), later
 if ever. Tool calling and streaming must be solid with every provider: they are central here.
 
+### A chat turn
+
+A turn follows the design of Marginalia's story generation, simplified and without its UI (built: `domain/chat/turn`,
+run by `ChatServiceImpl`). Marginalia's agent runner is not used.
+
+- **Steps** (`TurnStepType`), each a bean listed under the chat service in `services-config.xml`: prepare (today's
+  mood, the data of her system prompt), payload (the prompt and the latest messages), tools (what she may call),
+  inference (one round of the model), call tools (the calls of that round), store (the `ChatMessage` and its prompt),
+  speech, cleanup. Inference and call tools loop until a round has no calls; after the platform's
+  `MAX_FUNCTION_ROUNDS` the model must answer in text.
+- **Everything is asynchronous.** A step hands over through callbacks and never waits on a thread. A listener holds
+  the turn until it calls `chain.next()`, and a function answers through its continuation, so a node's tool or an
+  approval can answer minutes later. `ChatService.chat` returns a future; the turns of one assistant still run one at
+  a time. The work runs on virtual threads in the caller's request scope (its user).
+- **Events** (`TurnEvents`): listeners (`addEventListener`) change the turn: the template data, the payload, the
+  functions (`COLLECT_TOOLS`), a call before it runs (a listener may answer instead: a refusal, the user's answer),
+  its result, the reply before it is stored, the text she speaks. They can stop it through its cancellation token.
+  Observers (`addEventObserver`) only watch, synchronously; the pieces of the reply are for observers only.
+  `AFTER_CLEANUP` comes for every turn, with its outcome.
+- **Who hooks in:** the server's own features (her memories in the prompt, server tools such as `remember` or
+  `set_mood`, the nodes' tools and approvals) and later extensions. Nothing is offered yet: `COLLECT_TOOLS` starts
+  empty.
+
 ### Persona
 
 Default stance: **the meta view.** Joi knows what she is — an AI assistant running on your server, speaking through

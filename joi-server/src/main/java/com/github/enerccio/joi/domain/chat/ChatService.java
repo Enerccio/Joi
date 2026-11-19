@@ -1,5 +1,11 @@
 package com.github.enerccio.joi.domain.chat;
 
+import com.github.enerccio.joi.domain.chat.turn.TurnControllerEvent.Registration;
+import com.github.enerccio.joi.domain.chat.turn.TurnEvent;
+import com.github.enerccio.joi.domain.chat.turn.TurnEvents;
+import com.github.enerccio.joi.domain.chat.turn.TurnInput;
+import com.github.enerccio.joi.domain.chat.turn.TurnObserver;
+import com.github.enerccio.joi.domain.chat.turn.TurnStepType;
 import com.github.enerccio.joi.domain.model.impl.ChatMessage;
 import com.github.enerccio.joi.domain.model.impl.Joi;
 import com.github.enerccio.joi.domain.persona.Mood;
@@ -7,11 +13,18 @@ import com.github.enerccio.joi.tts.model.Actor;
 import com.github.enerccio.joi.tts.model.TtsModel;
 import com.github.enerccio.marginalia.domain.model.impl.AI;
 
+import java.util.concurrent.CompletableFuture;
+
 /**
  * A chat turn with an assistant: her system prompt (persona, personality, today's mood) and the latest messages go to
- * her chat model, the exchange is stored as a {@link ChatMessage} (with its prompt), and the reply is spoken with her
- * voice. One turn of an assistant at a time; another one waits. Runs on the caller's thread, which needs the user (an
- * API call or a UI session).
+ * her chat model, which may call functions on the way, the exchange is stored as a {@link ChatMessage} (with its
+ * prompt), and the reply is spoken with her voice. One turn of an assistant at a time; another one waits.
+ * <p>
+ * A turn is asynchronous, like Marginalia's generation: steps ({@link TurnStepType}) that hand over to each other
+ * through callbacks, and events ({@link TurnEvents}) where listeners ({@link TurnEvent}) change the turn and observers
+ * ({@link TurnObserver}) watch it. Nothing waits on a thread: a listener or a function (a node's tool, an approval)
+ * answers when it likes. Extensions and the server's own features (memories, tools, nodes) hook in here. The turn
+ * runs in the request scope of the caller (its user), which must outlive the turn: an API call waits for the result.
  * <p>
  * The speech comes after the text (speaking sentences while the model still writes is roadmap step 3). A streamed
  * turn speaks the reply in {@link SpeechText#pieces pieces}, the first sentence first, so a node starts playing early.
@@ -22,7 +35,7 @@ public interface ChatService {
     /** How many of the latest messages go into the prompt (summaries come later, see DESIGN.md → Memory). */
     int HISTORY = 40;
 
-    /** What a turn tells while it runs; on the caller's thread except the pieces of text (the model's thread). */
+    /** What a turn tells while it runs, on the threads of the turn (the pieces of text on the model's thread). */
     interface Listener {
         /** A piece of the thinking of the model. */
         default void onReasoning(String delta) throws Exception {
@@ -38,6 +51,10 @@ public interface ChatService {
 
         /** A piece of the reply spoken (only when asked for pieces). */
         default void onAudio(int index, String text, byte[] audio) throws Exception {
+        }
+
+        /** She called a function and it answered (or failed). */
+        default void onToolCall(String name, String arguments, String result, boolean failed) throws Exception {
         }
     }
 
@@ -59,14 +76,24 @@ public interface ChatService {
     }
 
     /**
-     * Talks to the assistant.
+     * Talks to the assistant. Returns at once; the turn starts when her turn before it is over.
      *
-     * @param node   the node the words came from, null for none
-     * @param speak  whether to speak the reply (when she has a voice)
-     * @param pieces speak in pieces ({@link Listener#onAudio}) instead of the whole reply ({@link Result#audio()})
+     * @param input what to say: {@link TurnInput#pieces()} speaks in pieces ({@link Listener#onAudio}) instead of the
+     *              whole reply ({@link Result#audio()})
+     * @return the result; it fails with the failure of the turn, and with a {@code CancellationException} when the
+     * turn was stopped (cancelling the future stops it)
      * @throws NoModelException when she has no chat model
      */
-    Result chat(Joi joi, String text, String node, boolean speak, boolean pieces, Listener listener) throws Exception;
+    CompletableFuture<Result> chat(Joi joi, TurnInput input, Listener listener) throws Exception;
+
+    /**
+     * A listener of an event of every turn, called after the ones registered before it. Remove it when its owner goes
+     * away.
+     */
+    Registration addEventListener(TurnEvents event, TurnEvent listener);
+
+    /** An observer of an event of every turn, see {@link TurnObserver}. */
+    Registration addEventObserver(TurnEvents event, TurnObserver observer);
 
     /** Her chat model: hers, else the user's; null when none is set up (or it is gone). */
     AI chatModel(Joi joi) throws Exception;

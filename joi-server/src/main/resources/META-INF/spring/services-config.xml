@@ -290,7 +290,21 @@
     </bean>
     <bean class="com.github.enerccio.joi.domain.service.impl.ApiAccessServiceImpl" />
     <bean class="com.github.enerccio.joi.domain.service.impl.DeviceAuthorizationServiceImpl" />
-    <bean class="com.github.enerccio.joi.domain.chat.ChatServiceImpl" />
+    <!-- a chat turn: its steps, in the order of TurnStepType (see ChatService) -->
+    <bean class="com.github.enerccio.joi.domain.chat.ChatServiceImpl">
+        <property name="installedSteps">
+            <list>
+                <bean class="com.github.enerccio.joi.domain.chat.turn.impl.PrepareStep" />
+                <bean class="com.github.enerccio.joi.domain.chat.turn.impl.PayloadStep" />
+                <bean class="com.github.enerccio.joi.domain.chat.turn.impl.ToolsStep" />
+                <bean class="com.github.enerccio.joi.domain.chat.turn.impl.InferenceStep" />
+                <bean class="com.github.enerccio.joi.domain.chat.turn.impl.CallToolsStep" />
+                <bean class="com.github.enerccio.joi.domain.chat.turn.impl.StoreStep" />
+                <bean class="com.github.enerccio.joi.domain.chat.turn.impl.SpeechStep" />
+                <bean class="com.github.enerccio.joi.domain.chat.turn.impl.CleanupStep" />
+            </list>
+        </property>
+    </bean>
     <bean class="com.github.enerccio.joi.api.JoiApi" />
 
 </beans>

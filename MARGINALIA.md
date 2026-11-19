@@ -76,6 +76,9 @@ application wires what it uses. So joi-server has:
 - its own Flyway history, **including the platform tables** (the SQL is duplicated from Marginalia's). When a platform
   entity changes, Joi needs its own migration; `hbm2ddl=validate` catches a missing one;
 - a user setting entity extending `BaseUserSetting` (set as `userSettingClass`);
+- its chat turn (`domain/chat/turn`): the design of Marginalia's story generation (steps, asynchronous events,
+  observers) rebuilt for Joi, since that code is in Marginalia's app layer; it runs the platform's `round` and
+  `FunctionSet`;
 - a session point bean (Marginalia's is `MarginaliaSessionPoint`; the platform `SessionPoint` holds a `BaseWorkspace`);
 - the app hooks it needs: `RunScope`, `TrashPolicy`, `SharedResources`, `UsageListener`, `CommandScopeSource`,
   `CommandBarHost`, `ApiTargets` (only those of the features it uses);

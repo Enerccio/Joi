@@ -16,7 +16,7 @@ assistant's name, the user's name, personality, model roles, voice, the prompts 
 Administration page behind a button under the tabs, as in Marginalia: users and GPU locks). The data model of the assistant is built (no UI or inference yet): `Joi`, `ChatMessage`, `MessagePrompt`, `Summary`,
 `Memory`, `JoiTask`, `JoiTaskMessage`, `QueuedEvent` (see `DESIGN.md` → Several assistants), with the Jois tab and the Joi dialog (its Chats tab shows the transcript, lazily, and deletes messages, one or checked with shift-click ranges; its Memories tab lists, adds, edits and deletes her memories, `JoiMemoriesPart`; `ui/workspace/parts/JoisPart`,
 `ui/dialogs/JoiDialog` and its parts in `ui/dialogs/joi`). The HTTP API is built (`joi-protocol` 1.0: list, info,
-chat with text and speech, whole or streamed; 1.1: her body (models, the state of their parts, animations) and the
+chat with text and speech, whole or streamed (a turn is asynchronous steps and events in `domain/chat/turn`, as Marginalia's generation: listeners, observers, tool rounds; see `DESIGN.md` → A chat turn); 1.1: her body (models, the state of their parts, animations) and the
 `.joim` / `.joia` downloads, ETag by hash; tokens, OAuth device grant, no auth for development; see `DESIGN.md` →
 The node protocol): `api/` (`JoiApiServlet`, `JoiApi`), `domain/chat/ChatService`, `ui/access`. `spikes/` holds throwaway experiments for the avatar renderer.
 
