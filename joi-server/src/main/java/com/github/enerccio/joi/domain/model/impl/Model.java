@@ -251,6 +251,25 @@ public class Model extends ExtendableEntity {
     @Transient
     private String appliedSpringChains;
 
+    /** The model's last {@code .joim} (see {@code JoimFile}), a resource of the user; null until one was written. */
+    @ExtendedAttribute
+    @Transient
+    @CleanupReference(value = Policy.OWNS, target = Resource.class)
+    private Long exportResourceId;
+
+    @ExtendedAttribute
+    @Transient
+    private Long exportFileSize;
+
+    /** What the {@code .joim} holds (its metadata and its VRM), to tell whether it is current. */
+    @ExtendedAttribute
+    @Transient
+    private String exportFingerprint;
+
+    @ExtendedAttribute
+    @Transient
+    private Date exportedAt;
+
     /** The sentences of the groups' states: {@code <group id>:<state id>} → the sentence. */
     @ExtendedAttribute(inject = true, injectPrefix = "groupSentences")
     @Transient
@@ -599,6 +618,38 @@ public class Model extends ExtendableEntity {
 
     public void setToggleGroups(String toggleGroups) {
         this.toggleGroups = toggleGroups;
+    }
+
+    public Long getExportResourceId() {
+        return exportResourceId;
+    }
+
+    public void setExportResourceId(Long exportResourceId) {
+        this.exportResourceId = exportResourceId;
+    }
+
+    public Long getExportFileSize() {
+        return exportFileSize;
+    }
+
+    public void setExportFileSize(Long exportFileSize) {
+        this.exportFileSize = exportFileSize;
+    }
+
+    public String getExportFingerprint() {
+        return exportFingerprint;
+    }
+
+    public void setExportFingerprint(String exportFingerprint) {
+        this.exportFingerprint = exportFingerprint;
+    }
+
+    public Date getExportedAt() {
+        return exportedAt;
+    }
+
+    public void setExportedAt(Date exportedAt) {
+        this.exportedAt = exportedAt;
     }
 
     public Map<String, String> getGroupSentences() {

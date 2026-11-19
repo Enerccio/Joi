@@ -5,7 +5,12 @@ import com.github.enerccio.joi.domain.bodies.ImageType;
 import com.github.enerccio.joi.domain.bodies.ModelFiles;
 import com.github.enerccio.joi.domain.bodies.SpringBones;
 import com.github.enerccio.joi.domain.bodies.SpringChain;
+import com.github.enerccio.joi.protocol.joim.Cbor;
+import com.github.enerccio.joi.protocol.joim.JoimFile;
+import com.github.enerccio.joi.domain.bodies.joim.JoimMetadata;
+import com.github.enerccio.joi.domain.collections.ConversionStatus;
 import com.github.enerccio.joi.domain.collections.ModelFormat;
+import com.google.gson.JsonObject;
 import com.github.enerccio.joi.domain.model.impl.Model;
 import com.github.enerccio.joi.domain.repository.ModelRepository;
 import com.github.enerccio.joi.domain.service.ModelService;
@@ -96,14 +101,22 @@ public class ModelServiceImpl extends ExtendableServiceImpl<Model, ModelReposito
 
     /** A resource of the current user for a file already in their folder of resources. */
     private Resource store(File file, String originalName, String contentType) throws Exception {
+        return store(file, originalName, contentType, null);
+    }
+
+    /** As {@link #store(File, String, String)}, with the file's SHA-256 when it is known (null: read to hash it). */
+    private Resource store(File file, String originalName, String contentType, String hash) throws Exception {
         Resource resource = new Resource();
         resource.setOriginalName(originalName);
         resource.setMimeType(contentType);
         resource.setPath(file.getName());
         resource.setSize(file.length());
-        try (InputStream in = Files.newInputStream(file.toPath())) {
-            resource.setHash(DigestUtils.sha256Hex(in));
+        if (hash == null) {
+            try (InputStream in = Files.newInputStream(file.toPath())) {
+                hash = DigestUtils.sha256Hex(in);
+            }
         }
+        resource.setHash(hash);
         return resourceService.save(resource);
     }
 
@@ -149,12 +162,17 @@ public class ModelServiceImpl extends ExtendableServiceImpl<Model, ModelReposito
 
     /** Links the VRM as the model's converted file, in place of the one before (deleted); reads its capabilities. */
     private void linkConverted(Model model, File vrm) throws Exception {
+        linkConverted(model, vrm, null);
+    }
+
+    /** As {@link #linkConverted(Model, File)}, with the VRM's SHA-256 when it is known. */
+    private void linkConverted(Model model, File vrm, String hash) throws Exception {
         File folder = configuration.getResourcesFolder(currentUser).getCanonicalFile();
         if (!folder.equals(vrm.getCanonicalFile().getParentFile())) {
             throw new IllegalArgumentException("not in the folder of resources: " + vrm);
         }
         String name = StringUtils.defaultIfBlank(model.getName(), "model") + ".vrm";
-        Resource resource = store(vrm, name, ModelFormat.VRM.contentType());
+        Resource resource = store(vrm, name, ModelFormat.VRM.contentType(), hash);
         resourceService.link(resource, Model.class, model.getId());
         Long previous = model.getConvertedResourceId();
         model.setConvertedResourceId(resource.getId());
@@ -330,6 +348,101 @@ public class ModelServiceImpl extends ExtendableServiceImpl<Model, ModelReposito
         }
         if (!uuids.isEmpty()) {
             resourceService.softDelete(uuids);
+        }
+    }
+
+    @Override
+    @CommonTxReadOnly
+    public JsonObject exportMetadata(Model model) throws Exception {
+        File file = bodyFile(model);
+        return file == null ? null : JoimMetadata.of(model, bodyFormat(model), file.length());
+    }
+
+    @Override
+    @CommonTxReadOnly
+    public String exportFingerprint(Model model) throws Exception {
+        JsonObject meta = exportMetadata(model);
+        String hash = meta == null ? null : bodyHash(model);
+        if (hash == null) {
+            return null;
+        }
+        java.security.MessageDigest digest = DigestUtils.getSha256Digest();
+        digest.update(Cbor.encode(meta));
+        digest.update(hash.getBytes(java.nio.charset.StandardCharsets.US_ASCII));
+        return org.apache.commons.codec.binary.Hex.encodeHexString(digest.digest());
+    }
+
+    @Override
+    @CommonTxReadOnly
+    public File exportFile(Model model) throws Exception {
+        if (model.getExportResourceId() == null) {
+            return null;
+        }
+        Resource resource = resourceService.find(model.getExportResourceId());
+        return resource == null || resource.isDeleted() || resource.getOwner() == null || !resource.getOwner().getId().equals(currentUser.getId())
+                ? null : resourceService.getResourceFile(resource);
+    }
+
+    @Override
+    @CommonTx
+    public Model linkExport(Model model, File joim, String fingerprint, String hash) throws Exception {
+        Model stored = find(model.getId());
+        checkUploadFolder(joim);
+        linkExportFile(stored, joim, JoimMetadata.fileName(stored.getName()), hash);
+        stored.setExportFingerprint(fingerprint);
+        return save(stored);
+    }
+
+    @Override
+    @CommonTx
+    public Model attachImport(Model model, File joim, String fileName, String joimHash, File vrm, String vrmHash) throws Exception {
+        checkUploadFolder(joim);
+        checkUploadFolder(vrm);
+        if (StringUtils.isBlank(model.getName())) {
+            model.setName(FilenameUtils.getBaseName(fileName));
+        }
+        Resource previous = model.getResource();
+        model.setResource(null);
+        model.setFormat(ModelFormat.JOIM);
+        model.setMainFile(null);
+        model.setFileCount(1);
+        model.setFbxFiles(List.of());
+        model.setConvertFbx(null);
+        model.setFileName(fileName);
+        model.setFileSize(joim.length());
+        model.setConversionStatus(ConversionStatus.DONE);
+        Model saved = save(model);
+        linkConverted(saved, vrm, vrmHash);
+        saved.setConvertedAt(new java.util.Date());
+        linkExportFile(saved, joim, fileName, joimHash);
+        saved.setExportFingerprint(exportFingerprint(saved));
+        saved = save(saved);
+        if (previous != null) {
+            resourceService.softDelete(List.of(previous.getUuid()));
+        }
+        return saved;
+    }
+
+    private void checkUploadFolder(File file) throws Exception {
+        File folder = configuration.getResourcesFolder(currentUser).getCanonicalFile();
+        if (!folder.equals(file.getCanonicalFile().getParentFile())) {
+            throw new IllegalArgumentException("not in the folder of resources: " + file);
+        }
+    }
+
+    /** Links the file as the model's {@code .joim}, in place of the one before (deleted). */
+    private void linkExportFile(Model model, File joim, String name, String hash) throws Exception {
+        Resource resource = store(joim, name, JoimFile.CONTENT_TYPE, hash);
+        resourceService.link(resource, Model.class, model.getId());
+        Long previous = model.getExportResourceId();
+        model.setExportResourceId(resource.getId());
+        model.setExportFileSize(resource.getSize());
+        model.setExportedAt(new java.util.Date());
+        if (previous != null) {
+            Resource old = resourceService.find(previous);
+            if (old != null && !old.isDeleted()) {
+                resourceService.softDelete(List.of(old.getUuid()));
+            }
         }
     }
 }

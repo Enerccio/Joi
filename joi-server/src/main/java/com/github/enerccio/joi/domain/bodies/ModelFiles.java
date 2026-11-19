@@ -91,6 +91,10 @@ public final class ModelFiles {
      */
     public static Inspection inspect(File file, String fileName) throws IOException {
         ModelFormat format = ModelFormat.ofFileName(fileName);
+        if (format == ModelFormat.JOIM) {
+            // a Joi model is imported, not attached (JoimService)
+            return null;
+        }
         if (format != null) {
             return new Inspection(format, null, 1, format.contentType(), format == ModelFormat.FBX ? List.of(fileName) : List.of());
         }
@@ -101,6 +105,12 @@ public final class ModelFiles {
             return inspectUnityPackage(file);
         }
         return null;
+    }
+
+    /** Whether a file of a zip or a package is a model (a Joi model in one is not read). */
+    private static boolean isModelFile(String path) {
+        ModelFormat format = ModelFormat.ofFileName(path);
+        return format != null && format != ModelFormat.JOIM;
     }
 
     /** A file of a zip or a package: its path, size, and the text of its {@code .meta} when it is an FBX. */
@@ -120,7 +130,7 @@ public final class ModelFiles {
             }
             for (ZipEntry entry : byName.values()) {
                 files++;
-                if (ModelFormat.ofFileName(entry.getName()) == null) {
+                if (!isModelFile(entry.getName())) {
                     continue;
                 }
                 String meta = null;
@@ -161,7 +171,7 @@ public final class ModelFiles {
         }
         List<Candidate> models = new ArrayList<>();
         for (Map.Entry<String, String> path : paths.entrySet()) {
-            if (sizes.containsKey(path.getKey()) && ModelFormat.ofFileName(path.getValue()) != null) {
+            if (sizes.containsKey(path.getKey()) && isModelFile(path.getValue())) {
                 models.add(new Candidate(path.getValue(), sizes.get(path.getKey()), metas.get(path.getKey())));
             }
         }

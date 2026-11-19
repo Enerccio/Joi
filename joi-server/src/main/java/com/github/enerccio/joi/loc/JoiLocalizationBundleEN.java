@@ -156,6 +156,8 @@ public class JoiLocalizationBundleEN extends TextBundleBase<J_L> {
         setValue(J_L.MSG_SPRING_APPLIED, "Applied to the model.");
         setValue(J_L.MSG_SPRING_NOT_APPLIED, "Changed, not applied yet.");
         setValue(J_L.LABEL_SPRING_SWAY, "Sway her");
+        setValue(J_L.LABEL_JOIM_FILE, "Joi model file");
+        setValue(J_L.LABEL_JOIM_DOWNLOAD, "Download .joim");
         setValue(J_L.MSG_SPRING_BONE_COUNT, "%d bones");
         setValue(J_L.LABEL_SPRING_PRESET_HAIR, "Hair");
         setValue(J_L.LABEL_SPRING_PRESET_TAIL, "Tail");
@@ -305,7 +307,7 @@ public class JoiLocalizationBundleEN extends TextBundleBase<J_L> {
         setValue(J_L.MSG_LOADING_EARLIER_MESSAGES, "Loading earlier messages…");
         setValue(J_L.MSG_NO_CHATS, "No chats yet.");
         setValue(J_L.MSG_NO_3D_MODEL_FILE, "No file yet: upload the model.");
-        setValue(J_L.MSG_3D_MODEL_UPLOAD_HINT, "A .vrm or .glb is one file with everything inside. A model of several files (an .fbx or a .gltf with its textures) goes in one .zip. A VRChat avatar can be uploaded as its .unitypackage.");
+        setValue(J_L.MSG_3D_MODEL_UPLOAD_HINT, "A .vrm or .glb is one file with everything inside. A model of several files (an .fbx or a .gltf with its textures) goes in one .zip. A VRChat avatar can be uploaded as its .unitypackage, and a model made in Joi as its .joim.");
         setValue(J_L.MSG_NOT_A_3D_MODEL, "Not a model: upload a .vrm, .glb, .gltf, .fbx, or a .zip with one of them.");
         setValue(J_L.MSG_3D_MODEL_UPLOADED, "The model is uploaded.");
         setValue(J_L.MSG_CONVERTING, "Converting… this takes a few minutes; the dialog can be closed.");
@@ -316,6 +318,15 @@ public class JoiLocalizationBundleEN extends TextBundleBase<J_L> {
         setValue(J_L.MSG_CONVERSION_SUMMARY, "%,d triangles · %d of %d materials matched (%d textured) · %d expressions · %d spring chains");
         setValue(J_L.MSG_MISSING_BONES, "Bones not mapped: %s");
         setValue(J_L.MSG_ALREADY_VRM, "Already a VRM: nothing to convert.");
+        setValue(J_L.MSG_IMPORTED_JOIM, "Imported from a Joi model file: its VRM is ready, nothing to convert.");
+        setValue(J_L.MSG_JOIM_INFO, "%s, written %s");
+        setValue(J_L.MSG_JOIM_STALE, "The model changed since: it is written again when you exit.");
+        setValue(J_L.MSG_JOIM_NONE, "Not written yet: it is written when you exit.");
+        setValue(J_L.MSG_JOIM_WRITING, "Writing the Joi model file");
+        setValue(J_L.MSG_JOIM_READING, "Reading the Joi model file");
+        setValue(J_L.MSG_JOIM_WRITE_ERROR, "The Joi model file was not written: %s");
+        setValue(J_L.MSG_JOIM_READ_ERROR, "Not a Joi model file that can be read: %s");
+        setValue(J_L.MSG_JOIM_IMPORTED, "Imported: the model is ready.");
         setValue(J_L.MSG_NO_FBX, "Nothing to convert: the upload has no FBX.");
         setValue(J_L.MSG_CAPABILITIES_HINT, "Click an expression to try it on the preview; uncheck a toggle to hide that part. The names are what she and you will call them.");
         setValue(J_L.MSG_NO_CAPABILITIES, "Known once the model is a VRM: convert it, or upload a .vrm.");

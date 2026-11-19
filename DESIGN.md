@@ -230,23 +230,33 @@ check) is in [MARGINALIA.md](MARGINALIA.md).
       reproduce. The prefab is not needed: the starting toggles are the model's default state (the FBX's own weights,
       then the user's choice), and the guessed chains with presets replace the PhysBones' exact values, which don't
       carry over to VRM one to one anyway.
-  - **Export and import of a processed model (later):** one file in a unified format, for easy sharing: the
+  - **Export and import of a processed model (built):** one file in a unified format, for easy sharing: the
     converted VRM with what was decided on it (the toggle names, the capabilities, the description and the sentences
-    of the parts, the user's notes, the conversion settings and report), and optionally the bodies around it (the
-    Looking Glass variant). Importing it gives a ready model (and body) with no conversion. **No images:** the
-    snapshots and close-ups, and the user's reference images, only serve to make the description. They are
-    transient and replaceable: the importer takes new snapshots if they want to propose again, and adds their own
-    images. So the file is smaller, and a store page isn't passed on. What a user shares is up to them: Joi checks
-    no licences.
-    - **The file** (`.joim`, "Joi model"; when exported and in a node's cache, a stream between the server and a
-      node): starts with the magic number `0x1DEA1A10` ("IDEAL AI 0"), then a header with the format
-      version (a reader refuses a newer major version), then sections, each with its kind, its length and its hash: the metadata (the model's extended attributes, the capabilities, the proposal...) as
-      **JSONB** (binary JSON), the VRM as raw bytes. Length-prefixed sections are read and written as
-      streams, never whole in memory, and a reader skips the kinds it doesn't know.
-    - **Also the delivery to a node:** the same container fits, with a profile of only what a renderer needs (the
-      VRM, the capabilities and toggle names, the state) and none of the review material (snapshots, the user's
-      images and notes, the proposal: larger, and private). The section hashes are the node's cache keys, so a new
-      description doesn't re-send the VRM, and a broken download resumes at a section. See Bodies → Storage.
+    of the parts and the groups, the default state, the spring chains, the user's notes, the last proposal, the
+    conversion settings and report). Importing it gives a ready model with no conversion. **No images:** the snapshots
+    and close-ups, and the user's reference images, only serve to make the description. They are transient and
+    replaceable: the importer takes new snapshots if they want to propose again, and adds their own images. So the
+    file is smaller, and a store page isn't passed on. What a user shares is up to them: Joi checks no licences.
+    - **Written on Exit:** the model dialog has no Save (changes are stored at once), so when it closes (Exit or Esc)
+      and what a `.joim` of the model would hold changed, a progress dialog writes a new one (`JoimService`). It is a
+      resource of the model, in place of the one before, and the dialog shows its size, time and a download link, or
+      that it will be written again. "Changed" is a fingerprint of the metadata and the VRM's hash
+      (`ModelService.exportFingerprint`), so a model with no VRM, or with a conversion running, gets none.
+    - **Imported by the upload:** a `.joim` uploaded in the model dialog becomes the model (format `JOIM`): its VRM
+      the converted file, what was decided on it from the metadata (`JoimMetadata`), no upload kept, and the file
+      itself its current export. The same VRM bytes keep the same hash, so a description that was current stays
+      current. Bodies are not in the file yet (a body points at the imported model like any other).
+    - **The file** (`.joim`, "Joi model"; also, later, the stream to a node and its cache): starts with the magic
+      number `0x1DEA1A10` ("IDEAL AI 0"), then a header with the format version (a reader refuses a newer major
+      version) and the profile (FULL, NODE), then sections, each with its kind, its length and its SHA-256: the
+      metadata as **JSONB**, here CBOR (RFC 8949), the VRM as raw bytes. Sections are read and written as streams,
+      never whole in memory, and a reader skips the kinds it doesn't know. The container is in `joi-protocol`
+      (`protocol/joim/JoimFile`, `Cbor`; documented in `joi-protocol/joim.md`), so a node reads it with the same code;
+      the mapping to a `Model` stays in the server.
+    - **Also the delivery to a node (later):** the same container with the NODE profile: only what a renderer needs
+      (the VRM, the capabilities and toggle names, the state) and none of the review material (the proposal, the
+      user's notes: larger, and private). The section hashes are the node's cache keys, so a new description doesn't
+      re-send the VRM, and a broken download resumes at a section. See Bodies → Storage.
 - **Moods, event rules:** see below.
 - **Chat:** text chat in the browser (a node without hands), useful before voice works.
 

@@ -15,7 +15,9 @@ public enum ModelFormat {
     /** A glTF JSON; its buffers and textures are separate files, unless they are embedded. */
     GLTF("gltf", "model/gltf+json"),
     /** An Autodesk FBX (what VRChat packages ship); its textures are separate files. */
-    FBX("fbx", "application/octet-stream");
+    FBX("fbx", "application/octet-stream"),
+    /** A Joi model ({@code .joim}): a processed model, imported with no conversion (its VRM is the converted one). */
+    JOIM("joim", "application/x-joi-model");
 
     private final String extension;
     private final String contentType;

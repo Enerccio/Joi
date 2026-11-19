@@ -241,6 +241,9 @@
         <property name="repository" ref="modelRepository" />
     </bean>
 
+    <!-- the .joim of a model: written when it changed, imported as a ready model -->
+    <bean class="com.github.enerccio.joi.domain.service.impl.JoimServiceImpl" />
+
     <!-- the bodies of the assistants, made of the models -->
     <bean id="bodyRepository" class="com.github.enerccio.joi.domain.repository.impl.JpaBodyRepository">
         <property name="entityManager" ref="em" />

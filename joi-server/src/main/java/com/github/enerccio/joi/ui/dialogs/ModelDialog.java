@@ -8,7 +8,16 @@ import com.github.enerccio.joi.domain.collections.ConversionStatus;
 import com.github.enerccio.joi.domain.collections.ModelFormat;
 import com.github.enerccio.joi.domain.model.impl.Model;
 import com.github.enerccio.joi.domain.service.ModelConversionService;
+import com.github.enerccio.joi.domain.service.JoimService;
 import com.github.enerccio.joi.domain.service.ModelService;
+import com.github.enerccio.joi.protocol.joim.JoimFile;
+import com.github.enerccio.joi.domain.bodies.joim.JoimMetadata;
+import com.github.enerccio.marginalia.ui.dialogs.ProgressBarDialog;
+import com.vaadin.flow.component.html.Anchor;
+import com.vaadin.flow.server.streams.DownloadHandler;
+import java.io.IOException;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.LongConsumer;
 import com.github.enerccio.joi.loc.J_L;
 import com.github.enerccio.joi.ui.JoiCssStyles;
 import com.github.enerccio.joi.ui.widgets.EditorSplit;
@@ -83,12 +92,16 @@ public class ModelDialog extends Dialog {
     @Autowired
     private ModelConversionService conversionService;
 
+    @Autowired
+    private JoimService joimService;
+
     private Model model;
     private Runnable onClose = () -> {
     };
     private TextField nameField;
     private Upload upload;
     private Div fileInfo;
+    private Div exportInfo;
     private Span previewInfo;
     private ModelViewer viewer;
     private RadioButtonGroup<Boolean> previewChoice;
@@ -117,6 +130,8 @@ public class ModelDialog extends Dialog {
     private AppearancePanel appearancePanel;
     private com.github.enerccio.joi.ui.bodies.ToggleGroupsPanel groupsPanel;
     private SpringBonesPanel springsPanel;
+    private Anchor exportDownload;
+    private boolean exporting;
 
     public ModelDialog(Model model) {
         this.model = model;
@@ -143,7 +158,7 @@ public class ModelDialog extends Dialog {
                 metadata -> ModelFiles.uploadFile(folder, metadata.fileName()));
         upload = new Upload(handler);
         upload.setMaxFiles(1);
-        upload.setAcceptedFileTypes(".vrm", ".glb", ".gltf", ".fbx", ".zip", ".unitypackage");
+        upload.setAcceptedFileTypes(".vrm", ".glb", ".gltf", ".fbx", ".zip", ".unitypackage", "." + JoimFile.EXTENSION);
         upload.setWidthFull();
         upload.setUploadButton(new Button(loc.getValue(J_L.LABEL_UPLOAD_3D_MODEL), Solid.UPLOAD.create()));
 
@@ -151,13 +166,14 @@ public class ModelDialog extends Dialog {
         hint.addClassName(CssStyles.HINT_TEXT);
 
         fileInfo = new Div();
+        exportInfo = new Div();
         previewInfo = new Span();
         previewInfo.addClassName(CssStyles.HINT_TEXT);
 
         createConversion();
         createCapabilities();
 
-        VerticalLayout sidebar = new VerticalLayout(nameField, upload, hint, fileInfo, previewInfo, conversion, capabilities);
+        VerticalLayout sidebar = new VerticalLayout(nameField, upload, hint, fileInfo, exportInfo, previewInfo, conversion, capabilities);
         sidebar.setPadding(false);
         sidebar.addClassName(JoiCssStyles.MODEL_SIDEBAR);
 
@@ -191,7 +207,9 @@ public class ModelDialog extends Dialog {
         com.vaadin.flow.component.splitlayout.SplitLayout body = EditorSplit.create(sidebar, previewColumn, "joi.model-dialog.split");
         add(body);
 
-        Button exitButton = new Button(loc.getValue(L.LABEL_EXIT), e -> close());
+        Button exitButton = new Button(loc.getValue(L.LABEL_EXIT), e -> exit());
+        // Esc exits the same way: the .joim is written first
+        addDialogCloseActionListener(e -> exit());
         exitButton.setThemeName("primary");
         getFooter().add(exitButton);
 
@@ -548,6 +566,11 @@ public class ModelDialog extends Dialog {
     }
 
     private void uploaded(File file, String fileName) {
+        if (JoimFile.isJoim(fileName)) {
+            upload.clearFileList();
+            importJoim(file, fileName);
+            return;
+        }
         try {
             model = modelService.attach(model, file, fileName);
             nameField.setValue(StringUtils.defaultString(model.getName()));
@@ -616,7 +639,8 @@ public class ModelDialog extends Dialog {
     private void showFile() throws Exception {
         fileInfo.removeAll();
         previewInfo.setText("");
-        boolean hasFile = model.getId() != null && model.getFormat() != null && modelService.file(model) != null;
+        boolean imported = model.getId() != null && model.getFormat() == ModelFormat.JOIM;
+        boolean hasFile = imported || model.getId() != null && model.getFormat() != null && modelService.file(model) != null;
         upload.setUploadButton(new Button(loc.getValue(hasFile ? J_L.LABEL_REPLACE_3D_MODEL : J_L.LABEL_UPLOAD_3D_MODEL), Solid.UPLOAD.create()));
         if (!hasFile) {
             Span none = new Span(loc.getValue(J_L.MSG_NO_3D_MODEL_FILE));
@@ -637,10 +661,11 @@ public class ModelDialog extends Dialog {
         showConversion();
 
         boolean converted = model.getId() != null && modelService.convertedFile(model) != null;
-        previewChoice.setVisible(hasFile && converted);
+        previewChoice.setVisible(hasFile && converted && !imported);
         previewChoice.setItemEnabledProvider(choice -> choice || !ModelFiles.isUnityPackage(model.getFileName()));
         previewChoice.setValue(converted);
         showPreview();
+        showExport();
         showCapabilities();
         springsPanel.show();
         appearancePanel.show();
@@ -681,7 +706,8 @@ public class ModelDialog extends Dialog {
         try {
             boolean running = conversionService.isRunning(model);
             boolean convertible = model.fbxToConvert() != null;
-            conversionHint.setText(convertible ? "" : loc.getValue(model.getFormat() == ModelFormat.VRM ? J_L.MSG_ALREADY_VRM : J_L.MSG_NO_FBX));
+            conversionHint.setText(convertible ? "" : loc.getValue(model.getFormat() == ModelFormat.VRM ? J_L.MSG_ALREADY_VRM
+                    : model.getFormat() == ModelFormat.JOIM ? J_L.MSG_IMPORTED_JOIM : J_L.MSG_NO_FBX));
             conversionHint.setVisible(!convertible);
             for (var field : List.of(fbxSelect, textureSelect, meshes, meshesHint, convertButton)) {
                 field.setVisible(convertible);
@@ -755,12 +781,139 @@ public class ModelDialog extends Dialog {
         return report == null ? List.of() : report.meshes().stream().map(ConversionReport.Mesh::name).toList();
     }
 
+    /** The model's .joim: its size and time with a download, and whether it is current. */
+    private void showExport() throws Exception {
+        exportInfo.removeAll();
+        boolean renderable = model.getId() != null && modelService.bodyFile(model) != null;
+        exportInfo.setVisible(renderable);
+        if (!renderable) {
+            return;
+        }
+        File file = modelService.exportFile(model);
+        Div line = new Div(new Span(loc.getValue(J_L.LABEL_JOIM_FILE) + ": "));
+        if (file != null) {
+            String when = model.getExportedAt() == null ? "" : DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT).format(model.getExportedAt());
+            line.add(new Span(String.format(loc.getValue(J_L.MSG_JOIM_INFO), FileUtils.byteCountToDisplaySize(file.length()), when) + " "));
+            exportDownload = new Anchor(DownloadHandler.forFile(file, JoimMetadata.fileName(model.getName())), loc.getValue(J_L.LABEL_JOIM_DOWNLOAD));
+            exportDownload.setRouterIgnore(true);
+            line.add(exportDownload);
+        } else {
+            exportDownload = null;
+        }
+        exportInfo.add(line);
+        if (file == null || joimService.needsExport(model)) {
+            Span hint = new Span(loc.getValue(file == null ? J_L.MSG_JOIM_NONE : J_L.MSG_JOIM_STALE));
+            hint.addClassName(CssStyles.HINT_TEXT);
+            exportInfo.add(hint);
+        }
+    }
+
+    /** Closes the dialog; the model's .joim is written first when it changed, with a progress dialog. */
+    private void exit() {
+        if (exporting) {
+            return;
+        }
+        boolean needed;
+        long size;
+        try {
+            needed = joimService.needsExport(model);
+            size = needed ? joimService.exportSize(model) : 0;
+        } catch (Exception e) {
+            UIUtils.internalServerError(loc, e);
+            close();
+            return;
+        }
+        if (!needed) {
+            close();
+            return;
+        }
+        exporting = true;
+        AtomicReference<Exception> failure = new AtomicReference<>();
+        ProgressBarDialog progress = bytesProgress(J_L.MSG_JOIM_WRITING, size, (dialog, bytes) -> {
+            try {
+                model = joimService.export(model, bytes);
+            } catch (Exception e) {
+                failure.set(e);
+            }
+        });
+        progress.setAfterAction(() -> {
+            exporting = false;
+            if (failure.get() != null) {
+                Notification.error(String.format(loc.getValue(J_L.MSG_JOIM_WRITE_ERROR), failure.get().getMessage()));
+            }
+            close();
+        });
+        progress.open();
+    }
+
+    /** Imports an uploaded .joim into the model, with a progress dialog. */
+    private void importJoim(File file, String fileName) {
+        AtomicReference<Exception> failure = new AtomicReference<>();
+        AtomicReference<Model> imported = new AtomicReference<>();
+        ProgressBarDialog progress = bytesProgress(J_L.MSG_JOIM_READING, file.length(), (dialog, bytes) -> {
+            try {
+                imported.set(joimService.importModel(model, file, fileName, bytes));
+            } catch (Exception e) {
+                failure.set(e);
+            }
+        });
+        progress.setAfterAction(() -> {
+            Exception e = failure.get();
+            if (e instanceof IOException) {
+                Notification.error(String.format(loc.getValue(J_L.MSG_JOIM_READ_ERROR), e.getMessage()));
+            } else if (e != null) {
+                UIUtils.internalServerError(loc, e);
+            } else {
+                model = imported.get();
+                nameField.setValue(StringUtils.defaultString(model.getName()));
+                updateTitle();
+                try {
+                    showFile();
+                } catch (Exception ex) {
+                    UIUtils.internalServerError(loc, ex);
+                }
+                Notification.success(loc.getValue(J_L.MSG_JOIM_IMPORTED));
+            }
+        });
+        progress.open();
+    }
+
+    /** What a progress dialog runs: the bytes done go to the consumer it gets. */
+    private interface BytesAction {
+        void run(ProgressBarDialog dialog, LongConsumer bytes);
+    }
+
+    /** A progress dialog counting megabytes, for a file of the size. */
+    private ProgressBarDialog bytesProgress(J_L title, long size, BytesAction action) {
+        long mb = 1024 * 1024;
+        ProgressBarDialog progress = new ProgressBarDialog(true);
+        progress.setTitle(loc.getValue(title));
+        progress.setTotal(Math.max(1, (size + mb - 1) / mb));
+        progress.create();
+        progress.setAction(dialog -> {
+            long[] pending = {0};
+            action.run(dialog, bytes -> {
+                pending[0] += bytes;
+                if (pending[0] >= mb) {
+                    dialog.updateProgressMultiple(pending[0] / mb);
+                    pending[0] %= mb;
+                }
+            });
+        });
+        return progress;
+    }
+
     private void line(LocalizationKey label, String value) {
         fileInfo.add(new Div(new Span(loc.getValue(label) + ": "), new Span(StringUtils.defaultString(value))));
     }
 
     private void updateTitle() {
         setHeaderTitle(StringUtils.isNotBlank(model.getName()) ? model.getName() : loc.getValue(J_L.LABEL_NEW_3D_MODEL));
+    }
+
+    /** The link that downloads the model's .joim, null when it has none, for tests. */
+    public Anchor getExportDownload() {
+        return exportDownload;
     }
 
     /** The model as stored last, for tests. */

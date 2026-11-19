@@ -103,4 +103,40 @@ public interface ModelService extends ExtendableService<Model, ModelRepository> 
      * @return whether they were read
      */
     boolean readCapabilities(Model model) throws Exception;
+
+    /**
+     * What a {@code .joim} of the model holds besides its VRM ({@code JoimMetadata}), without the time it is written;
+     * null when the model has no VRM ({@link #bodyFile}).
+     */
+    com.google.gson.JsonObject exportMetadata(Model model) throws Exception;
+
+    /** The fingerprint of what a {@code .joim} of the model holds (its metadata and its VRM); null without a VRM. */
+    String exportFingerprint(Model model) throws Exception;
+
+    /** The model's last {@code .joim}, null when it has none. */
+    File exportFile(Model model) throws Exception;
+
+    /**
+     * Makes the written {@code .joim} the model's: a resource of the current user linked to the model, in place of the
+     * one before (deleted).
+     *
+     * @param joim        a file in the {@link #uploadFolder}
+     * @param fingerprint the {@link #exportFingerprint} it was written for
+     * @param hash        the SHA-256 of the file (hex), known from writing it
+     * @return the saved model
+     */
+    Model linkExport(Model model, File joim, String fingerprint, String hash) throws Exception;
+
+    /**
+     * Makes an imported {@code .joim} the model's: its VRM the converted file (no conversion), the {@code .joim} its
+     * export (current), and no upload (the one before is deleted). What the metadata says is already on the model.
+     *
+     * @param joim     the uploaded {@code .joim}, in the {@link #uploadFolder}
+     * @param fileName the name of the user's file
+     * @param joimHash the SHA-256 of the {@code .joim} (hex), known from reading it
+     * @param vrm      its VRM, written into the {@link #uploadFolder}
+     * @param vrmHash  the SHA-256 of the VRM (hex), checked when it was read
+     * @return the saved model
+     */
+    Model attachImport(Model model, File joim, String fileName, String joimHash, File vrm, String vrmHash) throws Exception;
 }
