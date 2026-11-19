@@ -12,6 +12,7 @@ import com.github.enerccio.joi.domain.service.JoimService;
 import com.github.enerccio.joi.domain.service.ModelService;
 import com.github.enerccio.joi.protocol.joim.JoimFile;
 import com.github.enerccio.joi.domain.bodies.joim.JoimMetadata;
+import com.github.enerccio.marginalia.ui.dialogs.ConfirmDialog;
 import com.github.enerccio.marginalia.ui.dialogs.ProgressBarDialog;
 import com.vaadin.flow.component.html.Anchor;
 import com.vaadin.flow.server.streams.DownloadHandler;
@@ -131,6 +132,7 @@ public class ModelDialog extends Dialog {
     private com.github.enerccio.joi.ui.bodies.ToggleGroupsPanel groupsPanel;
     private SpringBonesPanel springsPanel;
     private Anchor exportDownload;
+    private Button cleanupButton;
     private boolean exporting;
 
     public ModelDialog(Model model) {
@@ -640,14 +642,15 @@ public class ModelDialog extends Dialog {
         fileInfo.removeAll();
         previewInfo.setText("");
         boolean imported = model.getId() != null && model.getFormat() == ModelFormat.JOIM;
-        boolean hasFile = imported || model.getId() != null && model.getFormat() != null && modelService.file(model) != null;
+        boolean removed = model.getId() != null && Boolean.TRUE.equals(model.getUploadRemoved());
+        boolean hasFile = imported || removed || model.getId() != null && model.getFormat() != null && modelService.file(model) != null;
         upload.setUploadButton(new Button(loc.getValue(hasFile ? J_L.LABEL_REPLACE_3D_MODEL : J_L.LABEL_UPLOAD_3D_MODEL), Solid.UPLOAD.create()));
         if (!hasFile) {
             Span none = new Span(loc.getValue(J_L.MSG_NO_3D_MODEL_FILE));
             none.addClassName(CssStyles.HINT_TEXT);
             fileInfo.add(none);
         } else {
-            line(L.LABEL_FILE, model.getFileName());
+            line(L.LABEL_FILE, model.getFileName() + (removed ? loc.getValue(J_L.MSG_UPLOAD_REMOVED_SUFFIX) : ""));
             line(J_L.LABEL_FORMAT, model.getFormat().name());
             if (model.getFileSize() != null) {
                 line(L.LABEL_SIZE, FileUtils.byteCountToDisplaySize(model.getFileSize()));
@@ -657,11 +660,12 @@ public class ModelDialog extends Dialog {
                 line(J_L.LABEL_FILES, String.valueOf(model.getFileCount()));
             }
         }
+        showCleanup();
         conversion.setVisible(hasFile);
         showConversion();
 
         boolean converted = model.getId() != null && modelService.convertedFile(model) != null;
-        previewChoice.setVisible(hasFile && converted && !imported);
+        previewChoice.setVisible(hasFile && converted && !imported && !removed);
         previewChoice.setItemEnabledProvider(choice -> choice || !ModelFiles.isUnityPackage(model.getFileName()));
         previewChoice.setValue(converted);
         showPreview();
@@ -707,7 +711,8 @@ public class ModelDialog extends Dialog {
             boolean running = conversionService.isRunning(model);
             boolean convertible = model.fbxToConvert() != null;
             conversionHint.setText(convertible ? "" : loc.getValue(model.getFormat() == ModelFormat.VRM ? J_L.MSG_ALREADY_VRM
-                    : model.getFormat() == ModelFormat.JOIM ? J_L.MSG_IMPORTED_JOIM : J_L.MSG_NO_FBX));
+                    : model.getFormat() == ModelFormat.JOIM ? J_L.MSG_IMPORTED_JOIM
+                    : Boolean.TRUE.equals(model.getUploadRemoved()) ? J_L.MSG_UPLOAD_REMOVED : J_L.MSG_NO_FBX));
             conversionHint.setVisible(!convertible);
             for (var field : List.of(fbxSelect, textureSelect, meshes, meshesHint, convertButton)) {
                 field.setVisible(convertible);
@@ -805,6 +810,45 @@ public class ModelDialog extends Dialog {
             Span hint = new Span(loc.getValue(file == null ? J_L.MSG_JOIM_NONE : J_L.MSG_JOIM_STALE));
             hint.addClassName(CssStyles.HINT_TEXT);
             exportInfo.add(hint);
+        }
+    }
+
+    /** The button that deletes the files the model no longer needs, when it has any. */
+    private void showCleanup() throws Exception {
+        cleanupButton = null;
+        if (model.getId() == null) {
+            return;
+        }
+        ModelService.Cleanup cleanup = modelService.cleanup(model);
+        if (cleanup.isEmpty()) {
+            return;
+        }
+        cleanupButton = new Button(String.format(loc.getValue(J_L.LABEL_CLEAN_UP_FILES), FileUtils.byteCountToDisplaySize(cleanup.bytes())),
+                Solid.BROOM.create(), e -> confirmCleanup(cleanup));
+        cleanupButton.addThemeVariants(com.vaadin.flow.component.button.ButtonVariant.LUMO_ERROR,
+                com.vaadin.flow.component.button.ButtonVariant.LUMO_SMALL);
+        fileInfo.add(new Div(cleanupButton));
+    }
+
+    private void confirmCleanup(ModelService.Cleanup cleanup) {
+        List<String> what = new java.util.ArrayList<>();
+        if (cleanup.uploadName() != null) {
+            what.add(String.format(loc.getValue(J_L.MSG_CLEAN_UP_UPLOAD), cleanup.uploadName(), FileUtils.byteCountToDisplaySize(cleanup.uploadBytes())));
+        }
+        if (cleanup.oldFiles() > 0) {
+            what.add(String.format(loc.getValue(J_L.MSG_CLEAN_UP_OLD), cleanup.oldFiles(), FileUtils.byteCountToDisplaySize(cleanup.oldBytes())));
+        }
+        ConfirmDialog.show(String.format(loc.getValue(J_L.MSG_CLEAN_UP_CONFIRM), String.join(", ", what)), this::cleanUp);
+    }
+
+    private void cleanUp() {
+        try {
+            long freed = modelService.cleanup(model).bytes();
+            model = modelService.cleanUp(model);
+            showFile();
+            Notification.success(String.format(loc.getValue(J_L.MSG_CLEANED_UP), FileUtils.byteCountToDisplaySize(freed)));
+        } catch (Exception e) {
+            UIUtils.internalServerError(loc, e);
         }
     }
 
@@ -909,6 +953,16 @@ public class ModelDialog extends Dialog {
 
     private void updateTitle() {
         setHeaderTitle(StringUtils.isNotBlank(model.getName()) ? model.getName() : loc.getValue(J_L.LABEL_NEW_3D_MODEL));
+    }
+
+    /** The button that cleans up the model's files, null when there is nothing to clean up, for tests. */
+    public Button getCleanupButton() {
+        return cleanupButton;
+    }
+
+    /** Cleans up as the confirmation does, for tests. */
+    void cleanUpForTest() {
+        cleanUp();
     }
 
     /** The link that downloads the model's .joim, null when it has none, for tests. */

@@ -66,7 +66,7 @@ public final class JoimMetadata {
 
         JsonObject conversion = new JsonObject();
         put(conversion, "sourceFile", model.getFileName());
-        put(conversion, "fbx", model.fbxToConvert());
+        put(conversion, "fbx", model.chosenFbx());
         conversion.add("removeMeshes", list(model.getRemoveMeshes()));
         conversion.add("dropShapeKeys", list(model.getDropShapeKeys()));
         conversion.add("bakeShapeKeys", list(model.getBakeShapeKeys()));

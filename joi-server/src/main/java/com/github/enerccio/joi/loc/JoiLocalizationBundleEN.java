@@ -158,6 +158,7 @@ public class JoiLocalizationBundleEN extends TextBundleBase<J_L> {
         setValue(J_L.LABEL_SPRING_SWAY, "Sway her");
         setValue(J_L.LABEL_JOIM_FILE, "Joi model file");
         setValue(J_L.LABEL_JOIM_DOWNLOAD, "Download .joim");
+        setValue(J_L.LABEL_CLEAN_UP_FILES, "Clean up files (frees %s)");
         setValue(J_L.MSG_SPRING_BONE_COUNT, "%d bones");
         setValue(J_L.LABEL_SPRING_PRESET_HAIR, "Hair");
         setValue(J_L.LABEL_SPRING_PRESET_TAIL, "Tail");
@@ -225,6 +226,20 @@ public class JoiLocalizationBundleEN extends TextBundleBase<J_L> {
         setValue(J_L.LABEL_CAPABILITIES, "What it can do");
         setValue(J_L.LABEL_EXPRESSIONS, "Expressions");
         setValue(J_L.LABEL_TOGGLES, "Toggles");
+
+        setValue(J_L.LABEL_ANIMATIONS, "Animations");
+        setValue(J_L.LABEL_ANIMATION_PACKS, "Animation packs");
+        setValue(J_L.LABEL_ADD_ANIMATION_PACK, "Add pack");
+        setValue(J_L.LABEL_NEW_ANIMATION_PACK, "New pack");
+        setValue(J_L.LABEL_CLIPS, "Clips");
+        setValue(J_L.LABEL_UPLOAD_ANIMATIONS, "Upload clips");
+        setValue(J_L.LABEL_PREVIEW_BODY, "Preview on");
+        setValue(J_L.LABEL_ANIMATION_TAGS, "Tags");
+        setValue(J_L.LABEL_ANIMATION_LOOP, "Loop");
+        setValue(J_L.LABEL_ANIMATION_LENGTH, "Length");
+        setValue(J_L.LABEL_PLAY, "Play");
+        setValue(J_L.LABEL_CLIP, "Clip");
+        setValue(J_L.LABEL_PAUSE, "Pause");
 
         // --- ENUM ---
         setValue(J_L.ENUM_TEXT_LLM_TYPE_AUXILIARY, "Auxiliary");
@@ -327,10 +342,25 @@ public class JoiLocalizationBundleEN extends TextBundleBase<J_L> {
         setValue(J_L.MSG_JOIM_WRITE_ERROR, "The Joi model file was not written: %s");
         setValue(J_L.MSG_JOIM_READ_ERROR, "Not a Joi model file that can be read: %s");
         setValue(J_L.MSG_JOIM_IMPORTED, "Imported: the model is ready.");
+        setValue(J_L.MSG_CLEAN_UP_CONFIRM, "Delete for good what the model no longer needs: %s. You won't be able to reference these files again: no new conversion and no preview of the upload (upload it again for that), and the older versions can't be restored. The converted VRM, the .joim, the snapshots and your images stay.");
+        setValue(J_L.MSG_CLEAN_UP_UPLOAD, "the upload %s (%s)");
+        setValue(J_L.MSG_CLEAN_UP_OLD, "%d files of older versions (%s)");
+        setValue(J_L.MSG_CLEANED_UP, "Cleaned up: %s freed.");
+        setValue(J_L.MSG_UPLOAD_REMOVED, "The upload was removed to free space: upload it again to convert.");
+        setValue(J_L.MSG_UPLOAD_REMOVED_SUFFIX, " (removed)");
         setValue(J_L.MSG_NO_FBX, "Nothing to convert: the upload has no FBX.");
         setValue(J_L.MSG_CAPABILITIES_HINT, "Click an expression to try it on the preview; uncheck a toggle to hide that part. The names are what she and you will call them.");
         setValue(J_L.MSG_NO_CAPABILITIES, "Known once the model is a VRM: convert it, or upload a .vrm.");
         setValue(J_L.MSG_HUMANOID_BONES, "%d humanoid bones");
+
+        setValue(J_L.MSG_NOT_A_VRMA, "Not a VRM animation: upload .vrma files.");
+        setValue(J_L.MSG_ANIMATION_ADDED, "Clip added: %s");
+        setValue(J_L.MSG_ANIMATION_PACK_HINT, "Clips are VRM animations (.vrma): they move the humanoid bones, so they play on any body. FBX, BVH and the clips of VRChat packages come later.");
+        setValue(J_L.MSG_NO_PREVIEW_BODIES, "No body to preview on yet: give an assistant a body with a model.");
+        setValue(J_L.MSG_NO_CLIP_SELECTED, "Choose a clip to play it and edit it.");
+        setValue(J_L.MSG_ANIMATION_INFO, "%s · moves %d bones%s");
+        setValue(J_L.MSG_ANIMATION_EXPRESSIONS, " and expressions");
+        setValue(J_L.MSG_ANIMATION_TAGS_HINT, "Comma-separated: wave, greeting, happy.");
 
         // --- DESC ---
         setValue(J_L.DESC_TEMPLATE_PERSONALITY, "The personality, rendered ({{user}} and {{char}} work in it).");

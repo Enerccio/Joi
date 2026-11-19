@@ -139,4 +139,36 @@ public interface ModelService extends ExtendableService<Model, ModelRepository> 
      * @return the saved model
      */
     Model attachImport(Model model, File joim, String fileName, String joimHash, File vrm, String vrmHash) throws Exception;
+
+    /**
+     * The files of a model it no longer needs: the upload once it has a converted VRM (only a new conversion reads
+     * it), and the files of older versions (VRMs, {@code .joim}s, snapshots, uploads it replaced) still on disk.
+     *
+     * @param uploadName  the name of the upload that can go, null when it stays
+     * @param uploadBytes its size
+     * @param oldFiles    the files of older versions
+     * @param oldBytes    their size
+     */
+    record Cleanup(String uploadName, long uploadBytes, int oldFiles, long oldBytes) {
+
+        public boolean isEmpty() {
+            return uploadName == null && oldFiles == 0;
+        }
+
+        public long bytes() {
+            return uploadBytes + oldBytes;
+        }
+    }
+
+    /** What {@link #cleanUp} would delete. */
+    Cleanup cleanup(Model model) throws Exception;
+
+    /**
+     * Deletes the files the model no longer needs ({@link #cleanup}) for good: the upload is no longer the model's
+     * ({@link Model#getUploadRemoved()}, a new upload brings it back), and the older versions can't be restored. A file
+     * another resource still uses stays.
+     *
+     * @return the saved model
+     */
+    Model cleanUp(Model model) throws Exception;
 }

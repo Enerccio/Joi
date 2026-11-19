@@ -88,6 +88,7 @@ public class ModelServiceImpl extends ExtendableServiceImpl<Model, ModelReposito
         }
         model.setFileName(fileName);
         model.setFileSize(resource.getSize());
+        model.setUploadRemoved(false);
         if (StringUtils.isBlank(model.getName())) {
             model.setName(FilenameUtils.getBaseName(fileName));
         }
@@ -410,6 +411,7 @@ public class ModelServiceImpl extends ExtendableServiceImpl<Model, ModelReposito
         model.setConvertFbx(null);
         model.setFileName(fileName);
         model.setFileSize(joim.length());
+        model.setUploadRemoved(false);
         model.setConversionStatus(ConversionStatus.DONE);
         Model saved = save(model);
         linkConverted(saved, vrm, vrmHash);
@@ -421,6 +423,67 @@ public class ModelServiceImpl extends ExtendableServiceImpl<Model, ModelReposito
             resourceService.softDelete(List.of(previous.getUuid()));
         }
         return saved;
+    }
+
+    @Override
+    @CommonTxReadOnly
+    public Cleanup cleanup(Model model) throws Exception {
+        Model stored = find(model.getId());
+        Resource upload = removableUpload(stored);
+        File uploadFile = upload == null ? null : resourceService.getResourceFile(upload);
+        int oldFiles = 0;
+        long oldBytes = 0;
+        for (File file : oldFiles(stored)) {
+            oldFiles++;
+            oldBytes += file.length();
+        }
+        return new Cleanup(uploadFile == null ? null : stored.getFileName(), uploadFile == null ? 0 : uploadFile.length(), oldFiles, oldBytes);
+    }
+
+    @Override
+    @CommonTx
+    public Model cleanUp(Model model) throws Exception {
+        Model stored = find(model.getId());
+        List<File> delete = new ArrayList<>(oldFiles(stored));
+        Resource upload = removableUpload(stored);
+        if (upload != null) {
+            File file = resourceService.getResourceFile(upload);
+            resourceService.softDelete(List.of(upload.getUuid()));
+            if (file.isFile() && !getRepository().pathInUse(upload.getPath())) {
+                delete.add(file);
+            }
+            stored.setResource(null);
+            stored.setUploadRemoved(true);
+            stored = save(stored);
+        }
+        for (File file : delete) {
+            Files.deleteIfExists(file.toPath());
+        }
+        return stored;
+    }
+
+    /** The model's upload when it can go: it has a converted VRM to show instead. */
+    private Resource removableUpload(Model model) throws Exception {
+        if (model.getResource() == null || convertedFile(model) == null) {
+            return null;
+        }
+        Resource upload = resourceService.find(model.getResource().getId());
+        return upload == null || upload.isDeleted() ? null : upload;
+    }
+
+    /** The files of the model's deleted resources still on disk that nothing else uses. */
+    private List<File> oldFiles(Model model) throws Exception {
+        List<File> files = new ArrayList<>();
+        for (Resource resource : getRepository().findDeletedResources(currentUser.getId(), model.getId())) {
+            if (resource.getPath() == null || getRepository().pathInUse(resource.getPath())) {
+                continue;
+            }
+            File file = resourceService.getResourceFile(resource);
+            if (file.isFile()) {
+                files.add(file);
+            }
+        }
+        return files;
     }
 
     private void checkUploadFolder(File file) throws Exception {

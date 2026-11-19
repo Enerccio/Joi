@@ -251,6 +251,11 @@ public class Model extends ExtendableEntity {
     @Transient
     private String appliedSpringChains;
 
+    /** Whether the user removed the upload to free space (the converted VRM stays; no new conversion from it). */
+    @ExtendedAttribute
+    @Transient
+    private Boolean uploadRemoved;
+
     /** The model's last {@code .joim} (see {@code JoimFile}), a resource of the user; null until one was written. */
     @ExtendedAttribute
     @Transient
@@ -318,6 +323,11 @@ public class Model extends ExtendableEntity {
 
     /** The FBX a conversion reads: the chosen one, else the likely avatar; null when the upload has none. */
     public String fbxToConvert() {
+        return Boolean.TRUE.equals(uploadRemoved) ? null : chosenFbx();
+    }
+
+    /** The FBX chosen as the avatar (the chosen one, else the likely one), whether or not the upload is still there. */
+    public String chosenFbx() {
         if (convertFbx != null && fbxFiles.contains(convertFbx)) {
             return convertFbx;
         }
@@ -618,6 +628,14 @@ public class Model extends ExtendableEntity {
 
     public void setToggleGroups(String toggleGroups) {
         this.toggleGroups = toggleGroups;
+    }
+
+    public Boolean getUploadRemoved() {
+        return uploadRemoved;
+    }
+
+    public void setUploadRemoved(Boolean uploadRemoved) {
+        this.uploadRemoved = uploadRemoved;
     }
 
     public Long getExportResourceId() {

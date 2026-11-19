@@ -22,12 +22,13 @@ import java.util.List;
 /**
  * The 3D preview of a model: three.js with three-vrm (the renderer's code, see {@code DESIGN.md} → Renderers) in the
  * {@code <joi-model-viewer>} element of {@code frontend/joi-model-viewer.js}. It shows a VRM, a glTF / GLB or an FBX,
- * alone or from a zip with its textures; the user orbits it with the mouse. The file is served to the browser of this
- * session only (a {@link DownloadHandler} of the element).
+ * alone or from a zip with its textures; the user orbits it with the mouse. It plays animation clips (VRMA) on a VRM.
+ * The files are served to the browser of this session only (a {@link DownloadHandler} of the element).
  */
 @Tag("joi-model-viewer")
 @NpmPackage(value = "three", version = "0.187.0")
 @NpmPackage(value = "@pixiv/three-vrm", version = "3.5.5")
+@NpmPackage(value = "@pixiv/three-vrm-animation", version = "3.5.5")
 @JsModule("./joi-model-viewer.js")
 public class ModelViewer extends Component implements HasSize, HasStyle {
 
@@ -107,6 +108,36 @@ public class ModelViewer extends Component implements HasSize, HasStyle {
     public void takeSnapshots(UploadHandler handler, List<Toggle> base, List<Part> parts) {
         getElement().setAttribute("snapshot-target", handler);
         getElement().callJsFunction("takeSnapshots", new Gson().toJson(new SnapshotRequest(base, parts)));
+    }
+
+    /**
+     * Plays a clip (a VRMA) on the model shown, or on the next one once it is shown; a model shown later plays it again
+     * until {@link #stopAnimation()}. An {@link AnimationStartedEvent} follows, or an {@link AnimationErrorEvent}.
+     */
+    public void playAnimation(File vrma, boolean loop, double speed) {
+        getElement().setAttribute("animation-src", DownloadHandler.forFile(vrma, vrma.getName()).inline());
+        getElement().callJsFunction("playAnimation", loop, speed);
+    }
+
+    /** Stops the clip and puts the model back at rest. */
+    public void stopAnimation() {
+        getElement().callJsFunction("stopAnimation");
+        getElement().removeAttribute("animation-src");
+    }
+
+    /** Whether the clip playing loops. */
+    public void setAnimationLoop(boolean loop) {
+        getElement().callJsFunction("setAnimationLoop", loop);
+    }
+
+    /** How fast the clip plays (1 as made). */
+    public void setAnimationSpeed(double speed) {
+        getElement().callJsFunction("setAnimationSpeed", speed);
+    }
+
+    /** Pauses the clip where it is, or plays it on. */
+    public void setAnimationPaused(boolean paused) {
+        getElement().callJsFunction("setAnimationPaused", paused);
     }
 
     /** Shows nothing. */
@@ -206,6 +237,60 @@ public class ModelViewer extends Component implements HasSize, HasStyle {
         public String getMessage() {
             return message;
         }
+    }
+
+    /** A clip started playing. */
+    @DomEvent("animation-started")
+    public static class AnimationStartedEvent extends ComponentEvent<ModelViewer> {
+
+        private final double duration;
+
+        public AnimationStartedEvent(ModelViewer source, boolean fromClient, @EventData("event.detail.duration") double duration) {
+            super(source, fromClient);
+            this.duration = duration;
+        }
+
+        /** Its length in seconds. */
+        public double getDuration() {
+            return duration;
+        }
+    }
+
+    /** A clip played once came to its end. */
+    @DomEvent("animation-finished")
+    public static class AnimationFinishedEvent extends ComponentEvent<ModelViewer> {
+
+        public AnimationFinishedEvent(ModelViewer source, boolean fromClient) {
+            super(source, fromClient);
+        }
+    }
+
+    /** A clip could not be played. */
+    @DomEvent("animation-error")
+    public static class AnimationErrorEvent extends ComponentEvent<ModelViewer> {
+
+        private final String message;
+
+        public AnimationErrorEvent(ModelViewer source, boolean fromClient, @EventData("event.detail.message") String message) {
+            super(source, fromClient);
+            this.message = message;
+        }
+
+        public String getMessage() {
+            return message;
+        }
+    }
+
+    public Registration addAnimationStartedListener(com.vaadin.flow.component.ComponentEventListener<AnimationStartedEvent> listener) {
+        return addListener(AnimationStartedEvent.class, listener);
+    }
+
+    public Registration addAnimationFinishedListener(com.vaadin.flow.component.ComponentEventListener<AnimationFinishedEvent> listener) {
+        return addListener(AnimationFinishedEvent.class, listener);
+    }
+
+    public Registration addAnimationErrorListener(com.vaadin.flow.component.ComponentEventListener<AnimationErrorEvent> listener) {
+        return addListener(AnimationErrorEvent.class, listener);
     }
 
     public Registration addSnapshotsListener(com.vaadin.flow.component.ComponentEventListener<SnapshotsEvent> listener) {

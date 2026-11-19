@@ -8,6 +8,10 @@
 // they act on the model shown, nothing happens before it is.
 // takeSnapshots(request) renders the snapshots of a model (the whole model in its default state, and a close-up of
 // each part described apart in each of its states) for the "snapshot-target" URL.
+// playAnimation(loop, speed) plays the VRMA at the "animation-src" URL on the model (now, or once it is shown: a new
+// model plays it again), stopAnimation() puts her back at rest; setAnimationLoop(loop), setAnimationSpeed(speed) and
+// setAnimationPaused(paused) change the clip playing. It fires "animation-started" ({duration}), "animation-finished"
+// (a clip played once ended) and "animation-error" ({message}).
 // It fires "model-info" ({triangles, meshes, materials, vrm, expressions}) once the model is shown and "model-error"
 // ({message}) when it can't be.
 import * as THREE from 'three';
@@ -16,6 +20,7 @@ import {FBXLoader} from 'three/addons/loaders/FBXLoader.js';
 import {TGALoader} from 'three/addons/loaders/TGALoader.js';
 import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
 import {VRMLoaderPlugin, VRMUtils} from '@pixiv/three-vrm';
+import {VRMAnimationLoaderPlugin, createVRMAnimationClip} from '@pixiv/three-vrm-animation';
 
 // the prefix of the paths of files inside a zip, resolved by the loading manager's URL modifier
 const ZIP_BASE = 'joi-zip:/';
@@ -112,6 +117,9 @@ class JoiModelViewer extends HTMLElement {
 
   _frame() {
     const delta = this._clock.getDelta();
+    if (this._mixer && !this._animationPaused) {
+      this._mixer.update(delta);
+    }
     if (this._vrm) {
       if (this._sway) {
         this._swayTime = (this._swayTime || 0) + delta;
@@ -272,6 +280,103 @@ class JoiModelViewer extends HTMLElement {
       manager.expressions.forEach(expression => manager.setValue(expression.expressionName, 0));
     }
     manager.setValue(name, weight);
+  }
+
+  /** Plays the clip at the "animation-src" URL, now or once a model is shown. */
+  playAnimation(loop, speed) {
+    const url = this.getAttribute('animation-src');
+    if (!url) {
+      return;
+    }
+    this._animation = {url, loop: !!loop, speed: speed > 0 ? speed : 1};
+    this._animationPaused = false;
+    if (this._vrm) {
+      this._startAnimation();
+    }
+  }
+
+  /** Stops the clip and puts her back at rest. */
+  stopAnimation() {
+    this._animation = null;
+    this._animationId = (this._animationId || 0) + 1;
+    this._stopMixer();
+  }
+
+  setAnimationLoop(loop) {
+    if (this._animation) {
+      this._animation.loop = !!loop;
+    }
+    if (this._action) {
+      this._action.setLoop(loop ? THREE.LoopRepeat : THREE.LoopOnce, Infinity);
+      if (loop && !this._action.isRunning()) {
+        this._action.reset().play();
+      }
+    }
+  }
+
+  setAnimationSpeed(speed) {
+    const value = speed > 0 ? speed : 1;
+    if (this._animation) {
+      this._animation.speed = value;
+    }
+    if (this._mixer) {
+      this._mixer.timeScale = value;
+    }
+  }
+
+  setAnimationPaused(paused) {
+    this._animationPaused = !!paused;
+  }
+
+  async _startAnimation() {
+    const animation = this._animation;
+    const vrm = this._vrm;
+    const id = this._animationId = (this._animationId || 0) + 1;
+    try {
+      const loader = new GLTFLoader();
+      loader.register(parser => new VRMAnimationLoaderPlugin(parser));
+      const gltf = await loader.loadAsync(animation.url);
+      if (id !== this._animationId || vrm !== this._vrm) {
+        return;
+      }
+      const vrmAnimation = gltf.userData.vrmAnimations && gltf.userData.vrmAnimations[0];
+      if (!vrmAnimation) {
+        throw new Error('the file has no VRM animation');
+      }
+      this._stopMixer();
+      const clip = createVRMAnimationClip(vrmAnimation, vrm);
+      this._mixer = new THREE.AnimationMixer(vrm.scene);
+      this._mixer.timeScale = animation.speed;
+      this._action = this._mixer.clipAction(clip);
+      this._action.setLoop(animation.loop ? THREE.LoopRepeat : THREE.LoopOnce, Infinity);
+      this._action.clampWhenFinished = true;
+      this._mixer.addEventListener('finished', () => this.dispatchEvent(new CustomEvent('animation-finished')));
+      this._action.play();
+      this.dispatchEvent(new CustomEvent('animation-started', {detail: {duration: Number(clip.duration.toFixed(3))}}));
+    } catch (e) {
+      if (id === this._animationId) {
+        this.dispatchEvent(new CustomEvent('animation-error', {detail: {message: String(e && e.message || e)}}));
+      }
+    }
+  }
+
+  /** Drops the mixer of the clip and puts the model back at rest. */
+  _stopMixer() {
+    if (this._mixer) {
+      this._mixer.stopAllAction();
+      this._mixer.uncacheRoot(this._mixer.getRoot());
+      this._mixer = null;
+      this._action = null;
+    }
+    const vrm = this._vrm;
+    if (vrm) {
+      if (vrm.humanoid) {
+        vrm.humanoid.resetNormalizedPose();
+      }
+      if (vrm.expressionManager) {
+        vrm.expressionManager.expressions.forEach(expression => vrm.expressionManager.setValue(expression.expressionName, 0));
+      }
+    }
   }
 
   /** Turns her hips and body from side to side, so the spring bones (hair, tail, cloth) are seen moving. */
@@ -636,6 +741,11 @@ class JoiModelViewer extends HTMLElement {
       }
     });
     const vrm = this._vrm;
+    if (vrm && this._animation) {
+      this._startAnimation();
+    } else if (!vrm && this._animation) {
+      this.dispatchEvent(new CustomEvent('animation-error', {detail: {message: 'the model is no VRM: clips play on VRM models'}}));
+    }
     this.dispatchEvent(new CustomEvent('model-info', {
       detail: {
         triangles: Math.round(triangles), meshes, materials: materials.size,
@@ -647,6 +757,11 @@ class JoiModelViewer extends HTMLElement {
   }
 
   _clearModel() {
+    if (this._mixer) {
+      this._mixer.stopAllAction();
+      this._mixer = null;
+      this._action = null;
+    }
     if (this._model) {
       this._scene.remove(this._model);
       disposeObject(this._model);

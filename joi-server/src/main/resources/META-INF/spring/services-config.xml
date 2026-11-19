@@ -252,6 +252,20 @@
         <property name="repository" ref="bodyRepository" />
     </bean>
 
+    <!-- the animation packs of the user and their clips (VRMA files, resources of the user) -->
+    <bean id="animationPackRepository" class="com.github.enerccio.joi.domain.repository.impl.JpaAnimationPackRepository">
+        <property name="entityManager" ref="em" />
+    </bean>
+    <bean class="com.github.enerccio.joi.domain.service.impl.AnimationPackServiceImpl">
+        <property name="repository" ref="animationPackRepository" />
+    </bean>
+    <bean id="animationRepository" class="com.github.enerccio.joi.domain.repository.impl.JpaAnimationRepository">
+        <property name="entityManager" ref="em" />
+    </bean>
+    <bean class="com.github.enerccio.joi.domain.service.impl.AnimationServiceImpl">
+        <property name="repository" ref="animationRepository" />
+    </bean>
+
     <!-- how she looks in a model: a multimodal model describes it from its snapshots; one request at a time -->
     <bean class="com.github.enerccio.joi.domain.service.impl.AppearanceServiceImpl" />
 

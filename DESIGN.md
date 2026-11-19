@@ -246,6 +246,13 @@ check) is in [MARGINALIA.md](MARGINALIA.md).
       the converted file, what was decided on it from the metadata (`JoimMetadata`), no upload kept, and the file
       itself its current export. The same VRM bytes keep the same hash, so a description that was current stays
       current. Bodies are not in the file yet (a body points at the imported model like any other).
+    - **Cleaning up files:** a converted model needs only its VRM; the upload (a Unity package of hundreds of MB)
+      is read again only by a new conversion. "Clean up files" in the model dialog (with what it frees) deletes the
+      upload once there is a converted VRM, and the files of older versions still on disk (VRMs, `.joim`s, snapshots
+      and uploads that were replaced: soft-deleted resources linked to the model, unless another resource uses the
+      file). A warning says they can't be referenced again: no new conversion and no preview of the upload until it
+      is uploaded again, and no restoring an older version. The model keeps the upload's name, marked removed
+      (`Model.uploadRemoved`); its `.joim` stays current, since what it holds didn't change.
     - **The file** (`.joim`, "Joi model"; also, later, the stream to a node and its cache): starts with the magic
       number `0x1DEA1A10` ("IDEAL AI 0"), then a header with the format version (a reader refuses a newer major
       version) and the profile (FULL, NODE), then sections, each with its kind, its length and its SHA-256: the
@@ -642,6 +649,14 @@ UI — nothing is deleted):
   - Adding one to the library is an event ("new glasses are available"), staged until the user saves.
 - **Animations** live in an **animation library** on the server, shared by all bodies: because every body has a
   humanoid rig (VRM humanoid / Unity Humanoid), a clip made for one plays on all of them (retargeting).
+  - **Built so far:** the library is made of the user's **packs** (`AnimationPack`: a name, a description, the body
+    it is previewed on) of **clips** (`Animation`: a VRMA file as a resource of the user, with its name, description,
+    tags, loop and speed, and what was read from the file: the length, the bones it moves, whether it moves
+    expressions; `VrmaFiles` reads only the JSON chunk). The Animations tab lists the packs; a pack's dialog
+    (`AnimationPackDialog`) uploads clips, edits the chosen one and plays it in the three.js preview on any body of
+    her assistants, in the state of its parts (`@pixiv/three-vrm-animation` retargets the clip). Only VRMA is
+    imported for now; the rest below (other formats, layers, groups, defaults per state, bodies paired with clips,
+    descriptions by a model, `.joia`) is still to come.
   - **Import:** VRMA (VRM Animation), FBX (e.g. Mixamo), BVH, and the Humanoid clips found in VRChat packages (emotes,
     dances); converted on the server like bodies. Each clip gets a name, tags and a short description (wave, nod, shrug,
     jump, dance, idle variants), proposed by the LLM from a preview and reviewed by the user. Bodies can also bring

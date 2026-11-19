@@ -82,7 +82,10 @@ public class BodiesPart implements WorkspacePart {
                 .setHeader(loc.getValue(J_L.LABEL_FORMAT))
                 .setFlexGrow(0)
                 .setWidth("220px");
-        grid.addColumn(model -> model.getFileSize() == null ? "" : FileUtils.byteCountToDisplaySize(model.getFileSize()))
+        // what the model takes on disk: the converted VRM once the upload was removed
+        grid.addColumn(model -> Boolean.TRUE.equals(model.getUploadRemoved()) && model.getConvertedFileSize() != null
+                        ? FileUtils.byteCountToDisplaySize(model.getConvertedFileSize())
+                        : model.getFileSize() == null ? "" : FileUtils.byteCountToDisplaySize(model.getFileSize()))
                 .setHeader(loc.getValue(L.LABEL_SIZE))
                 .setFlexGrow(0)
                 .setWidth("110px");

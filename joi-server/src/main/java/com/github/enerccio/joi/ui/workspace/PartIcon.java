@@ -21,6 +21,10 @@ public enum PartIcon {
     /** A figure on a stand, arms out: the bodies (3D models). */
     BODIES("<circle cx='12' cy='4.5' r='2.5'/><path d='M12 7v8M6 9.5l6 1.5 6-1.5M9 20l3-5 3 5'/><path d='M7 21h10'/>"),
 
+    /** A figure in mid-step with motion lines behind it: the animations. */
+    ANIMATIONS("<circle cx='14' cy='4.5' r='2.5'/><path d='M13 7.5l-2 6 3 2.5v5M11 13.5l-3 7M12.5 9l3.5 2.5 2.5-1M12.5 9L9 10.5l-1.5 3'/>"
+            + "<path d='M3 9h3M2 13h4M3 17h3'/>"),
+
     /** A chip with pins: the models. */
     MODELS("<rect x='7' y='7' width='10' height='10' rx='2'/>"
             + "<path d='M10 3v4M14 3v4M10 17v4M14 17v4M3 10h4M3 14h4M17 10h4M17 14h4'/>"),

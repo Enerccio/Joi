@@ -98,7 +98,8 @@ public class ModelConversionServiceImpl implements ModelConversionService, Dispo
             throw new IllegalArgumentException("not a model of the user");
         }
         if (own.fbxToConvert() == null) {
-            throw new IllegalStateException("the model has no FBX to convert");
+            throw new IllegalStateException(Boolean.TRUE.equals(own.getUploadRemoved())
+                    ? "the upload was removed: upload it again to convert" : "the model has no FBX to convert");
         }
         if (!running.add(own.getId())) {
             throw new IllegalStateException("the model is converting already");
