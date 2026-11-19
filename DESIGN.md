@@ -719,13 +719,19 @@ UI — nothing is deleted):
     **animations** (`AnimationPack`, an "animation" in the UI): what she plays. A clip alone does nothing. An
     animation is a name, a description, its **steps** in order and whether the whole animation loops, and the body it
     is previewed on. A step (`AnimationStep`, JSON on the animation) is a clip and how it plays there: whether it
-    loops, its speed, in place. A looping step repeats until the animation is **finished** (her state changes, she or
+    loops, its speed, in place, whether it plays **reversed** (the clip's keyframes turned around in the viewer:
+    sitting down played back is standing up, so one clip serves both), its **rotation** (a quaternion: the whole clip
+    turned around her hips where the step starts, for a clip made facing or lying another way; set in degrees around
+    X, Y, Z, in three.js's YXZ order, `StepRotation`, or with rotate rings on the hips in the preview,
+    TransformControls) and its **blend in** (seconds of crossfade from the last frame of the step before: two clips
+    whose poses don't meet, lying flat and then getting up half-sitting, flow into each other). These belong to the
+    step, stored on the animation; the clip is never changed. A looping step repeats until the animation is **finished** (her state changes, she or
     the user stops it), then the steps after it play once: "jumping jacks" is the start once, the jumps looping, the
     stop once. A looping animation starts again after its last step until it is finished: clips that don't loop on
     their own, a wave and a nod, again and again. The clip's old loop, speed and in-place are only what a new step
     of it starts from. Two tabs: **Clips** uploads clips and lists the library (`AnimationsPart`; `AnimationDialog`
     edits a clip and plays it in a loop; a clip's **New animation** button makes an animation of it, named after it);
-    **Animations** (`AnimationPacksPart`, `AnimationPackDialog`) edits the steps in a table (loop, speed, in place,
+    **Animations** (`AnimationPacksPart`, `AnimationPackDialog`) edits the steps in a table (loop, speed, in place, reverse, blend in; the rotation of the step chosen under it,
     moved up and down) and plays the animation on open and on Play, Finish ending a looping step; a step chosen in the
     table or in the strip of steps under the preview (`ClipPreview`, the step playing marked, with its rounds) plays
     alone. Both tables have checkboxes and Delete selected. A clip added to an animation appends its description to

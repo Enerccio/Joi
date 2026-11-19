@@ -112,11 +112,17 @@ public class ModelViewer extends Component implements HasSize, HasStyle {
      * @param loop    whether it repeats until {@link #finishAnimation()}
      * @param speed   how fast it plays, 1 for as made
      * @param inPlace whether the hips keep their spot on the floor (a walk or a dance that moves about stays put)
+     * @param reverse  whether it plays backwards
+     * @param rotation the whole clip turned by this quaternion {@code [x, y, z, w]} around the hips where it starts,
+     *                 null for none
+     * @param blend    seconds of crossfade from the step before, 0 to cut
      */
-    public record PlayStep(File vrma, boolean loop, double speed, boolean inPlace) {
+    public record PlayStep(File vrma, boolean loop, double speed, boolean inPlace, boolean reverse, List<Double> rotation,
+                           double blend) {
     }
 
-    private record JsStep(int src, boolean loop, double speed, boolean inPlace) {
+    private record JsStep(int src, boolean loop, double speed, boolean inPlace, boolean reverse, List<Double> rotation,
+                          double blend) {
     }
 
     private record JsSequence(List<JsStep> steps, boolean loop) {
@@ -127,7 +133,7 @@ public class ModelViewer extends Component implements HasSize, HasStyle {
 
     /** Plays a clip (a VRMA), see {@link #playSequence}. */
     public void playAnimation(File vrma, boolean loop, double speed, boolean inPlace) {
-        playSequence(List.of(new PlayStep(vrma, loop, speed, inPlace)), false);
+        playSequence(List.of(new PlayStep(vrma, loop, speed, inPlace, false, null, 0)), false);
     }
 
     /**
@@ -149,7 +155,7 @@ public class ModelViewer extends Component implements HasSize, HasStyle {
                 files.add(step.vrma());
                 getElement().setAttribute("animation-src-" + src, DownloadHandler.forFile(step.vrma(), step.vrma().getName()).inline());
             }
-            jsSteps.add(new JsStep(src, step.loop(), step.speed(), step.inPlace()));
+            jsSteps.add(new JsStep(src, step.loop(), step.speed(), step.inPlace(), step.reverse(), step.rotation(), step.blend()));
         }
         animationSources = files.size();
         getElement().callJsFunction("playSequence", new Gson().toJson(new JsSequence(jsSteps, loop)));
@@ -171,6 +177,15 @@ public class ModelViewer extends Component implements HasSize, HasStyle {
             getElement().removeAttribute("animation-src-" + i);
         }
         animationSources = 0;
+    }
+
+    /**
+     * Shows rings around the hips to turn a step of the animation playing (its index), or hides them (-1). The step is
+     * turned as the rings are dragged; a {@link StepRotatedEvent} follows when the mouse lets go. They stay on the step
+     * when the animation is played again, until hidden.
+     */
+    public void setRotationTool(int index) {
+        getElement().callJsFunction("setRotationTool", index);
     }
 
     /** Pauses the clip where it is, or plays it on. */
@@ -319,6 +334,32 @@ public class ModelViewer extends Component implements HasSize, HasStyle {
         }
     }
 
+    /** A step was turned with the rings ({@link #setRotationTool}). */
+    @DomEvent("step-rotated")
+    public static class StepRotatedEvent extends ComponentEvent<ModelViewer> {
+
+        private final int index;
+        private final List<Double> rotation;
+
+        public StepRotatedEvent(ModelViewer source, boolean fromClient, @EventData("event.detail.index") int index,
+                                @EventData("event.detail.x") double x, @EventData("event.detail.y") double y,
+                                @EventData("event.detail.z") double z, @EventData("event.detail.w") double w) {
+            super(source, fromClient);
+            this.index = index;
+            this.rotation = List.of(x, y, z, w);
+        }
+
+        /** The step, from 0. */
+        public int getIndex() {
+            return index;
+        }
+
+        /** Its rotation now, the quaternion {@code [x, y, z, w]}. */
+        public List<Double> getRotation() {
+            return rotation;
+        }
+    }
+
     /** The animation came to its end (it holds its last frame). */
     @DomEvent("animation-finished")
     public static class AnimationFinishedEvent extends ComponentEvent<ModelViewer> {
@@ -354,6 +395,10 @@ public class ModelViewer extends Component implements HasSize, HasStyle {
 
     public Registration addAnimationFinishedListener(com.vaadin.flow.component.ComponentEventListener<AnimationFinishedEvent> listener) {
         return addListener(AnimationFinishedEvent.class, listener);
+    }
+
+    public Registration addStepRotatedListener(com.vaadin.flow.component.ComponentEventListener<StepRotatedEvent> listener) {
+        return addListener(StepRotatedEvent.class, listener);
     }
 
     public Registration addAnimationErrorListener(com.vaadin.flow.component.ComponentEventListener<AnimationErrorEvent> listener) {

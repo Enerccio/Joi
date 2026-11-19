@@ -1,6 +1,7 @@
 package com.github.enerccio.joi.ui.workspace.parts;
 
 import com.github.enerccio.joi.domain.animations.AnimationStep;
+import com.github.enerccio.joi.domain.animations.StepRotation;
 import com.github.enerccio.joi.domain.animations.VrmaTestFiles;
 import com.github.enerccio.joi.domain.bodies.ModelFiles;
 import com.github.enerccio.joi.domain.model.impl.Animation;
@@ -62,9 +63,9 @@ class JoiaTest extends PlatformTestBase {
         jacks.setName("Greeting");
         jacks.setDescription("You greet.");
         jacks.setLoop(true);
-        jacks.setStepList(List.of(new AnimationStep(wave.getUuid(), false, 1, true),
-                new AnimationStep(bow.getUuid(), true, 1.5, false),
-                new AnimationStep(wave.getUuid(), false, 1, false)));
+        jacks.setStepList(List.of(new AnimationStep(wave.getUuid(), false, 1, true, false),
+                new AnimationStep(bow.getUuid(), true, 1.5, false, true, StepRotation.fromDegrees(0, 90, 0), 0.5),
+                new AnimationStep(wave.getUuid(), false, 1, false, false)));
         jacks = packService.save(jacks);
         AnimationPack bowing = new AnimationPack();
         bowing.setName("Bowing");
@@ -118,6 +119,9 @@ class JoiaTest extends PlatformTestBase {
         assertThat(greeting.loop()).isTrue();
         assertThat(greeting.steps()).extracting(JoiaMetadata.Step::clip).containsExactly(wave.getUuid(), bow.getUuid(), wave.getUuid());
         assertThat(greeting.steps().get(1).speed()).isEqualTo(1.5);
+        assertThat(greeting.steps()).extracting(JoiaMetadata.Step::reverse).containsExactly(false, true, false);
+        assertThat(greeting.steps().get(1).rotation()).isEqualTo(StepRotation.fromDegrees(0, 90, 0));
+        assertThat(greeting.steps().get(1).blend()).isEqualTo(0.5);
     }
 
     @Test
@@ -131,6 +135,10 @@ class JoiaTest extends PlatformTestBase {
         assertThat(greeting.clipUuids()).containsExactly(wave.getUuid(), bow.getUuid(), wave.getUuid());
         assertThat(greeting.loops()).isTrue();
         assertThat(greeting.steps().get(1).speed()).isEqualTo(1.5);
+        assertThat(greeting.steps()).extracting(AnimationStep::reverse).containsExactly(false, true, false);
+        assertThat(greeting.steps().get(1).rotation()).isEqualTo(StepRotation.fromDegrees(0, 90, 0));
+        assertThat(greeting.steps().get(1).blend()).isEqualTo(0.5);
+        assertThat(greeting.steps().getFirst().rotation()).isNull();
         assertThat(packService.findAllByName()).hasSize(4);
 
         // a deleted clip is added again, with a new uuid (the old one stays its deleted clip's)

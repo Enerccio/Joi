@@ -87,7 +87,8 @@ public class JoiaServiceImpl implements JoiaService {
                     resources.append(clip.getUuid()).append('=').append(clip.getResource().getId()).append(';');
                 }
                 AnimationStep s = step.step();
-                steps.add(new JoiaMetadata.Step(clip.getUuid(), s.loop(), s.speedOrDefault(), s.inPlace()));
+                steps.add(new JoiaMetadata.Step(clip.getUuid(), s.loop(), s.speedOrDefault(), s.inPlace(), s.reverse(),
+                        s.rotation(), s.blend()));
             }
             exported.add(new JoiaMetadata.Animation(stored.getUuid(), stored.getName(), stored.getDescription(), stored.getLoop(), steps));
         }
@@ -226,7 +227,8 @@ public class JoiaServiceImpl implements JoiaService {
                 for (JoiaMetadata.Step step : animation.steps()) {
                     String clip = linked.get(step.clip());
                     if (clip != null) {
-                        steps.add(new AnimationStep(clip, step.loop(), step.speed() > 0 ? step.speed() : 1, step.inPlace()));
+                        steps.add(new AnimationStep(clip, step.loop(), step.speed() > 0 ? step.speed() : 1, step.inPlace(),
+                                step.reverse(), step.rotation(), step.blend()));
                     }
                 }
                 AnimationPack pack = new AnimationPack();

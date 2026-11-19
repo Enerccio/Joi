@@ -106,7 +106,7 @@ class BodyApiTest extends PlatformTestBase {
         greeting = new AnimationPack();
         greeting.setName("Greeting");
         greeting.setDescription("You wave.");
-        greeting.setStepList(List.of(new AnimationStep(wave.getUuid(), false, 1, true)));
+        greeting.setStepList(List.of(new AnimationStep(wave.getUuid(), false, 1, true, false)));
         greeting = packService.save(greeting);
         bowing = new AnimationPack();
         bowing.setName("Bowing");

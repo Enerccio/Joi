@@ -48,8 +48,13 @@ public record JoiaMetadata(List<Animation> animations, List<Clip> clips, String 
      * @param loop    whether it repeats until the animation is finished
      * @param speed   how fast it plays, 1 for as made
      * @param inPlace whether her hips keep their spot on the floor
+     * @param reverse  whether it plays backwards (missing in files from before: false)
+     * @param rotation the whole clip turned by this quaternion {@code [x, y, z, w]} around her hips where it starts,
+     *                 null for none
+     * @param blend    seconds of crossfade from the step before into this one, 0 to cut
      */
-    public record Step(String clip, boolean loop, double speed, boolean inPlace) {
+    public record Step(String clip, boolean loop, double speed, boolean inPlace, boolean reverse, List<Double> rotation,
+                       double blend) {
     }
 
     /**

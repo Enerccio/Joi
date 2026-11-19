@@ -66,6 +66,8 @@ public final class JoiCssStyles {
     public static final String TOGGLE_GROUP_STATE = "toggle-group-state";
     /** The strip of an animation's steps under its preview, the one playing marked. */
     public static final String ANIMATION_STRIP = "animation-strip";
+    public static final String STEP_ROTATION_TITLE = "step-rotation-title";
+    public static final String STEP_ROTATION_FIELD = "step-rotation-field";
     public static final String ANIMATION_STRIP_ARROW = "animation-strip-arrow";
     public static final String ANIMATION_STEP = "animation-step";
     /** On the step of the strip playing now. */

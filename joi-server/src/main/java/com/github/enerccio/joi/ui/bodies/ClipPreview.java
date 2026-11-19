@@ -1,6 +1,7 @@
 package com.github.enerccio.joi.ui.bodies;
 
 import com.flowingcode.vaadin.addons.fontawesome.FontAwesome.Solid;
+import com.github.enerccio.joi.domain.animations.AnimationStep;
 import com.github.enerccio.joi.domain.bodies.BodyState;
 import com.github.enerccio.joi.domain.model.impl.Animation;
 import com.github.enerccio.joi.domain.model.impl.Body;
@@ -134,6 +135,11 @@ public class ClipPreview extends VerticalLayout {
         viewer.addAnimationErrorListener(e -> info.setText(e.getMessage()));
         viewer.addAnimationStepListener(e -> markStep(e.getIndex(), e.getRepeats()));
         viewer.addAnimationFinishedListener(e -> markStep(-1, 0));
+        viewer.addStepRotatedListener(e -> {
+            if (soloStep >= 0 && e.getIndex() == 0) {
+                onStepRotated.accept(e.getRotation());
+            }
+        });
         strip.addClassName(JoiCssStyles.ANIMATION_STRIP);
         strip.setWidthFull();
         strip.setVisible(false);
@@ -195,7 +201,12 @@ public class ClipPreview extends VerticalLayout {
             chips.get(i).setText(chipText(steps.get(i).clip().getName(), loops.get(i), 0));
         }
         chipNames = steps.stream().map(step -> StringUtils.defaultString(step.clip().getName())).toList();
+        // the steps were shown again (a step changed): the one playing stays marked
+        markStep(markedIndex, markedRepeats);
     }
+
+    private int markedIndex = -1;
+    private int markedRepeats;
 
     private List<String> chipNames = List.of();
 
@@ -205,6 +216,8 @@ public class ClipPreview extends VerticalLayout {
 
     /** Marks the step playing (its position), -1 for none. */
     private void markStep(int index, int repeats) {
+        markedIndex = index;
+        markedRepeats = repeats;
         for (int i = 0; i < chips.size(); i++) {
             boolean current = i == index && soloStep < 0 || i == soloStep && index >= 0;
             chips.get(i).getElement().getClassList().set(JoiCssStyles.ANIMATION_STEP_PLAYING, current);
@@ -231,7 +244,7 @@ public class ClipPreview extends VerticalLayout {
         }
     }
 
-    /** Plays a step of the animation alone (its position in the strip), in a loop, as it is set (speed, in place). */
+    /** Plays a step of the animation alone (its position in the strip), in a loop, as it is set (speed, in place, reversed, turned). */
     public void playStep(int position, AnimationPackService.Step step) {
         try {
             File file = animationService.file(step.clip());
@@ -241,7 +254,7 @@ public class ClipPreview extends VerticalLayout {
             }
             setPaused(false);
             soloStep = position;
-            viewer.playAnimation(file, true, step.step().speedOrDefault(), step.step().inPlace());
+            viewer.playSequence(List.of(playStep(file, step.step().withLoop(true))), false);
         } catch (Exception e) {
             UIUtils.internalServerError(loc, e);
         }
@@ -254,7 +267,7 @@ public class ClipPreview extends VerticalLayout {
             for (AnimationPackService.Step step : steps) {
                 File file = animationService.file(step.clip());
                 if (file != null) {
-                    play.add(new ModelViewer.PlayStep(file, step.step().loop(), step.step().speedOrDefault(), step.step().inPlace()));
+                    play.add(playStep(file, step.step()));
                 }
             }
             if (play.isEmpty()) {
@@ -268,6 +281,28 @@ public class ClipPreview extends VerticalLayout {
             UIUtils.internalServerError(loc, e);
         }
     }
+
+    private static ModelViewer.PlayStep playStep(File file, AnimationStep step) {
+        return new ModelViewer.PlayStep(file, step.loop(), step.speedOrDefault(), step.inPlace(), step.reverse(), step.rotation(),
+                step.blend());
+    }
+
+    /**
+     * Shows the rings to turn the step played alone (on) or hides them; a turn dragged there goes to
+     * {@link #setOnStepRotated}.
+     */
+    public void setRotationTool(boolean on) {
+        viewer.setRotationTool(on ? 0 : -1);
+    }
+
+    /** What runs when the step played alone was turned in the viewer (its new quaternion, null for none). */
+    public void setOnStepRotated(Consumer<List<Double>> onStepRotated) {
+        this.onStepRotated = onStepRotated == null ? rotation -> {
+        } : onStepRotated;
+    }
+
+    private Consumer<List<Double>> onStepRotated = rotation -> {
+    };
 
     /** Lets a looping step end its round and the rest play once. */
     public void finish() {

@@ -1,6 +1,7 @@
 package com.github.enerccio.joi.ui.workspace.parts;
 
 import com.github.enerccio.joi.domain.animations.AnimationStep;
+import com.github.enerccio.joi.domain.animations.StepRotation;
 import com.github.enerccio.joi.domain.animations.VrmaTestFiles;
 import com.github.enerccio.joi.domain.bodies.ModelFiles;
 import com.github.enerccio.joi.domain.bodies.SpringBonesTestFiles;
@@ -22,6 +23,7 @@ import java.util.List;
 import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.within;
 
 /**
  * The library of clips (the Animations tab: uploads, the clip dialog) and the packs that list them (the Animation
@@ -161,6 +163,51 @@ class AnimationsTest extends PlatformTestBase {
         assertThat(reopened.getPreview().getBodySelect().getValue()).isEqualTo(body.getId());
         // nothing is chosen in the table: the whole animation plays
         assertThat(reopened.getSteps().getSelectedItems()).isEmpty();
+    }
+
+    @Test
+    void aStepIsTurnedAndBlendedInTheAnimationNotTheClip() throws Exception {
+        Animation wave = upload("wave.vrma");
+        Animation bow = upload("bow.vrma");
+        AnimationPackDialog dialog = new AnimationPackDialog(new AnimationPack());
+        dialog.create();
+        dialog.getChoice().setValue(Set.of(bow, wave));
+        dialog.addChosenForTest();
+        assertThat(dialog.getRotationPanel().isVisible()).isFalse();
+
+        // a step chosen shows its rotation: typed in degrees, or turned with the rings
+        dialog.getSteps().select(dialog.getSteps().getListDataView().getItems().toList().get(1));
+        assertThat(dialog.getRotationPanel().isVisible()).isTrue();
+        assertThat(dialog.getRotationFields()[1].getValue()).isZero();
+        dialog.rotateForTest(0, 90, 0);
+        AnimationStep turned = packService.find(dialog.getPack().getId()).steps().get(1);
+        assertThat(turned.rotation()).hasSize(4);
+        assertThat(turned.rotation().get(1)).isCloseTo(Math.sqrt(0.5), within(1e-9));
+        assertThat(turned.rotation().get(3)).isCloseTo(Math.sqrt(0.5), within(1e-9));
+        assertThat(dialog.getRotationFields()[1].getValue()).isEqualTo(90);
+
+        dialog.rotateWithRingsForTest(StepRotation.fromDegrees(-30, 45, 10));
+        assertThat(dialog.getRotationFields()[0].getValue()).isEqualTo(-30);
+        assertThat(dialog.getRotationFields()[1].getValue()).isEqualTo(45);
+        assertThat(dialog.getRotationFields()[2].getValue()).isEqualTo(10);
+        assertThat(dialog.getSteps().getSelectedItems()).hasSize(1);
+
+        dialog.updateStepForTest(1, step -> step.withBlend(0.75));
+        AnimationStep stored = packService.find(dialog.getPack().getId()).steps().get(1);
+        assertThat(stored.blend()).isEqualTo(0.75);
+        assertThat(StepRotation.toDegrees(stored.rotation())[1]).isCloseTo(45, within(1e-6));
+        // the step before is as it was (the clips have no rotation of their own)
+        assertThat(packService.find(dialog.getPack().getId()).steps().getFirst().rotation()).isNull();
+
+        // none chosen: the whole animation plays, the rotation is hidden
+        dialog.getSteps().deselectAll();
+        assertThat(dialog.getRotationPanel().isVisible()).isFalse();
+
+        // Reset: no rotation
+        dialog.getSteps().select(dialog.getSteps().getListDataView().getItems().toList().get(1));
+        dialog.updateStepForTest(1, step -> step.withRotation(null));
+        assertThat(packService.find(dialog.getPack().getId()).steps().get(1).rotation()).isNull();
+        assertThat(dialog.getRotationFields()[1].getValue()).isZero();
     }
 
     @Test

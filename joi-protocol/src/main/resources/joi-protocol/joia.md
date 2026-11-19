@@ -44,8 +44,9 @@ A reader streams the sections, checks each hash, and skips a kind it doesn't kno
       "description": "You do jumping jacks.",
       "loop": false,
       "steps": [
-        {"clip": "<clip uuid>", "loop": false, "speed": 1, "inPlace": true},
-        {"clip": "<clip uuid>", "loop": true, "speed": 1.2, "inPlace": true}
+        {"clip": "<clip uuid>", "loop": false, "speed": 1, "inPlace": true, "reverse": false},
+        {"clip": "<clip uuid>", "loop": true, "speed": 1.2, "inPlace": true, "reverse": true,
+         "rotation": [0, 0.7071, 0, 0.7071], "blend": 0.5}
       ]
     }
   ],
@@ -73,7 +74,9 @@ A reader streams the sections, checks each hash, and skips a kind it doesn't kno
 ```
 
 Every key may be missing, except a clip's `uuid`: no two clips have the same one. A step names its clip by its uuid;
-a clip is in the file once, however many steps play it. A clip's `loop`, `inPlace` and `speed` are only what a new step
+a clip is in the file once, however many steps play it. A step with `reverse` plays its clip backwards; `rotation` (a unit quaternion `[x, y, z, w]`, missing for none)
+turns the whole clip around her hips where the step starts; `blend` is the seconds of crossfade from the step before
+(missing or 0: a cut). These belong to the step, not the clip. A clip's `loop`, `inPlace` and `speed` are only what a new step
 of it starts from.
 
 ## Import

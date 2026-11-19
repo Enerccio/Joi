@@ -268,6 +268,11 @@ public class JoiLocalizationBundleEN extends TextBundleBase<J_L> {
         setValue(J_L.LABEL_PLAY, "Play");
         setValue(J_L.LABEL_PAUSE, "Pause");
         setValue(J_L.LABEL_ANIMATION_IN_PLACE, "In place");
+        setValue(J_L.LABEL_ANIMATION_REVERSE, "Reverse");
+        setValue(J_L.LABEL_ANIMATION_BLEND, "Blend in");
+        setValue(J_L.LABEL_STEP_ROTATION, "Rotation of the step");
+        setValue(J_L.LABEL_ROTATE_IN_PREVIEW, "Rotate in the preview");
+        setValue(J_L.LABEL_RESET_ROTATION, "No rotation");
         setValue(J_L.LABEL_CHOOSE_CLIPS, "Clips from the library");
         setValue(J_L.LABEL_ADD_CLIPS, "Add");
         setValue(J_L.LABEL_CREATE_PACK_FROM_CLIP, "New animation of this clip");
@@ -420,6 +425,9 @@ public class JoiLocalizationBundleEN extends TextBundleBase<J_L> {
         setValue(J_L.MSG_LOOP_ANIMATION_HINT, "After its last step it starts again, until it is finished. For clips that don't loop on their own: a wave and a nod, again and again.");
         setValue(J_L.MSG_FINISH_ANIMATION_HINT, "A looping step ends its round, then the rest plays once: as when her state changes.");
         setValue(J_L.MSG_ANIMATION_DESCRIPTION_HINT, "What it shows and when it fits, for her: she picks a clip by what it says.");
+        setValue(J_L.MSG_ANIMATION_BLEND_HINT, "Seconds to blend from where the step before left her into this clip, so a pose that doesn't match flows into it; 0 cuts.");
+        setValue(J_L.MSG_STEP_ROTATION_HINT, "Turns the whole clip of this step around her hips where it starts, for a clip made facing or lying another way. Degrees around X, Y and Z (Y turns her around), or drag the rings in the preview. The clip itself stays as it is.");
+        setValue(J_L.MSG_ANIMATION_REVERSE_HINT, "Plays the clip backwards: sitting down played back is standing up.");
         setValue(J_L.MSG_ANIMATION_IN_PLACE_HINT, "Her hips keep their spot on the floor: a walk or a dance that moves about stays put.");
 
         // --- DESC ---

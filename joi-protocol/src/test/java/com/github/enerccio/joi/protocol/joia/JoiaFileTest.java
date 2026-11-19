@@ -39,9 +39,9 @@ class JoiaFileTest {
 
     private JoiaMetadata meta() {
         JoiaMetadata.Animation jacks = new JoiaMetadata.Animation("a1", "Jacks", "Jumping jacks", true, List.of(
-                new JoiaMetadata.Step("c1", false, 1, true),
-                new JoiaMetadata.Step("c2", true, 1.25, true),
-                new JoiaMetadata.Step("c1", false, 1, false)));
+                new JoiaMetadata.Step("c1", false, 1, true, false, null, 0),
+                new JoiaMetadata.Step("c2", true, 1.25, true, true, List.of(0.0, 0.7071, 0.0, 0.7071), 0.5),
+                new JoiaMetadata.Step("c1", false, 1, false, false, null, 0)));
         return new JoiaMetadata(List.of(jacks), List.of(clip("c1", "start"), clip("c2", "jump")), "2026-11-19T12:00:00Z");
     }
 
@@ -83,6 +83,10 @@ class JoiaFileTest {
         assertEquals(start.length(), meta.clip("c1").size());
         assertEquals(64, meta.clip("c2").sha256().length());
         assertEquals(1.25, meta.animations().getFirst().steps().get(1).speed());
+        assertTrue(meta.animations().getFirst().steps().get(1).reverse());
+        assertEquals(List.of(0.0, 0.7071, 0.0, 0.7071), meta.animations().getFirst().steps().get(1).rotation());
+        assertEquals(0.5, meta.animations().getFirst().steps().get(1).blend());
+        assertEquals(null, meta.animations().getFirst().steps().getFirst().rotation());
         assertEquals("start", meta.clip("c1").name());
         assertArrayEquals(Files.readAllBytes(start.toPath()), Files.readAllBytes(out.get(0).toPath()));
         assertArrayEquals(Files.readAllBytes(jump.toPath()), Files.readAllBytes(out.get(1).toPath()));

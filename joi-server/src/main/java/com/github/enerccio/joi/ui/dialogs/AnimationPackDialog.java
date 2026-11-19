@@ -2,6 +2,7 @@ package com.github.enerccio.joi.ui.dialogs;
 
 import com.flowingcode.vaadin.addons.fontawesome.FontAwesome.Solid;
 import com.github.enerccio.joi.domain.animations.AnimationStep;
+import com.github.enerccio.joi.domain.animations.StepRotation;
 import com.github.enerccio.joi.domain.model.impl.Animation;
 import com.github.enerccio.joi.domain.model.impl.AnimationPack;
 import com.github.enerccio.joi.domain.service.AnimationPackService;
@@ -42,7 +43,8 @@ import java.util.function.UnaryOperator;
 /**
  * One animation ({@link AnimationPack}), full screen: on the left its name, its description, whether it starts again
  * after its last step, and its steps (clips chosen from the user's library, the Clips tab), each with whether it loops,
- * its speed and in place, edited in the table, moved up and down, opened and removed. On the right the
+ * its speed, in place, reversed and blend in, edited in the table; under it the rotation of the step chosen, in
+ * degrees or with rings in the preview, moved up and down, opened and removed. On the right the
  * {@link ClipPreview} of the body it is previewed on (remembered): the whole animation plays when the dialog opens and
  * on Play, Finish ends a looping step and plays the rest, and a step chosen in the table or the strip plays alone, in a
  * loop. A clip added appends its description to the animation's. Changes are stored at once; a new animation is stored
@@ -72,6 +74,11 @@ public class AnimationPackDialog extends Dialog {
     private Grid<Step> steps;
     private List<Step> shown = List.of();
     private ClipPreview preview;
+    private VerticalLayout rotationPanel;
+    private final NumberField[] rotationFields = new NumberField[3];
+    private Button rotateButton;
+    /** Whether the rings to turn the step chosen are shown in the preview. */
+    private boolean rotating;
     /** Set while the table is filled, so its selection plays nothing. */
     private boolean filling;
 
@@ -143,15 +150,20 @@ public class AnimationPackDialog extends Dialog {
         steps.addComponentColumn(this::loopCell).setHeader(loc.getValue(J_L.LABEL_ANIMATION_LOOP)).setFlexGrow(0).setWidth("64px");
         steps.addComponentColumn(this::speedCell).setHeader(loc.getValue(J_L.LABEL_SPEED)).setFlexGrow(0).setWidth("90px");
         steps.addComponentColumn(this::inPlaceCell).setHeader(loc.getValue(J_L.LABEL_ANIMATION_IN_PLACE)).setFlexGrow(0).setWidth("84px");
+        steps.addComponentColumn(this::reverseCell).setHeader(loc.getValue(J_L.LABEL_ANIMATION_REVERSE)).setFlexGrow(0).setWidth("80px");
+        steps.addComponentColumn(this::blendCell).setHeader(loc.getValue(J_L.LABEL_ANIMATION_BLEND)).setFlexGrow(0).setWidth("90px");
         steps.addComponentColumn(this::stepActions).setHeader("").setFlexGrow(0).setWidth("168px");
         steps.addSelectionListener(e -> {
             if (!filling) {
                 e.getFirstSelectedItem().ifPresent(this::playStep);
+                showRotation();
             }
         });
+        createRotationPanel();
         steps.addItemDoubleClickListener(e -> openClip(e.getItem().clip()));
 
-        VerticalLayout sidebar = new VerticalLayout(nameField, descriptionField, loopField, stepsTitle, hint, adding, emptyLibrary, steps);
+        VerticalLayout sidebar = new VerticalLayout(nameField, descriptionField, loopField, stepsTitle, hint, adding, emptyLibrary, steps,
+                rotationPanel);
         sidebar.setPadding(false);
         sidebar.addClassName(JoiCssStyles.MODEL_SIDEBAR);
 
@@ -159,6 +171,7 @@ public class AnimationPackDialog extends Dialog {
         preview = new ClipPreview(stored == null || packService.previewBody(stored) == null ? null : stored.getPreviewBodyId());
         preview.setOnBodyChosen(id -> storePack(false));
         preview.setOnPlay(this::playAll);
+        preview.setOnStepRotated(this::storeRotation);
         preview.setOnStepChosen(position -> {
             if (position >= 0 && position < shown.size()) {
                 steps.select(shown.get(position));
@@ -206,6 +219,104 @@ public class AnimationPackDialog extends Dialog {
         return inPlace;
     }
 
+    private Component reverseCell(Step step) {
+        Checkbox reverse = new Checkbox(step.step().reverse());
+        reverse.setTooltipText(loc.getValue(J_L.MSG_ANIMATION_REVERSE_HINT));
+        reverse.addValueChangeListener(e -> updateStep(step, s -> s.withReverse(Boolean.TRUE.equals(e.getValue()))));
+        return reverse;
+    }
+
+    private Component blendCell(Step step) {
+        NumberField blend = new NumberField();
+        blend.setMin(0);
+        blend.setMax(AnimationStep.MAX_BLEND);
+        blend.setStep(0.1);
+        blend.setWidthFull();
+        blend.setValue(step.step().blend());
+        blend.setTooltipText(loc.getValue(J_L.MSG_ANIMATION_BLEND_HINT));
+        blend.addValueChangeListener(e -> {
+            Double value = e.getValue();
+            updateStep(step, s -> s.withBlend(value == null ? 0 : value));
+        });
+        return blend;
+    }
+
+    /** The rotation of the step chosen: degrees around X, Y and Z, the rings in the preview, and Reset. */
+    private void createRotationPanel() {
+        Span title = new Span(loc.getValue(J_L.LABEL_STEP_ROTATION));
+        title.addClassName(JoiCssStyles.STEP_ROTATION_TITLE);
+        String[] axes = {"X°", "Y°", "Z°"};
+        for (int i = 0; i < 3; i++) {
+            NumberField field = new NumberField(axes[i]);
+            field.setMin(-180);
+            field.setMax(180);
+            // the rings turn by any angle: shown to a tenth of a degree
+            field.setStep(0.1);
+            field.addClassName(JoiCssStyles.STEP_ROTATION_FIELD);
+            field.addValueChangeListener(e -> {
+                if (e.isFromClient()) {
+                    double[] degrees = new double[3];
+                    for (int axis = 0; axis < 3; axis++) {
+                        Double value = rotationFields[axis].getValue();
+                        degrees[axis] = value == null ? 0 : value;
+                    }
+                    rotateTo(degrees[0], degrees[1], degrees[2]);
+                }
+            });
+            rotationFields[i] = field;
+        }
+        rotateButton = new Button(loc.getValue(J_L.LABEL_ROTATE_IN_PREVIEW), Solid.ROTATE.create(), e -> setRotating(!rotating));
+        Button reset = new Button(loc.getValue(J_L.LABEL_RESET_ROTATION), Solid.ARROW_ROTATE_LEFT.create(),
+                e -> selected().ifPresent(step -> updateStep(step, s -> s.withRotation(null))));
+        HorizontalLayout fields = new HorizontalLayout(rotationFields[0], rotationFields[1], rotationFields[2], rotateButton, reset);
+        fields.setAlignItems(FlexComponent.Alignment.BASELINE);
+        fields.setWrap(true);
+        Span hint = new Span(loc.getValue(J_L.MSG_STEP_ROTATION_HINT));
+        hint.addClassName(CssStyles.HINT_TEXT);
+        rotationPanel = new VerticalLayout(title, fields, hint);
+        rotationPanel.setPadding(false);
+        rotationPanel.setSpacing(false);
+        rotationPanel.setVisible(false);
+    }
+
+    /** Turns the step chosen to the angles (degrees around X, Y, Z) and plays it so. */
+    private void rotateTo(double x, double y, double z) {
+        selected().ifPresent(step -> updateStep(step, s -> s.withRotation(StepRotation.fromDegrees(x, y, z))));
+    }
+
+    /** Shows the rotation of the step chosen (none chosen: hides it and the rings). */
+    private void showRotation() {
+        java.util.Optional<Step> step = selected();
+        rotationPanel.setVisible(step.isPresent());
+        if (step.isEmpty()) {
+            setRotating(false);
+            return;
+        }
+        double[] degrees = StepRotation.toDegrees(step.get().step().rotation());
+        for (int i = 0; i < 3; i++) {
+            rotationFields[i].setValue(Math.round(degrees[i] * 10) / 10.0);
+        }
+    }
+
+    private void setRotating(boolean on) {
+        rotating = on && selected().isPresent();
+        rotateButton.setThemeName(rotating ? "primary" : "");
+        preview.setRotationTool(rotating);
+    }
+
+    /** The step chosen was turned with the rings: stored, without playing it again (it plays on, turned). */
+    private void storeRotation(List<Double> rotation) {
+        selected().ifPresent(step -> {
+            try {
+                pack = packService.updateStep(pack, step.index(), step.step().withRotation(rotation));
+                refreshSteps(step.index());
+                showRotation();
+            } catch (Exception e) {
+                UIUtils.internalServerError(loc, e);
+            }
+        });
+    }
+
     private Component stepActions(Step step) {
         Button up = new Button(Solid.ARROW_UP.create(), e -> moveStep(step, -1));
         up.setTooltipText(loc.getValue(L.LABEL_MOVE_UP));
@@ -242,6 +353,7 @@ public class AnimationPackDialog extends Dialog {
             pack = packService.updateStep(pack, step.index(), change.apply(current));
             refreshSteps(step.index());
             selected().ifPresent(this::playStep);
+            showRotation();
         } catch (Exception e) {
             UIUtils.internalServerError(loc, e);
         }
@@ -272,6 +384,7 @@ public class AnimationPackDialog extends Dialog {
         } finally {
             filling = false;
         }
+        showRotation();
         preview.playSequence(shown, pack.loops());
     }
 
@@ -409,6 +522,26 @@ public class AnimationPackDialog extends Dialog {
     /** Moves a step as its arrows do, for tests. */
     public void moveStepForTest(int index, int delta) {
         shown.stream().filter(step -> step.index() == index).findFirst().ifPresent(step -> moveStep(step, delta));
+    }
+
+    /** The rotation of the step chosen, for tests. */
+    public VerticalLayout getRotationPanel() {
+        return rotationPanel;
+    }
+
+    /** The degrees around X, Y and Z of the step chosen, for tests. */
+    public NumberField[] getRotationFields() {
+        return rotationFields;
+    }
+
+    /** Types the angles of the step chosen, for tests. */
+    public void rotateForTest(double x, double y, double z) {
+        rotateTo(x, y, z);
+    }
+
+    /** Turns the step chosen as the rings in the preview do, for tests. */
+    public void rotateWithRingsForTest(List<Double> rotation) {
+        storeRotation(rotation);
     }
 
     /** The preview, for tests. */

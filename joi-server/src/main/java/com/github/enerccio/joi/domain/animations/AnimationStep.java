@@ -13,20 +13,38 @@ import java.util.List;
  * A step of an animation ({@link com.github.enerccio.joi.domain.model.impl.AnimationPack}, see {@code DESIGN.md} →
  * Bodies, animations): a clip of the library and how it plays there. A looping step repeats until the animation is
  * finished (her state changes, she or the user stops it), then the steps after it play. Stored on the animation as
- * JSON, in its order; a clip can be in several steps.
+ * JSON, in its order; a clip can be in several steps, each with its own settings (the clip is not changed).
  *
- * @param clip    the clip's uuid
- * @param loop    whether it repeats until the animation is finished
- * @param speed   how fast it plays, 1 for as made
- * @param inPlace whether her hips keep their spot on the floor (the clip's moving about is left out)
+ * @param clip     the clip's uuid
+ * @param loop     whether it repeats until the animation is finished
+ * @param speed    how fast it plays, 1 for as made
+ * @param inPlace  whether her hips keep their spot on the floor (the clip's moving about is left out)
+ * @param reverse  whether it plays backwards (sitting down played back is standing up)
+ * @param rotation the whole clip turned by this quaternion {@code [x, y, z, w]} around her hips where it starts (a
+ *                 clip recorded facing another way, or lying the other way round), null for none
+ * @param blend    seconds of crossfade from where the step before left her into this clip, 0 to cut
  */
-public record AnimationStep(String clip, boolean loop, double speed, boolean inPlace) {
+public record AnimationStep(String clip, boolean loop, double speed, boolean inPlace, boolean reverse,
+                            List<Double> rotation, double blend) {
+
+    /** The longest blend, in seconds. */
+    public static final double MAX_BLEND = 10;
 
     private static final Gson GSON = new GsonBuilder().disableHtmlEscaping().create();
 
+    public AnimationStep {
+        rotation = StepRotation.normalized(rotation);
+        blend = Double.isFinite(blend) ? Math.clamp(blend, 0, MAX_BLEND) : 0;
+    }
+
+    /** A step not turned and not blended. */
+    public AnimationStep(String clip, boolean loop, double speed, boolean inPlace, boolean reverse) {
+        this(clip, loop, speed, inPlace, reverse, null, 0);
+    }
+
     /** A step of the clip, as the clip was set before steps had their own settings (else once, at speed 1). */
     public static AnimationStep of(Animation clip) {
-        return new AnimationStep(clip.getUuid(), clip.loops(), clip.speedOrDefault(), clip.playsInPlace());
+        return new AnimationStep(clip.getUuid(), clip.loops(), clip.speedOrDefault(), clip.playsInPlace(), false);
     }
 
     /** Its speed, 1 when none fits. */
@@ -35,15 +53,28 @@ public record AnimationStep(String clip, boolean loop, double speed, boolean inP
     }
 
     public AnimationStep withLoop(boolean loop) {
-        return new AnimationStep(clip, loop, speed, inPlace);
+        return new AnimationStep(clip, loop, speed, inPlace, reverse, rotation, blend);
     }
 
     public AnimationStep withSpeed(double speed) {
-        return new AnimationStep(clip, loop, speed > 0 ? speed : 1, inPlace);
+        return new AnimationStep(clip, loop, speed > 0 ? speed : 1, inPlace, reverse, rotation, blend);
     }
 
     public AnimationStep withInPlace(boolean inPlace) {
-        return new AnimationStep(clip, loop, speed, inPlace);
+        return new AnimationStep(clip, loop, speed, inPlace, reverse, rotation, blend);
+    }
+
+    public AnimationStep withReverse(boolean reverse) {
+        return new AnimationStep(clip, loop, speed, inPlace, reverse, rotation, blend);
+    }
+
+    /** Turned by the quaternion {@code [x, y, z, w]}, null for none. */
+    public AnimationStep withRotation(List<Double> rotation) {
+        return new AnimationStep(clip, loop, speed, inPlace, reverse, rotation, blend);
+    }
+
+    public AnimationStep withBlend(double blend) {
+        return new AnimationStep(clip, loop, speed, inPlace, reverse, rotation, blend);
     }
 
     /** The steps in the JSON; empty for none or for JSON that can't be read. */
@@ -57,7 +88,8 @@ public record AnimationStep(String clip, boolean loop, double speed, boolean inP
             List<AnimationStep> steps = new ArrayList<>();
             for (AnimationStep step : read == null ? List.<AnimationStep>of() : read) {
                 if (step != null && step.clip() != null) {
-                    steps.add(new AnimationStep(step.clip(), step.loop(), step.speedOrDefault(), step.inPlace()));
+                    steps.add(new AnimationStep(step.clip(), step.loop(), step.speedOrDefault(), step.inPlace(), step.reverse(),
+                            step.rotation(), step.blend()));
                 }
             }
             return steps;
