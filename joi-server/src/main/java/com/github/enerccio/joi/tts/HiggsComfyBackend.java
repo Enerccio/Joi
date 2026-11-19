@@ -31,9 +31,10 @@ import java.util.concurrent.ThreadLocalRandom;
  * folder of ComfyUI ({@code /upload/image} takes any file) under the same names made from their bytes as on a Chatterbox server; the voices of the suite
  * and the clips are read from {@code /object_info}.
  * <p>
- * <b>After every piece {@code POST /free {"free_memory": true}}</b>: on the author's AMD R9700 (ROCm 7.2) a second generation on the engine the suite keeps
- * loaded crashed the GPU (HSA_STATUS_ERROR_EXCEPTION, ComfyUI dies) within three pieces; with the cache emptied between pieces 17 of 17 were fine and the
- * weights stay loaded (about 3 s a piece). See the audiobook plugin's TODO.md in Marginalia.
+ * <b>The engine stays loaded between pieces</b> (no {@code /free}): the next piece starts at once, about 10 s sooner than after a reload. The GPU locks free
+ * the card for other models. A reused engine crashed the GPU (HSA_STATUS_ERROR_EXCEPTION) only while the container had
+ * {@code PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True}: with that, ComfyUI's {@code empty_cache} after a prompt broke the next generation on ROCm 7.2
+ * (an AMD R9700, torch 2.13); without it 9 reuses in a row were fine. Don't set it for a ComfyUI that runs Higgs.
  * <p>
  * With ffmpeg the piece comes as flac and is trimmed here ({@link BreathTrim}: Higgs breathes on after the last word, cut off by the end of the clip),
  * then stored as wav or mp3; without it the mp3 of ComfyUI is stored as it is.
@@ -135,12 +136,8 @@ public class HiggsComfyBackend implements SpeechBackend {
         if (wav && !ffmpeg) {
             throw new BackendException("ComfyUI writes no wav: the audio is stored as wav here, which needs ffmpeg on the server of Marginalia to convert it");
         }
-        try {
-            byte[] audio = run(workflow(request, model, ffmpeg, config.getPrecision()), cancel);
-            return ffmpeg ? trimmed(audio, wav) : audio;
-        } finally {
-            free();
-        }
+        byte[] audio = run(workflow(request, model, ffmpeg, config.getPrecision()), cancel);
+        return ffmpeg ? trimmed(audio, wav) : audio;
     }
 
     /** The flac of a piece without what Higgs makes after the last word ({@link BreathTrim}), as wav or mp3. */
@@ -311,18 +308,6 @@ public class HiggsComfyBackend implements SpeechBackend {
         link.add(node);
         link.add(0);
         return link;
-    }
-
-    /** Empties the memory of ComfyUI after a piece; the weights stay loaded. A failure is only logged: the next piece may still work. */
-    private void free() {
-        try {
-            HttpResponse<byte[]> response = Http.send(builder("/free", SHORT_SECONDS)
-                    .header("Content-Type", "application/json")
-                    .POST(HttpRequest.BodyPublishers.ofString("{\"free_memory\": true}")).build());
-            Http.requireOk(response, "Freeing the memory of ComfyUI");
-        } catch (BackendException e) {
-            TtsLog.get().warn("Could not free the memory of ComfyUI after a piece: {}", e.getMessage());
-        }
     }
 
     private void interrupt() {

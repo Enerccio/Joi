@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Enerccio/joi/protocol/v1/AudioChunk.schema.json",
+  "title": "AudioChunk",
+  "description": "The audio event: one piece of the reply spoken, a whole file of its type; play them in order.",
+  "type": "object",
+  "properties": {
+    "index": {
+      "type": "integer",
+      "description": "0, 1, 2... in the order to play them."
+    },
+    "text": {
+      "type": "string",
+      "description": "The words of the piece."
+    },
+    "mimeType": {
+      "type": "string"
+    },
+    "data": {
+      "type": "string",
+      "description": "Base64.",
+      "contentEncoding": "base64"
+    }
+  },
+  "required": [
+    "index",
+    "text",
+    "mimeType",
+    "data"
+  ]
+}

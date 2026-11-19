@@ -15,6 +15,7 @@
 
   <modules>
     <module>marginalia/marginalia/platform</module>
+    <module>joi-protocol</module>
     <module>joi-server</module>
   </modules>
 
@@ -34,6 +35,11 @@
 
   <dependencyManagement>
     <dependencies>
+      <dependency>
+        <groupId>io.github.enerccio</groupId>
+        <artifactId>joi-protocol</artifactId>
+        <version>${project.version}</version>
+      </dependency>
       <dependency>
         <groupId>org.junit</groupId>
         <artifactId>junit-bom</artifactId>

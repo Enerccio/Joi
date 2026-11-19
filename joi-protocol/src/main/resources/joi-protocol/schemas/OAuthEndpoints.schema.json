@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Enerccio/joi/protocol/v1/OAuthEndpoints.schema.json",
+  "title": "OAuthEndpoints",
+  "description": "Where the OAuth calls are (absolute URLs).",
+  "type": "object",
+  "properties": {
+    "deviceAuthorization": {
+      "type": "string",
+      "description": "Where a device asks for its codes (RFC 8628)."
+    },
+    "token": {
+      "type": "string",
+      "description": "Where it polls for its tokens and refreshes them."
+    },
+    "verification": {
+      "type": "string",
+      "description": "The page the user approves the device on."
+    }
+  },
+  "required": [
+    "deviceAuthorization",
+    "token",
+    "verification"
+  ]
+}

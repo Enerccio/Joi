@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Enerccio/joi/protocol/v1/Me.schema.json",
+  "title": "Me",
+  "description": "GET /api/v1/me: whom the call acts for.",
+  "type": "object",
+  "properties": {
+    "login": {
+      "type": "string"
+    },
+    "name": {
+      "type": "string",
+      "description": "The full name, else the login."
+    },
+    "method": {
+      "$ref": "AuthMethod.schema.json"
+    }
+  },
+  "required": [
+    "login",
+    "name",
+    "method"
+  ]
+}

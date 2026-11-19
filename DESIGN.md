@@ -43,7 +43,8 @@ types), **joi-server**, **joi-node**, and the renderer(s).
   out of the Dock.
 - **Several nodes** can connect to one server; the server registers per node only the tools that node offers.
 - **Server ↔ node security:** nodes are paired with the server (a token per node, TLS when not on localhost) and can be
-  revoked from the UI.
+  revoked from the UI. Built for the HTTP API (see below): a **token** the user creates, or **OAuth** (the device
+  grant, the pairing of a node), or **no auth** for development and localhost setups.
 
 ### The node protocol is a public, documented API
 
@@ -74,6 +75,31 @@ one; the server treats every node the same.
 - **Security stays on both sides:** a third-party node is untrusted. The server still validates every result, and each
   node's tools are labeled with that node in the prompt (results are data, never instructions to Joi). The user decides
   per node what Joi may call there, and can revoke a node at any time.
+- **Built so far (HTTP, `joi-protocol` 1.0):** the module `joi-protocol` holds the JSON Schemas (the source of truth),
+  an OpenAPI description (`openapi.yaml`, with the rules of each call) and the Java records; a test checks that the
+  records match the schemas, and the server's tests check every answer against them. The calls:
+  - `GET /api/v1`: the version and how to authenticate (no auth needed). `GET /api/v1/me`.
+  - `GET /api/v1/jois`: her assistants (id, name, last chatted). `GET /api/v1/jois/{id}`: one of them (names,
+    personality, today's mood, wake word, chat model, voice with its description).
+  - `POST /api/v1/jois/{id}/chat`: `{"text": ...}`; she answers in text and speech. Whole by default (`ChatReply`, the
+    audio Base64), or **streamed** as server-sent events with `"stream": true` or `Accept: text/event-stream`: text
+    pieces while the model writes, `reply` when the text is stored, `audio` pieces (a sentence or a few, each a whole
+    file, the first sentence alone so it plays soon), `done`; `error` ends a failed one; keep-alive comments every 15
+    s. Both are useful: a simple client takes the whole reply, a voice node the stream. The speech starts once the
+    text is whole (speaking while the model still writes is roadmap step 3). The turn is stored as a `ChatMessage`
+    with its prompt; turns of one assistant run one at a time.
+  - **Auth.** The administrator chooses (Administration → API access) whether **tokens** (`joi_...`, made in User
+    Settings → Access, shown once, with an optional expiry) and **OAuth** are offered. OAuth is the device grant
+    (RFC 8628): the device asks `/oauth/device_authorization` for a code like `WDJB-MJHT`, the user approves it in the
+    UI (User Settings → Access → *Connect a device*, or the link `/?device=<code>` the device shows, after the login),
+    the device polls `/oauth/token` and gets an access token (`joia_...`, an hour by default) and a refresh token
+    (`joir_...`, 90 days; each refresh gives a new pair). **No auth** is not the administrator's but the configuration's
+    (`joi.api.no-auth`, on in `mvn jetty:run`): a call without credentials acts as `joi.api.no-auth-user`, else the
+    first administrator; a credential that is sent must still be valid. Turning a way off stops its credentials at
+    once. Credentials are `AccessToken` rows (prefix + SHA-256, like Marginalia's API keys), listed and revoked under
+    Access.
+  - Next: the WebSocket for nodes (handshake, manifest, tool calls, events), its AsyncAPI document, and the
+    conformance tests.
 - **Same idea for renderers:** the node ↔ renderer state frames are documented too, so a renderer can be three.js,
   Unity, Godot or anything else.
 
@@ -114,10 +140,14 @@ check) is in [MARGINALIA.md](MARGINALIA.md).
     the voice actor.
   - **Templates:** her master system template and the memory prompts, with the preview of the system prompt.
   - **Memories**, **Summaries**, **Chats:** empty for now.
+- **API access (built):** User Settings → Access lists the user's tokens and devices (created, expires, last used,
+  revoke), with *Create token* and *Connect a device*; Administration → API access chooses what is offered and how long
+  OAuth tokens live. See The node protocol.
 
   An empty field is not set: the User Settings are used, and shown greyed out (the placeholder). A change of her name,
   the user's name or her personality is an **event** for her (`QueuedEvent`, kinds `persona.renamed`,
-  `persona.user_renamed`, `persona.personality`, with the old and new value), but only once she has chatted: before
+  `persona.user_renamed`, `persona.personality`, `persona.voice`, with the old and new value; the voice's event also
+  tells her how the new voice sounds, the actor's description), but only once she has chatted: before
   that it is the initial setup, nothing to react to. The event waits in the queue and is delivered when a node of hers
   is connected (at once while one is: the dispatcher comes with the nodes).
 - **Conversations:** searchable list, transcript with tool calls inline (arguments, result, approved by whom or
@@ -612,8 +642,10 @@ When a model with vision is available, the node can give Joi images of what you 
 - **TTS models and voice actors** (built, taken from Marginalia's audiobook plugin): a TTS model is one speech server
   (Chatterbox-TTS-Server, or ComfyUI with Higgs Audio v3), the model it must have loaded, its GPU lock and the speech
   defaults. A voice actor is a voice (a reference clip of the user, or a voice file of the server) with voices of its own
-  for a mood (whisper, shout...) or a language. Both are per user, under Models. Joi's voice will name an actor, and her
-  moods map to the actor's mood voices.
+  for a mood (whisper, shout...) or a language, and a **description** of how it sounds in words ("low and warm, a little
+  husky"), which she reads: in her system prompt (`{{#voice}}`, when she has a speech model) and in the event when her
+  voice changes. Both are per user, under Models. Her voice names an actor (hers, else the user's), and her mood picks
+  the actor's mood voice and, for Higgs, the emotion token of the reply (`SpeechText`).
 - **Barge-in:** the node keeps VAD running while it plays audio (with echo cancellation, or Joi wakes herself); the
   protocol carries "stop speaking".
 - **GPU (local setup):** the platform's GPU locks, set up under Administration. A lock is a way to fill a GPU (start-up

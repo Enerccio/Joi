@@ -18,3 +18,8 @@
     stroke-linecap: round;
     stroke-linejoin: round;
 }
+
+.button-row {
+    min-height: var(--lumo-size-m);
+}
+

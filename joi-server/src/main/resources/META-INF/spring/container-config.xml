@@ -38,6 +38,15 @@
         <property name="trustedProxies" value="${joi.trusted-proxies:}" />
     </bean>
 
+    <!-- the API: no auth (calls without credentials act as joi.api.no-auth-user, else the first administrator) is
+         for development and localhost setups only; jetty:run turns it on (pom.xml). joi.api.public-url is the URL
+         the server is reached at from outside, for the OAuth links (empty: the Host of the call) -->
+    <bean name="apiConfiguration" class="com.github.enerccio.joi.api.ApiConfiguration">
+        <property name="noAuth" value="${joi.api.no-auth:false}" />
+        <property name="noAuthUser" value="${joi.api.no-auth-user:}" />
+        <property name="publicUrl" value="${joi.api.public-url:}" />
+    </bean>
+
     <bean name="applicationPoint" class="com.github.enerccio.marginalia.bound.ApplicationPoint" />
     <bean name="sessionManager" class="com.github.enerccio.marginalia.bound.SessionManager" />
     <!-- the platform's session point until Joi has session state of its own -->

@@ -10,6 +10,8 @@ import com.github.enerccio.joi.domain.service.ChatMessageService;
 import com.github.enerccio.joi.domain.service.JoiService;
 import com.github.enerccio.joi.domain.service.PersonaService;
 import com.github.enerccio.joi.domain.service.QueuedEventService;
+import com.github.enerccio.joi.domain.service.TtsService;
+import com.github.enerccio.joi.tts.model.Actor;
 import com.github.enerccio.marginalia.domain.service.impl.ExtendableServiceImpl;
 import com.github.enerccio.marginalia.domain.traits.CommonTx;
 import com.github.enerccio.marginalia.domain.traits.CommonTxReadOnly;
@@ -31,6 +33,9 @@ public class JoiServiceImpl extends ExtendableServiceImpl<Joi, JoiRepository> im
     @Autowired
     private QueuedEventService queuedEventService;
 
+    @Autowired
+    private TtsService ttsService;
+
     @Override
     @CommonTx
     public Joi create(String name) throws Exception {
@@ -42,13 +47,16 @@ public class JoiServiceImpl extends ExtendableServiceImpl<Joi, JoiRepository> im
     @Override
     public Persona persona(Joi joi) throws Exception {
         Personality personality = personaService.personality(joi.getPersonality());
+        String actorId = StringUtils.defaultIfBlank(joi.getVoiceActor(), personaService.getUserSetting().getVoiceActor());
+        Actor actor = actorId == null ? null : ttsService.actors().stream().filter(a -> actorId.equals(a.getId())).findFirst().orElse(null);
         if (personality == null) {
             personality = personaService.currentPersonality();
         }
         return new Persona(name(joi),
                 StringUtils.isNotBlank(joi.getUserName()) ? joi.getUserName().strip() : personaService.userName(),
                 personality == null ? null : personality.key(),
-                personality == null ? null : personality.name());
+                personality == null ? null : personality.name(),
+                actor == null ? null : actor.getId(), actor == null ? null : actor.getName(), actor == null ? null : actor.getDescription());
     }
 
     @Override
@@ -90,6 +98,11 @@ public class JoiServiceImpl extends ExtendableServiceImpl<Joi, JoiRepository> im
             events.add(queue(saved, JoiEvents.PERSONALITY_CHANGED,
                     defaults.eventPersonalityChanged(before.personalityName(), after.personalityName()),
                     before.personalityKey(), after.personalityKey()));
+        }
+        if (!Objects.equals(before.voiceActorId(), after.voiceActorId())) {
+            events.add(queue(saved, JoiEvents.VOICE_CHANGED,
+                    defaults.eventVoiceChanged(before.voiceActorName(), after.voiceActorName(), after.voiceDescription()),
+                    before.voiceActorId(), after.voiceActorId()));
         }
         // delivered when a node of hers connects; while one is connected the event dispatcher takes them at once (to come
         // with the nodes, see DESIGN.md → Events)

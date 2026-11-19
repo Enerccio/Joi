@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Enerccio/joi/protocol/v1/JoiSummary.schema.json",
+  "title": "JoiSummary",
+  "description": "An assistant in the list.",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string",
+      "description": "Her stable id (UUID)."
+    },
+    "name": {
+      "type": "string"
+    },
+    "lastChatted": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "When she was last talked to (ISO 8601 date and time), null for never.",
+      "format": "date-time"
+    }
+  },
+  "required": [
+    "id",
+    "name"
+  ]
+}

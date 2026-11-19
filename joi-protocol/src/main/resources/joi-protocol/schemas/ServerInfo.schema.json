@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Enerccio/joi/protocol/v1/ServerInfo.schema.json",
+  "title": "ServerInfo",
+  "description": "GET /api/v1: what the server is and how to call it. Needs no auth.",
+  "type": "object",
+  "properties": {
+    "protocol": {
+      "type": "string",
+      "description": "The version of the API, major.minor.",
+      "pattern": "^[0-9]+\\.[0-9]+$"
+    },
+    "server": {
+      "type": "string",
+      "description": "The name of the server software."
+    },
+    "version": {
+      "type": "string",
+      "description": "Its version."
+    },
+    "auth": {
+      "$ref": "AuthInfo.schema.json"
+    }
+  },
+  "required": [
+    "protocol",
+    "server",
+    "version",
+    "auth"
+  ]
+}

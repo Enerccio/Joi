@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Enerccio/joi/protocol/v1/TextDelta.schema.json",
+  "title": "TextDelta",
+  "description": "The text and reasoning events: the next piece as the model writes it.",
+  "type": "object",
+  "properties": {
+    "delta": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "delta"
+  ]
+}

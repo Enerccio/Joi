@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Enerccio/joi/protocol/v1/Personality.schema.json",
+  "title": "Personality",
+  "description": "A personality.",
+  "type": "object",
+  "properties": {
+    "key": {
+      "type": "string",
+      "description": "Its stable key."
+    },
+    "name": {
+      "type": "string",
+      "description": "Its name in the user's language."
+    }
+  },
+  "required": [
+    "key",
+    "name"
+  ]
+}

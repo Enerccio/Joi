@@ -233,4 +233,16 @@
         <property name="repository" ref="queuedEventRepository" />
     </bean>
 
+    <!-- the API (joi-protocol): its credentials, what the administrator offers, the OAuth device grant, chat -->
+    <bean id="accessTokenRepository" class="com.github.enerccio.joi.domain.repository.impl.JpaAccessTokenRepository">
+        <property name="entityManager" ref="em" />
+    </bean>
+    <bean class="com.github.enerccio.joi.domain.service.impl.AccessTokenServiceImpl">
+        <property name="repository" ref="accessTokenRepository" />
+    </bean>
+    <bean class="com.github.enerccio.joi.domain.service.impl.ApiAccessServiceImpl" />
+    <bean class="com.github.enerccio.joi.domain.service.impl.DeviceAuthorizationServiceImpl" />
+    <bean class="com.github.enerccio.joi.domain.chat.ChatServiceImpl" />
+    <bean class="com.github.enerccio.joi.api.JoiApi" />
+
 </beans>

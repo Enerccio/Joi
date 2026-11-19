@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Enerccio/joi/protocol/v1/Audio.schema.json",
+  "title": "Audio",
+  "description": "Spoken audio.",
+  "type": "object",
+  "properties": {
+    "mimeType": {
+      "type": "string",
+      "description": "audio/mpeg, audio/wav..."
+    },
+    "data": {
+      "type": "string",
+      "description": "The bytes, Base64.",
+      "contentEncoding": "base64"
+    }
+  },
+  "required": [
+    "mimeType",
+    "data"
+  ]
+}

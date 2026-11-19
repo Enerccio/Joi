@@ -1,5 +1,6 @@
 package com.github.enerccio.joi.domain.service;
 
+import com.github.enerccio.joi.domain.model.impl.Joi;
 import com.github.enerccio.joi.defaults.JoiDefaults;
 import com.github.enerccio.joi.domain.model.impl.settings.JoiUserSetting;
 import com.github.enerccio.joi.domain.persona.*;
@@ -83,4 +84,13 @@ public interface PersonaService {
      * The same with a master template given (an edited one not saved yet, for a preview); blank uses the resolved one.
      */
     String renderChatSystemPrompt(String template, String moodKey, ChatTemplateData data) throws Exception;
+
+    /**
+     * The system prompt of a chat with the assistant: her name, what she calls the user, her personality and her master
+     * template, each along the chain (hers, else the user's setting, else the default).
+     *
+     * @param joi      the assistant, null for the user's settings alone
+     * @param template the master template to use (an edited one not saved yet), blank for the resolved one
+     */
+    String renderChatSystemPrompt(Joi joi, String template, String moodKey, ChatTemplateData data) throws Exception;
 }

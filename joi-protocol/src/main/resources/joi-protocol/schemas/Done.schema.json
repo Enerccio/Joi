@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Enerccio/joi/protocol/v1/Done.schema.json",
+  "title": "Done",
+  "description": "The done event: the last one of a stream that went well.",
+  "type": "object",
+  "properties": {
+    "messageId": {
+      "type": "string"
+    },
+    "speechError": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Why some or all audio is missing."
+    }
+  },
+  "required": [
+    "messageId"
+  ]
+}

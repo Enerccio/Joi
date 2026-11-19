@@ -54,6 +54,7 @@ public class ActorDialog extends Dialog {
 
     private TextField nameField;
     private TextField taglineField;
+    private TextArea descriptionArea;
     private RoleEditor role;
     private TextArea clipTextArea;
     private String clipOfText;
@@ -96,6 +97,12 @@ public class ActorDialog extends Dialog {
         names.setPadding(false);
         names.setWrap(true);
 
+        descriptionArea = new TextArea(loc.getValue(L.LABEL_DESCRIPTION));
+        descriptionArea.setWidthFull();
+        descriptionArea.setValue(actor.getDescription());
+        descriptionArea.setHelperText(loc.getValue(J_L.HELP_ACTOR_DESCRIPTION));
+        com.github.enerccio.marginalia.ui.widgets.ResizableTextArea.install(loc, descriptionArea, "80px");
+
         Span help = new Span(loc.getValue(J_L.HELP_ACTOR));
         help.addClassName(com.github.enerccio.marginalia.CssStyles.HINT_TEXT);
 
@@ -108,7 +115,7 @@ public class ActorDialog extends Dialog {
         showClipText(actor.getVoice());
         role.onVoiceChange(this::showClipText);
 
-        VerticalLayout content = new VerticalLayout(names, help, role, clipTextArea, createTry());
+        VerticalLayout content = new VerticalLayout(names, descriptionArea, help, role, clipTextArea, createTry());
         content.setPadding(false);
         add(content);
 
@@ -117,7 +124,7 @@ public class ActorDialog extends Dialog {
         saveButton.setThemeName("primary");
         getFooter().add(cancelButton, saveButton);
         DialogFocus.onOpen(this, nameField);
-        DialogShortcuts.submitWith(saveButton, nameField, taglineField);
+        DialogShortcuts.submitWith(saveButton, nameField, taglineField, descriptionArea);
     }
 
     private VerticalLayout createTry() throws Exception {
@@ -198,6 +205,7 @@ public class ActorDialog extends Dialog {
     private void save() {
         actor.setName(nameField.getValue().isBlank() ? loc.getValue(J_L.LABEL_NEW_ACTOR) : nameField.getValue().strip());
         actor.setTagline(taglineField.getValue().strip());
+        actor.setDescription(descriptionArea.getValue().strip());
         role.read(actor);
         try {
             ttsService.saveActor(actor);

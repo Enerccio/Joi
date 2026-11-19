@@ -1,0 +1,36 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Enerccio/joi/protocol/v1/Usage.schema.json",
+  "title": "Usage",
+  "description": "How a reply went.",
+  "type": "object",
+  "properties": {
+    "promptTokens": {
+      "type": "integer",
+      "description": "The tokens of the prompt."
+    },
+    "completionTokens": {
+      "type": "integer",
+      "description": "The tokens the model wrote."
+    },
+    "firstTokenMs": {
+      "type": "integer",
+      "description": "From the request to the first token, -1 when not known."
+    },
+    "textMs": {
+      "type": "integer",
+      "description": "From the request to the end of the text."
+    },
+    "speechMs": {
+      "type": "integer",
+      "description": "How long the speech took, -1 for none."
+    }
+  },
+  "required": [
+    "promptTokens",
+    "completionTokens",
+    "firstTokenMs",
+    "textMs",
+    "speechMs"
+  ]
+}

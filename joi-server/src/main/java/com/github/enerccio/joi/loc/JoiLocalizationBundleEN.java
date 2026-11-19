@@ -101,6 +101,18 @@ public class JoiLocalizationBundleEN extends TextBundleBase<J_L> {
         setValue(J_L.LABEL_MEMORIES, "Memories");
         setValue(J_L.LABEL_SUMMARIES, "Summaries");
         setValue(J_L.LABEL_CHATS, "Chats");
+        setValue(J_L.LABEL_CREATE_TOKEN, "Create token");
+        setValue(J_L.LABEL_CONNECT_DEVICE, "Connect a device");
+        setValue(J_L.LABEL_TOKEN, "Token");
+        setValue(J_L.LABEL_API_ACCESS, "API access");
+        setValue(J_L.LABEL_ALLOW_TOKENS, "Tokens");
+        setValue(J_L.LABEL_ALLOW_OAUTH, "OAuth (devices)");
+        setValue(J_L.LABEL_ACCESS_TOKEN_MINUTES, "OAuth access token lifetime (minutes)");
+        setValue(J_L.LABEL_REFRESH_TOKEN_DAYS, "OAuth refresh token lifetime (days)");
+        setValue(J_L.LABEL_DEVICE_CODE, "Code");
+        setValue(J_L.LABEL_APPROVE, "Approve");
+        setValue(J_L.LABEL_DENY, "Deny");
+        setValue(J_L.LABEL_FIRST_ADMINISTRATOR, "the first administrator");
 
         // --- ENUM ---
         setValue(J_L.ENUM_TEXT_LLM_TYPE_AUXILIARY, "Auxiliary");
@@ -110,6 +122,8 @@ public class JoiLocalizationBundleEN extends TextBundleBase<J_L> {
         setValue(J_L.ENUM_TTS_MODEL_ORIGINAL, "Chatterbox (English, exaggeration)");
         setValue(J_L.ENUM_TTS_MODEL_MULTILINGUAL, "Chatterbox Multilingual (23 languages)");
         setValue(J_L.ENUM_TTS_MODEL_HIGGS, "Higgs Audio v3 in ComfyUI (emotions, sounds; non-commercial license)");
+        setValue(J_L.ENUM_ACCESS_TOKEN_TOKEN, "Token");
+        setValue(J_L.ENUM_ACCESS_TOKEN_OAUTH, "Device");
 
         // --- HELP ---
         setValue(J_L.HELP_TEXT_LLM_TYPES, "What Joi may use this model for: Chat (the conversation, fast replies), Deep "
@@ -147,6 +161,11 @@ public class JoiLocalizationBundleEN extends TextBundleBase<J_L> {
         setValue(J_L.HELP_USER_NAME, "What the assistant calls you; empty for the name of your account. Her prompt uses it as {{user}}.");
         setValue(J_L.HELP_JOI_INHERITED, "Empty fields use your User Settings, shown greyed out.");
         setValue(J_L.HELP_JOI_PERSONA_EVENTS, "Once you have talked, she is told when her name, your name or her personality changes.");
+        setValue(J_L.HELP_ACTOR_DESCRIPTION, "How the voice sounds, in words (\"low and warm, a little husky\"). The assistant reads it: she is told when it becomes her voice, and it is in her system prompt.");
+        setValue(J_L.HELP_API_ACCESS, "How nodes and other clients may sign in to the API (joi-protocol). Turning a way off stops its tokens and devices at once; turning it on again brings them back.");
+        setValue(J_L.HELP_NO_AUTH, "No authentication is on in the configuration (joi.api.no-auth): a call without credentials acts as %s. Only for development and localhost setups.");
+        setValue(J_L.HELP_USER_ACCESS, "The tokens and devices that may use the API as you. The API is at %s.");
+        setValue(J_L.HELP_DEVICE_CODE, "The code the device shows, like WDJB-MJHT.");
 
         // --- PLACEHOLDER ---
         setValue(J_L.PLACEHOLDER_TAGLINE, "What the voice is for, or any tag");
@@ -168,6 +187,11 @@ public class JoiLocalizationBundleEN extends TextBundleBase<J_L> {
         setValue(J_L.MSG_TEMPLATE_INVALID, "The template is not valid: %s");
         setValue(J_L.MSG_UNSAVED_SETTINGS, "Unsaved changes");
         setValue(J_L.MSG_NOTHING_YET, "Nothing here yet.");
+        setValue(J_L.MSG_TOKEN_CREATED, "Copy the token now: it is not shown again.");
+        setValue(J_L.MSG_DEVICE_WANTS, "%s wants to use Joi as you.");
+        setValue(J_L.MSG_DEVICE_APPROVED, "The device is connected.");
+        setValue(J_L.MSG_DEVICE_UNKNOWN, "No device waits for this code: it may have expired.");
+        setValue(J_L.MSG_API_OFF, "The administrator has turned off tokens and devices.");
 
         // --- DESC ---
         setValue(J_L.DESC_TEMPLATE_PERSONALITY, "The personality, rendered ({{user}} and {{char}} work in it).");
@@ -181,5 +205,6 @@ public class JoiLocalizationBundleEN extends TextBundleBase<J_L> {
         setValue(J_L.DESC_TEMPLATE_DAY, "The day, as a date.");
         setValue(J_L.DESC_TEMPLATE_SUMMARIES, "The summaries of the day's conversations.");
         setValue(J_L.DESC_TEMPLATE_KNOWN_MEMORIES, "The facts already remembered.");
+        setValue(J_L.DESC_TEMPLATE_VOICE, "How her voice sounds (the description of her voice actor)");
     }
 }

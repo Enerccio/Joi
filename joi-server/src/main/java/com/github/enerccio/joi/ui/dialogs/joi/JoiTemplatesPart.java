@@ -123,8 +123,8 @@ public class JoiTemplatesPart implements JoiDialogPart {
     private void preview() {
         try {
             String template = areas.get(JoiPromptField.MASTER_TEMPLATE).getValue();
-            SystemPromptPreviewDialog preview = new SystemPromptPreviewDialog(
-                    StringUtils.isNotBlank(template) ? template : personaService.resolve(JoiPromptField.MASTER_TEMPLATE));
+            // her own names and personality (the About tab), and her template as it is in the area
+            SystemPromptPreviewDialog preview = new SystemPromptPreviewDialog(dialog.getJoi(), template);
             preview.create();
             preview.open();
         } catch (Exception e) {

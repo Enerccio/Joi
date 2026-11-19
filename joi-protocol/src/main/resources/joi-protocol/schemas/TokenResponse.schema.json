@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Enerccio/joi/protocol/v1/TokenResponse.schema.json",
+  "title": "TokenResponse",
+  "description": "POST /oauth/token (RFC 6749, 5.1).",
+  "type": "object",
+  "properties": {
+    "access_token": {
+      "type": "string"
+    },
+    "token_type": {
+      "type": "string",
+      "enum": [
+        "Bearer"
+      ]
+    },
+    "expires_in": {
+      "type": "integer",
+      "description": "Seconds."
+    },
+    "refresh_token": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "access_token",
+    "token_type",
+    "expires_in",
+    "refresh_token"
+  ]
+}

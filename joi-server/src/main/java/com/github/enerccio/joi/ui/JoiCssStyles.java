@@ -9,6 +9,9 @@ public final class JoiCssStyles {
     /** The icon in front of the caption of a workspace tab ({@code PartIcon}). */
     public static final String WORKSPACE_PART_ICON = "workspace-part-icon";
 
+    /** A row of buttons that keeps its height when they are hidden, so what is under it does not move. */
+    public static final String BUTTON_ROW = "button-row";
+
     private JoiCssStyles() {
     }
 }

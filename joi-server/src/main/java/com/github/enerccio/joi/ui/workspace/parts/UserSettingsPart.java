@@ -1,5 +1,7 @@
 package com.github.enerccio.joi.ui.workspace.parts;
 
+import com.github.enerccio.joi.ui.JoiCssStyles;
+import com.github.enerccio.joi.ui.access.AccessPanel;
 import com.flowingcode.vaadin.addons.fontawesome.FontAwesome.Solid;
 import com.github.enerccio.joi.defaults.JoiDefaults;
 import com.github.enerccio.joi.domain.collections.TextLLMType;
@@ -45,6 +47,7 @@ import com.vaadin.flow.component.orderedlayout.FlexComponent;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.component.select.Select;
+import com.vaadin.flow.component.tabs.Tab;
 import com.vaadin.flow.component.tabs.TabSheet;
 import com.vaadin.flow.component.textfield.IntegerField;
 import com.vaadin.flow.component.textfield.TextField;
@@ -114,6 +117,7 @@ public class UserSettingsPart implements WorkspacePart {
     private Button discardButton;
     private Span unsavedSpan;
     private TabSheet tabs;
+    private final AccessPanel accessPanel = new AccessPanel();
     /** True while {@link #refresh()} fills the fields: their changes are not the user's. */
     private boolean loading;
     private boolean changed;
@@ -139,6 +143,8 @@ public class UserSettingsPart implements WorkspacePart {
         header.setWidthFull();
         header.setAlignItems(FlexComponent.Alignment.CENTER);
         header.setJustifyContentMode(FlexComponent.JustifyContentMode.END);
+        // the buttons hide on the tabs that store at once: the row stays, or the tabs jump
+        header.addClassName(JoiCssStyles.BUTTON_ROW);
 
         tabs = new TabSheet();
         tabs.setSizeFull();
@@ -146,8 +152,19 @@ public class UserSettingsPart implements WorkspacePart {
         tabs.add(loc.getValue(J_L.LABEL_PROMPTS), createPrompts());
         tabs.add(loc.getValue(J_L.LABEL_PERSONALITIES), createPersonalities());
         tabs.add(loc.getValue(J_L.LABEL_MOODS), createMoods());
+        Tab accessTab = tabs.add(loc.getValue(L.LABEL_ACCESS), accessPanel.create());
         // the grids store at once, the buttons are for the forms (and stay while their changes are unsaved)
-        tabs.addSelectedChangeListener(e -> updateButtons());
+        tabs.addSelectedChangeListener(e -> {
+            updateButtons();
+            // devices are approved elsewhere (the link a device shows), tokens used by the API: show them as they are now
+            if (e.getSelectedTab() == accessTab) {
+                try {
+                    accessPanel.refresh();
+                } catch (Exception ex) {
+                    UIUtils.internalServerError(loc, ex);
+                }
+            }
+        });
         trackChanges();
 
         VerticalLayout layout = new VerticalLayout(header, tabs);
@@ -408,6 +425,7 @@ public class UserSettingsPart implements WorkspacePart {
         if (assistantNameField == null) {
             return;
         }
+        accessPanel.refresh();
         loading = true;
         try {
             load();

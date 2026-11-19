@@ -1,5 +1,6 @@
 package com.github.enerccio.joi.ui.workspace.parts;
 
+import com.github.enerccio.joi.ui.access.ApiAccessPanel;
 import com.flowingcode.vaadin.addons.fontawesome.FontAwesome.Solid;
 import com.github.enerccio.joi.loc.J_L;
 import com.github.enerccio.joi.ui.workspace.WorkspacePart;
@@ -47,6 +48,7 @@ public class AdminPart implements WorkspacePart {
     private User currentUser;
 
     private final GpuPanel gpuPanel = new GpuPanel();
+    private final ApiAccessPanel apiAccessPanel = new ApiAccessPanel();
     private Grid<User> usersGrid;
     private Button addUserButton;
     private TabSheet tabs;
@@ -57,6 +59,7 @@ public class AdminPart implements WorkspacePart {
         tabs.setSizeFull();
         tabs.add(loc.getValue(J_L.LABEL_USERS), createUsers());
         tabs.add(loc.getValue(L.LABEL_GPUS), gpuPanel.create());
+        tabs.add(loc.getValue(J_L.LABEL_API_ACCESS), apiAccessPanel.create());
         return tabs;
     }
 

@@ -16,8 +16,12 @@ public interface JoiService extends ExtendableService<Joi, JoiRepository> {
      *
      * @param personalityKey  the key of the personality
      * @param personalityName its name
+     * @param voiceActorId     the id of her voice actor, null for none
+     * @param voiceActorName   its name
+     * @param voiceDescription how it sounds, blank for not described
      */
-    record Persona(String assistantName, String userName, String personalityKey, String personalityName) {
+    record Persona(String assistantName, String userName, String personalityKey, String personalityName, String voiceActorId,
+                   String voiceActorName, String voiceDescription) {
     }
 
     /** A new assistant of the current user with the name. */
@@ -34,7 +38,7 @@ public interface JoiService extends ExtendableService<Joi, JoiRepository> {
 
     /**
      * Saves the assistant after a change of her About, and tells her what changed of her persona: each change of her
-     * name, of what she calls the user or of her personality, compared with {@code before}, is queued as an event. Only
+     * name, of what she calls the user, of her personality or of her voice, compared with {@code before}, is queued as an event. Only
      * when she has chatted already: before that it is the initial setup, nothing she would react to.
      *
      * @param before her persona when the editing began ({@link #persona(Joi)})

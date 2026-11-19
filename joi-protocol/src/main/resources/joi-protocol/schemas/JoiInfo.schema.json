@@ -1,0 +1,71 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Enerccio/joi/protocol/v1/JoiInfo.schema.json",
+  "title": "JoiInfo",
+  "description": "GET /api/v1/jois/{id}: an assistant as a client needs her.",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string"
+    },
+    "name": {
+      "type": "string"
+    },
+    "userName": {
+      "type": "string",
+      "description": "What she calls the user."
+    },
+    "personality": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "$ref": "Personality.schema.json"
+        }
+      ]
+    },
+    "mood": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "The key of today's mood, null before her first chat of the day."
+    },
+    "wakeWord": {
+      "type": "string",
+      "description": "The phrase that wakes her."
+    },
+    "lastChatted": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "ISO 8601 date and time, null for never.",
+      "format": "date-time"
+    },
+    "chatModel": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "The model she chats with, null when none is set up."
+    },
+    "voice": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "$ref": "Voice.schema.json"
+        }
+      ]
+    }
+  },
+  "required": [
+    "id",
+    "name",
+    "userName",
+    "wakeWord"
+  ]
+}

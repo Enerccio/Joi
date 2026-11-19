@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Enerccio/joi/protocol/v1/OAuthError.schema.json",
+  "title": "OAuthError",
+  "description": "An error of an OAuth endpoint (RFC 6749, 5.2; RFC 8628, 3.5).",
+  "type": "object",
+  "properties": {
+    "error": {
+      "type": "string",
+      "enum": [
+        "authorization_pending",
+        "slow_down",
+        "access_denied",
+        "expired_token",
+        "invalid_grant",
+        "invalid_request",
+        "invalid_client",
+        "unsupported_grant_type",
+        "unavailable"
+      ]
+    },
+    "error_description": {
+      "type": [
+        "string",
+        "null"
+      ]
+    }
+  },
+  "required": [
+    "error"
+  ]
+}

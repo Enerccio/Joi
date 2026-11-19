@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Enerccio/joi/protocol/v1/DeviceAuthorization.schema.json",
+  "title": "DeviceAuthorization",
+  "description": "POST /oauth/device_authorization (RFC 8628, 3.2).",
+  "type": "object",
+  "properties": {
+    "device_code": {
+      "type": "string"
+    },
+    "user_code": {
+      "type": "string",
+      "description": "Shown to the user, e.g. WDJB-MJHT."
+    },
+    "verification_uri": {
+      "type": "string"
+    },
+    "verification_uri_complete": {
+      "type": "string"
+    },
+    "expires_in": {
+      "type": "integer",
+      "description": "Seconds."
+    },
+    "interval": {
+      "type": "integer",
+      "description": "Seconds between polls."
+    }
+  },
+  "required": [
+    "device_code",
+    "user_code",
+    "verification_uri",
+    "verification_uri_complete",
+    "expires_in",
+    "interval"
+  ]
+}

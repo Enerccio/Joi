@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Enerccio/joi/protocol/v1/Voice.schema.json",
+  "title": "Voice",
+  "description": "How an assistant speaks.",
+  "type": "object",
+  "properties": {
+    "model": {
+      "type": "string",
+      "description": "The name of the speech model."
+    },
+    "actor": {
+      "type": "string",
+      "description": "The name of the voice actor."
+    },
+    "description": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "How the voice sounds, in words, null when not described."
+    }
+  },
+  "required": [
+    "model",
+    "actor"
+  ]
+}

@@ -15,6 +15,9 @@ public final class JoiEvents {
     /** Her personality changed (payload: {@code from}, {@code to}, the keys). */
     public static final String PERSONALITY_CHANGED = "persona.personality";
 
+    /** Her voice actor changed (payload: {@code from}, {@code to}, the ids of the actors; the text has the new description). */
+    public static final String VOICE_CHANGED = "persona.voice";
+
     private JoiEvents() {
     }
 }

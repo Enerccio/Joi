@@ -39,6 +39,12 @@
       <scope>test</scope>
     </dependency>
 
+    <!-- the records and schemas of the API that nodes and other clients speak -->
+    <dependency>
+      <groupId>io.github.enerccio</groupId>
+      <artifactId>joi-protocol</artifactId>
+    </dependency>
+
     <dependency>
       <groupId>com.vaadin</groupId>
       <artifactId>vaadin-dev</artifactId>
@@ -163,6 +169,10 @@
           <webApp>
             <contextPath>/</contextPath>
           </webApp>
+          <!-- development: the API takes calls without credentials (as the first administrator) -->
+          <systemProperties>
+            <joi.api.no-auth>true</joi.api.no-auth>
+          </systemProperties>
         </configuration>
         <dependencies>
           <dependency>

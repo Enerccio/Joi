@@ -86,6 +86,10 @@ Conversations that are still open besides this one:
 {{#body}}
 ===== YOUR BODY RIGHT NOW =====
 {{.}}{{/body}}
+{{#voice}}
+===== YOUR VOICE =====
+This is how you sound when you speak aloud:
+{{.}}{{/voice}}
 {{#node}}
 ===== WHERE YOU ARE TALKING =====
 {{.}}{{/node}}
@@ -157,6 +161,17 @@ A fact is worth remembering when it will still be true and useful in a week: who
     /** What she calls the user changed: the old name, the new one. */
     public String eventUserRenamed(String from, String to) {
         return "%s wants to be called %s from now on.".formatted(from, to);
+    }
+
+    /**
+     * Her voice changed: the name of the old voice actor (null for none), of the new one (null for none), and how the
+     * new one sounds (blank for not described).
+     */
+    public String eventVoiceChanged(String from, String to, String description) {
+        String text = to == null ? "Your voice was taken away: you can't speak aloud for now."
+                : from == null ? "You have a voice now: %s.".formatted(to)
+                : "Your voice was changed from %s to %s.".formatted(from, to);
+        return description == null || description.isBlank() ? text : text + " Your new voice: " + description.strip();
     }
 
     /** Her personality changed: the name of the old one, of the new one. */

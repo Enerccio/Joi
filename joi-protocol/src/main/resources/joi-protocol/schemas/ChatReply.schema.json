@@ -1,0 +1,63 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Enerccio/joi/protocol/v1/ChatReply.schema.json",
+  "title": "ChatReply",
+  "description": "Her reply: the answer of a chat, or the reply event of a stream (audio null there).",
+  "type": "object",
+  "properties": {
+    "messageId": {
+      "type": "string",
+      "description": "The id of the stored message."
+    },
+    "text": {
+      "type": "string",
+      "description": "What she said."
+    },
+    "reasoning": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "The thinking of the model, only when asked for."
+    },
+    "mood": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "The key of her mood."
+    },
+    "model": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "The model that answered."
+    },
+    "audio": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "$ref": "Audio.schema.json"
+        }
+      ]
+    },
+    "speechError": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Why there is no audio although it was asked for."
+    },
+    "usage": {
+      "$ref": "Usage.schema.json"
+    }
+  },
+  "required": [
+    "messageId",
+    "text",
+    "usage"
+  ]
+}

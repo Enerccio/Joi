@@ -1,0 +1,37 @@
+package com.github.enerccio.joi.protocol;
+
+/**
+ * The version and the paths of Joi's API. The JSON Schemas and the OpenAPI description in {@code joi-protocol/} (in this JAR)
+ * are the source of truth; the records of {@link com.github.enerccio.joi.protocol.http} and
+ * {@link com.github.enerccio.joi.protocol.oauth} follow them (checked by a test).
+ * <p>
+ * Versioning: {@code major.minor}. A minor version only adds fields, calls and events; clients ignore what they do not
+ * know. A new major version gets a new path ({@code /api/v2}).
+ */
+public final class JoiProtocol {
+
+    /** The version this JAR describes. */
+    public static final String VERSION = "1.0";
+
+    /** The calls of the API; {@code GET} of it is the {@link com.github.enerccio.joi.protocol.http.ServerInfo} and needs no auth. */
+    public static final String API = "/api/v1";
+
+    /** The OAuth 2.0 endpoints (device authorization grant, RFC 8628, and refresh tokens). */
+    public static final String OAUTH = "/oauth";
+
+    public static final String DEVICE_AUTHORIZATION = OAUTH + "/device_authorization";
+
+    public static final String TOKEN = OAUTH + "/token";
+
+    /** The OAuth metadata of the server (RFC 8414). */
+    public static final String OAUTH_METADATA = "/.well-known/oauth-authorization-server";
+
+    /** The grant type of a device (RFC 8628). */
+    public static final String DEVICE_CODE_GRANT = "urn:ietf:params:oauth:grant-type:device_code";
+
+    /** The media type of a streamed chat (server-sent events). */
+    public static final String EVENT_STREAM = "text/event-stream";
+
+    private JoiProtocol() {
+    }
+}

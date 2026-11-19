@@ -1,0 +1,212 @@
+openapi: 3.1.0
+info:
+  title: Joi API
+  version: "1.0"
+  description: |
+    The HTTP API of a Joi server for nodes and other clients: the assistants of the user, and chat with one of them,
+    answered in text and speech. The message shapes are the JSON Schemas in `schemas/` (the source of truth); the Java
+    records of `joi-protocol` follow them.
+
+    **Auth.** `GET /api/v1` says what the server offers (`auth.methods`):
+    - `token`: a token the user created in User Settings → Access, sent as `Authorization: Bearer joi_...`.
+    - `oauth`: the device authorization grant (RFC 8628). The device asks `/oauth/device_authorization` for a code,
+      shows it, the user approves it in the server's UI, the device polls `/oauth/token`. The access token
+      (`joia_...`) is sent like a token; it expires, and `refresh_token` gives a new pair.
+    - `none`: no credentials at all; the server acts as one configured user. Only for development and localhost
+      setups, turned on in the server's configuration (`joi.api.no-auth`).
+
+    The administrator chooses which of `token` and `oauth` are offered. A call without valid credentials gets 401.
+
+    **Versioning.** `major.minor`: a minor version only adds fields, calls and stream events, and clients ignore what
+    they do not know. A new major version gets a new path.
+servers:
+  - url: http://localhost:8080
+paths:
+  /api/v1:
+    get:
+      summary: What the server is and how to authenticate
+      security: [ ]
+      responses:
+        "200":
+          description: The server
+          content:
+            application/json:
+              schema: { $ref: "schemas/ServerInfo.schema.json" }
+  /api/v1/me:
+    get:
+      summary: Whom the call acts for
+      responses:
+        "200":
+          description: The user
+          content:
+            application/json:
+              schema: { $ref: "schemas/Me.schema.json" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+  /api/v1/jois:
+    get:
+      summary: The assistants of the user, by name
+      responses:
+        "200":
+          description: The list
+          content:
+            application/json:
+              schema: { $ref: "schemas/JoiList.schema.json" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+  /api/v1/jois/{id}:
+    get:
+      summary: An assistant
+      parameters:
+        - { $ref: "#/components/parameters/JoiId" }
+      responses:
+        "200":
+          description: The assistant
+          content:
+            application/json:
+              schema: { $ref: "schemas/JoiInfo.schema.json" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /api/v1/jois/{id}/chat:
+    post:
+      summary: Say something to her; she answers in text and speech
+      description: |
+        The message is stored in her history and the prompt is built from it. Calls to one assistant are answered one
+        after another.
+
+        **Whole reply** (default): one `ChatReply` with the text and, when `speak` and she has a voice, the audio of
+        the whole reply. A failed speech still gives the text, with `speechError`.
+
+        **Streamed** (`"stream": true` or `Accept: text/event-stream`): server-sent events, `event: <name>` with
+        `data: <JSON>`, in this order: `reasoning` and `text` pieces (`TextDelta`) while the model writes; `reply`
+        (`ChatReply` without audio) once the text is stored; `audio` pieces (`AudioChunk`, a sentence or a few each,
+        every one a whole file) while she speaks; `done` (`Done`). `error` (`ApiError`) ends a stream that failed.
+        Lines starting with `:` keep the connection alive.
+
+        Why both: the speech starts once the text is whole and stored, and a streamed reply is spoken piece by piece,
+        the first sentence first, so a voice node starts playing after the first piece instead of after the whole
+        reply. A simple client takes the whole reply.
+      parameters:
+        - { $ref: "#/components/parameters/JoiId" }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "schemas/ChatRequest.schema.json" }
+      responses:
+        "200":
+          description: Her reply, whole or streamed
+          content:
+            application/json:
+              schema: { $ref: "schemas/ChatReply.schema.json" }
+            text/event-stream:
+              schema:
+                type: string
+                description: "Events: reasoning, text (TextDelta), reply (ChatReply), audio (AudioChunk), done (Done), error (ApiError)"
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409":
+          description: "`no_model`: she has no chat model set up"
+          content:
+            application/json:
+              schema: { $ref: "schemas/ApiError.schema.json" }
+        "502":
+          description: "`model_failed`: the model did not answer"
+          content:
+            application/json:
+              schema: { $ref: "schemas/ApiError.schema.json" }
+  /oauth/device_authorization:
+    post:
+      summary: A device asks for its codes (RFC 8628, 3.1)
+      security: [ ]
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              required: [ client_id ]
+              properties:
+                client_id: { type: string, description: "Any name of the client; public clients, no secret" }
+                client_name: { type: string, description: "The name the user sees when approving, default client_id" }
+      responses:
+        "200":
+          description: The codes
+          content:
+            application/json:
+              schema: { $ref: "schemas/DeviceAuthorization.schema.json" }
+        "400": { $ref: "#/components/responses/OAuthError" }
+        "503": { $ref: "#/components/responses/OAuthError" }
+  /oauth/token:
+    post:
+      summary: Poll for the tokens of a device, or refresh them (RFC 8628, 3.4; RFC 6749, 6)
+      security: [ ]
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              required: [ grant_type ]
+              properties:
+                grant_type:
+                  type: string
+                  enum: [ "urn:ietf:params:oauth:grant-type:device_code", refresh_token ]
+                device_code: { type: string }
+                refresh_token: { type: string }
+                client_id: { type: string }
+      responses:
+        "200":
+          description: The tokens
+          content:
+            application/json:
+              schema: { $ref: "schemas/TokenResponse.schema.json" }
+        "400": { $ref: "#/components/responses/OAuthError" }
+        "503": { $ref: "#/components/responses/OAuthError" }
+  /.well-known/oauth-authorization-server:
+    get:
+      summary: The OAuth metadata (RFC 8414)
+      security: [ ]
+      responses:
+        "200":
+          description: The metadata
+          content:
+            application/json:
+              schema: { $ref: "schemas/OAuthMetadata.schema.json" }
+        "404":
+          description: OAuth is not offered
+components:
+  securitySchemes:
+    bearer:
+      type: http
+      scheme: bearer
+      description: A token (joi_...) or an OAuth access token (joia_...)
+  parameters:
+    JoiId:
+      name: id
+      in: path
+      required: true
+      description: The id of the assistant (JoiSummary.id)
+      schema: { type: string }
+  responses:
+    Unauthorized:
+      description: "`unauthorized`: no valid credentials"
+      content:
+        application/json:
+          schema: { $ref: "schemas/ApiError.schema.json" }
+    NotFound:
+      description: "`not_found`"
+      content:
+        application/json:
+          schema: { $ref: "schemas/ApiError.schema.json" }
+    BadRequest:
+      description: "`bad_request`"
+      content:
+        application/json:
+          schema: { $ref: "schemas/ApiError.schema.json" }
+    OAuthError:
+      description: An OAuth error
+      content:
+        application/json:
+          schema: { $ref: "schemas/OAuthError.schema.json" }
+security:
+  - bearer: [ ]

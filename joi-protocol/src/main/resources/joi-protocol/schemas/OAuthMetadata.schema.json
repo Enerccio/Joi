@@ -1,0 +1,37 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Enerccio/joi/protocol/v1/OAuthMetadata.schema.json",
+  "title": "OAuthMetadata",
+  "description": "GET /.well-known/oauth-authorization-server (RFC 8414).",
+  "type": "object",
+  "properties": {
+    "issuer": {
+      "type": "string"
+    },
+    "device_authorization_endpoint": {
+      "type": "string"
+    },
+    "token_endpoint": {
+      "type": "string"
+    },
+    "grant_types_supported": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "token_endpoint_auth_methods_supported": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "required": [
+    "issuer",
+    "device_authorization_endpoint",
+    "token_endpoint",
+    "grant_types_supported",
+    "token_endpoint_auth_methods_supported"
+  ]
+}

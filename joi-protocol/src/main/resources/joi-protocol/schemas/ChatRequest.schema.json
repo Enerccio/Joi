@@ -1,0 +1,45 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Enerccio/joi/protocol/v1/ChatRequest.schema.json",
+  "title": "ChatRequest",
+  "description": "POST /api/v1/jois/{id}/chat: what the user said.",
+  "type": "object",
+  "properties": {
+    "text": {
+      "type": "string",
+      "description": "The words of the user.",
+      "minLength": 1
+    },
+    "speak": {
+      "type": [
+        "boolean",
+        "null"
+      ],
+      "description": "Speak the reply too (default true)."
+    },
+    "stream": {
+      "type": [
+        "boolean",
+        "null"
+      ],
+      "description": "Answer as server-sent events (default false); Accept: text/event-stream does the same."
+    },
+    "reasoning": {
+      "type": [
+        "boolean",
+        "null"
+      ],
+      "description": "Include the thinking of the model (default false)."
+    },
+    "node": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "The node the words came from."
+    }
+  },
+  "required": [
+    "text"
+  ]
+}

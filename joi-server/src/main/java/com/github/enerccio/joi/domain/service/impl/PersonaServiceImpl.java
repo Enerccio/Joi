@@ -1,5 +1,6 @@
 package com.github.enerccio.joi.domain.service.impl;
 
+import com.github.enerccio.joi.domain.model.impl.Joi;
 import com.github.enerccio.joi.defaults.JoiDefaults;
 import com.github.enerccio.joi.defaults.MoodDefault;
 import com.github.enerccio.joi.defaults.PersonalityDefault;
@@ -258,8 +259,18 @@ public class PersonaServiceImpl implements PersonaService {
 
     @Override
     public String renderChatSystemPrompt(String template, String moodKey, ChatTemplateData data) throws Exception {
-        data.names(assistantName(), userName());
-        Personality personality = currentPersonality();
+        return renderChatSystemPrompt(null, template, moodKey, data);
+    }
+
+    @Override
+    public String renderChatSystemPrompt(Joi joi, String template, String moodKey, ChatTemplateData data) throws Exception {
+        String name = joi != null && StringUtils.isNotBlank(joi.getAssistantName()) ? joi.getAssistantName().strip() : assistantName();
+        String user = joi != null && StringUtils.isNotBlank(joi.getUserName()) ? joi.getUserName().strip() : userName();
+        data.names(name, user);
+        Personality personality = joi == null ? null : personality(joi.getPersonality());
+        if (personality == null) {
+            personality = currentPersonality();
+        }
         Mood mood = mood(moodKey);
         if (mood == null) {
             mood = mood(JoiDefaults.DEFAULT_MOOD);
@@ -267,7 +278,8 @@ public class PersonaServiceImpl implements PersonaService {
         // the fragments may use the names too ({{user}}), so they are templates of their own
         data.setPersonalityPrompt(personality == null ? null : fragment(personality.prompt(), "personality", data));
         data.setMood(fragment(moodText(personality, mood), "mood", data));
-        String master = StringUtils.isNotBlank(template) ? template : resolve(JoiPromptField.MASTER_TEMPLATE);
+        String master = StringUtils.isNotBlank(template) ? template
+                : JoiPromptField.MASTER_TEMPLATE.resolve(joi, getUserSetting(), defaults());
         return tidy(templateService.processTemplate(master, JoiPromptField.MASTER_TEMPLATE.templateName(), data));
     }
 

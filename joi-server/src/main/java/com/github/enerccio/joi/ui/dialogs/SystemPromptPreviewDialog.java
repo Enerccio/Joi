@@ -1,5 +1,6 @@
 package com.github.enerccio.joi.ui.dialogs;
 
+import com.github.enerccio.joi.domain.model.impl.Joi;
 import com.github.enerccio.joi.domain.persona.Mood;
 import com.github.enerccio.joi.domain.service.PersonaService;
 import com.github.enerccio.joi.domain.templates.ChatTemplateData;
@@ -30,6 +31,7 @@ public class SystemPromptPreviewDialog extends Dialog {
     @Autowired
     private PersonaService personaService;
 
+    private final Joi joi;
     private final String template;
     private Select<Mood> moodSelect;
     private TextArea output;
@@ -38,6 +40,15 @@ public class SystemPromptPreviewDialog extends Dialog {
      * @param template the master template being edited, blank for the resolved one
      */
     public SystemPromptPreviewDialog(String template) {
+        this(null, template);
+    }
+
+    /**
+     * @param joi      the assistant whose prompt it is (her names and personality), null for the user's settings
+     * @param template the master template being edited, blank for the resolved one
+     */
+    public SystemPromptPreviewDialog(Joi joi, String template) {
+        this.joi = joi;
         this.template = template;
     }
 
@@ -71,9 +82,10 @@ public class SystemPromptPreviewDialog extends Dialog {
         data.setConversations("(" + loc.getValue(J_L.DESC_TEMPLATE_CONVERSATIONS) + ")");
         data.setBody("(" + loc.getValue(J_L.DESC_TEMPLATE_BODY) + ")");
         data.setNode("(" + loc.getValue(J_L.DESC_TEMPLATE_NODE) + ")");
+        data.setVoice("(" + loc.getValue(J_L.DESC_TEMPLATE_VOICE) + ")");
         try {
             Mood mood = moodSelect.getValue();
-            output.setValue(personaService.renderChatSystemPrompt(template, mood == null ? null : mood.key(), data));
+            output.setValue(personaService.renderChatSystemPrompt(joi, template, mood == null ? null : mood.key(), data));
         } catch (Exception e) {
             UIUtils.internalServerError(loc, e);
         }

@@ -35,6 +35,18 @@ public class ChatTemplateData extends JoiTemplateData {
     @JoiTemplateDescription(loc = J_L.DESC_TEMPLATE_NODE)
     private String node;
 
+    /** How her voice sounds: the description of her voice actor. */
+    @JoiTemplateDescription(loc = J_L.DESC_TEMPLATE_VOICE)
+    private String voice;
+
+    public String getVoice() {
+        return voice;
+    }
+
+    public void setVoice(String voice) {
+        this.voice = voice;
+    }
+
     public String getPersonalityPrompt() {
         return personalityPrompt;
     }

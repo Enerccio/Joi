@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Enerccio/joi/protocol/v1/AuthInfo.schema.json",
+  "title": "AuthInfo",
+  "description": "How the server takes calls now.",
+  "type": "object",
+  "properties": {
+    "methods": {
+      "type": "array",
+      "items": {
+        "$ref": "AuthMethod.schema.json"
+      },
+      "description": "What is offered, in the order a client should prefer them."
+    },
+    "oauth": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "$ref": "OAuthEndpoints.schema.json"
+        }
+      ]
+    }
+  },
+  "required": [
+    "methods"
+  ]
+}

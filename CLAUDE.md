@@ -15,15 +15,19 @@ workspace with a Models part: text models (the platform's AIs), TTS models and v
 assistant's name, the user's name, personality, model roles, voice, the prompts and the personalities and moods; and, for administrators, an
 Administration page behind a button under the tabs, as in Marginalia: users and GPU locks). The data model of the assistant is built (no UI or inference yet): `Joi`, `ChatMessage`, `MessagePrompt`, `Summary`,
 `Memory`, `JoiTask`, `JoiTaskMessage`, `QueuedEvent` (see `DESIGN.md` → Several assistants), with the Jois tab and the Joi dialog (`ui/workspace/parts/JoisPart`,
-`ui/dialogs/JoiDialog` and its parts in `ui/dialogs/joi`). `spikes/` holds throwaway experiments for the avatar renderer.
+`ui/dialogs/JoiDialog` and its parts in `ui/dialogs/joi`). The HTTP API is built (`joi-protocol` 1.0: list, info,
+chat with text and speech, whole or streamed; tokens, OAuth device grant, no auth for development; see `DESIGN.md` →
+The node protocol): `api/` (`JoiApiServlet`, `JoiApi`), `domain/chat/ChatService`, `ui/access`. `spikes/` holds throwaway experiments for the avatar renderer.
 
 ## Build
 
-Maven reactor at the root (`joi-parent`): `marginalia/marginalia/platform` (from the submodule) and `joi-server`.
+Maven reactor at the root (`joi-parent`): `marginalia/marginalia/platform` (from the submodule), `joi-protocol` and
+`joi-server`.
 JDK 25+, Maven 3.9. Clone with `git clone --recurse-submodules` (or `git submodule update --init`).
 
 ```bash
 mvn install -DskipTests -pl marginalia/marginalia/platform   # the platform and its test-jar into ~/.m2, after each submodule bump
+mvn -N install && mvn install -DskipTests -pl joi-protocol   # the parent POM and the protocol into ~/.m2 (for -pl joi-server alone)
 mvn test -pl joi-server -Dtest=JoiContextTest                 # joi-server's tests (the classes you touched)
 mvn jetty:run -pl joi-server                                  # dev mode on http://localhost:8080, data in ~/.joi (JOI_DATA)
 mvn package -pl joi-server -Pproduction                       # the WAR with the production frontend bundle
@@ -56,6 +60,9 @@ with the code.
 
 ## Layout
 
+- `joi-protocol/` — the public API: JSON Schemas and `openapi.yaml` in `src/main/resources/joi-protocol` (the source of
+  truth; `SchemaContractTest` checks the records against them), records in `com.github.enerccio.joi.protocol`, Gson
+  only. A change of the API changes the schema, the record and `DESIGN.md` → The node protocol together.
 - `marginalia/` — git submodule of Marginalia, pinned at a commit on its `dev` branch; joi-server uses only its
   platform module (`marginalia-platform`). Bump it on purpose, never edit it from here (see `MARGINALIA.md`).
 - `joi-server/` — the server WAR. Packages under `com.github.enerccio.joi`. Its own Spring XML
@@ -72,6 +79,8 @@ with the code.
   the user setting; ask `AdminGuard`, not the session's `User`, whether someone is an administrator.
   Built-in texts and values are in `defaults/JoiDefaults` (like Marginalia's `Defaults`); a setting resolves along the
   chain assistant (later) → `JoiUserSetting` → `JoiDefaults` (`domain/persona/JoiPromptField`, `PersonaService`).
+  The API's configuration is `api/ApiConfiguration` (`joi.api.no-auth`, `joi.api.no-auth-user`, `joi.api.public-url`;
+  no auth is on in `jetty:run` through the pom); what the administrator offers is `ApiAccess` (in the app settings).
   Template data extends `domain/templates/JoiTemplateData` (`{{char}}` / `{{user}}`); don't name a variable after a
   SillyTavern macro (`personality`, `persona`, `description`, `scenario`...): the platform swallows it. Text areas for
   prompts expand (`ui/widgets/PromptAreas`, the platform's `ResizableTextArea`). UI texts in `loc/J_L` + `JoiLocalizationBundle*`, styles in `frontend/styles/joi-styles.css` + `JoiCssStyles`. Tests

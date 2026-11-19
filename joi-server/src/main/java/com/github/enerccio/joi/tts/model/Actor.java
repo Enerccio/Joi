@@ -12,6 +12,8 @@ public class Actor extends Role {
     private String name = "";
     /** A note of the user shown under the name in the pickers of an actor (the character they play, any tag); empty for none. */
     private String tagline = "";
+    /** How the voice sounds, in words, for the assistant: she is told it when it becomes her voice; empty for none. */
+    private String description = "";
 
     public String getId() {
         return id;
@@ -35,5 +37,13 @@ public class Actor extends Role {
 
     public void setTagline(String tagline) {
         this.tagline = tagline;
+    }
+
+    public String getDescription() {
+        return description == null ? "" : description;
+    }
+
+    public void setDescription(String description) {
+        this.description = description;
     }
 }

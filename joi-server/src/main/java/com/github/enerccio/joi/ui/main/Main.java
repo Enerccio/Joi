@@ -1,5 +1,9 @@
 package com.github.enerccio.joi.ui.main;
 
+import com.github.enerccio.joi.ui.access.DeviceApprovalDialog;
+import com.vaadin.flow.router.BeforeEnterEvent;
+import com.vaadin.flow.router.BeforeEnterObserver;
+import java.util.List;
 import com.github.enerccio.joi.loc.J_L;
 import com.github.enerccio.joi.ui.workspace.JoiWorkspace;
 import com.github.enerccio.marginalia.bound.ApplicationPoint;
@@ -21,7 +25,7 @@ import org.springframework.beans.factory.annotation.Configurable;
  */
 @Route("/")
 @Configurable(preConstruction = true)
-public class Main extends LoginCheckRoute {
+public class Main extends LoginCheckRoute implements BeforeEnterObserver {
 
     @Autowired
     private User user;
@@ -35,8 +39,35 @@ public class Main extends LoginCheckRoute {
     @Autowired
     private SettingService settingService;
 
+    /** The code of {@code /?device=<code>} (the link an OAuth device shows), until the user is logged in. */
+    private String pendingDevice;
+    private boolean loggedIn;
+
     public Main() {
         showLogin();
+    }
+
+    @Override
+    public void beforeEnter(BeforeEnterEvent event) {
+        List<String> device = event.getLocation().getQueryParameters().getParameters().get("device");
+        if (device == null) {
+            return;
+        }
+        pendingDevice = device.isEmpty() ? "" : device.getFirst();
+        if (loggedIn) {
+            openDeviceApproval();
+        }
+    }
+
+    /** Asks the user to approve the device of the link. */
+    private void openDeviceApproval() {
+        String code = pendingDevice;
+        pendingDevice = null;
+        DeviceApprovalDialog dialog = new DeviceApprovalDialog(code, null);
+        dialog.create();
+        dialog.open();
+        // the code is not kept in the address: a reload must not ask again
+        UI.getCurrent().getPage().getHistory().replaceState(null, "");
     }
 
     @Override
@@ -84,6 +115,10 @@ public class Main extends LoginCheckRoute {
             add(workspace.create());
             workspace.refresh();
             workspace.restoreAutosaved();
+            loggedIn = true;
+            if (pendingDevice != null) {
+                openDeviceApproval();
+            }
         } catch (Exception e) {
             UIUtils.internalServerError(loc, e);
         }

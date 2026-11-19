@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Enerccio/joi/protocol/v1/ApiError.schema.json",
+  "title": "ApiError",
+  "description": "The body of a failed call and the error event of a stream.",
+  "type": "object",
+  "properties": {
+    "code": {
+      "type": "string",
+      "description": "A stable word: unauthorized, forbidden, not_found, bad_request, no_model, model_failed, busy, internal."
+    },
+    "message": {
+      "type": "string",
+      "description": "For people."
+    }
+  },
+  "required": [
+    "code",
+    "message"
+  ]
+}

@@ -579,6 +579,26 @@ CREATE TABLE queued_events
     handled              boolean     not null default 0
 );
 
+-- AccessToken: a credential of the API, a token of the user or the tokens of an OAuth device.
+CREATE TABLE access_tokens
+(
+    id              bigint       not null primary key,
+    creation        timestamp,
+    is_deleted      boolean      not null,
+    modification    timestamp,
+    uuid            varchar(36)  not null unique,
+    extendedContent blob,
+    _fulltext       clob,
+    userId          bigint,
+    name            varchar(100) not null,
+    kind            varchar(16)  not null,
+    keyPrefix       varchar(32)  not null unique,
+    secretHash      varchar(64)  not null,
+    expires         timestamp,
+    refreshPrefix   varchar(32)  unique,
+    refreshHash     varchar(64)
+);
+
 CREATE TABLE assistants_SEQ
 (
     next_val bigint
@@ -621,6 +641,12 @@ CREATE TABLE memories_SEQ
 );
 INSERT INTO memories_SEQ (next_val) VALUES (1);
 
+CREATE TABLE access_tokens_SEQ
+(
+    next_val bigint
+);
+INSERT INTO access_tokens_SEQ (next_val) VALUES (1);
+
 CREATE TABLE queued_events_SEQ
 (
     next_val bigint
@@ -642,3 +668,4 @@ CREATE INDEX ix_memories_joi ON memories (joi_id, is_deleted, importance);
 CREATE INDEX ix_memories_user ON memories (userId, is_deleted);
 CREATE INDEX ix_queued_events_joi ON queued_events (joi_id, handled, is_deleted, occurredAt);
 CREATE INDEX ix_queued_events_user ON queued_events (userId, is_deleted);
+CREATE INDEX ix_access_tokens_user ON access_tokens (userId, is_deleted);

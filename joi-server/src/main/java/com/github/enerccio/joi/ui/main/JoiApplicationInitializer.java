@@ -1,5 +1,7 @@
 package com.github.enerccio.joi.ui.main;
 
+import com.github.enerccio.joi.api.JoiApiServlet;
+import com.github.enerccio.joi.protocol.JoiProtocol;
 import com.github.enerccio.marginalia.bound.SessionTrackingListener;
 import com.github.enerccio.marginalia.ui.main.HealthServlet;
 import jakarta.servlet.ServletContext;
@@ -26,5 +28,8 @@ public class JoiApplicationInitializer implements WebApplicationInitializer {
         servletContext.addListener(new RequestContextListener());
         servletContext.addListener(new SessionTrackingListener(rootContext));
         servletContext.addServlet("HealthServlet", new HealthServlet()).addMapping(HealthServlet.PATH);
+        // the API of joi-protocol; prefix mappings win over the /* of the Vaadin servlet
+        servletContext.addServlet("JoiApiServlet", new JoiApiServlet())
+                .addMapping("/api/*", "/oauth/*", JoiProtocol.OAUTH_METADATA);
     }
 }
