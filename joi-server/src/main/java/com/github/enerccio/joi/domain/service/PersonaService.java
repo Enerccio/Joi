@@ -72,6 +72,12 @@ public interface PersonaService {
     String render(JoiPromptField field, JoiTemplateData data) throws Exception;
 
     /**
+     * Renders the template of the field resolved along the assistant's chain (hers, else the user setting, else the
+     * default) with the data, with her names.
+     */
+    String render(Joi joi, JoiPromptField field, JoiTemplateData data) throws Exception;
+
+    /**
      * Renders the system prompt of a chat: the user's personality and the mood (as it sounds in that personality) are
      * rendered and put into the data, then the master template.
      *

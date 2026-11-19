@@ -36,6 +36,14 @@ public interface PersonaAttributes {
 
     void setFactsPrompt(String factsPrompt);
 
+    String getSelfImagePrompt();
+
+    void setSelfImagePrompt(String selfImagePrompt);
+
+    String getBodyPrompt();
+
+    void setBodyPrompt(String bodyPrompt);
+
     /** The key of the personality, blank when not set. */
     String getPersonality();
 

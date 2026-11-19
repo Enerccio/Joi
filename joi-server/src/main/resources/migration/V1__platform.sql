@@ -613,6 +613,23 @@ CREATE TABLE models
     resource_id     bigint      REFERENCES resources (id)
 );
 
+-- Body: a body of an assistant, made of the user's models (the full one, a lighter one for the Looking Glass).
+CREATE TABLE bodies
+(
+    id              bigint      not null primary key,
+    creation        timestamp,
+    is_deleted      boolean     not null,
+    modification    timestamp,
+    uuid            varchar(36) not null unique,
+    extendedContent blob,
+    _fulltext       clob,
+    userId          bigint,
+    joi_id          bigint      not null REFERENCES assistants (id),
+    model_id        bigint      REFERENCES models (id),
+    lkg_model_id    bigint      REFERENCES models (id),
+    active          boolean     not null default 0
+);
+
 CREATE TABLE assistants_SEQ
 (
     next_val bigint
@@ -673,7 +690,15 @@ CREATE TABLE models_SEQ
 );
 INSERT INTO models_SEQ (next_val) VALUES (1);
 
+CREATE TABLE bodies_SEQ
+(
+    next_val bigint
+);
+INSERT INTO bodies_SEQ (next_val) VALUES (1);
+
 CREATE INDEX ix_models_user ON models (userId, is_deleted);
+CREATE INDEX ix_bodies_joi ON bodies (joi_id, is_deleted);
+CREATE INDEX ix_bodies_user ON bodies (userId, is_deleted);
 CREATE INDEX ix_assistants_user ON assistants (userId, is_deleted);
 CREATE INDEX ix_chat_messages_joi ON chat_messages (joi_id, is_deleted, sentAt);
 CREATE INDEX ix_chat_messages_user ON chat_messages (userId, is_deleted);

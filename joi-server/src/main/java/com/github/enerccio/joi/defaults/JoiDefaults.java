@@ -153,6 +153,66 @@ A fact is worth remembering when it will still be true and useful in a week: who
     // events: what the assistant is told when something changes around her ({@code JoiEvents})
     // ----------------------------------------------------------------------------------------------------------------
 
+    /**
+     * She was put into another body: the name of the old one (null for none), of the new one (null for none), and how
+     * she looks in it (blank for not described).
+     */
+    public String eventBodySwitched(String from, String to, String description) {
+        String text = to == null ? "You were taken out of your body: nobody can see you for now."
+                : from == null ? "You have a body now: %s.".formatted(to)
+                : "You were switched from your body %s to %s.".formatted(from, to);
+        return description == null || description.isBlank() ? text : text + " How you look now: " + description.strip();
+    }
+
+    // ----------------------------------------------------------------------------------------------------------------
+    // the self-image of a body: a multimodal model describes it from snapshots ({@code BodySelfImageService})
+    // ----------------------------------------------------------------------------------------------------------------
+
+    /** The request for a body's self-image, next to the images ({@code SelfImageTemplateData}). */
+    public String selfImagePrompt() {
+        return """
+You look at images of a 3D avatar and describe it for {{char}}, the AI assistant who lives in it, so she knows how she looks. The avatar is her body "{{bodyName}}".
+{{#snapshots}}
+The first images are renders of it: {{.}}.{{/snapshots}}
+{{#references}}
+Then come {{.}} images {{user}} gave (store pages, photos): they may show it from other angles or in other outfits.{{/references}}
+{{#notes}}
+===== {{user}}'S NOTES =====
+{{.}}{{/notes}}
+{{#currentDescription}}
+===== THE DESCRIPTION IT HAS NOW =====
+Improve it; keep what is right.
+{{.}}{{/currentDescription}}
+{{#toggles}}
+===== THE TOGGLES =====
+number | mesh / key | name now | as the model comes
+{{.}}{{/toggles}}
+
+Answer with one JSON object and nothing else:
+{"description": "...", "toggles": {"<toggle number>": "<name>", ...}}
+
+description: how she looks, in the second person ("You have long silver hair..."), in plain sentences, 80 to 200 words. Cover the build and height impression, the face, eyes and hair, the clothes and shoes, the accessories and anything unusual (ears, tail, horns, wings, markings). Describe what the images show; use the notes for what they can't show. Say nothing about the rendering itself (background, lighting, pose) and don't guess names or brands.
+
+toggles: for each toggle listed (by its number), a short name (one to three lowercase words) for the part it shows or hides, as she would call it ("halo", "left blade", "jacket"). Use the images and the names of the mesh and the key. Leave out a toggle you can't tell; keep a name {{user}} gave unless it is clearly wrong.
+""";
+    }
+
+    /** How she looks in the body she is in was described anew: the body's name, the description. */
+    public String eventBodyDescribed(String body, String description) {
+        return "How you look in your body %s was described anew: %s".formatted(body, description.strip());
+    }
+
+    /** The section of her system prompt about the body she is in ({@code BodyTemplateData}, the master's {@code {{#body}}}). */
+    public String bodyPrompt() {
+        return """
+You are in your body "{{bodyName}}".{{#if appearance}}
+{{appearance}}{{else}} Nobody has described how you look in it yet.{{/if}}{{#expressions}}
+Expressions your face can show: {{.}}.{{/expressions}}{{#parts}}
+Parts you can show or hide: {{.}}.{{/parts}}{{#otherBodies}}
+Your other bodies: {{.}}.{{/otherBodies}}
+""";
+    }
+
     /** Her name changed: the old name, the new one. */
     public String eventRenamed(String from, String to) {
         return "You were renamed from %s to %s.".formatted(from, to);

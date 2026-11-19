@@ -5,6 +5,7 @@ import com.github.enerccio.joi.domain.model.impl.QueuedEvent;
 import com.github.enerccio.joi.domain.service.JoiService;
 import com.github.enerccio.joi.loc.J_L;
 import com.github.enerccio.joi.ui.dialogs.joi.JoiAboutPart;
+import com.github.enerccio.joi.ui.dialogs.joi.JoiBodiesPart;
 import com.github.enerccio.joi.ui.dialogs.joi.JoiChatsPart;
 import com.github.enerccio.joi.ui.dialogs.joi.JoiDialogPart;
 import com.github.enerccio.joi.ui.dialogs.joi.JoiNothingYetPart;
@@ -31,6 +32,7 @@ import java.util.Map;
  * that stores its changes as they are made, and Exit.
  * <ul>
  *     <li>About: her name, what she calls the user, her personality, the models of the roles and her voice;</li>
+ *     <li>Bodies: her bodies and the one she is in ({@link JoiBodiesPart});</li>
  *     <li>Templates: her prompts;</li>
  *     <li>Memories, Summaries: empty for now;</li>
  *     <li>Chats: her conversation, read only ({@link JoiChatsPart}).</li>
@@ -54,6 +56,7 @@ public class JoiDialog extends Dialog {
     private JoiAboutPart aboutPart;
     private JoiTemplatesPart templatesPart;
     private JoiChatsPart chatsPart;
+    private JoiBodiesPart bodiesPart;
 
     public JoiDialog(Joi joi) {
         this.joi = joi;
@@ -75,7 +78,7 @@ public class JoiDialog extends Dialog {
         tabs.setTabsWidth("200px");
         aboutPart = new JoiAboutPart(this);
         templatesPart = new JoiTemplatesPart(this);
-        for (JoiDialogPart part : List.of(aboutPart, templatesPart, new JoiNothingYetPart(J_L.LABEL_MEMORIES),
+        for (JoiDialogPart part : List.of(aboutPart, bodiesPart = new JoiBodiesPart(), templatesPart, new JoiNothingYetPart(J_L.LABEL_MEMORIES),
                 new JoiNothingYetPart(J_L.LABEL_SUMMARIES), chatsPart = new JoiChatsPart())) {
             Component content = part.create();
             parts.put(part, content);
@@ -166,6 +169,11 @@ public class JoiDialog extends Dialog {
     /** The Chats tab, for tests. */
     public JoiChatsPart getChatsPart() {
         return chatsPart;
+    }
+
+    /** The Bodies tab, for tests. */
+    public JoiBodiesPart getBodiesPart() {
+        return bodiesPart;
     }
 
     /** The Templates tab, for tests. */

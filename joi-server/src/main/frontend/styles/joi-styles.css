@@ -122,3 +122,28 @@
     gap: var(--lumo-space-xs);
 }
 
+.body-appearance textarea {
+    min-height: 14rem;
+}
+
+.body-thumbnails {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--lumo-space-xs);
+}
+
+.body-thumbnails > div {
+    position: relative;
+}
+
+.body-thumbnails img {
+    height: 6rem;
+    border-radius: var(--lumo-border-radius-s);
+    display: block;
+}
+
+.body-thumbnails vaadin-button {
+    position: absolute;
+    top: 0;
+    right: 0;
+}

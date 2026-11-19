@@ -241,6 +241,17 @@
         <property name="repository" ref="modelRepository" />
     </bean>
 
+    <!-- the bodies of the assistants, made of the models -->
+    <bean id="bodyRepository" class="com.github.enerccio.joi.domain.repository.impl.JpaBodyRepository">
+        <property name="entityManager" ref="em" />
+    </bean>
+    <bean class="com.github.enerccio.joi.domain.service.impl.BodyServiceImpl">
+        <property name="repository" ref="bodyRepository" />
+    </bean>
+
+    <!-- her self-image: a multimodal model describes a body from its snapshots; one request at a time -->
+    <bean class="com.github.enerccio.joi.domain.service.impl.BodySelfImageServiceImpl" />
+
     <!-- converting an FBX to VRM with Blender (joi.blender = JOI_BLENDER, empty: Blender.app on macOS, else blender
          on the PATH); one conversion at a time -->
     <bean class="com.github.enerccio.joi.domain.service.impl.ModelConversionServiceImpl">

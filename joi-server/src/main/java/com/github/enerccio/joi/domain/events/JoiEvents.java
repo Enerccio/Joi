@@ -18,6 +18,12 @@ public final class JoiEvents {
     /** Her voice actor changed (payload: {@code from}, {@code to}, the ids of the actors; the text has the new description). */
     public static final String VOICE_CHANGED = "persona.voice";
 
+    /** She was put into another body (payload: {@code from}, {@code to}, the uuids of the bodies; null for none). */
+    public static final String BODY_SWITCHED = "body.switched";
+
+    /** How she looks in the body she is in was described anew (payload: {@code to}, the uuid of the body). */
+    public static final String BODY_DESCRIBED = "body.described";
+
     private JoiEvents() {
     }
 }

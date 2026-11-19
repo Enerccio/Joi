@@ -57,6 +57,16 @@ public class JoiUserSetting extends BaseUserSetting implements PersonaAttributes
     @Transient
     private String factsPrompt;
 
+    /** The request for a body's self-image (a multimodal model describes it from snapshots). */
+    @ExtendedAttribute
+    @Transient
+    private String selfImagePrompt;
+
+    /** The section of her system prompt about the body she is in ({@code {{#body}}}). */
+    @ExtendedAttribute
+    @Transient
+    private String bodyPrompt;
+
     /** The key of the personality, blank for the default one. */
     @ExtendedAttribute
     @Transient
@@ -156,6 +166,26 @@ public class JoiUserSetting extends BaseUserSetting implements PersonaAttributes
 
     public void setFactsPrompt(String factsPrompt) {
         this.factsPrompt = factsPrompt;
+    }
+
+    @Override
+    public String getSelfImagePrompt() {
+        return selfImagePrompt;
+    }
+
+    @Override
+    public void setSelfImagePrompt(String selfImagePrompt) {
+        this.selfImagePrompt = selfImagePrompt;
+    }
+
+    @Override
+    public String getBodyPrompt() {
+        return bodyPrompt;
+    }
+
+    @Override
+    public void setBodyPrompt(String bodyPrompt) {
+        this.bodyPrompt = bodyPrompt;
     }
 
     public String getPersonality() {

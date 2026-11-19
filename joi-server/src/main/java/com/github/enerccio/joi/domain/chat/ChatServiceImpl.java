@@ -6,6 +6,7 @@ import com.github.enerccio.joi.domain.model.impl.ChatMessage;
 import com.github.enerccio.joi.domain.model.impl.Joi;
 import com.github.enerccio.joi.domain.model.impl.settings.JoiUserSetting;
 import com.github.enerccio.joi.domain.persona.Mood;
+import com.github.enerccio.joi.domain.service.BodyService;
 import com.github.enerccio.joi.domain.service.ChatMessageService;
 import com.github.enerccio.joi.domain.service.JoiService;
 import com.github.enerccio.joi.domain.service.MessagePromptService;
@@ -75,6 +76,9 @@ public class ChatServiceImpl implements ChatService {
     @Autowired
     private TtsService ttsService;
 
+    @Autowired
+    private BodyService bodyService;
+
     private final Map<Long, ReentrantLock> turns = new ConcurrentHashMap<>();
     private final Random random = new Random();
 
@@ -104,6 +108,7 @@ public class ChatServiceImpl implements ChatService {
         Mood mood = todaysMood(joi);
         ChatTemplateData data = new ChatTemplateData();
         data.setNode(StringUtils.defaultIfBlank(node, null));
+        data.setBody(bodyService.prompt(joi));
         Actor voice = ttsModel(joi) == null ? null : voiceActor(joi);
         data.setVoice(voice == null ? null : StringUtils.defaultIfBlank(voice.getDescription(), null));
         String system = personaService.renderChatSystemPrompt(joi, null, mood.key(), data);

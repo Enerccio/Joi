@@ -253,6 +253,14 @@ public class PersonaServiceImpl implements PersonaService {
     }
 
     @Override
+    public String render(Joi joi, JoiPromptField field, JoiTemplateData data) throws Exception {
+        String name = StringUtils.isNotBlank(joi.getAssistantName()) ? joi.getAssistantName().strip() : assistantName();
+        String user = StringUtils.isNotBlank(joi.getUserName()) ? joi.getUserName().strip() : userName();
+        data.names(name, user);
+        return tidy(templateService.processTemplate(field.resolve(joi, getUserSetting(), defaults()), field.templateName(), data));
+    }
+
+    @Override
     public String renderChatSystemPrompt(String moodKey, ChatTemplateData data) throws Exception {
         return renderChatSystemPrompt(null, moodKey, data);
     }

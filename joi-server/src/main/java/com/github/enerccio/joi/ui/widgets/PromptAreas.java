@@ -44,6 +44,8 @@ public final class PromptAreas {
             case SUMMARY_PROMPT -> J_L.LABEL_SUMMARY_PROMPT;
             case DAY_SUMMARY_PROMPT -> J_L.LABEL_DAY_SUMMARY_PROMPT;
             case FACTS_PROMPT -> J_L.LABEL_FACTS_PROMPT;
+            case BODY_PROMPT -> J_L.LABEL_BODY_PROMPT;
+            case SELF_IMAGE_PROMPT -> J_L.LABEL_SELF_IMAGE_PROMPT;
         };
     }
 

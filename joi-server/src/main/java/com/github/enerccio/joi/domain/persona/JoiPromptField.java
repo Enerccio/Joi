@@ -2,9 +2,11 @@ package com.github.enerccio.joi.domain.persona;
 
 import com.github.enerccio.joi.defaults.JoiDefaults;
 import com.github.enerccio.joi.domain.model.impl.settings.JoiUserSetting;
+import com.github.enerccio.joi.domain.templates.BodyTemplateData;
 import com.github.enerccio.joi.domain.templates.ChatTemplateData;
 import com.github.enerccio.joi.domain.templates.DaySummaryTemplateData;
 import com.github.enerccio.joi.domain.templates.FactsTemplateData;
+import com.github.enerccio.joi.domain.templates.SelfImageTemplateData;
 import com.github.enerccio.joi.domain.templates.SummaryTemplateData;
 import com.github.enerccio.marginalia.domain.templates.TemplateData;
 import org.apache.commons.lang3.StringUtils;
@@ -25,7 +27,11 @@ public enum JoiPromptField {
     DAY_SUMMARY_PROMPT("daySummaryPrompt", DaySummaryTemplateData.class, PersonaAttributes::getDaySummaryPrompt,
             PersonaAttributes::setDaySummaryPrompt, JoiDefaults::daySummaryPrompt),
     FACTS_PROMPT("factsPrompt", FactsTemplateData.class, PersonaAttributes::getFactsPrompt, PersonaAttributes::setFactsPrompt,
-            JoiDefaults::factsPrompt);
+            JoiDefaults::factsPrompt),
+    BODY_PROMPT("bodyPrompt", BodyTemplateData.class, PersonaAttributes::getBodyPrompt, PersonaAttributes::setBodyPrompt,
+            JoiDefaults::bodyPrompt),
+    SELF_IMAGE_PROMPT("selfImagePrompt", SelfImageTemplateData.class, PersonaAttributes::getSelfImagePrompt,
+            PersonaAttributes::setSelfImagePrompt, JoiDefaults::selfImagePrompt);
 
     private final String templateName;
     private final Class<? extends TemplateData> dataClass;
