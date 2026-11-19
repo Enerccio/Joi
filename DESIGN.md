@@ -138,8 +138,14 @@ check) is in [MARGINALIA.md](MARGINALIA.md).
   the **Joi dialog**, after Marginalia's manuscript dialog: tabs on the left, each change stored at once, Exit.
   - **About:** her name, what she calls the user, her personality, the models of the three roles, the TTS model and
     the voice actor.
-  - **Templates:** her master system template and the memory prompts, with the preview of the system prompt.
-  - **Memories**, **Summaries**, **Chats:** empty for now.
+  - **Templates:** her master system template, the memory prompts, the body section and the self-image prompt, with
+    the preview of the system prompt.
+  - **Chats (built, read only):** her conversation as a transcript, oldest at the top: the input (the user's words on
+    the right, an event in the middle with its kind), her reasoning folded when she thought, her response in Markdown,
+    and when, which model, which node. It opens with the last 30 messages at the bottom; scrolling to the top loads
+    the 30 before, keeping the message the user reads in place (the platform's lazy edges, as in Marginalia's story;
+    nothing is dropped, unlike there). Editing, deleting and branching come with the conversation work.
+  - **Memories**, **Summaries:** empty for now.
 - **API access (built):** User Settings → Access lists the user's tokens and devices (created, expires, last used,
   revoke), with *Create token* and *Connect a device*; Administration → API access chooses what is offered and how long
   OAuth tokens live. See The node protocol.
@@ -159,7 +165,53 @@ check) is in [MARGINALIA.md](MARGINALIA.md).
 - **AI providers and persona:** endpoints, models, system prompt, voice.
 - **Tools and MCP servers:** enable / disable, which node offers what.
 - **Audit:** the server's view of tool calls; nodes can upload their local audit log for browsing.
-- **Bodies, moods, event rules:** see below.
+- **Bodies (started):** the second tab of the workspace (a figure on a stand). For now a table of the user's 3D
+  **models** (`Model`: name, format, size, added; Open, Delete) and *Add model*. Add and Open show the model dialog,
+  full screen: the name, the upload and what the file is on the left, a **3D preview** on the right (three.js +
+  three-vrm, the renderer's libraries, in the `<joi-model-viewer>` element; orbit with the mouse; it reports the
+  triangles, meshes, materials and, for a VRM, its version and expressions). A new model is stored once it has a
+  name or a file.
+  - **What to upload:** a **.vrm** or **.glb** is one file with everything inside (what the converter makes). A model
+    of several files (an **.fbx** with its textures, `.fbx.meta` and `.mat` files, a **.gltf** with its buffers) goes
+    in one **.zip**. A VRChat avatar can come as its **.unitypackage** as bought. In a zip or a package the avatar is
+    found: VRM before GLB, glTF, FBX; among FBX files the humanoids (Unity's `.meta` says `animationType: 3` with the
+    bones), the largest of them (props, particles and helper rigs like GoGo Loco's are small). The preview unpacks a
+    zip in the browser and finds textures by path, else by name; a package is previewed once converted.
+  - **No size limit** (models are large): the upload streams into a file of the user's resources, never into memory,
+    and the file is a platform `Resource` linked to the model (stored as uploaded for now). A limit set by the
+    administrator can come later if needed.
+  - **Conversion to VRM (built):** an FBX (alone, in a zip or in a package) is converted on the server with Blender
+    and the VRM add-on (`ModelConversionService`, the script `convert_avatar.py` in joi-server's resources). Blender
+    runs on the Joi server's machine: `joi.blender` / `JOI_BLENDER`, else Blender.app on macOS, else `blender` on the
+    PATH (a remote converter, like ComfyUI's GPU server, can come later). One conversion at a time, in the
+    background (the dialog can be closed); the dialog shows the log live and the result.
+    - The upload is unpacked into a work folder (from a package only the FBX, its `.meta`, the `.mat` files and the
+      textures; deleted afterwards). Unity's GUIDs resolve the files: each `.mat` gives its textures and the FBX's
+      `.meta` maps each FBX material to its `.mat` (`externalObjects`); without metas the materials match by name.
+      The humanoid rig comes from the `.meta` (else the add-on guesses), visemes and blink from the VRChat names,
+      the moods by the names of the face keys, the spring bones by the add-on's guess.
+    - **What is left out is the user's choice**, nothing is filtered on its own: the avatar FBX (when there are
+      several), the meshes (a checklist, known from the first conversion's report: props, alternative outfits),
+      shape keys to delete (names or parts of names) or to bake in (always on), and the largest texture (2048).
+    - The VRM is a second resource of the model; the report (meshes, materials and how they matched, expressions,
+      missing bones, warnings) and the end of the log are kept on it. The preview switches between the upload and
+      the converted VRM.
+  - **What it can do (built):** read from the VRM (the converted one, or an uploaded .vrm / .glb; only its glTF
+    JSON, `ModelCapabilities`): the expressions that move something (moods, blink, visemes, look, custom; VRM 0.x
+    names mapped to 1.0's), the toggles (every mesh, and every shape key named hide / remove / off / toggle, which
+    the converter keeps for that; with the state the model comes in, from the mesh's default weights) and the
+    humanoid bones with the required ones missing. The dialog lists them: an expression is a button that tries it
+    on the preview, a toggle has a box that shows or hides the part on the preview and a name ("Hide Halo" →
+    "halo" by default) that the user can change, stored on the model by the toggle's id (`mesh:Scarf`,
+    `key:Headgear/Hide Halo`), so the names survive a new conversion. They are read again when the dialog opens.
+  - **The table** also shows the bodies a model is in ("Joi: Street"); a model in a body can't be deleted.
+  - **Next steps** of the import (see Bodies below): prefab defaults (which toggles are on) and PhysBones → spring
+    bones from the package.
+  - **Export and import of a processed model (later):** one file in a unified format, for easy sharing: the
+    converted VRM with what was decided on it (the toggle names, the capabilities, the conversion settings and
+    report), and optionally the body around it (the appearance description, the Looking Glass variant). Importing
+    it gives a ready model (and body) with no conversion. What a user may share is up to their avatar's licence.
+- **Moods, event rules:** see below.
 - **Chat:** text chat in the browser (a node without hands), useful before voice works.
 
 ### LLM providers
@@ -197,7 +249,9 @@ dislikes, continuity through her memory.
   `{{#personalityPrompt}}`, `{{#mood}}`, how she talks, then the sections the server fills per turn:
   `{{#profile}}`, `{{#memories}}` (the recalled facts and episodes), `{{#conversations}}` (the other active ones),
   `{{#body}}`, `{{#node}}`; `{{char}}` is her name and `{{user}}` the user's. An empty section is left out. The memory's
-  prompts are templates too: the conversation summary, the day summary and the facts to remember.
+  prompts are templates too: the conversation summary, the day summary and the facts to remember; so are the body
+  section that fills `{{#body}}` and the request for a body's self-image. **Every prompt sent to a model is such a template**, resolved along the same chain (hers,
+  the user's, the default), so the user can change any of them.
 
 ### Several assistants
 
@@ -218,6 +272,7 @@ user).
 | `Memory` | `memories` | A fact, with its importance: `IMPORTANT` (always recalled when it matches), `MEDIUM`, `TRIVIAL` (recalled last, the first to go). Keywords, the message it came from, approved or not, private or not. |
 | `JoiTask`, `JoiTaskMessage` | `joi_tasks`, `joi_task_messages` | A task she started and its transcript, see Model roles. |
 | `QueuedEvent` | `queued_events` | An event that waits for a connected node, see Events. |
+| `Body` | `bodies` | A body of hers, made of the user's models (`Model`, `models`), see Bodies. |
 
 Conversations as units (live, active, records) are not an entity yet: the messages are one timeline per assistant, and
 the summaries cover times of it.
@@ -346,6 +401,11 @@ A per-conversation switch for when the topic should not leave the house while an
    activation is most of this already). Joi writes them through a `remember` tool; you can approve / edit them in the UI.
 2. **Episodes** — summaries of past conversations (like Marginalia's summary chain), searchable.
 3. **Profile** — a small always-in-prompt block about the user.
+   - **How the user looks (idea):** the user can upload photos of themselves, or Joi can ask for one ("I don't know
+     what you look like, would you show me?"). A multimodal model describes them in text, like a body's self-image:
+     the user reviews the description, and it goes into the profile (and memory), so a text-only chat model knows it
+     too. The photos stay on the server, private to the user; only the reviewed text is used in prompts. The request
+     is a prompt template on the chain like every other prompt. Later, a node's camera can take the photo when asked.
 
 **Conversations** are separate units: one is **live** (the prompt is built from it), the older ones are **records**.
 In between, several can be **active** at once:
@@ -402,6 +462,35 @@ UI — nothing is deleted):
 
 - A **Body** is a model file plus its **capabilities** (expressions, visemes, animations, outfit toggles), read from
   the model itself, and an **appearance description**.
+- **Built:** `Body` (table `bodies`) belongs to an assistant and points to the user's models: the full one and,
+  optionally, a lighter one for the Looking Glass (else the full one is shown there too). Its name and appearance
+  description are extended attributes; what it can do is its model's (`ModelCapabilities`, the toggle names stored on
+  the model). One body of hers is **active** (a column): the first one she gets, then the one she is put into. In her
+  dialog the **Bodies** tab lists them (her body now, name, the models; put her into one, Open, Delete); the body
+  dialog (full screen) has the name, the two models (only models with a VRM: converted, or uploaded as .vrm / .glb),
+  how she looks, and the 3D preview of either model.
+  - **She is told** (a `body.switched` event, like the persona changes, once she has chatted): when she gets her
+    first body, is put into another one, or loses hers (the active body deleted). The text has how she looks now.
+  - **Self-image (built):** in the body dialog, once the body has a model. *Take snapshots* renders six shots of
+    the full model as the preview shows it (`takeSnapshots` of `<joi-model-viewer>`: full body front, three-quarter,
+    profile and back, the face front and three-quarter; 768 × 1024 JPEGs on a plain grey background, framed by the
+    model's size and the VRM's head bone) and sends each to the server like an upload. They are image resources of
+    the user linked to the body, with the hash of the model's VRM; a new set replaces the old one. The user adds
+    **their images** (PNG, JPEG, WebP: store pages, photos) and **notes** (what a toggle is, what the images can't
+    show). *Propose a description* sends all of it, with the toggles (id, mesh / key, name, state), to her deep
+    reasoning model when it takes images, else her chat model (`BodySelfImageService`, in the background, one at a
+    time; images larger than 1568 px are scaled down), with the self-image prompt (a template on the chain,
+    `SelfImageTemplateData`). Proposing uses the snapshots there are; only *Take snapshots* renders new ones. The
+    model answers with JSON: the description in the second person and names for the toggles, by their number in the
+    request (small models garble ids; an id or a "mesh / key" is matched too). It is kept on the body (`BodyProposal`). The user **reviews** it: edits the
+    description, keeps or drops each new name, then *Use it* (the description becomes the body's, the names the
+    model's) or *Discard*. The description remembers the hash it was made from: when the model changes, the dialog
+    says the snapshots and the description are out of date. Using a new description of the body she is in is an
+    event for her (`body.described`). Later: which expressions fit which mood, and snapshots per outfit.
+  - **Her prompt** (`{{#body}}`, the body section: a template on the chain like every prompt, `BodyTemplateData`) says
+    the body she is in, how she looks, the expressions she can show (moods and
+    custom ones), the parts she can show or hide with the names the user gave and their state as the model comes, and
+    her other bodies. The tools to change them come with the body state (outfits, toggles).
 - **Importing a body** is a guided step in the UI. Next to the model file the user gives what they have: their own
   description, screenshots (the creator's store page, in-world photos, their own renders), notes on what each toggle /
   outfit is. A multimodal LLM interprets all of it together with snapshots the renderer takes (front, three-quarter,
@@ -635,10 +724,9 @@ When a model with vision is available, the node can give Joi images of what you 
   silence. sherpa-onnx has Java bindings for VAD, keyword spotting and streaming ASR, so the node stays cross-platform;
   Apple's on-device recognizer can be a better optional backend on macOS.
 - **Wake word and speech-to-text run on the node** (latency).
-- **Text-to-speech runs on the server, ideally in ComfyUI** (Marginalia already has patches for Fish S2 / Higgs).
-  ComfyUI renders a whole job before anything plays, so the server streams the LLM output, cuts it into sentences and
-  sends one TTS job per sentence: sentence 1 plays while sentence 2 renders. Behind a `SpeechSynthesisService` so a
-  plain TTS server (Chatterbox) can replace it when latency matters more.
+- **Text-to-speech runs on the server:** Chatterbox (fast, see the measurements below) or Higgs Audio v3 in ComfyUI
+  (slower, but with emotion and sound tags). A speech server renders a whole job before anything plays, so the server
+  cuts the reply into pieces and sends one TTS job per piece: piece 1 plays while piece 2 renders.
 - **TTS models and voice actors** (built, taken from Marginalia's audiobook plugin): a TTS model is one speech server
   (Chatterbox-TTS-Server, or ComfyUI with Higgs Audio v3), the model it must have loaded, its GPU lock and the speech
   defaults. A voice actor is a voice (a reference clip of the user, or a voice file of the server) with voices of its own
@@ -661,6 +749,31 @@ When a model with vision is available, the node can give Joi images of what you 
   nothing when only Joi's model is loaded, so a model in use is never unloaded for nothing. A TTS model's lock gets
   its model as `{{model}}` too (an AI gets its model id from the platform), so one step serves every model. For
   ComfyUI, `POST /comfy/ensure` as a step before every job starts or restarts it when it does not answer.
+- **Measured (2026-11-19, AMD R9700, ROCm 7.2, Gemma 4 12B without thinking for the text):** 15 streamed chats per
+  setup through the API, medians, times from sending the message.
+
+  | Speech | Reply | Text ready | First audio | Fully spoken | Audio |
+  |---|---|---|---|---|---|
+  | Chatterbox Turbo | 1 sentence, ~80 characters | 1.0 s | 3.2 s | 3.2 s | 4.8 s |
+  | Chatterbox Turbo | 2 pieces, ~200 characters | 1.8 s | 3.2 s | 6.3 s | 10.6 s |
+  | Chatterbox Turbo | 3–4 pieces, ~530 characters | 4.2 s | 6.2 s | 15.5 s | 30.9 s |
+
+  Chatterbox renders a piece in about 0.4 of its length, so playback never waits for the next piece. Higgs v3 (fp32)
+  needs about 1.8 of the length (about 16 audio tokens a second): a short sentence takes 6–7 s, a long one 14–20 s.
+  Most of the wait before the first audio of a long reply is the text: the speech starts once the reply is whole and
+  stored. Speaking the first sentence while the model still writes (roadmap step 3) would bring it to about 3 s.
+  With the 12B the text is quick (about 1.5 s for a short or medium reply), so this is **an option of the assistant**
+  (in the About tab of her dialog, beside her voice; off by default), and a node can ask for it or against it per
+  message (a field of `ChatRequest`, a minor version of the protocol): a voice node wants it, a text client does not.
+  Worth it for long replies and slower models; it costs the model and the speech sharing the GPU for
+  a few seconds.
+  A cold start costs more: Chatterbox from a stopped container about 60 s, Gemma reloaded about 20 s.
+- **Speech servers on ROCm:** Higgs must stay fp32 (bf16 gives noise). ComfyUI must run **without**
+  `PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True`: with it, ComfyUI's `empty_cache` after a prompt made the next
+  generation of the loaded Higgs crash the GPU (`HSA_STATUS_ERROR_EXCEPTION`); without it the engine stays loaded
+  between pieces (no reload of about 10 s a piece). Chatterbox keeps its memory flat in steady use (5.9 GB over 50
+  pieces); it grows only when the model is swapped inside the server (`/api/unload`, another model), so its lock steps
+  only ensure or stop the container.
 
 ### Mobile companion node (ideas)
 
@@ -750,15 +863,17 @@ The good source of models is VRChat avatars, and porting them is the hard part:
 
 ## Spikes
 
-### `spikes/avatar-vrm/convert_vrchat_fbx.py` — VRChat FBX → VRM 1.0 (headless Blender)
+### VRChat FBX → VRM 1.0 (headless Blender), now `convert_avatar.py` in joi-server
 
 ```
-Blender -b --factory-startup --python spikes/avatar-vrm/convert_vrchat_fbx.py -- <config.json>
+Blender -b --factory-startup --python convert_avatar.py -- <config.json>
 ```
 
-Needs the "VRM format" add-on (extensions.blender.org, id `vrm`). The per-avatar config names the FBX, the Unity
-materials (read from the package's `.mat` files), meshes to leave out, shape keys to bake or drop, the expression
-mapping and the FBX `.meta` with Unity's humanoid mapping.
+Started as a spike with a hand-written config per avatar; it is now the server's converter (see UI → Bodies), which
+writes the config itself. Needs the "VRM format" add-on (extensions.blender.org, id `vrm`). The config names the FBX,
+the Unity materials (read from the package's `.mat` files), meshes to leave out, shape keys to bake or drop, the
+expression mapping and the FBX `.meta` with Unity's humanoid mapping; all but the files have defaults (the script's
+docstring lists them).
 
 Tested on a VRChat avatar package (Poiyomi 7–9, VRCFury, 31 PhysBones, 240 face shape keys including ARKit; kept locally
 in `tmp/`, never committed):
@@ -836,7 +951,8 @@ with avatars whose shaders match the installed Poiyomi.
 1. joi-protocol (schemas and the spec first), joi-server and a headless joi-node: text chat, the harness (file read /
    write, shell with ASK), the manifest, pairing. The base everything else plugs into.
 2. Voice in: VAD, wake word, speech-to-text.
-3. Voice out: sentence-streamed TTS to the node, barge-in.
+3. Voice out: sentence-streamed TTS to the node (each piece is sent as soon as it is rendered: built), speaking while
+   the model still writes (an option of the assistant), barge-in.
 4. The avatar renderer on the Go, the states (idle, listening, thinking, speaking), approval cards in 3D; bodies and
    self-image.
 5. Deeper OS actions, long-term memory, MCP, proactive events.

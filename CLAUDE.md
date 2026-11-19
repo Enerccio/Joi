@@ -11,10 +11,10 @@ before working on anything, and when the user shares a new idea or decision, wri
 `DESIGN.md` (and into Roadmap / Open decisions when it changes them).
 
 **Status:** design, spikes, and the first module: `joi-server` boots on Marginalia's platform (login, then a
-workspace with a Models part: text models (the platform's AIs), TTS models and voice actors; User Settings: the
+workspace with a Bodies part (3D models: `Model`, uploaded as a resource (a model file, a zip or a .unitypackage), converted to VRM with Blender (`domain/bodies`, `ModelConversionService`), what it can do read from the VRM (`ModelCapabilities`: expressions, toggles, bones; named and tried in the dialog), the bodies of an assistant (`Body`: her models, appearance, the active one; her dialog's Bodies tab `ui/dialogs/joi/JoiBodiesPart`, `ui/dialogs/BodyDialog`, `BodyService` also writes the prompt's `{{#body}}`; the self-image: snapshots from the viewer, the user's images and notes, the description and toggle names proposed by a multimodal model, `BodySelfImageService`), the model dialog with a three.js preview in `frontend/joi-model-viewer.js`; `ui/workspace/parts/BodiesPart`, `ui/dialogs/ModelDialog`, `ui/bodies/ModelViewer`), a Models part: text models (the platform's AIs), TTS models and voice actors; User Settings: the
 assistant's name, the user's name, personality, model roles, voice, the prompts and the personalities and moods; and, for administrators, an
 Administration page behind a button under the tabs, as in Marginalia: users and GPU locks). The data model of the assistant is built (no UI or inference yet): `Joi`, `ChatMessage`, `MessagePrompt`, `Summary`,
-`Memory`, `JoiTask`, `JoiTaskMessage`, `QueuedEvent` (see `DESIGN.md` → Several assistants), with the Jois tab and the Joi dialog (`ui/workspace/parts/JoisPart`,
+`Memory`, `JoiTask`, `JoiTaskMessage`, `QueuedEvent` (see `DESIGN.md` → Several assistants), with the Jois tab and the Joi dialog (its Chats tab shows the transcript, lazily; `ui/workspace/parts/JoisPart`,
 `ui/dialogs/JoiDialog` and its parts in `ui/dialogs/joi`). The HTTP API is built (`joi-protocol` 1.0: list, info,
 chat with text and speech, whole or streamed; tokens, OAuth device grant, no auth for development; see `DESIGN.md` →
 The node protocol): `api/` (`JoiApiServlet`, `JoiApi`), `domain/chat/ChatService`, `ui/access`. `spikes/` holds throwaway experiments for the avatar renderer.
@@ -78,7 +78,11 @@ with the code.
   audiobook plugin, see `MARGINALIA.md`), with `TtsService` keeping the user's TTS models and voice actors as JSON in
   the user setting; ask `AdminGuard`, not the session's `User`, whether someone is an administrator.
   Built-in texts and values are in `defaults/JoiDefaults` (like Marginalia's `Defaults`); a setting resolves along the
-  chain assistant (later) → `JoiUserSetting` → `JoiDefaults` (`domain/persona/JoiPromptField`, `PersonaService`).
+  chain assistant → `JoiUserSetting` → `JoiDefaults` (`domain/persona/JoiPromptField`, `PersonaService`).
+  **Every prompt sent to a model is such a template**, so the user can change it: a `JoiPromptField` (fields on `Joi`,
+  `JoiUserSetting` and `PersonaAttributes`, the default in `JoiDefaults`, its variables in a `*TemplateData` with
+  `@JoiTemplateDescription`, a label in `PromptAreas`), shown in both Templates tabs and rendered with
+  `PersonaService.render(joi, field, data)`. Never build a prompt from hard-coded strings in a service.
   The API's configuration is `api/ApiConfiguration` (`joi.api.no-auth`, `joi.api.no-auth-user`, `joi.api.public-url`;
   no auth is on in `jetty:run` through the pom); what the administrator offers is `ApiAccess` (in the app settings).
   Template data extends `domain/templates/JoiTemplateData` (`{{char}}` / `{{user}}`); don't name a variable after a
@@ -88,9 +92,11 @@ with the code.
 - `tools/upgrade_dev_db.py` — upgrades a dev database to the current V1 without losing its data (see above).
 - `MARGINALIA.md` — what Joi uses from Marginalia's platform and what it provides itself.
 - `DESIGN.md` — the design (architecture, server, node, avatar, spikes and their results, roadmap, open decisions).
-- `spikes/avatar-vrm/convert_vrchat_fbx.py` — VRChat FBX → VRM 1.0 converter, headless Blender (the "VRM format"
-  add-on). Run: `/Applications/Blender.app/Contents/MacOS/Blender -b --factory-startup --python
-  spikes/avatar-vrm/convert_vrchat_fbx.py -- tmp/<avatar>/config.json`.
+- `joi-server/src/main/resources/com/github/enerccio/joi/domain/bodies/convert_avatar.py` — FBX → VRM 1.0 converter,
+  headless Blender (the "VRM format" add-on), run by `ModelConversionService` (Blender: `JOI_BLENDER`, else
+  Blender.app). By hand: `/Applications/Blender.app/Contents/MacOS/Blender -b --factory-startup --python
+  <that file> -- <config.json>` (the config keys are in its docstring). When converting the test avatar, leave its
+  adult parts out through the model's settings (shape keys to delete / bake), as the spike config did.
 - `spikes/avatar-vrm/viewer/` — three.js + three-vrm + Looking Glass WebXR viewer (Vite, port 5181). Started with the
   `avatar-viewer` entry of `.claude/launch.json`. Keys and the benchmark are in `DESIGN.md` → Spikes.
 - `tmp/` — a symlink to `/Volumes/Annex/joi/tmp`, excluded through `.git/info/exclude` (not `.gitignore`).
