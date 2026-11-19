@@ -86,6 +86,39 @@ class JoiChatsPartTest extends PlatformTestBase {
     }
 
     @Test
+    void shiftClickChecksARangeAndTheCheckedAreDeleted() throws Exception {
+        Joi joi = joiService.create("Mira");
+        Joi other = joiService.create("Kairo");
+        for (int n = 0; n < 6; n++) {
+            chat(joi, n, 1_000_000L + n * 1000L);
+        }
+        chat(other, 99, 1_000_000L);
+
+        JoiChatsPart part = chats(joi);
+        java.util.List<ChatMessage> shown = java.util.List.copyOf(part.getShown());
+        part.clickForTest(shown.get(1), false);
+        part.clickForTest(shown.get(4), true);
+        assertThat(part.getChecked()).containsExactlyInAnyOrder(shown.get(1).getId(), shown.get(2).getId(),
+                shown.get(3).getId(), shown.get(4).getId());
+        // a shift-click on a checked one unchecks the range back to it
+        part.clickForTest(shown.get(3), true);
+        assertThat(part.getChecked()).containsExactlyInAnyOrder(shown.get(1).getId(), shown.get(2).getId());
+        part.clickForTest(shown.get(5), false);
+
+        part.deleteCheckedForTest();
+        assertThat(part.getChecked()).isEmpty();
+        assertThat(part.getShown()).extracting(ChatMessage::getInput)
+                .containsExactly("question 0", "question 3", "question 4");
+        assertThat(chatMessageService.findLatest(joi, 10)).extracting(ChatMessage::getInput)
+                .containsExactly("question 0", "question 3", "question 4");
+
+        // another assistant's message is not hers to delete
+        ChatMessage foreign = chatMessageService.findLatest(other, 1).getFirst();
+        assertThat(chatMessageService.deleteMessages(joi, java.util.List.of(foreign.getId()))).isZero();
+        assertThat(chatMessageService.hasAny(other)).isTrue();
+    }
+
+    @Test
     void anAssistantWhoNeverChattedHasAnEmptyTab() throws Exception {
         assertThat(chats(joiService.create("Mira")).getShown()).isEmpty();
     }

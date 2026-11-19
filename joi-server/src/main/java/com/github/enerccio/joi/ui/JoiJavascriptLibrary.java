@@ -1,5 +1,6 @@
 package com.github.enerccio.joi.ui;
 
+import com.vaadin.flow.component.Component;
 import com.vaadin.flow.component.splitlayout.SplitLayout;
 
 /**
@@ -34,5 +35,10 @@ public final class JoiJavascriptLibrary {
                         String.valueOf(Math.round(position * 10) / 10.0));
             }
         });
+    }
+
+    /** A shift-click on the component doesn't select the page's text (it checks a range of messages instead). */
+    public static void noShiftSelect(Component component) {
+        component.getElement().executeJs("this.addEventListener('mousedown', e => { if (e.shiftKey) { e.preventDefault(); } });");
     }
 }

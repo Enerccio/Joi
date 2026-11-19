@@ -5,6 +5,7 @@ import com.github.enerccio.joi.domain.model.impl.Joi;
 import com.github.enerccio.joi.domain.repository.ChatMessageRepository;
 import com.github.enerccio.joi.domain.service.ChatMessageService;
 import com.github.enerccio.marginalia.domain.service.impl.ExtendableServiceImpl;
+import com.github.enerccio.marginalia.domain.traits.CommonTx;
 import com.github.enerccio.marginalia.domain.traits.CommonTxReadOnly;
 
 import java.util.Collection;
@@ -42,5 +43,21 @@ public class ChatMessageServiceImpl extends ExtendableServiceImpl<ChatMessage, C
     @CommonTxReadOnly
     public boolean hasAny(Joi joi) throws Exception {
         return getRepository().hasAny(joi);
+    }
+
+    @Override
+    @CommonTx
+    public int deleteMessages(Joi joi, Collection<Long> ids) throws Exception {
+        int deleted = 0;
+        for (Long id : ids) {
+            ChatMessage message = id == null ? null : find(id);
+            if (message == null || message.isDeleted() || message.getJoi() == null
+                    || !message.getJoi().getId().equals(joi.getId())) {
+                continue;
+            }
+            delete(message, false);
+            deleted++;
+        }
+        return deleted;
     }
 }

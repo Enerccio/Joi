@@ -33,6 +33,12 @@ public final class JoiCssStyles {
     public static final String CHAT_MARKDOWN = "chat-markdown";
     /** When, which model, which node. */
     public static final String CHAT_META = "chat-meta";
+    /** The bottom row of an exchange: its checkbox, the meta and its delete button. */
+    public static final String CHAT_FOOTER = "chat-footer";
+    /** An exchange checked for the mass delete. */
+    public static final String CHAT_MESSAGE_CHECKED = "chat-message-checked";
+    /** The row above the transcript: the hint and the delete of the checked messages. */
+    public static final String CHAT_TOOLBAR = "chat-toolbar";
 
     /** The model and body dialogs: the column of the fields beside the preview. */
     public static final String MODEL_SIDEBAR = "model-sidebar";

@@ -30,4 +30,11 @@ public interface ChatMessageService extends ExtendableService<ChatMessage, ChatM
 
     /** Whether the assistant has any message. */
     boolean hasAny(Joi joi) throws Exception;
+
+    /**
+     * Deletes the assistant's messages (soft, with their prompts); an id that isn't one of her messages is skipped.
+     *
+     * @return how many were deleted
+     */
+    int deleteMessages(Joi joi, Collection<Long> ids) throws Exception;
 }

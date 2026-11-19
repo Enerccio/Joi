@@ -344,6 +344,9 @@ public class JoiLocalizationBundleEN extends TextBundleBase<J_L> {
         setValue(J_L.MSG_API_OFF, "The administrator has turned off tokens and devices.");
         setValue(J_L.MSG_LOADING_EARLIER_MESSAGES, "Loading earlier messages…");
         setValue(J_L.MSG_NO_CHATS, "No chats yet.");
+        setValue(J_L.MSG_CHATS_SELECT_HINT, "Check messages to delete them; shift-click checks a range.");
+        setValue(J_L.MSG_CONFIRM_DELETE_CHATS, "Delete %d messages? She forgets them: they leave her conversation.");
+        setValue(J_L.MSG_CONFIRM_DELETE_CHAT, "Delete this message? She forgets it: it leaves her conversation.");
         setValue(J_L.MSG_NO_3D_MODEL_FILE, "No file yet: upload the model.");
         setValue(J_L.MSG_3D_MODEL_UPLOAD_HINT, "A .vrm or .glb is one file with everything inside. A model of several files (an .fbx or a .gltf with its textures) goes in one .zip. A VRChat avatar can be uploaded as its .unitypackage, and a model made in Joi as its .joim.");
         setValue(J_L.MSG_NOT_A_3D_MODEL, "Not a model: upload a .vrm, .glb, .gltf, .fbx, or a .zip with one of them.");
