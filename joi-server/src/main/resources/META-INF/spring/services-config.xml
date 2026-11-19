@@ -265,6 +265,10 @@
     <bean class="com.github.enerccio.joi.domain.service.impl.AnimationServiceImpl">
         <property name="repository" ref="animationRepository" />
     </bean>
+    <!-- converting an FBX or a BVH into clips with Blender (joi.blender, as for models); one Blender at a time -->
+    <bean class="com.github.enerccio.joi.domain.service.impl.AnimationConversionServiceImpl">
+        <property name="blender" value="${joi.blender:}" />
+    </bean>
 
     <!-- how she looks in a model: a multimodal model describes it from its snapshots; one request at a time -->
     <bean class="com.github.enerccio.joi.domain.service.impl.AppearanceServiceImpl" />

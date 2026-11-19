@@ -15,9 +15,7 @@ import com.github.enerccio.marginalia.domain.traits.CommonTxReadOnly;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 
-import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.List;
+import java.util.*;
 
 public class AnimationPackServiceImpl extends ExtendableServiceImpl<AnimationPack, AnimationPackRepository> implements AnimationPackService {
 
@@ -39,19 +37,65 @@ public class AnimationPackServiceImpl extends ExtendableServiceImpl<AnimationPac
     }
 
     @Override
-    @CommonTx
-    public void deleteWithClips(AnimationPack pack) throws Exception {
-        AnimationPack stored = find(pack.getId());
-        for (Animation animation : animationService.findByPack(stored)) {
-            animationService.delete(animation, false);
+    @CommonTxReadOnly
+    public List<Animation> clips(AnimationPack pack) throws Exception {
+        if (pack == null || pack.getClips().isEmpty()) {
+            return List.of();
         }
-        delete(stored, false);
+        Map<String, Animation> byUuid = new HashMap<>();
+        for (Animation clip : animationService.findAllForUser()) {
+            byUuid.put(clip.getUuid(), clip);
+        }
+        List<Animation> clips = new ArrayList<>();
+        for (String uuid : pack.getClips()) {
+            Animation clip = byUuid.get(uuid);
+            if (clip != null) {
+                clips.add(clip);
+            }
+        }
+        return clips;
+    }
+
+    @Override
+    @CommonTx
+    public AnimationPack addClips(AnimationPack pack, Collection<Animation> clips) throws Exception {
+        AnimationPack stored = find(pack.getId());
+        List<String> uuids = new ArrayList<>(stored.getClips());
+        for (Animation clip : clips) {
+            if (!uuids.contains(clip.getUuid())) {
+                uuids.add(clip.getUuid());
+            }
+        }
+        stored.setClips(uuids);
+        return save(stored);
+    }
+
+    @Override
+    @CommonTx
+    public AnimationPack removeClip(AnimationPack pack, Animation clip) throws Exception {
+        AnimationPack stored = find(pack.getId());
+        List<String> uuids = new ArrayList<>(stored.getClips());
+        uuids.remove(clip.getUuid());
+        stored.setClips(uuids);
+        return save(stored);
+    }
+
+    @Override
+    @CommonTxReadOnly
+    public List<AnimationPack> packsWith(Animation clip) throws Exception {
+        List<AnimationPack> packs = new ArrayList<>();
+        for (AnimationPack pack : findAllByName()) {
+            if (pack.getClips().contains(clip.getUuid())) {
+                packs.add(pack);
+            }
+        }
+        return packs;
     }
 
     @Override
     @CommonTxReadOnly
     public List<Body> previewBodies() throws Exception {
-        java.util.Map<Joi, String> names = new java.util.HashMap<>();
+        Map<Joi, String> names = new HashMap<>();
         for (Joi joi : joiService.findAllForUser()) {
             names.put(joi, StringUtils.defaultString(joiService.name(joi)));
         }

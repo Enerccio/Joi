@@ -12,9 +12,10 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 
 /**
- * A small VRMA for the tests: a two second wave of the right arm (the upper arm raised, the lower arm swinging) and a
- * smile, on the humanoid bones {@code hips}, {@code rightUpperArm}, {@code rightLowerArm} and {@code head} (the head
- * doesn't move).
+ * A small VRMA for the tests: a two second wave of the right hand, in a loop, with a smile. The upper arm is held out
+ * a little under the shoulder, the elbow bent so the forearm points up with the palm to the front, and the forearm
+ * swings out and in twice. On the humanoid bones {@code hips}, {@code rightUpperArm}, {@code rightLowerArm} and
+ * {@code head} (the head doesn't move). In VRM's normalized pose the right arm points along -X and she faces +Z.
  */
 public final class VrmaTestFiles {
 
@@ -22,15 +23,17 @@ public final class VrmaTestFiles {
     }
 
     public static File wave(File file) throws IOException {
-        float[] times = {0f, 0.5f, 1f, 1.5f, 2f};
+        float[] times = {0f, 0.25f, 0.75f, 1.25f, 1.75f, 2f};
+        // the forearm's angle from the upper arm round Z (negative raises it), swinging out and in from the middle
+        double[] swing = {-1.6, -1.3, -1.9, -1.3, -1.9, -1.6};
         float[][] upper = new float[times.length][];
         float[][] lower = new float[times.length][];
         float[][] smile = new float[times.length][];
         for (int i = 0; i < times.length; i++) {
-            // the right arm points along -X: a turn the other way round Z raises it
-            upper[i] = aroundZ(-1.2);
-            lower[i] = aroundZ(i % 2 == 0 ? -0.9 : -0.3);
-            smile[i] = new float[]{i == 0 || i == times.length - 1 ? 0f : 1f, 0f, 0f};
+            upper[i] = aroundZ(0.15);
+            // twisted a quarter turn round the arm (X) so the palm faces the front, then bent up round Z
+            lower[i] = aroundZThenX(swing[i], -Math.PI / 2);
+            smile[i] = new float[]{1f, 0f, 0f};
         }
         ByteBuffer data = ByteBuffer.allocate(4 * (times.length * (1 + 4 + 4 + 3))).order(ByteOrder.LITTLE_ENDIAN);
         int timesOffset = data.position();
@@ -162,6 +165,15 @@ public final class VrmaTestFiles {
 
     private static float[] aroundZ(double angle) {
         return new float[]{0f, 0f, (float) Math.sin(angle / 2), (float) Math.cos(angle / 2)};
+    }
+
+    /** A turn round X by {@code twist}, then round Z by {@code bend} (the quaternion z · x), as x, y, z, w. */
+    private static float[] aroundZThenX(double bend, double twist) {
+        double sz = Math.sin(bend / 2);
+        double cz = Math.cos(bend / 2);
+        double sx = Math.sin(twist / 2);
+        double cx = Math.cos(twist / 2);
+        return new float[]{(float) (cz * sx), (float) (sz * sx), (float) (sz * cx), (float) (cz * cx)};
     }
 
     private static JsonObject node(String name, float[] translation, int... children) {

@@ -8,9 +8,10 @@
 // they act on the model shown, nothing happens before it is.
 // takeSnapshots(request) renders the snapshots of a model (the whole model in its default state, and a close-up of
 // each part described apart in each of its states) for the "snapshot-target" URL.
-// playAnimation(loop, speed) plays the VRMA at the "animation-src" URL on the model (now, or once it is shown: a new
-// model plays it again), stopAnimation() puts her back at rest; setAnimationLoop(loop), setAnimationSpeed(speed) and
-// setAnimationPaused(paused) change the clip playing. It fires "animation-started" ({duration}), "animation-finished"
+// playAnimation(loop, speed, inPlace) plays the VRMA at the "animation-src" URL on the model (now, or once it is shown: a
+// new model plays it again; in place: the hips keep their spot on the floor, they only go up and down),
+// stopAnimation() puts her back at rest; setAnimationLoop(loop), setAnimationSpeed(speed), setAnimationInPlace(inPlace)
+// and setAnimationPaused(paused) change the clip playing. It fires "animation-started" ({duration}), "animation-finished"
 // (a clip played once ended) and "animation-error" ({message}).
 // It fires "model-info" ({triangles, meshes, materials, vrm, expressions}) once the model is shown and "model-error"
 // ({message}) when it can't be.
@@ -20,7 +21,7 @@ import {FBXLoader} from 'three/addons/loaders/FBXLoader.js';
 import {TGALoader} from 'three/addons/loaders/TGALoader.js';
 import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
 import {VRMLoaderPlugin, VRMUtils} from '@pixiv/three-vrm';
-import {VRMAnimationLoaderPlugin, createVRMAnimationClip} from '@pixiv/three-vrm-animation';
+import {createVRMAnimationClip, VRMAnimationLoaderPlugin} from '@pixiv/three-vrm-animation';
 
 // the prefix of the paths of files inside a zip, resolved by the loading manager's URL modifier
 const ZIP_BASE = 'joi-zip:/';
@@ -283,12 +284,12 @@ class JoiModelViewer extends HTMLElement {
   }
 
   /** Plays the clip at the "animation-src" URL, now or once a model is shown. */
-  playAnimation(loop, speed) {
+  playAnimation(loop, speed, inPlace) {
     const url = this.getAttribute('animation-src');
     if (!url) {
       return;
     }
-    this._animation = {url, loop: !!loop, speed: speed > 0 ? speed : 1};
+    this._animation = {url, loop: !!loop, speed: speed > 0 ? speed : 1, inPlace: !!inPlace};
     this._animationPaused = false;
     if (this._vrm) {
       this._startAnimation();
@@ -324,6 +325,16 @@ class JoiModelViewer extends HTMLElement {
     }
   }
 
+  /** Keeps the hips on their spot (or lets the clip move her about): the clip starts again. */
+  setAnimationInPlace(inPlace) {
+    if (this._animation && this._animation.inPlace !== !!inPlace) {
+      this._animation.inPlace = !!inPlace;
+      if (this._vrm) {
+        this._startAnimation();
+      }
+    }
+  }
+
   setAnimationPaused(paused) {
     this._animationPaused = !!paused;
   }
@@ -344,7 +355,15 @@ class JoiModelViewer extends HTMLElement {
         throw new Error('the file has no VRM animation');
       }
       this._stopMixer();
+      // hips that rest at the floor would scale the clip's movement of the hips by a height of 0 (NaN): left out
+      const restHips = vrmAnimation.restHipsPosition;
+      if (!restHips || !(Math.abs(restHips.y) > 1e-6)) {
+        vrmAnimation.humanoidTracks.translation.delete('hips');
+      }
       const clip = createVRMAnimationClip(vrmAnimation, vrm);
+      if (animation.inPlace) {
+        this._keepInPlace(clip, vrm);
+      }
       this._mixer = new THREE.AnimationMixer(vrm.scene);
       this._mixer.timeScale = animation.speed;
       this._action = this._mixer.clipAction(clip);
@@ -357,6 +376,22 @@ class JoiModelViewer extends HTMLElement {
       if (id === this._animationId) {
         this.dispatchEvent(new CustomEvent('animation-error', {detail: {message: String(e && e.message || e)}}));
       }
+    }
+  }
+
+  /** Holds the hips of the clip on the floor where they start: only their height moves. */
+  _keepInPlace(clip, vrm) {
+    const hips = vrm.humanoid && vrm.humanoid.getNormalizedBoneNode('hips');
+    const track = hips && clip.tracks.find(t => t.name === hips.name + '.position');
+    if (!track || track.values.length < 3) {
+      return;
+    }
+    const values = track.values;
+    const x = values[0];
+    const z = values[2];
+    for (let i = 0; i < values.length; i += 3) {
+      values[i] = x;
+      values[i + 2] = z;
     }
   }
 

@@ -1,9 +1,6 @@
 package com.github.enerccio.joi.domain.service.impl;
 
-import com.github.enerccio.joi.domain.bodies.ConversionSource;
-import com.github.enerccio.joi.domain.bodies.ModelFiles;
-import com.github.enerccio.joi.domain.bodies.SpringBones;
-import com.github.enerccio.joi.domain.bodies.SpringChain;
+import com.github.enerccio.joi.domain.bodies.*;
 import com.github.enerccio.joi.domain.collections.ConversionStatus;
 import com.github.enerccio.joi.domain.model.impl.Model;
 import com.github.enerccio.joi.domain.service.ModelConversionService;
@@ -23,27 +20,17 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.DisposableBean;
 import org.springframework.beans.factory.annotation.Autowired;
 
-import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
-import java.util.ArrayDeque;
-import java.util.ArrayList;
-import java.util.Deque;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
 
 public class ModelConversionServiceImpl implements ModelConversionService, DisposableBean {
 
@@ -51,7 +38,6 @@ public class ModelConversionServiceImpl implements ModelConversionService, Dispo
 
     /** The converter, a resource next to this class's package. */
     static final String SCRIPT = "/com/github/enerccio/joi/domain/bodies/convert_avatar.py";
-    private static final String MAC_BLENDER = "/Applications/Blender.app/Contents/MacOS/Blender";
     private static final int LOG_LINES = 400;
     private static final long TIMEOUT_MINUTES = 60;
 
@@ -85,10 +71,7 @@ public class ModelConversionServiceImpl implements ModelConversionService, Dispo
 
     /** The Blender to run: the configured one, else Blender.app on macOS, else the one on the PATH. */
     String blenderExecutable() {
-        if (StringUtils.isNotBlank(blender)) {
-            return blender.strip();
-        }
-        return new File(MAC_BLENDER).canExecute() ? MAC_BLENDER : "blender";
+        return Blender.executable(blender);
     }
 
     @Override
@@ -196,40 +179,19 @@ public class ModelConversionServiceImpl implements ModelConversionService, Dispo
 
             Path output = work.resolve("out.vrm");
             Path reportFile = work.resolve("report.json");
-            Path script = work.resolve("convert_avatar.py");
-            try (InputStream in = getClass().getResourceAsStream(SCRIPT)) {
-                Files.copy(in, script, StandardCopyOption.REPLACE_EXISTING);
-            }
+            Path script = Blender.script(getClass(), SCRIPT, work);
             Path config = work.resolve("config.json");
             Files.writeString(config, gson.toJson(config(model, source, fbxPath, materialsJson, output, reportFile)), StandardCharsets.UTF_8);
 
             String executable = blenderExecutable();
             emit(id, tail, "Running " + executable + "…");
-            Process process;
-            try {
-                process = new ProcessBuilder(executable, "-b", "--factory-startup", "--python-exit-code", "1",
-                        "--python", script.toString(), "--", config.toString())
-                        .redirectErrorStream(true).directory(work.toFile()).start();
-            } catch (IOException e) {
-                throw new IllegalStateException("Blender was not found (" + executable + "): install it with the VRM add-on, "
-                        + "or set JOI_BLENDER to its executable", e);
-            }
-            try (BufferedReader out = new BufferedReader(new InputStreamReader(process.getInputStream(), StandardCharsets.UTF_8))) {
-                String line;
-                while ((line = out.readLine()) != null) {
-                    emit(id, tail, line);
-                }
-            }
-            if (!process.waitFor(TIMEOUT_MINUTES, TimeUnit.MINUTES)) {
-                process.destroyForcibly();
-                throw new IllegalStateException("Blender did not finish in " + TIMEOUT_MINUTES + " minutes");
-            }
+            int exit = Blender.run(executable, script, config, work, line -> emit(id, tail, line), TIMEOUT_MINUTES);
             if (Files.isRegularFile(reportFile)) {
                 report = Files.readString(reportFile, StandardCharsets.UTF_8);
             }
-            if (process.exitValue() != 0 || !Files.isRegularFile(output)) {
+            if (exit != 0 || !Files.isRegularFile(output)) {
                 String reported = reportedError(report);
-                throw new IllegalStateException(reported != null ? reported : "Blender ended with " + process.exitValue());
+                throw new IllegalStateException(reported != null ? reported : "Blender ended with " + exit);
             }
             vrm = ModelFiles.uploadFile(modelService.uploadFolder(), "model.vrm");
             // the spring bones: the model's chains, guessed from the bones' names at its first conversion

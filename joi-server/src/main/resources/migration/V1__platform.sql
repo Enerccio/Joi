@@ -630,7 +630,8 @@ CREATE TABLE bodies
     active          boolean     not null default 0
 );
 
--- AnimationPack: a set of animation clips of the user ("my idles", "greetings"), previewed on a chosen body.
+-- AnimationPack: a set of the user's animation clips ("my idles", "greetings"), previewed on a chosen body; the clips
+-- are listed in it (extended content), a clip can be in several packs.
 CREATE TABLE animation_packs
 (
     id              bigint      not null primary key,
@@ -643,7 +644,7 @@ CREATE TABLE animation_packs
     userId          bigint
 );
 
--- Animation: a clip of a pack, a VRMA file (a resource of the user).
+-- Animation: an animation clip of the user's library, a VRMA file (a resource of the user).
 CREATE TABLE animations
 (
     id              bigint      not null primary key,
@@ -654,7 +655,6 @@ CREATE TABLE animations
     extendedContent blob,
     _fulltext       clob,
     userId          bigint,
-    pack_id         bigint      not null REFERENCES animation_packs (id),
     resource_id     bigint      REFERENCES resources (id)
 );
 
@@ -739,7 +739,6 @@ INSERT INTO bodies_SEQ (next_val) VALUES (1);
 CREATE INDEX ix_models_user ON models (userId, is_deleted);
 CREATE INDEX ix_bodies_joi ON bodies (joi_id, is_deleted);
 CREATE INDEX ix_animation_packs_user ON animation_packs (userId, is_deleted);
-CREATE INDEX ix_animations_pack ON animations (pack_id, is_deleted);
 CREATE INDEX ix_animations_user ON animations (userId, is_deleted);
 CREATE INDEX ix_bodies_user ON bodies (userId, is_deleted);
 CREATE INDEX ix_assistants_user ON assistants (userId, is_deleted);

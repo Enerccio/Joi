@@ -1,20 +1,13 @@
 package com.github.enerccio.joi.ui.bodies;
 
 import com.github.enerccio.joi.domain.collections.ModelFormat;
-import com.vaadin.flow.component.Component;
-import com.vaadin.flow.component.ComponentEvent;
-import com.vaadin.flow.component.DomEvent;
-import com.vaadin.flow.component.EventData;
-import com.vaadin.flow.component.HasSize;
-import com.vaadin.flow.component.HasStyle;
-import com.vaadin.flow.component.Tag;
+import com.google.gson.Gson;
+import com.vaadin.flow.component.*;
 import com.vaadin.flow.component.dependency.JsModule;
 import com.vaadin.flow.component.dependency.NpmPackage;
 import com.vaadin.flow.server.streams.DownloadHandler;
 import com.vaadin.flow.server.streams.UploadHandler;
 import com.vaadin.flow.shared.Registration;
-
-import com.google.gson.Gson;
 
 import java.io.File;
 import java.util.List;
@@ -113,10 +106,17 @@ public class ModelViewer extends Component implements HasSize, HasStyle {
     /**
      * Plays a clip (a VRMA) on the model shown, or on the next one once it is shown; a model shown later plays it again
      * until {@link #stopAnimation()}. An {@link AnimationStartedEvent} follows, or an {@link AnimationErrorEvent}.
+     *
+     * @param inPlace whether the hips keep their spot on the floor (a walk or a dance that moves about stays put)
      */
-    public void playAnimation(File vrma, boolean loop, double speed) {
+    public void playAnimation(File vrma, boolean loop, double speed, boolean inPlace) {
         getElement().setAttribute("animation-src", DownloadHandler.forFile(vrma, vrma.getName()).inline());
-        getElement().callJsFunction("playAnimation", loop, speed);
+        getElement().callJsFunction("playAnimation", loop, speed, inPlace);
+    }
+
+    /** Whether the clip playing keeps its hips on their spot; it starts again. */
+    public void setAnimationInPlace(boolean inPlace) {
+        getElement().callJsFunction("setAnimationInPlace", inPlace);
     }
 
     /** Stops the clip and puts the model back at rest. */

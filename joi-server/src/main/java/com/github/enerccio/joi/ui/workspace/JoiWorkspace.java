@@ -2,12 +2,7 @@ package com.github.enerccio.joi.ui.workspace;
 
 import com.flowingcode.vaadin.addons.fontawesome.FontAwesome.Solid;
 import com.github.enerccio.joi.loc.J_L;
-import com.github.enerccio.joi.ui.workspace.parts.AIPart;
-import com.github.enerccio.joi.ui.workspace.parts.AnimationsPart;
-import com.github.enerccio.joi.ui.workspace.parts.BodiesPart;
-import com.github.enerccio.joi.ui.workspace.parts.AdminPart;
-import com.github.enerccio.joi.ui.workspace.parts.JoisPart;
-import com.github.enerccio.joi.ui.workspace.parts.UserSettingsPart;
+import com.github.enerccio.joi.ui.workspace.parts.*;
 import com.github.enerccio.marginalia.domain.security.AdminGuard;
 import com.github.enerccio.marginalia.domain.security.model.User;
 import com.github.enerccio.marginalia.domain.security.service.UserService;
@@ -70,6 +65,7 @@ public class JoiWorkspace implements BaseWorkspace {
         partsByKey.put("jois", new JoisPart());
         partsByKey.put("bodies", new BodiesPart());
         partsByKey.put("animations", new AnimationsPart());
+        partsByKey.put("animation-packs", new AnimationPacksPart());
         partsByKey.put("models", new AIPart());
         partsByKey.put("settings", new UserSettingsPart(this));
     }
@@ -102,6 +98,7 @@ public class JoiWorkspace implements BaseWorkspace {
         addTab("jois", PartIcon.JOI, J_L.LABEL_JOIS);
         addTab("bodies", PartIcon.BODIES, J_L.LABEL_BODIES);
         addTab("animations", PartIcon.ANIMATIONS, J_L.LABEL_ANIMATIONS);
+        addTab("animation-packs", PartIcon.ANIMATION_PACKS, J_L.LABEL_ANIMATION_PACKS);
         addTab("models", PartIcon.MODELS, J_L.LABEL_MODELS);
         addTab("settings", PartIcon.SETTINGS, J_L.LABEL_USER_SETTINGS);
         if (adminGuard.isAdmin()) {

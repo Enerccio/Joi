@@ -5,30 +5,21 @@ import com.github.enerccio.marginalia.domain.model.impl.Resource;
 import com.github.enerccio.marginalia.domain.traits.CleanupReference;
 import com.github.enerccio.marginalia.domain.traits.CleanupReference.Policy;
 import com.github.enerccio.marginalia.domain.traits.ExtendedAttribute;
-import jakarta.persistence.Entity;
-import jakarta.persistence.FetchType;
-import jakarta.persistence.JoinColumn;
-import jakarta.persistence.ManyToOne;
-import jakarta.persistence.Table;
-import jakarta.persistence.Transient;
+import jakarta.persistence.*;
 
 import java.util.ArrayList;
 import java.util.List;
 
 /**
- * An animation clip of a {@link AnimationPack pack} (see {@code DESIGN.md} → Bodies, animations): a VRMA file (VRM
- * Animation, on the humanoid bones, so it plays on any body), a resource of the user. What the user decides on it is
+ * An animation clip of the user's library (see {@code DESIGN.md} → Bodies, animations): a VRMA file (VRM Animation, on
+ * the humanoid bones, so it plays on any body), a resource of the user, uploaded as it is or converted from an FBX or a
+ * BVH. {@link AnimationPack Packs} list clips of the library; a clip can be in several. What the user decides on it is
  * kept on the clip, never in the file: the name, the description, the tags, whether it loops and its speed. What was
  * read from the file (the duration, the bones it moves) is kept too, so a list needs no file.
  */
 @Entity
 @Table(name = "animations")
 public class Animation extends ExtendableEntity {
-
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "pack_id", nullable = false)
-    @CleanupReference(Policy.OWNED_BY)
-    private AnimationPack pack;
 
     /** The VRMA file. */
     @ManyToOne(fetch = FetchType.LAZY)
@@ -54,15 +45,30 @@ public class Animation extends ExtendableEntity {
     @Transient
     private Boolean loop;
 
+    /** Whether her hips keep their spot on the floor (the clip's moving about is left out); null for no. */
+    @ExtendedAttribute
+    @Transient
+    private Boolean inPlace;
+
     /** How fast it plays, 1 for as made; null for 1. */
     @ExtendedAttribute
     @Transient
     private Double speed;
 
-    /** The name of the uploaded file. */
+    /** The name of the uploaded file (the VRMA, or the one made from an FBX or a BVH). */
     @ExtendedAttribute
     @Transient
     private String fileName;
+
+    /** The FBX or BVH it was converted from, null for a VRMA uploaded as it is. */
+    @ExtendedAttribute
+    @Transient
+    private String source;
+
+    /** The take of the source it is (an FBX can hold several), null for none. */
+    @ExtendedAttribute
+    @Transient
+    private String take;
 
     @ExtendedAttribute
     @Transient
@@ -82,14 +88,6 @@ public class Animation extends ExtendableEntity {
     @ExtendedAttribute
     @Transient
     private Boolean expressions;
-
-    public AnimationPack getPack() {
-        return pack;
-    }
-
-    public void setPack(AnimationPack pack) {
-        this.pack = pack;
-    }
 
     public Resource getResource() {
         return resource;
@@ -136,6 +134,19 @@ public class Animation extends ExtendableEntity {
         return Boolean.TRUE.equals(loop);
     }
 
+    public Boolean getInPlace() {
+        return inPlace;
+    }
+
+    public void setInPlace(Boolean inPlace) {
+        this.inPlace = inPlace;
+    }
+
+    /** Whether it plays in place. */
+    public boolean playsInPlace() {
+        return Boolean.TRUE.equals(inPlace);
+    }
+
     public Double getSpeed() {
         return speed;
     }
@@ -155,6 +166,22 @@ public class Animation extends ExtendableEntity {
 
     public void setFileName(String fileName) {
         this.fileName = fileName;
+    }
+
+    public String getSource() {
+        return source;
+    }
+
+    public void setSource(String source) {
+        this.source = source;
+    }
+
+    public String getTake() {
+        return take;
+    }
+
+    public void setTake(String take) {
+        this.take = take;
     }
 
     public Long getFileSize() {

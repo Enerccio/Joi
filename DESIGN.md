@@ -649,14 +649,24 @@ UI — nothing is deleted):
   - Adding one to the library is an event ("new glasses are available"), staged until the user saves.
 - **Animations** live in an **animation library** on the server, shared by all bodies: because every body has a
   humanoid rig (VRM humanoid / Unity Humanoid), a clip made for one plays on all of them (retargeting).
-  - **Built so far:** the library is made of the user's **packs** (`AnimationPack`: a name, a description, the body
-    it is previewed on) of **clips** (`Animation`: a VRMA file as a resource of the user, with its name, description,
-    tags, loop and speed, and what was read from the file: the length, the bones it moves, whether it moves
-    expressions; `VrmaFiles` reads only the JSON chunk). The Animations tab lists the packs; a pack's dialog
-    (`AnimationPackDialog`) uploads clips, edits the chosen one and plays it in the three.js preview on any body of
-    her assistants, in the state of its parts (`@pixiv/three-vrm-animation` retargets the clip). Only VRMA is
-    imported for now; the rest below (other formats, layers, groups, defaults per state, bodies paired with clips,
-    descriptions by a model, `.joia`) is still to come.
+  - **Built so far:** the user's **library of clips** (`Animation`: a VRMA file as a resource of the user, with its
+    name, description, tags, loop, speed and "in place", what was read from the file — the length, the bones it
+    moves, whether it moves expressions; `VrmaFiles` reads only the JSON chunk — and the FBX or BVH and take it was
+    converted from) and **packs** (`AnimationPack`: a name, a description, its clips by uuid, the body it is previewed
+    on). Two tabs: **Animations** uploads clips and lists the library (`AnimationsPart`, `AnimationDialog` edits a
+    clip and plays it); **Animation packs** puts clips of the library together (`AnimationPacksPart`,
+    `AnimationPackDialog`). A clip can be in several packs; deleting a pack keeps its clips, deleting a clip takes it
+    out of its packs. Clips play in the three.js preview on any body of her assistants, in the state of its parts
+    (`ClipPreview`, `@pixiv/three-vrm-animation` retargets them; "in place" keeps the hips on their spot).
+  - **FBX and BVH** are converted on the server (`AnimationConversionService`, `convert_animation.py`, headless
+    Blender, one Blender at a time with the models' conversions: `Blender`): the VRM add-on maps the bones to the
+    humanoid (it knows Mixamo, Unreal, Biped, VRoid, MMD... and guesses from the skeleton's shape) and exports each
+    take as a VRMA against a T-pose. Hips that rest at the floor (most BVH) get the first frame's position as their
+    rest, since a player scales the hips' movement by their rest height. The rest pose matters: an FBX without a mesh
+    has no bind pose, so its rest is whatever pose it was written in; when that is not a T-pose (or close, like an
+    A-pose), the add-on straightens the limbs by direction only and a twist of the forearm is lost. Still to come:
+    the humanoid clips of VRChat packages (Unity `.anim`, in muscle space), layers, groups, defaults per state,
+    bodies paired with clips, descriptions by a model, `.joia`.
   - **Import:** VRMA (VRM Animation), FBX (e.g. Mixamo), BVH, and the Humanoid clips found in VRChat packages (emotes,
     dances); converted on the server like bodies. Each clip gets a name, tags and a short description (wave, nod, shrug,
     jump, dance, idle variants), proposed by the LLM from a preview and reviewed by the user. Bodies can also bring

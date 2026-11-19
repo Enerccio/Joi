@@ -25,6 +25,10 @@ public enum PartIcon {
     ANIMATIONS("<circle cx='14' cy='4.5' r='2.5'/><path d='M13 7.5l-2 6 3 2.5v5M11 13.5l-3 7M12.5 9l3.5 2.5 2.5-1M12.5 9L9 10.5l-1.5 3'/>"
             + "<path d='M3 9h3M2 13h4M3 17h3'/>"),
 
+    /** Three clips stacked like cards, the front one with a play mark: the animation packs. */
+    ANIMATION_PACKS("<rect x='3' y='8' width='14' height='12' rx='2'/><path d='M6 5h12a2 2 0 0 1 2 2v9M9 2h10a2 2 0 0 1 2 2'/>"
+            + "<path d='M8.5 11.5v5l4-2.5z'/>"),
+
     /** A chip with pins: the models. */
     MODELS("<rect x='7' y='7' width='10' height='10' rx='2'/>"
             + "<path d='M10 3v4M14 3v4M10 17v4M14 17v4M3 10h4M3 14h4M17 10h4M17 14h4'/>"),
