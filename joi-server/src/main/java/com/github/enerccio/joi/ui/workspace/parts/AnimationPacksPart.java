@@ -2,7 +2,11 @@ package com.github.enerccio.joi.ui.workspace.parts;
 
 import com.flowingcode.vaadin.addons.fontawesome.FontAwesome.Solid;
 import com.github.enerccio.joi.domain.model.impl.AnimationPack;
+import com.github.enerccio.joi.domain.bodies.ModelFiles;
 import com.github.enerccio.joi.domain.service.AnimationPackService;
+import com.github.enerccio.joi.domain.service.JoiaService;
+import com.github.enerccio.joi.domain.service.ModelService;
+import com.github.enerccio.joi.protocol.joia.JoiaFile;
 import com.github.enerccio.joi.loc.J_L;
 import com.github.enerccio.joi.ui.dialogs.AnimationPackDialog;
 import com.github.enerccio.joi.ui.workspace.WorkspacePart;
@@ -12,20 +16,30 @@ import com.github.enerccio.marginalia.loc.Localization;
 import com.github.enerccio.marginalia.ui.LLMInteract;
 import com.github.enerccio.marginalia.ui.LLMInteraction;
 import com.github.enerccio.marginalia.ui.dialogs.ConfirmDialog;
+import com.github.enerccio.marginalia.ui.widgets.Notification;
 import com.github.enerccio.marginalia.utils.UIUtils;
 import com.vaadin.flow.component.Component;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.grid.Grid;
+import com.vaadin.flow.component.html.Anchor;
 import com.vaadin.flow.component.html.H4;
 import com.vaadin.flow.component.orderedlayout.FlexComponent;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
+import com.vaadin.flow.component.upload.Upload;
+import com.vaadin.flow.server.streams.DownloadHandler;
+import com.vaadin.flow.server.streams.UploadHandler;
+import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Configurable;
 
+import java.io.File;
+import java.io.IOException;
+import java.io.OutputStream;
 import java.text.DateFormat;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 
@@ -33,7 +47,8 @@ import java.util.Map;
  * The animations of the user ({@link AnimationPack}, see {@code DESIGN.md} → Bodies, animations): a table with
  * checkboxes (Delete selected), the name, the description, how many steps and when it was added, Open and Delete (its
  * clips stay in the library); <i>Add animation</i> and Open show the {@link AnimationPackDialog} (steps of clips of the
- * library, previewed on a body).
+ * library, previewed on a body). <i>Export selected</i> downloads the checked animations with their clips as a
+ * {@code .joia}; <i>Import .joia</i> adds the animations of one, and its clips the library doesn't have yet.
  */
 @Configurable
 public class AnimationPacksPart implements WorkspacePart {
@@ -44,19 +59,42 @@ public class AnimationPacksPart implements WorkspacePart {
     @Autowired
     private AnimationPackService packService;
 
+    @Autowired
+    private JoiaService joiaService;
+
+    @Autowired
+    private ModelService modelService;
+
     private Grid<AnimationPack> grid;
     private Button addButton;
     private Button deleteSelectedButton;
+    private Button exportButton;
+    private Anchor exportAnchor;
+    private Upload importUpload;
+    /** The animations checked, for the export's download (made outside the UI's lock). */
+    private volatile List<AnimationPack> checked = List.of();
 
     @Override
-    public Component create() {
+    public Component create() throws Exception {
         H4 title = new H4(loc.getValue(J_L.LABEL_ANIMATION_PACKS));
         addButton = new Button(loc.getValue(J_L.LABEL_ADD_ANIMATION_PACK), Solid.PLUS.create(), e -> open(new AnimationPack()));
         addButton.setThemeName("primary");
         deleteSelectedButton = new Button(loc.getValue(L.LABEL_DELETE_SELECTED), Solid.TRASH.create(), e -> deleteSelected());
         deleteSelectedButton.setThemeName("error");
         deleteSelectedButton.setEnabled(false);
-        HorizontalLayout buttons = new HorizontalLayout(deleteSelectedButton, addButton);
+        exportButton = new Button(loc.getValue(J_L.LABEL_EXPORT_JOIA), Solid.FILE_EXPORT.create());
+        exportAnchor = new Anchor(exportHandler(), "");
+        exportAnchor.getElement().setAttribute("download", true);
+        exportAnchor.setRouterIgnore(true);
+        exportAnchor.add(exportButton);
+        exportAnchor.setEnabled(false);
+        exportButton.setEnabled(false);
+        File folder = modelService.uploadFolder();
+        importUpload = new Upload(UploadHandler.toFile((metadata, file) -> imported(file, metadata.fileName()),
+                metadata -> ModelFiles.uploadFile(folder, metadata.fileName())));
+        importUpload.setAcceptedFileTypes("." + JoiaFile.EXTENSION);
+        importUpload.setUploadButton(new Button(loc.getValue(J_L.LABEL_IMPORT_JOIA), Solid.FILE_IMPORT.create()));
+        HorizontalLayout buttons = new HorizontalLayout(deleteSelectedButton, exportAnchor, importUpload, addButton);
         buttons.setAlignItems(FlexComponent.Alignment.CENTER);
         HorizontalLayout header = new HorizontalLayout(title, buttons);
         header.setWidthFull();
@@ -66,7 +104,13 @@ public class AnimationPacksPart implements WorkspacePart {
         DateFormat format = DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT);
         grid = new Grid<>(AnimationPack.class, false);
         grid.setSelectionMode(Grid.SelectionMode.MULTI);
-        grid.addSelectionListener(e -> deleteSelectedButton.setEnabled(!e.getAllSelectedItems().isEmpty()));
+        grid.addSelectionListener(e -> {
+            boolean any = !e.getAllSelectedItems().isEmpty();
+            checked = List.copyOf(e.getAllSelectedItems());
+            deleteSelectedButton.setEnabled(any);
+            exportButton.setEnabled(any);
+            exportAnchor.setEnabled(any);
+        });
         grid.setSizeFull();
         grid.addColumn(pack -> StringUtils.defaultIfBlank(pack.getName(), loc.getValue(J_L.LABEL_NEW_ANIMATION_PACK)))
                 .setHeader(loc.getValue(L.LABEL_NAME))
@@ -133,6 +177,62 @@ public class AnimationPacksPart implements WorkspacePart {
                 UIUtils.internalServerError(loc, ex);
             }
         });
+    }
+
+    /** The {@code .joia} of the checked animations, written while it is streamed. */
+    private DownloadHandler exportHandler() {
+        return event -> {
+            List<AnimationPack> animations = checked;
+            event.setFileName(joiaService.fileName(animations));
+            event.setContentType(JoiaFile.CONTENT_TYPE);
+            try {
+                joiaService.export(animations, event.getOutputStream());
+            } catch (IOException e) {
+                throw e;
+            } catch (Exception e) {
+                throw new IOException(e);
+            }
+        };
+    }
+
+    /** A {@code .joia} was uploaded: its animations are added, with the clips the library doesn't have. */
+    private void imported(File file, String fileName) {
+        importUpload.clearFileList();
+        if (!JoiaFile.isJoia(fileName)) {
+            FileUtils.deleteQuietly(file);
+            Notification.error(String.format(loc.getValue(J_L.MSG_NOT_A_JOIA), fileName));
+            return;
+        }
+        try {
+            JoiaService.Imported imported = joiaService.importFile(file);
+            refresh();
+            Notification.success(String.format(loc.getValue(J_L.MSG_JOIA_IMPORTED), imported.animations().size(),
+                    imported.clipsAdded(), imported.clipsLinked()));
+            if (imported.clipsFailed() > 0) {
+                Notification.error(String.format(loc.getValue(J_L.MSG_JOIA_CLIPS_FAILED), imported.clipsFailed()));
+            }
+        } catch (JoiaService.ForeignClipException e) {
+            Notification.error(loc.getValue(J_L.MSG_JOIA_FOREIGN_CLIP));
+        } catch (IOException e) {
+            Notification.error(String.format(loc.getValue(J_L.MSG_NOT_A_JOIA), e.getMessage()));
+        } catch (Exception e) {
+            UIUtils.internalServerError(loc, e);
+        }
+    }
+
+    /** What an import does once the file is written, for tests. */
+    void importedForTest(File file, String fileName) {
+        imported(file, fileName);
+    }
+
+    /** Checks animations in the table, for tests. */
+    void checkForTest(List<AnimationPack> animations) {
+        grid.asMultiSelect().setValue(new HashSet<>(animations));
+    }
+
+    /** What the export's download writes, for tests. */
+    void exportForTest(OutputStream out) throws Exception {
+        joiaService.export(checked, out);
     }
 
     /** Shows the dialog of the pack, a new one (not stored until it has a name or a clip) or a stored one. */

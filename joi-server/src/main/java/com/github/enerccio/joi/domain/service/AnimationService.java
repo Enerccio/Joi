@@ -24,6 +24,28 @@ public interface AnimationService extends ExtendableService<Animation, Animation
      */
     Animation add(File file, String fileName) throws Exception;
 
+    /**
+     * As {@link #add(File, String)}, with the uuid the clip keeps (an imported clip keeps its own), null for a new one.
+     *
+     * @throws IllegalArgumentException when the file is no VRMA, or the uuid is taken
+     */
+    Animation add(File file, String fileName, String uuid) throws Exception;
+
+    /** Whose a clip uuid is, if anyone's. */
+    enum UuidUse {
+        /** No clip has it. */
+        FREE,
+        /** A clip of the user's library. */
+        MINE,
+        /** A clip the user deleted. */
+        MINE_DELETED,
+        /** A clip of another user. */
+        OTHER_USER
+    }
+
+    /** Whose clip has the uuid, if anyone's. */
+    UuidUse uuidUse(String uuid) throws Exception;
+
     /** The clip's VRMA, null when it has none. */
     File file(Animation animation) throws Exception;
 }

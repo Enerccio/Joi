@@ -42,6 +42,16 @@ public class AnimationServiceImpl extends ExtendableServiceImpl<Animation, Anima
     @Override
     @CommonTx
     public Animation add(File file, String fileName) throws Exception {
+        return add(file, fileName, null);
+    }
+
+    @Override
+    @CommonTx
+    public Animation add(File file, String fileName, String uuid) throws Exception {
+        if (uuid != null && find(uuid) != null) {
+            Files.deleteIfExists(file.toPath());
+            throw new IllegalArgumentException("the clip's uuid is taken: " + uuid);
+        }
         File folder = configuration.getResourcesFolder(currentUser).getCanonicalFile();
         if (!folder.equals(file.getCanonicalFile().getParentFile())) {
             throw new IllegalArgumentException("not an upload file: " + file);
@@ -63,6 +73,7 @@ public class AnimationServiceImpl extends ExtendableServiceImpl<Animation, Anima
         resource = resourceService.save(resource);
 
         Animation animation = new Animation();
+        animation.setUuid(uuid);
         animation.setResource(resource);
         animation.setName(FilenameUtils.getBaseName(fileName));
         animation.setFileName(fileName);
@@ -73,6 +84,20 @@ public class AnimationServiceImpl extends ExtendableServiceImpl<Animation, Anima
         Animation saved = save(animation);
         resourceService.link(resource, Animation.class, saved.getId());
         return saved;
+    }
+
+    @Override
+    @CommonTxReadOnly
+    public UuidUse uuidUse(String uuid) throws Exception {
+        Long id = uuid == null ? null : find(uuid);
+        if (id == null) {
+            return UuidUse.FREE;
+        }
+        Animation clip = find(id);
+        if (clip == null || clip.getOwner() == null || !clip.getOwner().getId().equals(currentUser.getId())) {
+            return UuidUse.OTHER_USER;
+        }
+        return clip.isDeleted() ? UuidUse.MINE_DELETED : UuidUse.MINE;
     }
 
     @Override

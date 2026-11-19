@@ -669,6 +669,13 @@ UI — nothing is deleted):
     its clips, deleting a clip takes it out of its animations. Clips play in the three.js preview on any body of her
     assistants, in the state of its parts (`@pixiv/three-vrm-animation` retargets them; `joi-model-viewer.js`
     `playSequence` plays the steps, cut from one to the next with no blending yet).
+  - **Export and import (`.joia`, "Joi animations"):** Export selected in the Animations tab downloads the checked
+    animations with the clips they play, each clip once, as one file (`JoiaService`; the container
+    `protocol/joia/JoiaFile` and its metadata `JoiaMetadata` are in `joi-protocol`, documented in `joia.md`). Import
+    .joia adds the file's animations as new ones. Clips are linked by uuid: a clip the user already has is linked and
+    its copy skipped; any other is added to the library keeping its uuid, so importing the same file again links it
+    (a uuid of one of the user's deleted clips gets a new one). A uuid of another user's clip refuses the whole file
+    before anything is written: a file can't reach another user's clips.
   - **FBX and BVH** are converted on the server (`AnimationConversionService`, `convert_animation.py`, headless
     Blender, one Blender at a time with the models' conversions: `Blender`): the VRM add-on maps the bones to the
     humanoid (it knows Mixamo, Unreal, Biped, VRoid, MMD... and guesses from the skeleton's shape) and exports each
@@ -677,7 +684,7 @@ UI — nothing is deleted):
     has no bind pose, so its rest is whatever pose it was written in; when that is not a T-pose (or close, like an
     A-pose), the add-on straightens the limbs by direction only and a twist of the forearm is lost. Still to come:
     the humanoid clips of VRChat packages (Unity `.anim`, in muscle space), layers, groups, defaults per state,
-    bodies paired with clips, descriptions by a model, `.joia`.
+    bodies paired with clips, descriptions by a model, the node's cache of clips.
   - **Import:** VRMA (VRM Animation), FBX (e.g. Mixamo), BVH, and the Humanoid clips found in VRChat packages (emotes,
     dances); converted on the server like bodies. Each clip gets a name, tags and a short description (wave, nod, shrug,
     jump, dance, idle variants), proposed by the LLM from a preview and reviewed by the user. Bodies can also bring
@@ -722,12 +729,12 @@ UI — nothing is deleted):
       (the active body's clips, groups and defaults, with hashes), the node answers with the hashes it misses, and the
       server streams those as one animation container, a section per clip: one request instead of a hundred, and a
       broken transfer resumes at a section. Changes later are deltas the same way.
-    - **The animation container** is the same kind as a model's, with its own magic number `0x1DEA1AC7`, the
-      version header, the JSONB metadata sections and the VRMA bytes. It is a `.joia` file ("Joi animation")
-      when exported and in a node's cache; between the server and a node it is a stream.
-    - **Animation packs** for people: a `.joia` with another profile (clips, their metadata, groups,
-      defaults per state, the bodies they were meant for), to share or import a set ("my idles", "greetings") at
-      once. What a user shares is up to them: Joi doesn't check licences or leave clips out.
+    - **The animation container** is the same kind as a model's, with its own magic number `0x1DEA1AC7` ("IDEAL ACT"), the
+      version header, a CBOR metadata section and a `VRMA` section per clip (built: the `.joia` export). The node's
+      cache will use it too; between the server and a node it is a stream.
+    - **Sharing a set** ("my idles", "greetings") is the `.joia` export; later it also carries groups, defaults per
+      state and the bodies they were meant for. What a user shares is up to them: Joi doesn't check licences or
+      leave clips out.
   - Later: generating motion from a text prompt with a text-to-motion model, saved into the library.
 - **Camera** is part of the same display state, per display, and works both ways too. Joi moves it with a tool
   (`set_shot`) over a fixed grid of presets instead of free coordinates: **framing** (face close-up, bust, waist up, full

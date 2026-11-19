@@ -10,14 +10,11 @@ import java.io.DataOutputStream;
 import java.io.EOFException;
 import java.io.File;
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.security.DigestInputStream;
 import java.security.DigestOutputStream;
 import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
 import java.util.HexFormat;
 import java.util.function.LongConsumer;
 
@@ -53,7 +50,7 @@ public final class JoimFile {
 
     /** The largest metadata read into memory, against a damaged file. */
     private static final long MAX_META = 64L * 1024 * 1024;
-    private static final int BUFFER = 1 << 16;
+    private static final int BUFFER = Sections.BUFFER;
 
     /** Who the file is for. */
     public enum Profile {
@@ -99,29 +96,12 @@ public final class JoimFile {
             data.writeShort(MAJOR);
             data.writeShort(MINOR);
             data.writeByte(profile.ordinal());
-            sectionHead(data, META, metaBytes.length, digest().digest(metaBytes));
+            Sections.head(data, META, metaBytes.length, digest().digest(metaBytes));
             data.write(metaBytes);
-            sectionHead(data, VRM, model.length(), HexFormat.of().parseHex(modelHash));
-            try (InputStream in = Files.newInputStream(model.toPath())) {
-                byte[] buffer = new byte[BUFFER];
-                long total = 0;
-                for (int read; (read = in.read(buffer)) > 0; ) {
-                    data.write(buffer, 0, read);
-                    total += read;
-                    progress.accept(read);
-                }
-                if (total != model.length()) {
-                    throw new IOException("the model changed while it was written");
-                }
-            }
+            Sections.head(data, VRM, model.length(), HexFormat.of().parseHex(modelHash));
+            Sections.writeFile(data, model, progress);
         }
         return HexFormat.of().formatHex(fileDigest.digest());
-    }
-
-    private static void sectionHead(DataOutputStream data, String kind, long length, byte[] hash) throws IOException {
-        data.write(kind.getBytes(StandardCharsets.US_ASCII));
-        data.writeLong(length);
-        data.write(hash);
     }
 
     /**
@@ -173,18 +153,17 @@ public final class JoimFile {
                     }
                     byte[] bytes = new byte[(int) length];
                     data.readFully(bytes);
-                    check(kind, hash, digest().digest(bytes));
+                    Sections.check(kind, hash, digest().digest(bytes));
                     JsonElement element = Cbor.decode(bytes);
                     if (!element.isJsonObject()) {
                         throw new IOException("the metadata is not an object");
                     }
                     meta = element.getAsJsonObject();
                 } else if (VRM.equals(kind) && modelOut != null) {
-                    copy(data, length, hash, modelOut, progress);
+                    Sections.copy(data, VRM, length, hash, modelOut, progress);
                     modelHash = HexFormat.of().formatHex(hash);
                 } else {
-                    // read through, not skipped: the whole file is hashed
-                    skip(data, length);
+                    Sections.skip(data, length);
                 }
             }
             if (meta == null) {
@@ -194,57 +173,12 @@ public final class JoimFile {
         }
     }
 
-    private static void copy(InputStream data, long length, byte[] hash, File out, LongConsumer progress) throws IOException {
-        MessageDigest digest = digest();
-        try (OutputStream file = new BufferedOutputStream(Files.newOutputStream(out.toPath()), BUFFER)) {
-            byte[] buffer = new byte[BUFFER];
-            long left = length;
-            while (left > 0) {
-                int read = data.read(buffer, 0, (int) Math.min(buffer.length, left));
-                if (read < 0) {
-                    throw new EOFException("the file ends inside its model");
-                }
-                digest.update(buffer, 0, read);
-                file.write(buffer, 0, read);
-                left -= read;
-                progress.accept(read);
-            }
-        }
-        check(VRM, hash, digest.digest());
-    }
-
-    private static void skip(InputStream data, long length) throws IOException {
-        byte[] buffer = new byte[BUFFER];
-        long left = length;
-        while (left > 0) {
-            int read = data.read(buffer, 0, (int) Math.min(buffer.length, left));
-            if (read < 0) {
-                throw new EOFException("the file ends inside a section");
-            }
-            left -= read;
-        }
-    }
-
-    private static void check(String kind, byte[] expected, byte[] actual) throws IOException {
-        if (!MessageDigest.isEqual(expected, actual)) {
-            throw new IOException("a damaged section: " + kind.strip());
-        }
-    }
-
     /** The SHA-256 of a file, in hex. */
     public static String sha256(File file) throws IOException {
-        MessageDigest digest = digest();
-        try (InputStream in = new DigestInputStream(Files.newInputStream(file.toPath()), digest)) {
-            in.transferTo(OutputStream.nullOutputStream());
-        }
-        return HexFormat.of().formatHex(digest.digest());
+        return Sections.sha256(file);
     }
 
     private static MessageDigest digest() {
-        try {
-            return MessageDigest.getInstance("SHA-256");
-        } catch (NoSuchAlgorithmException e) {
-            throw new IllegalStateException(e);
-        }
+        return Sections.digest();
     }
 }

@@ -243,6 +243,8 @@ public class JoiLocalizationBundleEN extends TextBundleBase<J_L> {
         setValue(J_L.LABEL_CHOOSE_CLIPS, "Clips from the library");
         setValue(J_L.LABEL_ADD_CLIPS, "Add");
         setValue(J_L.LABEL_CREATE_PACK_FROM_CLIP, "New animation of this clip");
+        setValue(J_L.LABEL_EXPORT_JOIA, "Export selected");
+        setValue(J_L.LABEL_IMPORT_JOIA, "Import .joia");
         setValue(J_L.LABEL_ANIMATION_STEPS, "Steps");
         setValue(J_L.LABEL_CLIP, "Clip");
         setValue(J_L.LABEL_LOOP_ANIMATION, "Loop the whole animation");
@@ -380,6 +382,10 @@ public class JoiLocalizationBundleEN extends TextBundleBase<J_L> {
         setValue(J_L.MSG_CONFIRM_DELETE_CLIP, "Delete the clip? It is taken out of the animations it is in.");
         setValue(J_L.MSG_CONFIRM_DELETE_CLIPS, "Delete %d clips? They are taken out of the animations they are in.");
         setValue(J_L.MSG_CONFIRM_DELETE_ANIMATIONS, "Delete %d animations? Their clips stay in the library.");
+        setValue(J_L.MSG_JOIA_IMPORTED, "Imported %d animations: %d new clips, %d clips already in the library.");
+        setValue(J_L.MSG_JOIA_CLIPS_FAILED, "%d clips of the file were no VRM animation and were left out, with their steps.");
+        setValue(J_L.MSG_JOIA_FOREIGN_CLIP, "The file was refused: a clip in it has the id of another user's clip. Nothing was imported.");
+        setValue(J_L.MSG_NOT_A_JOIA, "The file can't be imported: %s");
         setValue(J_L.MSG_LOOP_ANIMATION_HINT, "After its last step it starts again, until it is finished. For clips that don't loop on their own: a wave and a nod, again and again.");
         setValue(J_L.MSG_FINISH_ANIMATION_HINT, "A looping step ends its round, then the rest plays once: as when her state changes.");
         setValue(J_L.MSG_ANIMATION_DESCRIPTION_HINT, "What it shows and when it fits, for her: she picks a clip by what it says.");
