@@ -20,6 +20,18 @@ class SpeechTextTest {
     }
 
     @Test
+    void narrationOfAnyLengthIsNotSpoken() {
+        String reply = """
+                *I flicker into existence on your screen, my tail twitching as I adjust to the resolution. I cross my arms,
+                my red eyes narrowing slightly as I scan the desktop layout.*
+
+                Ugh, my head. You're Peter, I guess. I'm **Joi**.
+
+                *I glance down at my outfit, running a hand over the fabric of my bodysuit and flicking""";
+        assertThat(SpeechText.clean(reply)).isEqualTo("Ugh, my head. You're Peter, I guess. I'm Joi.");
+    }
+
+    @Test
     void thePiecesAreWholeSentencesAndTheFirstIsOne() {
         List<String> pieces = SpeechText.pieces("Hi. How was your day? I fixed the lamp. It works now. Tea?", 40);
         assertThat(pieces).containsExactly("Hi.", "How was your day? I fixed the lamp.", "It works now. Tea?");
