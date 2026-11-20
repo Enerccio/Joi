@@ -252,6 +252,7 @@ public class ChatServiceImpl implements ChatService, InitializingBean, Disposabl
         private volatile FunctionSet functions = FunctionSet.empty();
         private volatile String reply = "";
         private volatile String reasoning;
+        private final List<ToolUsage> toolUsages = new java.util.concurrent.CopyOnWriteArrayList<>();
         private volatile ChatMessage message;
         private volatile long promptTokens;
         private volatile long completionTokens;
@@ -509,6 +510,11 @@ public class ChatServiceImpl implements ChatService, InitializingBean, Disposabl
         @Override
         public void setReply(String reply) {
             this.reply = StringUtils.defaultString(reply);
+        }
+
+        @Override
+        public List<ToolUsage> getToolUsages() {
+            return toolUsages;
         }
 
         @Override

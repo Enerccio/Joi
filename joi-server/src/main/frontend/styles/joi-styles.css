@@ -75,6 +75,31 @@
     font-size: var(--lumo-font-size-s);
 }
 
+.chat-tools {
+    color: var(--lumo-secondary-text-color);
+    font-size: var(--lumo-font-size-s);
+}
+
+.chat-tool {
+    margin-top: var(--lumo-space-xs);
+}
+
+.chat-tool > b {
+    font-family: var(--lumo-font-family-mono, monospace);
+}
+
+.chat-tool-data {
+    margin: 0;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    font-family: var(--lumo-font-family-mono, monospace);
+    font-size: var(--lumo-font-size-xs);
+}
+
+.chat-tool-failed > b {
+    color: var(--lumo-error-text-color);
+}
+
 .chat-markdown {
     overflow-wrap: anywhere;
 }

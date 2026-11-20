@@ -140,4 +140,27 @@ class JoiChatsPartTest extends PlatformTestBase {
         assertThat(chatMessageService.clipMime(again)).isEqualTo("audio/mpeg");
         assertThat(part).doesNotExist();
     }
+
+    @Test
+    void aMessageListsEveryToolUsedInItsReply() throws Exception {
+        Joi joi = joiService.create("Mira");
+        ChatMessage message = new ChatMessage();
+        message.setJoi(joi);
+        message.setType(com.github.enerccio.joi.domain.collections.ChatMessageType.USER);
+        message.setInput("Wave and remember Mia.");
+        message.setResponse("Hi!");
+        message.setSentAt(new java.util.Date(1000));
+        message.setToolCalls(com.github.enerccio.joi.domain.chat.ToolUsage.toJson(java.util.List.of(
+                new com.github.enerccio.joi.domain.chat.ToolUsage("play_animation", "{\"animation\":\"Wave\"}", "You played Wave.", false),
+                new com.github.enerccio.joi.domain.chat.ToolUsage("desk__note", "{}", "no such folder", true))));
+        message = chatMessageService.save(message);
+
+        String text = chats(joi).card(message).getElement().getTextRecursively();
+        assertThat(text).contains("Tools used (2): play_animation, desk__note").contains("{\"animation\":\"Wave\"}")
+                .contains("You played Wave.").contains("desk__note (failed)").contains("no such folder");
+        // a message without tools has no list
+        ChatMessage plain = chatMessageService.find(message.getId());
+        plain.setToolCalls(null);
+        assertThat(chats(joi).card(plain).getElement().getTextRecursively()).doesNotContain("Tools used");
+    }
 }

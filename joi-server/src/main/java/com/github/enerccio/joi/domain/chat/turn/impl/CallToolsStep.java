@@ -1,5 +1,6 @@
 package com.github.enerccio.joi.domain.chat.turn.impl;
 
+import com.github.enerccio.joi.domain.chat.ToolUsage;
 import com.github.enerccio.joi.domain.chat.turn.TurnController;
 import com.github.enerccio.joi.domain.chat.turn.TurnEvents;
 import com.github.enerccio.joi.domain.chat.turn.TurnProperties;
@@ -67,6 +68,7 @@ public class CallToolsStep extends TurnStepBase {
             String result = StringUtils.defaultIfBlank((String) properties.get(TurnProperties.TOOL_RESULT), "OK");
             boolean failed = Boolean.TRUE.equals(properties.get(TurnProperties.TOOL_FAILED));
             controller.getPayload().add(LLMChatMessage.ofToolResult(call.getId(), result));
+            controller.getToolUsages().add(new ToolUsage(call.getName(), call.getArguments(), result, failed));
             try {
                 controller.getListener().onToolCall(call.getName(), call.getArguments(), result, failed);
             } catch (Exception e) {

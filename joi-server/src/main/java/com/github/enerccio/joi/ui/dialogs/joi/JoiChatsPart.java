@@ -2,6 +2,7 @@ package com.github.enerccio.joi.ui.dialogs.joi;
 
 import com.flowingcode.vaadin.addons.fontawesome.FontAwesome.Solid;
 import com.github.enerccio.joi.domain.chat.ChatService;
+import com.github.enerccio.joi.domain.chat.ToolUsage;
 import com.github.enerccio.joi.domain.chat.turn.TurnControllerEvent.Registration;
 import com.github.enerccio.joi.domain.chat.turn.TurnInput;
 import com.github.enerccio.joi.domain.model.impl.ChatMessage;
@@ -420,8 +421,44 @@ public class JoiChatsPart implements JoiDialogPart {
         JavascriptLibrary.watchEdge(panel.getElement(), panel.getContent().getElement(), true, hasEarlier);
     }
 
+    /** How much of an argument or a result is shown: a page a tool read can be long, the whole of it stays stored. */
+    private static final int TOOL_TEXT = 3000;
+
+    /** The tools she used in the reply, all of them in the order they happened, folded: each with its arguments and result. */
+    private Component toolsList(List<ToolUsage> tools) {
+        Div list = new Div();
+        for (ToolUsage tool : tools) {
+            Div entry = new Div();
+            entry.addClassName(JoiCssStyles.CHAT_TOOL);
+            if (tool.failed()) {
+                entry.addClassName(JoiCssStyles.CHAT_TOOL_FAILED);
+            }
+            Element bold = new Element("b");
+            bold.setText(tool.name() + (tool.failed() ? " (" + loc.getValue(J_L.LABEL_TOOL_FAILED) + ")" : ""));
+            entry.getElement().appendChild(bold);
+            String arguments = StringUtils.trimToEmpty(tool.arguments());
+            if (!arguments.isEmpty() && !"{}".equals(arguments)) {
+                entry.add(toolData(arguments));
+            }
+            if (StringUtils.isNotBlank(tool.result())) {
+                entry.add(toolData("→ " + tool.result()));
+            }
+            list.add(entry);
+        }
+        Details details = new Details(loc.getValue(J_L.LABEL_TOOL_CALLS) + " (" + tools.size() + "): "
+                + tools.stream().map(ToolUsage::name).distinct().collect(java.util.stream.Collectors.joining(", ")), list);
+        details.addClassName(JoiCssStyles.CHAT_TOOLS);
+        return details;
+    }
+
+    private static Component toolData(String text) {
+        Div data = new Div(new Text(StringUtils.abbreviate(text, TOOL_TEXT)));
+        data.addClassName(JoiCssStyles.CHAT_TOOL_DATA);
+        return data;
+    }
+
     /** One exchange: the input on the right (an event in the middle), her reply on the left. */
-    private Component card(ChatMessage message) {
+    Component card(ChatMessage message) {
         Div card = new Div();
         card.addClassName(JoiCssStyles.CHAT_MESSAGE);
 
@@ -447,6 +484,10 @@ public class JoiChatsPart implements JoiDialogPart {
             Details details = new Details(loc.getValue(J_L.LABEL_REASONING), reasoning);
             details.addClassName(JoiCssStyles.CHAT_REASONING);
             reply.add(details);
+        }
+        List<ToolUsage> tools = ToolUsage.fromJson(message.getToolCalls());
+        if (!tools.isEmpty()) {
+            reply.add(toolsList(tools));
         }
         if (StringUtils.isNotBlank(message.getResponse())) {
             Markdown response = new Markdown(message.getResponse());

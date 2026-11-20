@@ -63,6 +63,9 @@ public interface TurnController {
 
     void setReasoning(String reasoning);
 
+    /** The tools she used so far in this turn, in order; the turn's own list (add to it as calls are answered). */
+    java.util.List<com.github.enerccio.joi.domain.chat.ToolUsage> getToolUsages();
+
     ChatMessage getMessage();
 
     void setMessage(ChatMessage message);

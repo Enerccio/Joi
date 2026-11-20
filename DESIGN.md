@@ -296,6 +296,11 @@ check) is in [MARGINALIA.md](MARGINALIA.md).
     was spoken, the pieces of speech are copied into one clip as they are rendered (`ClipWriter`: wav pieces under one
     header, mp3 one after another; never all in memory), stored as a resource of the user and kept on the message
     (`ChatMessage.clipResourceId`, removed with it); the message then has a play button, and the card gets it live.
+    **Every tool she used** in a reply is listed on its card, folded ("Tools used (3): play_animation, remember, …"): in
+    the order they happened, each with the arguments she wrote and what it answered, a failed one marked. The turn
+    collects them as the calls are answered (`TurnController.getToolUsages`, the server's functions and the nodes'
+    alike) and stores them on the message (`ChatMessage.toolCalls`, JSON, `ToolUsage`); a long result is cut in the
+    display, never in what is stored. Messages from before have none.
   - **Memories (built):** a grid of her memories, one row each (name, type, from you or her, created), newest first.
     A row opens into the memory: its name (only for the user, never in a prompt), its type (`MemoryImportance`), its
     keywords and its text in a growing text area, stored as typed. *Add memory* adds an approved one of medium

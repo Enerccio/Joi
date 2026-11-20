@@ -33,6 +33,11 @@ public final class JoiCssStyles {
     public static final String CHAT_REPLY = "chat-reply";
     public static final String CHAT_REASONING = "chat-reasoning";
     public static final String CHAT_MARKDOWN = "chat-markdown";
+    /** The folded list of the tools she used in a reply, and one of them, its arguments and result, and one that failed. */
+    public static final String CHAT_TOOLS = "chat-tools";
+    public static final String CHAT_TOOL = "chat-tool";
+    public static final String CHAT_TOOL_DATA = "chat-tool-data";
+    public static final String CHAT_TOOL_FAILED = "chat-tool-failed";
     /** When, which model, which node. */
     public static final String CHAT_META = "chat-meta";
     /** The bottom row of an exchange: its checkbox, the meta and its delete button. */

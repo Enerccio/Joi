@@ -1,5 +1,6 @@
 package com.github.enerccio.joi.domain.chat.turn.impl;
 
+import com.github.enerccio.joi.domain.chat.ToolUsage;
 import com.github.enerccio.joi.domain.chat.turn.TurnController;
 import com.github.enerccio.joi.domain.chat.turn.TurnEvents;
 import com.github.enerccio.joi.domain.chat.turn.TurnStepBase;
@@ -41,6 +42,7 @@ public class StoreStep extends TurnStepBase {
             message.setNode(StringUtils.defaultIfBlank(controller.getInput().node(), null));
             message.setResponse(StringUtils.defaultString(controller.getReply()));
             message.setResponseReasoning(StringUtils.defaultIfBlank(controller.getReasoning(), null));
+            message.setToolCalls(ToolUsage.toJson(controller.getToolUsages()));
             message.setMood(controller.getMood().key());
             message.setModelUsed(controller.getAi().getName());
             message.setPromptTokens(controller.getPromptTokens());

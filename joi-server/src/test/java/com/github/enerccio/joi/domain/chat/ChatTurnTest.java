@@ -106,6 +106,9 @@ class ChatTurnTest extends PlatformTestBase {
 
         assertThat(calls).containsExactly("milk");
         assertThat(told).containsExactly("note noted milk false");
+        // the tools used are stored with the message, in order
+        assertThat(com.github.enerccio.joi.domain.chat.ToolUsage.fromJson(result.message().getToolCalls()))
+                .containsExactly(new ToolUsage("note", "{\"text\":\"milk\"}", "noted milk", false));
         assertThat(result.message().getResponse()).isEqualTo("Let me note it.\n\nNoted the milk. ♥");
         assertThat(chatMessageService.findLatest(joi, 10)).extracting(ChatMessage::getResponse)
                 .containsExactly("Let me note it.\n\nNoted the milk. ♥");

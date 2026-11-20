@@ -144,6 +144,8 @@ public class JoiLocalizationBundleEN extends TextBundleBase<J_L> {
         setValue(J_L.LABEL_DENY, "Deny");
         setValue(J_L.LABEL_FIRST_ADMINISTRATOR, "the first administrator");
         setValue(J_L.LABEL_REASONING, "Reasoning");
+        setValue(J_L.LABEL_TOOL_CALLS, "Tools used");
+        setValue(J_L.LABEL_TOOL_FAILED, "failed");
         setValue(J_L.LABEL_EVENT, "Event");
         setValue(J_L.LABEL_BODIES, "Bodies");
         setValue(J_L.LABEL_ADD_3D_MODEL, "Add model");
