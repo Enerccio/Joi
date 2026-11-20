@@ -13,13 +13,17 @@
 //   invert     the views the other way round; flipY the lenses read from the top down
 //   quilt      the quilt's width and height in pixels (fewer pixels are faster, softer)
 //   fps        the most frames a second (her views cost the GPU: less leaves more for the rest)
+//   rendered   how many of her views are rendered in full (0 for all of them): the others are made from the two
+//              nearest of those by their depth (MADE_FRAGMENT); fewer is faster, but what the rendered views don't
+//              see is missing (black), transparent parts that write no depth are lost where nothing is behind them,
+//              and the light doesn't change between them
 //   view       hologram, quilt (the quilt as it is) or center (the middle view only), to check the views
 import * as THREE from 'three';
 
 export const DEFAULT_TUNING = {
   // tuned by eye on the Go with the test avatar
   depthiness: 0.27, focus: -0.35, zoom: 0.97, center: -0.003, pitch: 1, invert: false, flipY: false, quilt: 4092, fps: 20,
-  view: 'hologram'
+  rendered: 5, view: 'hologram'
 };
 
 const VIEWS = {hologram: 0, quilt: 1, center: 2};
@@ -70,6 +74,143 @@ void main() {
   }
   #include <colorspace_fragment>
 }`;
+
+// a rendered view's depth: each texel's distance along the camera (r) and whether it is her (g), not the background
+const POINTS_FRAGMENT = `
+uniform sampler2D depth;
+uniform mat4 unproject;
+varying vec2 vUv;
+
+void main() {
+  float d = texture2D(depth, vUv).r;
+  vec4 p = unproject * vec4(vUv * 2.0 - 1.0, d * 2.0 - 1.0, 1.0);
+  gl_FragColor = vec4(-p.z / p.w, d < 1.0 ? 1.0 : 0.0, 0.0, 1.0);
+}`;
+
+// how deep each row of a rendered view goes: the nearest (r) and farthest (g) distance of her texels in it; r is 1e20
+// in a row without her
+const ROWS_FRAGMENT = `
+uniform sampler2D points;
+uniform float width;
+
+void main() {
+  int row = int(gl_FragCoord.y);
+  float nearest = 1e20;
+  float farthest = 0.0;
+  for (int x = 0; x < int(width); x++) {
+    vec2 p = texelFetch(points, ivec2(x, row), 0).rg;
+    if (p.g > 0.5) {
+      nearest = min(nearest, p.r);
+      farthest = max(farthest, p.r);
+    }
+  }
+  gl_FragColor = vec4(nearest, farthest, 0.0, 1.0);
+}`;
+
+// a view made from the rendered ones. The views differ only by moving along the camera's right, each turned back to
+// the focus: a texel at distance z of a rendered view is seen in a made one shift * (1 - focus / z) texels further
+// along its row (shift: how far apart the two views are). So each pixel looks along its row, over the texels that
+// the depth of that row can move onto it, for the span between two neighbouring texels that lands on it (two texels
+// at about the same depth are one surface; a jump in depth between them is an edge, not filled), and keeps the
+// nearest; where the rendered views saw nothing, it stays black
+const MADE_FRAGMENT = `
+uniform sampler2D pointsA;
+uniform sampler2D colorA;
+uniform sampler2D rowsA;
+uniform float shiftA;
+uniform sampler2D pointsB;
+uniform sampler2D colorB;
+uniform sampler2D rowsB;
+uniform float shiftB;
+uniform float useB;
+uniform float focus;
+uniform float tear;
+uniform vec2 size;
+varying vec2 vUv;
+
+void look(sampler2D points, sampler2D color, sampler2D rows, float shift, inout float nearest, inout vec3 found) {
+  float x = vUv.x * size.x - 0.5;
+  int row = int(vUv.y * size.y);
+  vec2 depth = texelFetch(rows, ivec2(0, row), 0).rg;
+  if (depth.r > 1e19) {
+    return;
+  }
+  // the texels of this row that move onto x: from those moved the most to those moved the least
+  float near = shift * (1.0 - focus / depth.r);
+  float far = shift * (1.0 - focus / depth.g);
+  int last = int(size.x) - 1;
+  int start = clamp(int(floor(x - max(near, far))) - 1, 0, last);
+  int end = clamp(int(floor(x - min(near, far))) + 1, 0, last);
+  vec2 a = texelFetch(points, ivec2(start, row), 0).rg;
+  float at = float(start) + shift * (1.0 - focus / a.r);
+  for (int i = start; i <= end; i++) {
+    vec2 b = texelFetch(points, ivec2(min(i + 1, last), row), 0).rg;
+    float bt = float(i + 1) + shift * (1.0 - focus / b.r);
+    if (a.g > 0.5) {
+      float z = a.r;
+      float t = -1.0;
+      if (abs(x - at) <= 0.5) {
+        t = 0.0;
+      }
+      if (b.g > 0.5 && abs(a.r - b.r) < tear * a.r && x >= min(at, bt) && x <= max(at, bt) && abs(bt - at) > 1e-4) {
+        t = (x - at) / (bt - at);
+        z = mix(a.r, b.r, t);
+      }
+      if (t >= 0.0 && z < nearest) {
+        nearest = z;
+        found = mix(texelFetch(color, ivec2(i, row), 0).rgb, texelFetch(color, ivec2(min(i + 1, last), row), 0).rgb, t);
+      }
+    }
+    a = b;
+    at = bt;
+  }
+}
+
+void main() {
+  float nearest = 1e20;
+  vec3 found = vec3(0.0);
+  look(pointsA, colorA, rowsA, shiftA, nearest, found);
+  if (useB > 0.5) {
+    look(pointsB, colorB, rowsB, shiftB, nearest, found);
+  }
+  gl_FragColor = vec4(found, 1.0);
+}`;
+
+// a rendered view copied into its tile as it is
+const COPY_VERTEX = `
+varying vec2 vUv;
+
+void main() {
+  vUv = position.xy * 0.5 + 0.5;
+  gl_Position = vec4(position.xy, 0.0, 1.0);
+}`;
+
+const COPY_FRAGMENT = `
+uniform sampler2D color;
+varying vec2 vUv;
+
+void main() {
+  gl_FragColor = vec4(texture2D(color, vUv).rgb, 1.0);
+}`;
+
+// the jump in depth between neighbouring texels (a part of their distance) that is an edge, not a surface;
+// tuning.tear overrides it, to try
+const TEAR = 0.03;
+
+/** The views rendered in full when only some are: spread from the first to the last, so the others lie between two. */
+export function renderedViews(views, rendered) {
+  if (!rendered || rendered >= views) {
+    return null;
+  }
+  if (rendered === 1) {
+    return [Math.floor(views / 2)];
+  }
+  const chosen = [];
+  for (let k = 0; k < rendered; k++) {
+    chosen.push(Math.round(k * (views - 1) / (rendered - 1)));
+  }
+  return chosen;
+}
 
 function value(calibration, name, fallback) {
   const entry = calibration[name];
@@ -151,14 +292,110 @@ export function lookingGlassRenderer(config) {
     u.inverted.value = tuning.invert ? 1 - baseInverted : baseInverted;
     u.flipY.value = tuning.flipY ? 1 : 0;
     u.mode.value = VIEWS[tuning.view] ?? 0;
+    prepare();
   }
 
-  tune(tuning);
+  // the views rendered in full when the others are made from them: each with its own color and depth
+  let sources = [];
+  let sourceKey = '';
+  const copy = new THREE.ShaderMaterial({
+    vertexShader: COPY_VERTEX,
+    fragmentShader: COPY_FRAGMENT,
+    depthTest: false,
+    depthWrite: false,
+    uniforms: {color: {value: null}}
+  });
+  const pointsMaterial = new THREE.ShaderMaterial({
+    vertexShader: COPY_VERTEX,
+    fragmentShader: POINTS_FRAGMENT,
+    depthTest: false,
+    depthWrite: false,
+    uniforms: {depth: {value: null}, unproject: {value: new THREE.Matrix4()}}
+  });
+  const made = new THREE.ShaderMaterial({
+    vertexShader: COPY_VERTEX,
+    fragmentShader: MADE_FRAGMENT,
+    depthTest: false,
+    depthWrite: false,
+    uniforms: {
+      pointsA: {value: null},
+      colorA: {value: null},
+      rowsA: {value: null},
+      shiftA: {value: 0},
+      pointsB: {value: null},
+      colorB: {value: null},
+      rowsB: {value: null},
+      shiftB: {value: 0},
+      useB: {value: 0},
+      focus: {value: 1},
+      tear: {value: TEAR},
+      size: {value: new THREE.Vector2()}
+    }
+  });
+  const rowsMaterial = new THREE.ShaderMaterial({
+    vertexShader: COPY_VERTEX,
+    fragmentShader: ROWS_FRAGMENT,
+    depthTest: false,
+    depthWrite: false,
+    uniforms: {points: {value: null}, width: {value: 1}}
+  });
+  const quadScene = new THREE.Scene();
+  const quad = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), copy);
+  quadScene.add(quad);
+
+  function prepare() {
+    const chosen = renderedViews(views, tuning.rendered) || [];
+    made.uniforms.size.value.set(tileWidth, tileHeight);
+    made.uniforms.tear.value = tuning.tear || TEAR;
+    rowsMaterial.uniforms.width.value = tileWidth;
+    const key = chosen.join(',') + '@' + tileWidth + 'x' + tileHeight;
+    if (key === sourceKey) {
+      return;
+    }
+    sourceKey = key;
+    sources.forEach(source => {
+      source.target.depthTexture.dispose();
+      source.target.dispose();
+      source.points.dispose();
+      source.rows.dispose();
+    });
+    sources = chosen.map(index => {
+      const target = new THREE.WebGLRenderTarget(tileWidth, tileHeight, {
+        colorSpace: THREE.SRGBColorSpace,
+        minFilter: THREE.NearestFilter,
+        magFilter: THREE.NearestFilter,
+        generateMipmaps: false,
+        depthTexture: new THREE.DepthTexture(tileWidth, tileHeight, THREE.FloatType)
+      });
+      const points = new THREE.WebGLRenderTarget(tileWidth, tileHeight, {
+        type: THREE.FloatType,
+        minFilter: THREE.NearestFilter,
+        magFilter: THREE.NearestFilter,
+        generateMipmaps: false,
+        depthBuffer: false
+      });
+      const rows = new THREE.WebGLRenderTarget(1, tileHeight, {
+        type: THREE.FloatType,
+        minFilter: THREE.NearestFilter,
+        magFilter: THREE.NearestFilter,
+        generateMipmaps: false,
+        depthBuffer: false
+      });
+      return {index, target, points, rows, camera: new THREE.PerspectiveCamera()};
+    });
+  }
+
+  /** Draws the quad into the target set, with the material. */
+  function drawQuad(renderer, with_) {
+    quad.material = with_;
+    renderer.render(quadScene, flat);
+  }
 
   const view = new THREE.PerspectiveCamera();
   const size = new THREE.Vector2();
   const background = new THREE.Color();
   let last = 0;
+  tune(tuning);
 
   const render = (renderer, scene, camera, target) => {
     const now = performance.now();
@@ -176,27 +413,84 @@ export function lookingGlassRenderer(config) {
     const clearColor = renderer.getClearColor(background).clone();
     const clearAlpha = renderer.getClearAlpha();
     renderer.setClearColor(0x000000, 1);
-    // the center view alone needs only its own tile
-    const only = tuning.view === 'center' ? Math.floor(views / 2) : -1;
-    for (let i = 0; i < views; i++) {
-      if (only >= 0 && i !== only) {
-        continue;
-      }
-      // the view moves along the camera's right and turns its frustum back, so all of them meet at the focus
-      const angle = Math.tan(cone * ((i + 0.5) / views - 0.5));
-      view.position.copy(camera.position);
-      view.quaternion.copy(camera.quaternion);
-      view.translateX(distance * angle);
-      view.updateMatrixWorld();
+    // view i: moved along the camera's right, its frustum turned back, so all of them meet at the focus
+    const angleOf = i => Math.tan(cone * ((i + 0.5) / views - 0.5));
+    const place = (camera_, i) => {
+      const angle = angleOf(i);
+      camera_.position.copy(camera.position);
+      camera_.quaternion.copy(camera.quaternion);
+      camera_.translateX(distance * angle);
+      camera_.updateMatrixWorld();
       const shift = -near * angle;
-      view.projectionMatrix.makePerspective(shift - right, shift + right, top, -top, near, camera.far);
-      view.projectionMatrixInverse.copy(view.projectionMatrix).invert();
+      camera_.projectionMatrix.makePerspective(shift - right, shift + right, top, -top, near, camera.far);
+      camera_.projectionMatrixInverse.copy(camera_.projectionMatrix).invert();
+    };
+    const tileOf = i => {
       const x = (i % columns) * tileWidth;
       const y = Math.floor(i / columns) * tileHeight;
       quilt.viewport.set(x, y, tileWidth, tileHeight);
       quilt.scissor.set(x, y, tileWidth, tileHeight);
       renderer.setRenderTarget(quilt);
+    };
+    if (tuning.view === 'center') {
+      // the center view alone needs only its own tile
+      const i = Math.floor(views / 2);
+      place(view, i);
+      tileOf(i);
       renderer.render(scene, view);
+    } else if (!sources.length) {
+      for (let i = 0; i < views; i++) {
+        place(view, i);
+        tileOf(i);
+        renderer.render(scene, view);
+      }
+    } else {
+      for (const source of sources) {
+        place(source.camera, source.index);
+        renderer.setRenderTarget(source.target);
+        renderer.render(scene, source.camera);
+        pointsMaterial.uniforms.depth.value = source.target.depthTexture;
+        pointsMaterial.uniforms.unproject.value.copy(source.camera.projectionMatrixInverse);
+        renderer.setRenderTarget(source.points);
+        drawQuad(renderer, pointsMaterial);
+        rowsMaterial.uniforms.points.value = source.points.texture;
+        renderer.setRenderTarget(source.rows);
+        drawQuad(renderer, rowsMaterial);
+      }
+      const autoClear = renderer.autoClear;
+      renderer.autoClear = false;
+      // a texel moves shift * (1 - focus / z) texels between views i and j
+      const shift = (i, j) => near / (2 * right) * (angleOf(i) - angleOf(j)) * tileWidth;
+      const u = made.uniforms;
+      u.focus.value = distance;
+      let next = 0;
+      for (let i = 0; i < views; i++) {
+        while (next < sources.length && sources[next].index < i) {
+          next++;
+        }
+        tileOf(i);
+        const exact = sources[next] && sources[next].index === i ? sources[next] : null;
+        if (exact) {
+          copy.uniforms.color.value = exact.target.texture;
+          drawQuad(renderer, copy);
+          continue;
+        }
+        // from the nearest rendered view on each side; the nearer surface of the two is kept
+        const from = [sources[next - 1], sources[next]].filter(Boolean);
+        u.pointsA.value = from[0].points.texture;
+        u.colorA.value = from[0].target.texture;
+        u.rowsA.value = from[0].rows.texture;
+        u.shiftA.value = shift(i, from[0].index);
+        u.useB.value = from.length > 1 ? 1 : 0;
+        if (from.length > 1) {
+          u.pointsB.value = from[1].points.texture;
+          u.colorB.value = from[1].target.texture;
+          u.rowsB.value = from[1].rows.texture;
+          u.shiftB.value = shift(i, from[1].index);
+        }
+        drawQuad(renderer, made);
+      }
+      renderer.autoClear = autoClear;
     }
     renderer.setRenderTarget(null);
     renderer.setClearColor(clearColor, clearAlpha);

@@ -10,6 +10,7 @@ import javafx.scene.control.Slider;
 import javafx.scene.layout.ColumnConstraints;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Priority;
+import javafx.util.StringConverter;
 
 import java.util.Arrays;
 import java.util.Locale;
@@ -82,6 +83,27 @@ final class LookingGlassTuningPane extends GridPane {
         });
         add(label("Quilt (px)"), 0, row);
         add(quilt, 1, row++);
+        ChoiceBox<Integer> rendered = new ChoiceBox<>();
+        Arrays.stream(LookingGlassTuning.RENDERED).forEach(rendered.getItems()::add);
+        rendered.setConverter(new StringConverter<>() {
+            @Override
+            public String toString(Integer value) {
+                return value == null ? "" : value == 0 ? "all (slowest, best)" : value + ", the others made from them";
+            }
+
+            @Override
+            public Integer fromString(String text) {
+                throw new UnsupportedOperationException();
+            }
+        });
+        rendered.setOnAction(e -> {
+            if (rendered.getValue() != null) {
+                tuning.rendered = rendered.getValue();
+                changed();
+            }
+        });
+        add(label("Views rendered"), 0, row);
+        add(rendered, 1, row++);
         ChoiceBox<String> view = new ChoiceBox<>();
         view.getItems().addAll(LookingGlassTuning.VIEWS);
         view.setOnAction(e -> {
@@ -94,6 +116,7 @@ final class LookingGlassTuningPane extends GridPane {
         add(view, 1, row++);
         refresh(() -> {
             quilt.setValue(tuning.quilt);
+            rendered.setValue(tuning.rendered);
             view.setValue(tuning.view);
         });
 

@@ -1199,7 +1199,8 @@ or runtime to install and the node owns the window; only on the Looking Glass it
   Glass her pane shows a **tuning panel** instead of the page (`fx/LookingGlassTuningPane`, kept in `node.json` as
   `lookingGlassTuning`, sent to the page live): depth (the share of the view cone), focus (the sharp plane, metres
   from the point the camera looks at), zoom, nudges of the calibration's center and pitch, the views inverted, the
-  lenses from the top, the quilt size, a frame cap, and debug views (the quilt as it is, the middle view only).
+  lenses from the top, the quilt size, a frame cap, how many views are rendered in full, and debug views (the quilt
+  as it is, the middle view only).
   Tuned by eye on the Go with the test avatar: depth 0.27, focus −0.35 m, zoom 0.97, center −0.003 (the defaults).
   On the Looking Glass the page is shown by **the user's own Chrome** (Google Chrome, or a Chrome / Chromium set as
   `lookingGlassBrowser` in `node.json`; a requirement only for the Looking Glass, the node says when it is missing):
@@ -1213,8 +1214,19 @@ or runtime to install and the node owns the window; only on the Looking Glass it
   process of its own (it showed the frame's background): JCEF puts Chromium's view inside Java's window, whose own
   layer draws over it. Measured on the Go at the 20 fps cap: Chrome holds 20 fps, its GPU and page processes 20–45%
   CPU each, no lag; uncapped about 23 fps.
-  **Still to make faster:** 66 renders of the avatar a frame (MToon), as in the spike. To try: fewer views,
-  cheaper shading on the Go, the lighter Looking Glass model of the body. That avoids the
+  **Views rendered in full** (`rendered`; all 66, or 9, 5, 3, 2, 1; 5 by default): the others are made from the
+  two nearest rendered ones by their depth, RGB-D. The views differ only by a move along the camera's right, so a
+  texel at distance z moves along its row by shift × (1 − focus / z). Each rendered view's depth is measured per row
+  (the nearest and farthest of her texels, a pass of one pixel per row), and each pixel of a made view looks along
+  its row over the texels that depth can move onto it (rows without her are skipped) for the span between two
+  neighbouring texels that lands on it (a jump in depth of more than 3% between them is an edge, not filled), and
+  keeps the nearer of the two views. Lost: what neither rendered view sees (black), transparent parts that write no
+  depth over the background, the light changing between views. Tried first: a grid mesh over each rendered view,
+  each vertex moved by its depth; a vertex per texel was needed for her hair (at every second texel thin strands
+  broke into streaks), and 32 M vertices a frame ran at 9–12 fps, slower than all 66 renders; then a fixed reach
+  around the focus, which cut what she held towards the viewer into pieces. Uncapped on the Go, the machine busy:
+  all 66 views 19.5 fps, 9 rendered 43, 5 rendered 45, 3 rendered 38 (views far apart need longer searches). Still to try: cheaper shading on the Go, the lighter Looking
+  Glass model of the body. That avoids the
   WebXR polyfill's popup and "enter XR" button, which were the fragile part of the spike. The node still asks Bridge for
   the calibration (REST on 33334).
 - Other windows from the same code: a 2D window or HUD on a normal monitor (one view), and the body fitting editor in
