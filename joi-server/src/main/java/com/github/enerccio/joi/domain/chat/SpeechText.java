@@ -10,18 +10,18 @@ import java.util.List;
 import java.util.regex.Pattern;
 
 /**
- * What of a reply is spoken: the words without Markdown, the narration between asterisks ({@code *smiles*}, of any
- * length, over lines too, and one left open at the end) and emoji; split into pieces of whole sentences for a streamed reply; and put into the form the speech model reads (Higgs
- * gets the delivery of her mood as its emotion token).
+ * What of a reply is spoken: the words without Markdown (the asterisks of an emphasis go, its words stay: she does not
+ * narrate, and what is between asterisks is stressed, not an action) and emoji; split into pieces of whole sentences
+ * for a streamed reply; and put into the form the speech model reads (Higgs gets the delivery of her mood as its
+ * emotion token).
  */
 public final class SpeechText {
 
     /** Delivery strength of a mood: noticeable, not acted out. */
     static final double MOOD_INTENSITY = 0.5;
 
-    private static final Pattern ACTION = Pattern.compile("(?<![*\\w])\\*(?![\\s*])[^*]+?(?<![\\s*])\\*(?![*\\w])");
-    /** Narration the reply ends in before its closing asterisk (cut off, or the model forgot it). */
-    private static final Pattern OPEN_ACTION = Pattern.compile("(?<![*\\w])\\*(?![\\s*])[^*]*$");
+    /** An emphasis, {@code *like this*}: a lone asterisk pair around words, which is not a product ({@code 2 * 3 * 4}). */
+    private static final Pattern EMPHASIS = Pattern.compile("(?<![*\\w])\\*(?![\\s*])([^*]+?)(?<![\\s*])\\*(?![*\\w])");
     private static final Pattern MARKUP = Pattern.compile("(\\*\\*|__|`+|^#{1,6}\\s+|^\\s*[-*+]\\s+|^\\s*\\d+\\.\\s+)", Pattern.MULTILINE);
     private static final Pattern LINK = Pattern.compile("\\[([^\\]]+)]\\([^)]+\\)");
     private static final Pattern EMOJI = Pattern.compile("[\\x{1F000}-\\x{1FAFF}\\x{2600}-\\x{27BF}\\x{FE0F}\\x{200D}]");
@@ -35,8 +35,7 @@ public final class SpeechText {
         if (reply == null) {
             return "";
         }
-        String text = ACTION.matcher(reply).replaceAll(" ");
-        text = OPEN_ACTION.matcher(text).replaceAll("");
+        String text = EMPHASIS.matcher(reply).replaceAll("$1");
         text = LINK.matcher(text).replaceAll("$1");
         text = MARKUP.matcher(text).replaceAll("");
         text = EMOJI.matcher(text).replaceAll("");

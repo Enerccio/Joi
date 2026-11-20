@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Enerccio/joi/protocol/v1/BodyPartState.schema.json",
+  "title": "BodyPartState",
+  "description": "A state of a part (since 1.5): what a node sets on the model to put the part in it.",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string",
+      "description": "The state's id (shown or hidden for a single toggle)."
+    },
+    "name": {
+      "type": "string"
+    },
+    "default": {
+      "type": "boolean",
+      "description": "Whether it is the part's default state."
+    },
+    "toggles": {
+      "type": "array",
+      "items": {
+        "$ref": "BodyToggle.schema.json"
+      },
+      "description": "The part's toggles as this state sets them."
+    }
+  },
+  "required": [
+    "id",
+    "name",
+    "default",
+    "toggles"
+  ]
+}

@@ -3,6 +3,7 @@
 // sequence: {steps: [{src, ...}], loop}} plays an animation (src the index of its clip in clips); {type: "stop"} puts
 // her at rest. The page posts {type: "ended", id} to "ended" when an animation that does not loop is over, and
 // {type: "error", id, message} when it could not play.
+// {type: "toggles", toggles: [{mesh, key, hides, shown}]} shows and hides the parts of her model (set again once it loads).
 // With ?looking-glass the page renders her for the Looking Glass whose calibration the node serves (looking-glass.js);
 // {type: "tuning", tuning} changes how (the node's tuning panel).
 import './generated/joi-model-viewer.js';
@@ -11,6 +12,7 @@ import {lookingGlassRenderer} from './looking-glass.js';
 const viewer = document.getElementById('viewer');
 let playing = null;
 let tuning = null;
+let toggles = [];
 
 if (new URLSearchParams(location.search).has('looking-glass')) {
   document.body.classList.add('looking-glass');
@@ -41,6 +43,8 @@ function play(message) {
   viewer.playSequence(message.sequence);
 }
 
+// the parts shown and hidden are of the model: set again when one has loaded
+viewer.addEventListener('model-info', () => viewer.setToggles(JSON.stringify(toggles)));
 viewer.addEventListener('animation-finished', () => {
   if (playing !== null) {
     post({type: 'ended', id: playing});
@@ -65,6 +69,10 @@ events.onmessage = event => {
       break;
     case 'play':
       play(message);
+      break;
+    case 'toggles':
+      toggles = message.toggles || [];
+      viewer.setToggles(JSON.stringify(toggles));
       break;
     case 'tuning':
       tuning = message.tuning;

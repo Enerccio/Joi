@@ -111,7 +111,7 @@ one; the server treats every node the same.
     first administrator; a credential that is sent must still be valid. Turning a way off stops its credentials at
     once. Credentials are `AccessToken` rows (prefix + SHA-256, like Marginalia's API keys), listed and revoked under
     Access.
-- **The node WebSocket (built, 1.4):** `asyncapi.yaml` and the schemas in `joi-protocol`,
+- **The node WebSocket (built, 1.5):** `asyncapi.yaml` and the schemas in `joi-protocol`,
   the records in `protocol/node`; `SchemaContractTest` checks the records, the enums and the AsyncAPI document
   against each other. `GET /api/v1/node` with `Upgrade: websocket`, the API's credentials (or in `hello.token` for a
   client that cannot set headers; never in the URL). Every message is a JSON text frame
@@ -140,6 +140,13 @@ one; the server treats every node the same.
     `looking_glass_entered` or `looking_glass_exited`) from its own template (`LOOKING_GLASS_ENTERED_EVENT`,
     `LOOKING_GLASS_EXITED_EVENT`), stored as `node.looking_glass_entered` / `node.looking_glass_exited`. A node that
     shows her there as it starts (it remembered the choice) does not send it: she was there already.
+  - **Her parts (1.5):** `part` (the part's id and the state's id) when the user takes off or puts on a part of her on
+    the node. The server keeps it on the body (`BodyService.switchPart`, so it is the same at the next start and on every
+    node) and starts her turn about it (`turn` with the cause `part_switched`) with the text of the `body.part_switched`
+    event (the state's sentence), stored as `node.part_switched`; a part or a state the body does not have is a
+    `bad_message`. `GET .../body` has, for each part, its states with the toggles each sets (`BodyPartState`), and
+    every toggle of the model as the body has it (`BodyInfo.toggles`), so a node can show the state without reading
+    the `.joim`'s metadata.
   - **Tools:** `tool_call` (call id, tool, arguments, the turn when it is this node's, a timeout) → the node checks
     its harness again, may send `tool_progress` and `approval` (asked, then allowed or denied, with scope and how)
     → exactly one `tool_result` (ok, content, an error word: `denied`, `failed`, `cancelled`, `timeout`,
@@ -710,7 +717,11 @@ UI — nothing is deleted):
     is stored (`BodyService.switchPart`), the preview and her look follow, and when she is in the body and has chatted
     she is told (`body.part_switched`: "A part of you was switched: eyes, now "blindfold"." and the state's sentence).
     Her look (`Appearance`) and the parts in her prompt follow the body's state. The Looking Glass model is shown as it
-    comes for now. Next: her tools, and the nodes showing the state. Toggles come from the model's capabilities (its meshes and
+    comes for now. The node shows the state (the renderer page sets the toggles, on the pane and on the Looking Glass)
+    and switches it: its **controls panel** (`fx/ControlsPane`, between the chat and her body, a panel for the node's
+    controls in general, in sections; the first is *Her parts*: a box for a part that is shown or hidden, a choice
+    for a group's states) sends `part` (1.5), disabled while the node is not connected. A switch made in the server's
+    UI does not reach a node that is already running yet (it shows it at its next start). Next: her tools. Toggles come from the model's capabilities (its meshes and
   "hide X" shape keys, kept by the converter), but **only the described parts can be toggled** (the *Describe* box
   in the model's dialog): she can't change what she has no words for, and every toggle changes her look. The rest
   stay as the model comes, and are only tried on the preview. Her prompt and her tools list only the described parts.

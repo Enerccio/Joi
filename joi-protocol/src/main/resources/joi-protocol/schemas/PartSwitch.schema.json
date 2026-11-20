@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Enerccio/joi/protocol/v1/PartSwitch.schema.json",
+  "title": "PartSwitch",
+  "description": "part (since 1.5): the user put a part of her body in another state on the node. The server keeps it on the body and starts her turn about it (turn with the cause part_switched), told with the state's description, so she can react.",
+  "type": "object",
+  "properties": {
+    "part": {
+      "type": "string",
+      "description": "The part's id (BodyPart.id)."
+    },
+    "state": {
+      "type": "string",
+      "description": "The state's id (BodyPartState.id)."
+    }
+  },
+  "required": [
+    "part",
+    "state"
+  ]
+}

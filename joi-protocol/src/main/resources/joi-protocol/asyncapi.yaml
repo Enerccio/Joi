@@ -1,7 +1,7 @@
 asyncapi: 3.0.0
 info:
   title: Joi node WebSocket
-  version: "1.4"
+  version: "1.5"
   description: |
     The live connection between a node and a Joi server: who the node is, the tools it offers and their calls, the
     user talking to her through it and her answer in text and speech, approvals, and what changes on the server. The
@@ -36,6 +36,11 @@ info:
          back into the node's window; the server starts her turn about it (`turn` with the cause
          `looking_glass_entered` or `looking_glass_exited`), so she can react. A node that shows her there as it starts
          (it remembered the choice) does not send it.
+       - **Her parts** (since 1.5). The node sends `part` (the part and the state) when the user puts a part of her body
+         in another state on the node (takes her visor off). The server keeps it on the body, so it is the same at the
+         next start and on every node (`GET .../body` has the parts with their states and the toggles as the body has
+         them), and starts her turn about it (`turn` with the cause `part_switched`), told with the description of the
+         state, so she can react. A part or a state the body does not have is answered by `error` (`bad_message`).
        - **Tools.** The server sends `tool_call` (with its `callId`). The node checks the arguments and its own
          harness again, may send `tool_progress` and `approval` (asked, then allowed or denied), and answers with
          exactly one `tool_result`. Each frame about a call restarts its timeout; an approval that is asked waits for
@@ -85,6 +90,7 @@ channels:
       say: { $ref: "#/components/messages/say" }
       stop: { $ref: "#/components/messages/stop" }
       display: { $ref: "#/components/messages/display" }
+      part: { $ref: "#/components/messages/part" }
       reasoning: { $ref: "#/components/messages/reasoning" }
       text: { $ref: "#/components/messages/text" }
       tool: { $ref: "#/components/messages/tool" }
@@ -111,6 +117,7 @@ operations:
       - { $ref: "#/channels/node/messages/say" }
       - { $ref: "#/channels/node/messages/stop" }
       - { $ref: "#/channels/node/messages/display" }
+      - { $ref: "#/channels/node/messages/part" }
       - { $ref: "#/channels/node/messages/tool_progress" }
       - { $ref: "#/channels/node/messages/tool_result" }
       - { $ref: "#/channels/node/messages/approval" }
@@ -166,6 +173,10 @@ components:
       name: display
       summary: She is shown elsewhere now (a Looking Glass, or back in the window); since 1.4
       payload: { $ref: "#/components/schemas/displayFrame" }
+    part:
+      name: part
+      summary: The user put a part of her body in another state (since 1.5)
+      payload: { $ref: "#/components/schemas/partFrame" }
     reasoning:
       name: reasoning
       summary: A piece of the thinking of the model (only when asked for); ref is the turn
@@ -261,6 +272,11 @@ components:
       allOf:
         - $ref: "schemas/Frame.schema.json"
         - properties: { type: { const: display }, data: { $ref: "schemas/Display.schema.json" } }
+          required: [ data ]
+    partFrame:
+      allOf:
+        - $ref: "schemas/Frame.schema.json"
+        - properties: { type: { const: part }, data: { $ref: "schemas/PartSwitch.schema.json" } }
           required: [ data ]
     textDeltaFrame:
       allOf:

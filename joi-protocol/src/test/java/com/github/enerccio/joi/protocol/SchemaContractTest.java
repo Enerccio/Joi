@@ -6,18 +6,9 @@ import com.github.enerccio.joi.protocol.oauth.DeviceAuthorization;
 import com.github.enerccio.joi.protocol.oauth.OAuthError;
 import com.github.enerccio.joi.protocol.oauth.OAuthMetadata;
 import com.github.enerccio.joi.protocol.oauth.TokenResponse;
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
-import com.google.gson.JsonArray;
-import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
+import com.google.gson.*;
 import com.google.gson.annotations.SerializedName;
-import com.networknt.schema.InputFormat;
-import com.networknt.schema.JsonSchema;
-import com.networknt.schema.JsonSchemaFactory;
-import com.networknt.schema.SchemaLocation;
-import com.networknt.schema.SpecVersion;
-import com.networknt.schema.ValidationMessage;
+import com.networknt.schema.*;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
@@ -40,6 +31,7 @@ class SchemaContractTest {
             JoiSummary.class, JoiList.class, Personality.class, Voice.class, JoiInfo.class, ChatRequest.class, Audio.class, Usage.class,
             ChatReply.class, TextDelta.class, AudioChunk.class, Done.class, ApiError.class, DeviceAuthorization.class,
             TokenResponse.class, OAuthError.class, OAuthMetadata.class, Download.class, BodyModel.class, BodyPart.class,
+            BodyToggle.class, BodyPartState.class, PartSwitch.class,
             BodyAnimation.class, BodyAnimations.class, BodyInfo.class, JoiAnimations.class, Frame.class, Hello.class, Welcome.class, Manifest.class,
             ToolDefinition.class, Say.class, Stop.class, Display.class, ToolUse.class, ToolCall.class, ToolProgress.class, ToolResult.class,
             ToolCancel.class, Approval.class, ServerEvent.class, TurnStart.class, ChatEntry.class, ChatHistory.class);
@@ -139,10 +131,12 @@ class SchemaContractTest {
         valid(new JoiInfo("2f0c", "Joi", "Peter", null, "cheerful", "Hey Joi", null, null, null, null));
         Download joim = new Download("http://h/api/v1/models/m1/joim", "a".repeat(64), 120_000_000, "2026-11-19T12:00:00Z", true);
         valid(new BodyInfo("b1", "Street", new BodyModel("m1", "Ryuu", joim), null,
-                List.of(new BodyPart("group:eyes", "eyes", "bare", "bare", true), new BodyPart("t1", "halo", null, null, false)),
+                List.of(new BodyPart("group:eyes", "eyes", "bare", "bare", true, List.of(new BodyPartState("bare", "bare", true,
+                        List.of(new BodyToggle("Band", null, false, false))))), new BodyPart("t1", "halo", null, null, false, null)),
+                List.of(new BodyToggle("Band", null, false, true), new BodyToggle("Body", "Hide Halo", true, true)),
                 "Silver hair.", new BodyAnimations(false, List.of(new BodyAnimation("a1", "Wave", null, true)),
                 new Download("http://h/api/v1/bodies/b1/joia", "b".repeat(64), 5000, "2026-11-19T12:00:00Z", false))));
-        valid(new BodyInfo("b1", null, new BodyModel("m1", null, null), null, List.of(), null, new BodyAnimations(true, List.of(), null)));
+        valid(new BodyInfo("b1", null, new BodyModel("m1", null, null), null, List.of(), null, null, new BodyAnimations(true, List.of(), null)));
         valid(new ChatRequest("Hi!", null, null, null, null));
         valid(new ChatRequest("Hi!", false, true, true, "kitchen"));
         valid(new ChatReply("m1", "Hello.", null, "cheerful", "Gemma", audio, null, usage));
@@ -187,6 +181,7 @@ class SchemaContractTest {
         valid(new Stop(null));
         valid(new Stop("t1"));
         valid(new Display(true));
+        valid(new PartSwitch("group:eyes", "bare"));
         valid(new ToolUse("desk__read_file", "{\"path\":\"~/notes.md\"}", "milk, eggs", true));
         valid(new ToolUse("desk__shell", "{}", null, false));
         valid(new ToolCall("c1", "read_file", arguments, "t1", 60));

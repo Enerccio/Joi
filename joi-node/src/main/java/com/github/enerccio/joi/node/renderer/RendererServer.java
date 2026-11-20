@@ -1,11 +1,8 @@
 package com.github.enerccio.joi.node.renderer;
 
+import com.github.enerccio.joi.protocol.http.BodyToggle;
 import com.github.enerccio.joi.protocol.joia.JoiaMetadata;
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
-import com.google.gson.JsonArray;
-import com.google.gson.JsonObject;
-import com.google.gson.JsonParseException;
+import com.google.gson.*;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpServer;
 
@@ -19,17 +16,8 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.security.SecureRandom;
-import java.util.ArrayList;
-import java.util.HexFormat;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.CopyOnWriteArrayList;
-import java.util.concurrent.Executors;
-import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
+import java.util.*;
+import java.util.concurrent.*;
 import java.util.function.BiConsumer;
 
 /**
@@ -72,6 +60,8 @@ public class RendererServer implements AutoCloseable {
     private volatile String lookingGlass;
     /** The last tuning message, sent again to a page that opens later. */
     private String tuningMessage;
+    /** The last toggles message (which parts of her are shown), sent again to a page that opens later. */
+    private String togglesMessage;
     private BiConsumer<Long, String> onEnded = (id, problem) -> {
     };
 
@@ -105,6 +95,17 @@ public class RendererServer implements AutoCloseable {
         JsonObject message = message("tuning");
         message.add("tuning", GSON.toJsonTree(tuning));
         tuningMessage = GSON.toJson(message);
+        broadcast(message);
+    }
+
+    /**
+     * Which parts of her model are shown, every toggle of it (her state as the server has it, and as the user switched
+     * it here): sent to the pages open, and to those that open later; a page applies it once her model is there.
+     */
+    public synchronized void toggles(List<BodyToggle> toggles) {
+        JsonObject message = message("toggles");
+        message.add("toggles", GSON.toJsonTree(toggles == null ? List.of() : toggles));
+        togglesMessage = GSON.toJson(message);
         broadcast(message);
     }
 
@@ -222,6 +223,9 @@ public class RendererServer implements AutoCloseable {
         synchronized (this) {
             if (modelMessage != null) {
                 queue.add(modelMessage);
+            }
+            if (togglesMessage != null) {
+                queue.add(togglesMessage);
             }
             if (playMessage != null) {
                 queue.add(playMessage);

@@ -28,6 +28,16 @@
     "default": {
       "type": "boolean",
       "description": "Whether that is the part's default state."
+    },
+    "states": {
+      "type": [
+        "array",
+        "null"
+      ],
+      "items": {
+        "$ref": "BodyPartState.schema.json"
+      },
+      "description": "The states it can be put in (since 1.5)."
     }
   },
   "required": [

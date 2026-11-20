@@ -12,23 +12,13 @@ import static org.assertj.core.api.Assertions.assertThat;
 class SpeechTextTest {
 
     @Test
-    void stageDirectionsMarkdownAndEmojiAreNotSpoken() {
-        assertThat(SpeechText.clean("*smiles softly* Hi **Peter**! 😊 See [the docs](http://x).")).isEqualTo("Hi Peter! See the docs.");
+    void markdownAndEmojiAreNotSpokenButEmphasisIsKept() {
+        assertThat(SpeechText.clean("Hi **Peter**! 😊 See [the docs](http://x).")).isEqualTo("Hi Peter! See the docs.");
         assertThat(SpeechText.clean("# Title\n- one\n- two")).isEqualTo("Title\none\ntwo");
+        // what is between asterisks is stressed, not narration: its words are spoken
+        assertThat(SpeechText.clean("I *really* mean it, *and I do* mean it.")).isEqualTo("I really mean it, and I do mean it.");
         assertThat(SpeechText.clean("2 * 3 * 4 is 24")).isEqualTo("2 * 3 * 4 is 24");
         assertThat(SpeechText.clean(null)).isEmpty();
-    }
-
-    @Test
-    void narrationOfAnyLengthIsNotSpoken() {
-        String reply = """
-                *I flicker into existence on your screen, my tail twitching as I adjust to the resolution. I cross my arms,
-                my red eyes narrowing slightly as I scan the desktop layout.*
-
-                Ugh, my head. You're Peter, I guess. I'm **Joi**.
-
-                *I glance down at my outfit, running a hand over the fabric of my bodysuit and flicking""";
-        assertThat(SpeechText.clean(reply)).isEqualTo("Ugh, my head. You're Peter, I guess. I'm Joi.");
     }
 
     @Test

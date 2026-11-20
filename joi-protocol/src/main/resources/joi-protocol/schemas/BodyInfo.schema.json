@@ -43,6 +43,16 @@
       },
       "description": "The parts of the full model that can be switched, each in the state the body is in."
     },
+    "toggles": {
+      "type": [
+        "array",
+        "null"
+      ],
+      "items": {
+        "$ref": "BodyToggle.schema.json"
+      },
+      "description": "Every toggle of the full model as the body has it now (since 1.5): what a node sets on it."
+    },
     "appearance": {
       "type": [
         "string",

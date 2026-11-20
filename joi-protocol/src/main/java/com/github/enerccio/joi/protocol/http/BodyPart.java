@@ -2,6 +2,8 @@ package com.github.enerccio.joi.protocol.http;
 
 import com.google.gson.annotations.SerializedName;
 
+import java.util.List;
+
 /**
  * A part of a body's model described apart, which can be switched, and the state it is in.
  *
@@ -10,6 +12,8 @@ import com.google.gson.annotations.SerializedName;
  * @param state     the id of the state it is in (for a single toggle {@code shown} or {@code hidden})
  * @param stateName the name of that state
  * @param isDefault whether that is the part's default state
+ * @param states    the states it can be put in (since 1.5), null from a server before
  */
-public record BodyPart(String id, String name, String state, String stateName, @SerializedName("default") boolean isDefault) {
+public record BodyPart(String id, String name, String state, String stateName, @SerializedName("default") boolean isDefault,
+                       List<BodyPartState> states) {
 }

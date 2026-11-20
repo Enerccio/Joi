@@ -1,29 +1,15 @@
 package com.github.enerccio.joi.node.fx;
 
-import com.github.enerccio.joi.node.AvatarDirector;
-import com.github.enerccio.joi.node.LookingGlassBridge;
-import com.github.enerccio.joi.node.NodeSettings;
-import com.github.enerccio.joi.node.NodeSocket;
-import com.github.enerccio.joi.node.ServerClient;
+import com.github.enerccio.joi.node.*;
 import com.github.enerccio.joi.node.renderer.BodyFiles;
 import com.github.enerccio.joi.node.renderer.LookingGlassTuning;
 import com.github.enerccio.joi.node.renderer.RendererServer;
 import com.github.enerccio.joi.protocol.JoiProtocol;
-import com.github.enerccio.joi.protocol.http.ApiError;
-import com.github.enerccio.joi.protocol.http.AuthMethod;
-import com.github.enerccio.joi.protocol.http.BodyAnimation;
-import com.github.enerccio.joi.protocol.http.BodyInfo;
-import com.github.enerccio.joi.protocol.http.ChatEntry;
-import com.github.enerccio.joi.protocol.http.ChatReply;
-import com.github.enerccio.joi.protocol.http.Done;
-import com.github.enerccio.joi.protocol.http.Download;
-import com.github.enerccio.joi.protocol.http.JoiInfo;
-import com.github.enerccio.joi.protocol.http.JoiSummary;
-import com.github.enerccio.joi.protocol.http.ServerInfo;
+import com.github.enerccio.joi.protocol.http.*;
 import com.github.enerccio.joi.protocol.node.Hello;
 import com.github.enerccio.joi.protocol.node.Manifest;
-import com.github.enerccio.joi.protocol.node.Welcome;
 import com.github.enerccio.joi.protocol.node.NodePart;
+import com.github.enerccio.joi.protocol.node.Welcome;
 import com.github.enerccio.joi.protocol.oauth.DeviceAuthorization;
 import javafx.application.Application;
 import javafx.application.Platform;
@@ -33,26 +19,13 @@ import javafx.geometry.Pos;
 import javafx.scene.Node;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
-import javafx.scene.control.Button;
-import javafx.scene.control.Label;
-import javafx.scene.control.ListView;
-import javafx.scene.control.ProgressBar;
-import javafx.scene.control.ScrollPane;
-import javafx.scene.control.SplitPane;
-import javafx.scene.control.TextField;
-import javafx.scene.layout.BorderPane;
-import javafx.scene.layout.HBox;
-import javafx.scene.layout.Priority;
-import javafx.scene.layout.StackPane;
-import javafx.scene.layout.VBox;
+import javafx.scene.control.*;
+import javafx.scene.layout.*;
 import javafx.stage.Stage;
 
 import java.io.IOException;
 import java.nio.file.Path;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Random;
+import java.util.*;
 
 /**
  * The node as a desktop app (see {@code DESIGN.md} → Node → The first node): the server and its login (a token, the
@@ -365,6 +338,9 @@ public class JoiNodeApp extends Application {
             return;
         }
         renderer.show(loaded.files());
+        // the parts as the server has them (kept on her body): shown here, and switched in the controls
+        List<BodyToggle> toggles = new ArrayList<>(loaded.body() == null || loaded.body().toggles() == null ? List.of() : loaded.body().toggles());
+        renderer.toggles(toggles);
         AvatarPane avatarPane = new AvatarPane(loaded.animations(), renderer, loaded.chromium(), url -> getHostServices().showDocument(url));
         ChatPane chat = new ChatPane(loaded.summary().name());
         chat.history(loaded.history());
@@ -402,6 +378,12 @@ public class JoiNodeApp extends Application {
         }, loaded.joi().animations(), new Random());
         avatarPane.setOnAnimationEnded(director::animationEnded);
         speech.setOnEnded(director::speechEnded);
+
+        // the controls wait for the server: a change they make is told to it, which keeps it
+        ControlsPane controls = new ControlsPane();
+        controls.parts(loaded.body() == null ? null : loaded.body().parts());
+        controls.setOnSwitch((part, state) -> switchPart(toggles, part, state));
+        controls.setDisable(true);
 
         // with a voice her words wait for it
         boolean voiced = loaded.joi().voice() != null;
@@ -441,17 +423,24 @@ public class JoiNodeApp extends Application {
                 Platform.runLater(() -> {
                     chat.note("Disconnected: " + reason + " (" + code + "). Connecting again…");
                     director.disconnected();
+                    controls.setDisable(true);
                 });
             }
 
             @Override
             public void reconnected(Welcome welcome) {
-                Platform.runLater(() -> chat.note("Connected again."));
+                Platform.runLater(() -> {
+                    chat.note("Connected again.");
+                    controls.setDisable(false);
+                });
             }
 
             @Override
             public void closed(int code, String reason) {
-                Platform.runLater(() -> chat.note("Disconnected: " + reason + " (" + code + ")"));
+                Platform.runLater(() -> {
+                    chat.note("Disconnected: " + reason + " (" + code + ")");
+                    controls.setDisable(true);
+                });
             }
         });
         chat.setOnSay(text -> socket.say(text, true, false));
@@ -481,8 +470,8 @@ public class JoiNodeApp extends Application {
             }
         });
 
-        SplitPane split = new SplitPane(chat, avatarPane);
-        split.setDividerPositions(0.45);
+        SplitPane split = new SplitPane(chat, controls, avatarPane);
+        split.setDividerPositions(0.3, 0.55);
         BorderPane root = new BorderPane(split);
         show(root);
         stage.setTitle("Joi: " + loaded.summary().name());
@@ -499,10 +488,32 @@ public class JoiNodeApp extends Application {
                 Manifest manifest = new Manifest(1, System.getProperty("os.name") + " " + System.getProperty("os.version"),
                         System.getProperty("os.arch"), null, List.of());
                 socket.connect(client.nodeSocket(), client.authorization(), hello, manifest).get();
-                Platform.runLater(director::start);
+                Platform.runLater(() -> {
+                    director.start();
+                    controls.setDisable(false);
+                });
                 return null;
             }
         });
+    }
+
+    /**
+     * The user put a part of her body in another state: shown on her body here and on the Looking Glass, and told to the
+     * server, which keeps it on the body (so it is the same at the next start) and lets her react to it.
+     *
+     * @param toggles every toggle of her model as it is now; the part's are set as the state says
+     */
+    private void switchPart(List<BodyToggle> toggles, BodyPart part, BodyPartState state) {
+        for (BodyToggle set : state.toggles()) {
+            for (int i = 0; i < toggles.size(); i++) {
+                BodyToggle toggle = toggles.get(i);
+                if (toggle.mesh().equals(set.mesh()) && java.util.Objects.equals(toggle.key(), set.key())) {
+                    toggles.set(i, set);
+                }
+            }
+        }
+        renderer.toggles(List.copyOf(toggles));
+        socket.part(part.id(), state.id());
     }
 
     // ----------------------------------------------------------------------------------------------------------------

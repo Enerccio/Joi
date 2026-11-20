@@ -1,10 +1,6 @@
 package com.github.enerccio.joi.protocol.node;
 
-import com.github.enerccio.joi.protocol.http.ApiError;
-import com.github.enerccio.joi.protocol.http.AudioChunk;
-import com.github.enerccio.joi.protocol.http.ChatReply;
-import com.github.enerccio.joi.protocol.http.Done;
-import com.github.enerccio.joi.protocol.http.TextDelta;
+import com.github.enerccio.joi.protocol.http.*;
 
 /**
  * The types of {@link Frame}s of the node WebSocket and what their data is. The order and the rules are in
@@ -25,6 +21,8 @@ public enum NodeMessage {
     STOP("stop", Direction.TO_SERVER, Stop.class),
     /** {@link Display}: she is shown elsewhere now (since 1.4); the server starts her turn about it. */
     DISPLAY("display", Direction.TO_SERVER, Display.class),
+    /** {@link PartSwitch}: the user switched a part of her body (since 1.5); the server keeps it and starts her turn about it. */
+    PART("part", Direction.TO_SERVER, PartSwitch.class),
     /** {@link TurnStart}: a turn the server started (first boot, the user is back); answered like a say. */
     TURN("turn", Direction.TO_NODE, TurnStart.class),
     /** {@link TextDelta} of the thinking (only when asked for). */

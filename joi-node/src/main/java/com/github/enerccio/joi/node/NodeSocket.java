@@ -1,24 +1,7 @@
 package com.github.enerccio.joi.node;
 
-import com.github.enerccio.joi.protocol.http.ApiError;
-import com.github.enerccio.joi.protocol.http.AudioChunk;
-import com.github.enerccio.joi.protocol.http.ChatReply;
-import com.github.enerccio.joi.protocol.http.Done;
-import com.github.enerccio.joi.protocol.http.TextDelta;
-import com.github.enerccio.joi.protocol.node.Display;
-import com.github.enerccio.joi.protocol.node.Frame;
-import com.github.enerccio.joi.protocol.node.Hello;
-import com.github.enerccio.joi.protocol.node.Manifest;
-import com.github.enerccio.joi.protocol.node.NodeMessage;
-import com.github.enerccio.joi.protocol.node.Say;
-import com.github.enerccio.joi.protocol.node.ServerEvent;
-import com.github.enerccio.joi.protocol.node.Stop;
-import com.github.enerccio.joi.protocol.node.ToolCall;
-import com.github.enerccio.joi.protocol.node.ToolCancel;
-import com.github.enerccio.joi.protocol.node.ToolResult;
-import com.github.enerccio.joi.protocol.node.ToolUse;
-import com.github.enerccio.joi.protocol.node.TurnStart;
-import com.github.enerccio.joi.protocol.node.Welcome;
+import com.github.enerccio.joi.protocol.http.*;
+import com.github.enerccio.joi.protocol.node.*;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonElement;
@@ -32,12 +15,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionStage;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.ScheduledFuture;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
@@ -305,6 +283,16 @@ public class NodeSocket {
     public void display(boolean lookingGlass) {
         if (connected()) {
             send(NodeMessage.DISPLAY, null, null, new Display(lookingGlass));
+        }
+    }
+
+    /**
+     * Tells the server the user put a part of her body in another state (since 1.5): it keeps it on the body, and she
+     * reacts in a turn it starts. Not sent (nor kept) while the node is not connected.
+     */
+    public void part(String part, String state) {
+        if (connected()) {
+            send(NodeMessage.PART, null, null, new PartSwitch(part, state));
         }
     }
 

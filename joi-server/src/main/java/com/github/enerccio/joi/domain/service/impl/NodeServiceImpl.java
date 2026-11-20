@@ -9,40 +9,23 @@ import com.github.enerccio.joi.domain.chat.ChatService.NoModelException;
 import com.github.enerccio.joi.domain.chat.turn.TurnControllerEvent.Registration;
 import com.github.enerccio.joi.domain.chat.turn.TurnEvents;
 import com.github.enerccio.joi.domain.chat.turn.TurnInput;
+import com.github.enerccio.joi.domain.model.impl.Body;
 import com.github.enerccio.joi.domain.model.impl.ChatMessage;
 import com.github.enerccio.joi.domain.model.impl.Joi;
+import com.github.enerccio.joi.domain.model.impl.QueuedEvent;
 import com.github.enerccio.joi.domain.node.NodeSession;
 import com.github.enerccio.joi.domain.node.NodeSession.PendingCall;
 import com.github.enerccio.joi.domain.node.NodeTransport;
 import com.github.enerccio.joi.domain.persona.JoiPromptField;
 import com.github.enerccio.joi.domain.service.AccessTokenService.Principal;
-import com.github.enerccio.joi.domain.service.ChatMessageService;
-import com.github.enerccio.joi.domain.service.JoiService;
-import com.github.enerccio.joi.domain.service.NodeService;
-import com.github.enerccio.joi.domain.service.PersonaService;
+import com.github.enerccio.joi.domain.service.*;
 import com.github.enerccio.joi.domain.templates.NodeEventTemplateData;
 import com.github.enerccio.joi.protocol.JoiProtocol;
 import com.github.enerccio.joi.protocol.http.AudioChunk;
 import com.github.enerccio.joi.protocol.http.Done;
 import com.github.enerccio.joi.protocol.http.JoiSummary;
 import com.github.enerccio.joi.protocol.http.TextDelta;
-import com.github.enerccio.joi.protocol.node.Approval;
-import com.github.enerccio.joi.protocol.node.ApprovalState;
-import com.github.enerccio.joi.protocol.node.Display;
-import com.github.enerccio.joi.protocol.node.Frame;
-import com.github.enerccio.joi.protocol.node.Hello;
-import com.github.enerccio.joi.protocol.node.Manifest;
-import com.github.enerccio.joi.protocol.node.NodeMessage;
-import com.github.enerccio.joi.protocol.node.Say;
-import com.github.enerccio.joi.protocol.node.ServerEvent;
-import com.github.enerccio.joi.protocol.node.Stop;
-import com.github.enerccio.joi.protocol.node.ToolDefinition;
-import com.github.enerccio.joi.protocol.node.ToolProgress;
-import com.github.enerccio.joi.protocol.node.ToolResult;
-import com.github.enerccio.joi.protocol.node.ToolTier;
-import com.github.enerccio.joi.protocol.node.ToolUse;
-import com.github.enerccio.joi.protocol.node.TurnStart;
-import com.github.enerccio.joi.protocol.node.Welcome;
+import com.github.enerccio.joi.protocol.node.*;
 import com.github.enerccio.joi.tts.audio.AudioKind;
 import com.github.enerccio.marginalia.bound.ApiRequestAttributes;
 import com.github.enerccio.marginalia.bound.SessionPoint;
@@ -62,20 +45,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 
 import java.time.Duration;
 import java.time.Instant;
-import java.util.ArrayList;
-import java.util.Base64;
-import java.util.Date;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.UUID;
-import java.util.concurrent.CancellationException;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionException;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
+import java.util.*;
+import java.util.concurrent.*;
 import java.util.regex.Pattern;
 
 /**
@@ -99,12 +70,20 @@ public class NodeServiceImpl implements NodeService, InitializingBean, Disposabl
     /** The causes of her turns as the user moves her onto a Looking Glass and back ({@code display}). */
     public static final String LOOKING_GLASS_ENTERED = "looking_glass_entered";
     public static final String LOOKING_GLASS_EXITED = "looking_glass_exited";
+    /** The cause of her turn as the user switches a part of her body on the node ({@code part}). */
+    public static final String PART_SWITCHED = "part_switched";
 
     @Autowired
     private JoiApi joiApi;
 
     @Autowired
     private JoiService joiService;
+
+    @Autowired
+    private BodyService bodyService;
+
+    @Autowired
+    private QueuedEventService queuedEventService;
 
     @Autowired
     private ChatService chatService;
@@ -301,6 +280,7 @@ public class NodeServiceImpl implements NodeService, InitializingBean, Disposabl
                 case SAY -> say(session, frame);
                 case STOP -> stop(session, frame);
                 case DISPLAY -> display(session, frame);
+                case PART -> partSwitch(session, frame);
                 case TOOL_PROGRESS -> progress(session, frame);
                 case TOOL_RESULT -> result(session, frame);
                 case APPROVAL -> approval(session, frame);
@@ -453,6 +433,39 @@ public class NodeServiceImpl implements NodeService, InitializingBean, Disposabl
         String turn = "s-" + UUID.randomUUID().toString().substring(0, 12);
         session.send(NodeMessage.TURN, null, null, new TurnStart(turn, cause));
         startTurn(session, turn, joi, new TurnInput(text, session.name(), session.speaks(), true, "node." + cause), false);
+    }
+
+    /**
+     * The user put a part of her body in another state on the node: kept on the body (the same at the next start and
+     * on every node), and when she is told (she has chatted and the part changed) her turn about it, so she can react.
+     */
+    private void partSwitch(NodeSession session, Frame frame) throws Exception {
+        PartSwitch change = data(frame, PartSwitch.class);
+        require(StringUtils.isNotBlank(change.part()) && StringUtils.isNotBlank(change.state()), "part and state are what was switched");
+        Joi joi;
+        QueuedEvent event;
+        try (InRequestScope _ = new InRequestScope(session.attributes())) {
+            joi = joiService.find(session.joiId());
+            Body body = joi == null ? null : bodyService.active(joi);
+            require(body != null, "She is in no body");
+            List<QueuedEvent> events;
+            try {
+                events = bodyService.switchPart(body, change.part(), change.state());
+            } catch (IllegalArgumentException e) {
+                throw new IllegalArgumentException("Her body has no part " + change.part() + " in the state " + change.state());
+            }
+            event = events.isEmpty() ? null : events.getFirst();
+            if (event != null) {
+                // told here, in the turn that follows: it does not wait for another delivery
+                queuedEventService.markDelivered(event, null);
+            }
+            if (event == null || chatService.chatModel(joi) == null) {
+                return;
+            }
+        }
+        String turn = "s-" + UUID.randomUUID().toString().substring(0, 12);
+        session.send(NodeMessage.TURN, null, null, new TurnStart(turn, PART_SWITCHED));
+        startTurn(session, turn, joi, new TurnInput(event.getText(), session.name(), session.speaks(), true, "node." + PART_SWITCHED), false);
     }
 
     /** How long ago, in words she can say. */

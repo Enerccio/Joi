@@ -117,6 +117,23 @@ class RendererServerTest {
     }
 
     @Test
+    void whichPartsAreShownGoesToThePagesOpenAndToOnesOpenedLater() throws Exception {
+        BlockingQueue<JsonObject> open = events();
+        // let the page connect first
+        Thread.sleep(300);
+        server.toggles(java.util.List.of(new com.github.enerccio.joi.protocol.http.BodyToggle("Headgear", "Hide Halo", true, false)));
+        JsonObject now = open.poll(5, TimeUnit.SECONDS);
+        assertThat(now.get("type").getAsString()).isEqualTo("toggles");
+        assertThat(now.getAsJsonArray("toggles").get(0).getAsJsonObject().get("shown").getAsBoolean()).isFalse();
+
+        // the last ones are sent again to a page that opens later (the Looking Glass)
+        server.toggles(java.util.List.of(new com.github.enerccio.joi.protocol.http.BodyToggle("Headgear", "Hide Halo", true, true)));
+        JsonObject later = events().poll(5, TimeUnit.SECONDS);
+        assertThat(later.get("type").getAsString()).isEqualTo("toggles");
+        assertThat(later.getAsJsonArray("toggles").get(0).getAsJsonObject().get("shown").getAsBoolean()).isTrue();
+    }
+
+    @Test
     void onlyUnderItsSecretPath() throws Exception {
         URI url = server.url();
         URI root = URI.create("http://127.0.0.1:" + url.getPort() + "/events");

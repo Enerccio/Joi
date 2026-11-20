@@ -1,12 +1,13 @@
 package com.github.enerccio.joi.domain.node;
 
+import com.github.enerccio.joi.domain.bodies.ModelFiles;
+import com.github.enerccio.joi.domain.bodies.UnityFixtures;
 import com.github.enerccio.joi.domain.collections.ChatMessageType;
+import com.github.enerccio.joi.domain.model.impl.Body;
 import com.github.enerccio.joi.domain.model.impl.ChatMessage;
 import com.github.enerccio.joi.domain.model.impl.Joi;
-import com.github.enerccio.joi.domain.service.AccessTokenService;
-import com.github.enerccio.joi.domain.service.ChatMessageService;
-import com.github.enerccio.joi.domain.service.JoiService;
-import com.github.enerccio.joi.domain.service.NodeService;
+import com.github.enerccio.joi.domain.model.impl.Model;
+import com.github.enerccio.joi.domain.service.*;
 import com.github.enerccio.joi.domain.service.impl.NodeServiceImpl;
 import com.github.enerccio.joi.protocol.node.NodeMessage;
 import com.github.enerccio.marginalia.test.PlatformTestBase;
@@ -23,6 +24,9 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
+import java.io.File;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.BlockingQueue;
@@ -48,6 +52,10 @@ class NodeServiceTest extends PlatformTestBase {
     private AccessTokenService accessTokenService;
     @Autowired
     private ChatMessageService chatMessageService;
+    @Autowired
+    private BodyService bodyService;
+    @Autowired
+    private ModelService modelService;
 
     private final JsonSchemaFactory schemas = JsonSchemaFactory.getInstance(SpecVersion.VersionFlag.V202012,
             builder -> builder.schemaMappers(m -> m.mapPrefix(BASE, "classpath:joi-protocol/schemas/")));
@@ -318,6 +326,53 @@ class NodeServiceTest extends PlatformTestBase {
         assertThat(exited.getInput()).contains("off the Looking Glass on desk");
 
         node.frame("display", "d1", null);
+        assertThat(node.next("error").getAsJsonObject("data").get("code").getAsString()).isEqualTo("bad_message");
+    }
+
+    @Test
+    void aPartSwitchedOnTheNodeIsKeptOnTheBodyAndSheReacts() throws Exception {
+        Path dir = Files.createTempDirectory("vrm");
+        File source = UnityFixtures.glb(dir.resolve("m.vrm").toFile(), """
+                {"nodes": [{"name": "Headgear", "mesh": 0}],
+                 "meshes": [{"extras": {"targetNames": ["Hide Halo"]}, "weights": [0], "primitives": [{}]}],
+                 "extensions": {"VRMC_vrm": {"humanoid": {"humanBones": {"hips": {}}},
+                   "expressions": {"preset": {"happy": {"morphTargetBinds": [{}]}}}}}}
+                """);
+        File file = ModelFiles.uploadFile(modelService.uploadFolder(), "Ryuu.vrm");
+        Files.copy(source.toPath(), file.toPath());
+        Model ryuu = modelService.find(modelService.attach(new Model(), file, "Ryuu.vrm").getId());
+        ryuu.getCapabilityNames().put("key:Headgear/Hide Halo", "golden halo");
+        ryuu.getPartShown().put("key:Headgear/Hide Halo", "A golden halo floats above you.");
+        ryuu.getPartHidden().put("key:Headgear/Hide Halo", "Nothing floats above you now.");
+        ryuu = modelService.save(ryuu);
+        Body body = bodyService.create(joi, "Street");
+        body.setModel(ryuu);
+        body = bodyService.save(body);
+
+        llm.enqueue(MockLLMResponse.text("Hello."), MockLLMResponse.text("My halo!"));
+        Node node = connect("Bearer " + token);
+        node.hello("n1", "desk", joi.getUuid(), "1.5");
+        node.next("welcome");
+        node.manifest(1);
+        // she has not chatted yet: kept, and she is not told
+        node.frame("part", null, "{\"part\": \"key:Headgear/Hide Halo\", \"state\": \"hidden\"}");
+        node.frame("part", null, "{\"part\": \"key:Headgear/Hide Halo\", \"state\": \"shown\"}");
+        node.frame("say", "t1", "{\"text\": \"Hi\", \"speak\": false}");
+        node.next("done");
+
+        node.frame("part", null, "{\"part\": \"key:Headgear/Hide Halo\", \"state\": \"hidden\"}");
+        JsonObject turn = node.next("turn");
+        assertThat(turn.getAsJsonObject("data").get("cause").getAsString()).isEqualTo("part_switched");
+        node.next("done");
+        // kept on the body: the next start shows it so
+        assertThat(bodyService.find(body.getId()).partStateMap()).containsEntry("key:Headgear/Hide Halo", "hidden");
+        ChatMessage told = chatMessageService.findLatest(joi, 1).getFirst();
+        assertThat(told.getType()).isEqualTo(ChatMessageType.EVENT);
+        assertThat(told.getEventKind()).isEqualTo("node.part_switched");
+        assertThat(told.getInput()).contains("golden halo").contains("Nothing floats above you now.");
+
+        // a part or a state the body does not have
+        node.frame("part", null, "{\"part\": \"key:Headgear/Nope\", \"state\": \"hidden\"}");
         assertThat(node.next("error").getAsJsonObject("data").get("code").getAsString()).isEqualTo("bad_message");
     }
 

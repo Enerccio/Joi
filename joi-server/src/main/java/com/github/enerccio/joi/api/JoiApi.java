@@ -6,25 +6,12 @@ import com.github.enerccio.joi.domain.bodies.DescribedPart;
 import com.github.enerccio.joi.domain.bodies.ModelCapabilities;
 import com.github.enerccio.joi.domain.bodies.joim.JoimMetadata;
 import com.github.enerccio.joi.domain.chat.ChatService;
-import com.github.enerccio.joi.domain.collections.ChatMessageType;
-import com.github.enerccio.joi.domain.chat.turn.TurnInput;
 import com.github.enerccio.joi.domain.chat.ChatService.NoModelException;
-import com.github.enerccio.joi.domain.model.impl.AnimationPack;
-import com.github.enerccio.joi.domain.model.impl.Body;
-import com.github.enerccio.joi.domain.model.impl.ChatMessage;
-import com.github.enerccio.joi.domain.model.impl.Joi;
-import com.github.enerccio.joi.domain.model.impl.Model;
-import com.github.enerccio.joi.domain.service.AccessTokenService;
-import com.github.enerccio.joi.domain.service.AnimationPackService;
+import com.github.enerccio.joi.domain.chat.turn.TurnInput;
+import com.github.enerccio.joi.domain.collections.ChatMessageType;
+import com.github.enerccio.joi.domain.model.impl.*;
+import com.github.enerccio.joi.domain.service.*;
 import com.github.enerccio.joi.domain.service.AccessTokenService.Principal;
-import com.github.enerccio.joi.domain.service.ApiAccessService;
-import com.github.enerccio.joi.domain.service.BodyService;
-import com.github.enerccio.joi.domain.service.ChatMessageService;
-import com.github.enerccio.joi.domain.service.DeviceAuthorizationService;
-import com.github.enerccio.joi.domain.service.JoiService;
-import com.github.enerccio.joi.domain.service.JoiaService;
-import com.github.enerccio.joi.domain.service.JoimService;
-import com.github.enerccio.joi.domain.service.ModelService;
 import com.github.enerccio.joi.protocol.JoiProtocol;
 import com.github.enerccio.joi.protocol.http.*;
 import com.github.enerccio.joi.protocol.joia.JoiaFile;
@@ -40,9 +27,9 @@ import com.github.enerccio.marginalia.bound.ApiRequestAttributes;
 import com.github.enerccio.marginalia.bound.SessionPoint;
 import com.github.enerccio.marginalia.domain.model.impl.AI;
 import com.github.enerccio.marginalia.domain.model.impl.Resource;
-import com.github.enerccio.marginalia.domain.service.ResourceService;
 import com.github.enerccio.marginalia.domain.security.model.User;
 import com.github.enerccio.marginalia.domain.security.service.UserService;
+import com.github.enerccio.marginalia.domain.service.ResourceService;
 import com.github.enerccio.marginalia.ui.components.ThreadCopyRequestAttributes.InRequestScope;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -58,12 +45,7 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.ScheduledFuture;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.*;
 
 /**
  * Joi's API ({@value JoiProtocol#API}, {@value JoiProtocol#OAUTH}, see {@code joi-protocol}): authenticates the call
@@ -310,13 +292,26 @@ public class JoiApi implements DisposableBean {
         String base = baseUrl(call) + JoiProtocol.API;
         Model model = model(body.getModel());
         List<BodyPart> parts = new ArrayList<>();
+        List<BodyToggle> toggles = new ArrayList<>();
         ModelCapabilities capabilities = model == null ? null : ModelCapabilities.fromJson(model.getCapabilities());
         if (capabilities != null) {
             Map<String, String> states = body.partStateMap();
             for (DescribedPart part : DescribedPart.of(model, capabilities)) {
                 DescribedPart.State in = BodyState.stateOf(model, part, states);
+                List<BodyPartState> partStates = new ArrayList<>();
+                for (DescribedPart.State state : part.states()) {
+                    List<BodyToggle> set = part.toggles().stream().map(toggle -> new BodyToggle(toggle.mesh(), toggle.key(), toggle.hides(),
+                            state.shown().getOrDefault(toggle.id(), model.shownByDefault(toggle)))).toList();
+                    partStates.add(new BodyPartState(state.id(), part.group() ? state.name()
+                            : DescribedPart.SHOWN.equals(state.id()) ? "shown" : "hidden", part.isDefault(state), set));
+                }
                 parts.add(new BodyPart(part.id(), part.name(), in == null ? null : in.id(), in == null ? null : in.name(),
-                        in != null && part.isDefault(in)));
+                        in != null && part.isDefault(in), partStates));
+            }
+            // every toggle as the body has it: the parts as they are switched, the rest as by default
+            Map<String, Boolean> shown = BodyState.toggles(model, states);
+            for (ModelCapabilities.Toggle toggle : capabilities.toggles()) {
+                toggles.add(new BodyToggle(toggle.mesh(), toggle.key(), toggle.hides(), shown.getOrDefault(toggle.id(), model.shownByDefault(toggle))));
             }
         }
         List<BodyAnimation> animations = new ArrayList<>();
@@ -326,7 +321,7 @@ public class JoiApi implements DisposableBean {
         Download joia = download(base + "/bodies/" + body.getUuid() + "/joia", bodyService.animationsFile(body),
                 body.getAnimationsResourceId(), body.getAnimationsExportedAt(), !joiaService.needsBodyExport(body));
         return new BodyInfo(body.getUuid(), StringUtils.defaultIfBlank(body.getName(), null), bodyModel(base, model),
-                bodyModel(base, model(body.getLookingGlassModel())), parts, StringUtils.defaultIfBlank(bodyService.appearance(body), null),
+                bodyModel(base, model(body.getLookingGlassModel())), parts, toggles, StringUtils.defaultIfBlank(bodyService.appearance(body), null),
                 new BodyAnimations(body.animationUuids() == null, animations, joia));
     }
 
