@@ -83,6 +83,7 @@ public class JoiLocalizationBundleEN extends TextBundleBase<J_L> {
         setValue(J_L.LABEL_FIRST_BOOT_EVENT, "First waking up (the event when she first wakes up on a node)");
         setValue(J_L.LABEL_CONNECTED_EVENT, "User is back (the event when the user comes back to her on a node)");
         setValue(J_L.LABEL_LOOKING_GLASS_ENTERED_EVENT, "On the Looking Glass (the event when the user moves her onto a Looking Glass)");
+        setValue(J_L.LABEL_PART_REQUEST_EVENT, "Asked to change a part (the event when her personality lets her decide on it)");
         setValue(J_L.LABEL_LOOKING_GLASS_EXITED_EVENT, "Off the Looking Glass (the event when the user moves her back into the window)");
         setValue(J_L.LABEL_BODY_PROMPT, "Body section (the body she is in, put into {{#body}})");
         setValue(J_L.LABEL_PREVIEW_SYSTEM_PROMPT, "Preview the system prompt");
@@ -92,6 +93,9 @@ public class JoiLocalizationBundleEN extends TextBundleBase<J_L> {
         setValue(J_L.LABEL_CHANGED, "Changed");
         setValue(J_L.LABEL_OWN, "Your own");
         setValue(J_L.LABEL_ADD_PERSONALITY, "Add personality");
+        setValue(J_L.LABEL_CLONE, "Clone");
+        setValue(J_L.LABEL_COPY_OF, "%s (copy)");
+        setValue(J_L.LABEL_PART_CONSENT, "When she is asked to change a part of her body");
         setValue(J_L.LABEL_ADD_MOOD, "Add mood");
         setValue(J_L.LABEL_RESET_TO_DEFAULT, "Reset to the default");
         setValue(J_L.LABEL_MOOD_EXPRESSIONS, "How the moods sound in this personality");
@@ -343,6 +347,8 @@ public class JoiLocalizationBundleEN extends TextBundleBase<J_L> {
                 + "the server.");
         setValue(J_L.HELP_PERSONALITY, "Who the assistant is. It changes her tone and banter, never what she does.");
         setValue(J_L.HELP_MOOD_EXPRESSION, "Empty uses the mood's own text.");
+        setValue(J_L.HELP_PART_CONSENT, "Empty: the change is made, she only reacts. A text lets her decide whether to allow it,"
+                + " and says how (\"If the user begs, consider allowing it.\"). It is about her parts only, nothing else she does.");
         setValue(J_L.HELP_PAUSE_MINUTES, "Minutes without talking after which the live conversation steps back to the open ones.");
         setValue(J_L.HELP_KEY, "A short id of letters, digits and dashes; it can't be changed later.");
         setValue(J_L.HELP_WEIGHT, "How likely the daily roll picks it; 0 never rolls it (it can still be set by hand).");
@@ -457,6 +463,9 @@ public class JoiLocalizationBundleEN extends TextBundleBase<J_L> {
         setValue(J_L.DESC_TEMPLATE_MEMORIES, "What the assistant remembers that matters now: facts and past episodes.");
         setValue(J_L.DESC_TEMPLATE_CONVERSATIONS, "Short summaries of the other open conversations.");
         setValue(J_L.DESC_TEMPLATE_BODY, "The current body (avatar): what it can do and its state.");
+        setValue(J_L.DESC_TEMPLATE_REQUESTS, "What the user asks for, one request on a line, each with the number the tool takes.");
+        setValue(J_L.DESC_TEMPLATE_OTHER_EVENTS, "What else happened to her meanwhile, one event on a line; empty for nothing.");
+        setValue(J_L.DESC_TEMPLATE_CONSENT, "How she decides: what her personality says about a change of her parts.");
         setValue(J_L.DESC_TEMPLATE_NODE, "The device the user talks through and what it offers.");
         setValue(J_L.DESC_TEMPLATE_CONVERSATION, "The transcript of the conversation.");
         setValue(J_L.DESC_TEMPLATE_DAY, "The day, as a date.");

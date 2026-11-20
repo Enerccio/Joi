@@ -44,8 +44,29 @@ public interface PersonaService {
     /** The user's personality, else the default one. */
     Personality currentPersonality() throws Exception;
 
+    /** The personality of the assistant: hers, else the user's. */
+    Personality personalityOf(Joi joi) throws Exception;
+
+    /**
+     * What she is told when the user asks to change parts of her body and her personality lets her decide on it
+     * ({@code PART_REQUEST_EVENT}); null when it does not: such a change is just made.
+     *
+     * @param requests what is asked, one request on a line
+     * @param events   what else happened to her meanwhile, one event on a line, null for nothing
+     */
+    String renderPartRequests(Joi joi, String requests, String events) throws Exception;
+
     /** Stores the user's version of a personality (a built-in key changes it, another key is the user's own one). */
     void savePersonality(PersonalitySetting setting) throws Exception;
+
+    /**
+     * Makes the user's own personality of what the personality is now (a built-in one with the user's changes, or the
+     * user's own), under a new key.
+     *
+     * @param name the name of the copy, null for the name of the personality
+     * @return the key of the copy
+     */
+    String clonePersonality(String key, String name) throws Exception;
 
     /** Forgets the user's version: a built-in one is back to its default, the user's own one is deleted. */
     void resetPersonality(String key) throws Exception;

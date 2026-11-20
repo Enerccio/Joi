@@ -8,6 +8,7 @@ import com.github.enerccio.joi.domain.templates.DaySummaryTemplateData;
 import com.github.enerccio.joi.domain.templates.FactsTemplateData;
 import com.github.enerccio.joi.domain.templates.NodeEventTemplateData;
 import com.github.enerccio.joi.domain.templates.PartImageTemplateData;
+import com.github.enerccio.joi.domain.templates.PartRequestTemplateData;
 import com.github.enerccio.joi.domain.templates.SelfImageTemplateData;
 import com.github.enerccio.joi.domain.templates.SummaryTemplateData;
 import com.github.enerccio.marginalia.domain.templates.TemplateData;
@@ -43,7 +44,9 @@ public enum JoiPromptField {
     LOOKING_GLASS_ENTERED_EVENT("lookingGlassEnteredEvent", NodeEventTemplateData.class, PersonaAttributes::getLookingGlassEnteredEvent,
             PersonaAttributes::setLookingGlassEnteredEvent, JoiDefaults::lookingGlassEnteredEvent),
     LOOKING_GLASS_EXITED_EVENT("lookingGlassExitedEvent", NodeEventTemplateData.class, PersonaAttributes::getLookingGlassExitedEvent,
-            PersonaAttributes::setLookingGlassExitedEvent, JoiDefaults::lookingGlassExitedEvent);
+            PersonaAttributes::setLookingGlassExitedEvent, JoiDefaults::lookingGlassExitedEvent),
+    PART_REQUEST_EVENT("partRequestEvent", PartRequestTemplateData.class, PersonaAttributes::getPartRequestEvent,
+            PersonaAttributes::setPartRequestEvent, JoiDefaults::partRequestEvent);
 
     private final String templateName;
     private final Class<? extends TemplateData> dataClass;

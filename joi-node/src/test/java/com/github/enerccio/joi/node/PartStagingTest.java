@@ -1,15 +1,17 @@
 package com.github.enerccio.joi.node;
 
+import com.github.enerccio.joi.node.PartStaging.Refusal;
 import com.github.enerccio.joi.protocol.node.PartSwitch;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
-import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.function.BooleanSupplier;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -20,22 +22,38 @@ class PartStagingTest {
     private final List<Boolean> locks = new CopyOnWriteArrayList<>();
     private final List<List<PartSwitch>> kept = new CopyOnWriteArrayList<>();
     private final List<List<PartSwitch>> failed = new CopyOnWriteArrayList<>();
+    private final List<List<Refusal>> refused = new CopyOnWriteArrayList<>();
     private volatile boolean connected = true;
+    private volatile boolean waitsForReaction = false;
+    /** What the server has when asked; null: it can't be reached. */
+    private volatile Map<String, String> server = Map.of();
+    private volatile int asked;
 
     @AfterEach
     void tearDown() {
         timer.shutdownNow();
     }
 
-    private PartStaging staging(long quiet, long timeout) {
-        return new PartStaging(quiet, timeout, timer, (id, part, state) -> {
+    private PartStaging staging(long quiet, long answer, int checks) {
+        return staging(quiet, answer, checks, 5000, () -> waitsForReaction);
+    }
+
+    private PartStaging staging(long quiet, long answer, int checks, long reaction, BooleanSupplier waits) {
+        return new PartStaging(new PartStaging.Timing(quiet, answer, checks, reaction), timer, (id, part, state) -> {
             if (connected) {
                 sent.add(id + ":" + part + "=" + state);
             }
             return connected;
-        }, locks::add, (k, f) -> {
+        }, () -> {
+            asked++;
+            if (server == null) {
+                throw new java.io.IOException("gone");
+            }
+            return server;
+        }, waits, locks::add, (k, f, r) -> {
             kept.add(k);
             failed.add(f);
+            refused.add(r);
         });
     }
 
@@ -48,7 +66,7 @@ class PartStagingTest {
 
     @Test
     void changesInAQuietWindowAreSentTogetherTheLastStateOfAPartCounting() throws Exception {
-        PartStaging staging = staging(150, 5000);
+        PartStaging staging = staging(150, 5000, 3);
         assertThat(staging.change("visor", "hidden")).isTrue();
         assertThat(staging.change("gloves", "shown")).isTrue();
         assertThat(staging.change("visor", "shown")).isTrue();
@@ -63,34 +81,84 @@ class PartStagingTest {
 
     @Test
     void aBatchHoldsTheControlsUntilTheServerAnsweredEveryPart() throws Exception {
-        PartStaging staging = staging(20, 5000);
+        PartStaging staging = staging(20, 5000, 3);
         staging.change("visor", "hidden");
         staging.change("gloves", "shown");
-        await(() -> sent.size() == 2);
+        staging.change("cape", "hidden");
+        await(() -> sent.size() == 3);
 
         // refused while it waits, and nothing is staged for later
-        assertThat(staging.change("cape", "hidden")).isFalse();
+        assertThat(staging.change("hat", "hidden")).isFalse();
         assertThat(staging.pending()).isFalse();
 
-        assertThat(staging.kept("p-1")).isTrue();
+        assertThat(staging.kept("p-1", false)).isTrue();
         assertThat(kept).isEmpty();
         assertThat(staging.locked()).isTrue();
         assertThat(staging.failed("p-2")).isTrue();
-        assertThat(staging.kept("p-9")).isFalse();
+        assertThat(staging.kept("p-9", false)).isFalse();
+        assertThat(staging.refused("p-3", "Not now.")).isTrue();
 
-        assertThat(kept).hasSize(1);
         assertThat(kept.getFirst()).containsExactly(new PartSwitch("visor", "hidden"));
         assertThat(failed.getFirst()).containsExactly(new PartSwitch("gloves", "shown"));
+        assertThat(refused.getFirst()).containsExactly(new Refusal(new PartSwitch("cape", "hidden"), "Not now."));
         assertThat(locks).containsExactly(true, false);
         // free again
-        assertThat(staging.change("cape", "hidden")).isTrue();
+        assertThat(staging.change("hat", "hidden")).isTrue();
     }
 
     @Test
-    void aBatchTheServerDoesNotAnswerIsGivenUp() throws Exception {
-        PartStaging staging = staging(10, 150);
+    void whenTheNodeShowsChangesWithHerReactionAKeptOneWaitsForIt() throws Exception {
+        waitsForReaction = true;
+        PartStaging staging = staging(10, 5000, 3);
+        staging.change("visor", "hidden");
+        await(() -> sent.size() == 1);
+
+        // kept, and her reaction is to come: still locked, nothing shown
+        staging.kept("p-1", true);
+        assertThat(kept).isEmpty();
+        assertThat(staging.locked()).isTrue();
+        assertThat(staging.change("gloves", "shown")).isFalse();
+
+        staging.reaction();
+        assertThat(kept.getFirst()).containsExactly(new PartSwitch("visor", "hidden"));
+        assertThat(locks).containsExactly(true, false);
+        // a reaction nobody waits for is nothing
+        staging.reaction();
+        assertThat(kept).hasSize(1);
+    }
+
+    @Test
+    void aChangeNoReactionFollowsIsShownAtOnceEvenWhenWaitingForReactions() throws Exception {
+        waitsForReaction = true;
+        PartStaging staging = staging(10, 5000, 3);
+        staging.change("visor", "hidden");
+        await(() -> sent.size() == 1);
+        // she decided on it herself, or is not told at all: told is false
+        staging.kept("p-1", false);
+        assertThat(kept.getFirst()).containsExactly(new PartSwitch("visor", "hidden"));
+    }
+
+    @Test
+    void aReactionThatDoesNotComeIsNotWaitedForForever() throws Exception {
+        waitsForReaction = true;
+        PartStaging staging = staging(10, 5000, 3, 150, () -> true);
+        staging.change("visor", "hidden");
+        await(() -> sent.size() == 1);
+        staging.kept("p-1", true);
+        assertThat(kept).isEmpty();
+        await(() -> !kept.isEmpty());
+        assertThat(kept.getFirst()).containsExactly(new PartSwitch("visor", "hidden"));
+        assertThat(staging.locked()).isFalse();
+    }
+
+    @Test
+    void aBatchTheServerDoesNotAnswerIsCheckedAndGivenUpWhenItDoesNotHaveIt() throws Exception {
+        server = Map.of("visor", "shown");
+        PartStaging staging = staging(10, 100, 2);
         staging.change("visor", "hidden");
         await(() -> !failed.isEmpty());
+        // asked twice (it may still be deciding), then given up: the server is there and does not have it
+        assertThat(asked).isEqualTo(2);
         assertThat(kept.getFirst()).isEmpty();
         assertThat(failed.getFirst()).containsExactly(new PartSwitch("visor", "hidden"));
         assertThat(locks).containsExactly(true, false);
@@ -98,9 +166,34 @@ class PartStagingTest {
     }
 
     @Test
+    void aBatchTheServerHasButDidNotAnswerIsTakenAsKept() throws Exception {
+        server = Map.of("visor", "hidden");
+        PartStaging staging = staging(10, 100, 3);
+        staging.change("visor", "hidden");
+        staging.change("gloves", "shown");
+        await(() -> !kept.isEmpty());
+        // the answer was lost: the server has the visor as asked; it does not have the gloves, and is asked again
+        assertThat(asked).isEqualTo(3);
+        assertThat(kept.getFirst()).containsExactly(new PartSwitch("visor", "hidden"));
+        assertThat(failed.getFirst()).containsExactly(new PartSwitch("gloves", "shown"));
+    }
+
+    @Test
+    void aServerThatCannotBeReachedIsGoneAndNothingWasKept() throws Exception {
+        server = null;
+        PartStaging staging = staging(10, 100, 3);
+        staging.change("visor", "hidden");
+        await(() -> !failed.isEmpty());
+        assertThat(asked).isEqualTo(1);
+        assertThat(kept.getFirst()).isEmpty();
+        assertThat(failed.getFirst()).containsExactly(new PartSwitch("visor", "hidden"));
+        assertThat(staging.locked()).isFalse();
+    }
+
+    @Test
     void nothingIsSentWhileNotConnectedAndTheChangeIsToldAsNotKept() throws Exception {
         connected = false;
-        PartStaging staging = staging(10, 5000);
+        PartStaging staging = staging(10, 5000, 3);
         staging.change("visor", "hidden");
         await(() -> !failed.isEmpty());
         assertThat(sent).isEmpty();
@@ -109,20 +202,31 @@ class PartStagingTest {
     }
 
     @Test
-    void aLostConnectionDropsWhatWaitsAndWhatIsStaged() throws Exception {
-        PartStaging staging = staging(20, 5000);
+    void aLostConnectionDropsWhatWaitsAndWhatIsStagedButShowsWhatWasKept() throws Exception {
+        PartStaging staging = staging(20, 5000, 3);
         staging.change("visor", "hidden");
         await(() -> sent.size() == 1);
         staging.cancel();
         assertThat(failed.getLast()).containsExactly(new PartSwitch("visor", "hidden"));
         assertThat(staging.locked()).isFalse();
 
-        List<List<PartSwitch>> before = new ArrayList<>(failed);
+        // staged, not sent
+        int before = failed.size();
         staging.change("gloves", "shown");
         staging.cancel();
-        assertThat(failed).hasSize(before.size() + 1);
+        assertThat(failed).hasSize(before + 1);
         assertThat(failed.getLast()).containsExactly(new PartSwitch("gloves", "shown"));
         Thread.sleep(100);
         assertThat(sent).hasSize(1);
+
+        // kept, waiting for her reaction: the connection is lost, it is shown
+        waitsForReaction = true;
+        staging.change("cape", "hidden");
+        await(() -> sent.size() == 2);
+        staging.kept("p-2", true);
+        assertThat(staging.locked()).isTrue();
+        staging.cancel();
+        assertThat(kept.getLast()).containsExactly(new PartSwitch("cape", "hidden"));
+        assertThat(staging.locked()).isFalse();
     }
 }

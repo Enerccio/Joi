@@ -92,6 +92,11 @@ public class JoiUserSetting extends BaseUserSetting implements PersonaAttributes
     @Transient
     private String lookingGlassExitedEvent;
 
+    /** What she is told when the user asks to change parts of her body and her personality lets her decide ({@code PartRequestTemplateData}). */
+    @ExtendedAttribute
+    @Transient
+    private String partRequestEvent;
+
     /** The key of the personality, blank for the default one. */
     @ExtendedAttribute
     @Transient
@@ -347,5 +352,15 @@ public class JoiUserSetting extends BaseUserSetting implements PersonaAttributes
     @Override
     public void setLookingGlassExitedEvent(String lookingGlassExitedEvent) {
         this.lookingGlassExitedEvent = lookingGlassExitedEvent;
+    }
+
+    @Override
+    public String getPartRequestEvent() {
+        return partRequestEvent;
+    }
+
+    @Override
+    public void setPartRequestEvent(String partRequestEvent) {
+        this.partRequestEvent = partRequestEvent;
     }
 }

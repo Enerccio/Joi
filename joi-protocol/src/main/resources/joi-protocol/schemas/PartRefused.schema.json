@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Enerccio/joi/protocol/v1/PartRefused.schema.json",
+  "title": "PartRefused",
+  "description": "part_refused (since 1.5): she did not allow the change a part frame with an id asked for (the ref of this frame). The part stays in the state it is in on the body.",
+  "type": "object",
+  "properties": {
+    "part": {
+      "type": "string",
+      "description": "The part's id (BodyPart.id)."
+    },
+    "state": {
+      "type": "string",
+      "description": "The state's id that was asked for."
+    },
+    "reason": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "What she said about it, null for no reason."
+    }
+  },
+  "required": [
+    "part",
+    "state"
+  ]
+}

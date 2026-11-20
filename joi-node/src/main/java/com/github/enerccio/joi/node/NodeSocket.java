@@ -64,7 +64,11 @@ public class NodeSocket {
         }
 
         /** The server kept a part in the state asked for by {@link #part(String, String, String)} (the id is the frame's). */
-        default void partKept(String id, PartSwitch kept) {
+        default void partKept(String id, PartKept kept) {
+        }
+
+        /** She did not allow a change asked for by {@link #part(String, String, String)} (the id is the frame's). */
+        default void partRefused(String id, PartRefused refused) {
         }
 
         /** The connection was lost: it connects again until it is back ({@link #reconnected}) or over ({@link #closed}). */
@@ -292,8 +296,8 @@ public class NodeSocket {
 
     /**
      * Tells the server a part of her body is to be put in another state (since 1.5): it keeps it on the body and tells
-     * her. The server answers {@link Listener#partKept} once it is kept, or {@link Listener#failed} (both with the
-     * id). Not sent (nor kept) while the node is not connected.
+     * her. The server answers {@link Listener#partKept} once it is kept, {@link Listener#partRefused} when she did not
+     * allow it, or {@link Listener#failed} (all with the id). Not sent (nor kept) while the node is not connected.
      *
      * @return whether it was sent
      */
@@ -467,7 +471,8 @@ public class NodeSocket {
             case AUDIO -> listener.audio(ref, data(frame, AudioChunk.class));
             case DONE -> listener.done(ref, data(frame, Done.class));
             case ERROR -> listener.failed(ref, data(frame, ApiError.class));
-            case PART_KEPT -> listener.partKept(ref, data(frame, PartSwitch.class));
+            case PART_KEPT -> listener.partKept(ref, data(frame, PartKept.class));
+            case PART_REFUSED -> listener.partRefused(ref, data(frame, PartRefused.class));
             case EVENT -> listener.event(data(frame, ServerEvent.class));
             case TOOL_CALL -> call(data(frame, ToolCall.class));
             case TOOL_CANCEL -> {

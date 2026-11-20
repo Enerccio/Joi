@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://github.com/Enerccio/joi/protocol/v1/NodeMessage.schema.json",
   "title": "NodeMessage",
-  "description": "The types of frames: node to server (hello, manifest, say, stop, display, part, tool_progress, tool_result, approval) and server to node (welcome, turn, part_kept, reasoning, text, tool, reply, audio, done, tool_call, tool_cancel, event, error); ping and pong both ways.",
+  "description": "The types of frames: node to server (hello, manifest, say, stop, display, part, tool_progress, tool_result, approval) and server to node (welcome, turn, part_kept, part_refused, reasoning, text, tool, reply, audio, done, tool_call, tool_cancel, event, error); ping and pong both ways.",
   "type": "string",
   "enum": [
     "hello",
@@ -13,6 +13,7 @@
     "display",
     "part",
     "part_kept",
+    "part_refused",
     "turn",
     "reasoning",
     "text",

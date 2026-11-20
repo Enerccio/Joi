@@ -131,6 +131,46 @@ class PersonaAndSettingsTest extends PlatformTestBase {
     }
 
     @Test
+    void aPersonalityIsClonedAsItIsNowIntoTheUsersOwnOne() throws Exception {
+        PersonalitySetting tsundere = new PersonalitySetting("tsundere");
+        tsundere.setPartConsent("If {{user}} begs, consider allowing it.");
+        personaService.savePersonality(tsundere);
+        // nobody decides on the parts unless the personality says how
+        assertThat(personaService.personality("warm").decidesOnParts()).isFalse();
+        assertThat(personaService.personality("tsundere").decidesOnParts()).isTrue();
+
+        String key = personaService.clonePersonality("tsundere", "Tsundere (copy)");
+        assertThat(key).isEqualTo("tsundere-copy");
+        Personality copy = personaService.personality(key);
+        Personality source = personaService.personality("tsundere");
+        assertThat(copy.builtIn()).isFalse();
+        assertThat(copy.name()).isEqualTo("Tsundere (copy)");
+        assertThat(copy.prompt()).isEqualTo(source.prompt());
+        assertThat(copy.partConsent()).isEqualTo("If {{user}} begs, consider allowing it.");
+        assertThat(copy.moodExpressions()).isEqualTo(source.moodExpressions());
+
+        // the keys stay unique, a copy of a copy too
+        assertThat(personaService.clonePersonality("tsundere", null)).isEqualTo("tsundere-copy-2");
+        assertThat(personaService.clonePersonality("tsundere-copy", null)).isEqualTo("tsundere-copy-3");
+        assertThat(personaService.personality("tsundere-copy-2").name()).isEqualTo("Tsundere");
+        // the copy is its own: changing the built-in one leaves it
+        personaService.resetPersonality("tsundere");
+        assertThat(personaService.personality(key).partConsent()).isEqualTo("If {{user}} begs, consider allowing it.");
+        assertThat(personaService.personality("tsundere").decidesOnParts()).isFalse();
+    }
+
+    @Test
+    void theDialogStoresHowSheDecidesOnHerParts() throws Exception {
+        PersonalityDialog dialog = new PersonalityDialog("dandere");
+        dialog.create();
+        assertThat(dialog.getPartConsentArea().getValue()).isEmpty();
+        dialog.getPartConsentArea().setValue("You are shy: refuse when it is sudden.");
+        dialog.clickSave();
+        assertThat(personaService.personality("dandere").partConsent()).isEqualTo("You are shy: refuse when it is sudden.");
+        assertThat(personaService.personality("dandere").changed()).isTrue();
+    }
+
+    @Test
     void theDailyRollFollowsTheWeights() throws Exception {
         for (Mood mood : personaService.moods()) {
             MoodSetting setting = new MoodSetting(mood.key());

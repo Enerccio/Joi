@@ -305,6 +305,31 @@ React to it in a sentence or two, as you would to finding yourself somewhere new
 React to it in a sentence.""";
     }
 
+    /**
+     * The event of the user asking to change parts of her body, when her personality lets her decide
+     * ({@code PartRequestTemplateData}): the requests, what else happened, how she decides.
+     */
+    public String partRequestEvent() {
+        return """
+[Event: {{user}} asks you to change something about your body, and it is up to you.]{{#requests}}
+{{.}}{{/requests}}{{#events}}
+{{.}}{{/events}}{{#consent}}
+How you decide: {{.}}{{/consent}}
+Answer each request with the tool decide_part_change (the number of the request, allow or refuse, and why when you refuse), \
+then say what you think of it in a sentence or two. Nothing changes on your body until you allow it. A request you leave \
+unanswered is allowed.""";
+    }
+
+    /** One request of the user to change a part of her body: its number, what she calls the part, the state asked for, how it looks then. */
+    public String eventPartRequested(int number, String part, String state, boolean group, String sentence) {
+        StringBuilder text = new StringBuilder(group ? "Request %d: %s, to \"%s\".".formatted(number, part, state)
+                : "Request %d: %s, to be %s.".formatted(number, part, state));
+        if (sentence != null && !sentence.isBlank()) {
+            text.append(" Then: ").append(sentence.strip());
+        }
+        return text.toString();
+    }
+
     /** Her name changed: the old name, the new one. */
     public String eventRenamed(String from, String to) {
         return "You were renamed from %s to %s.".formatted(from, to);

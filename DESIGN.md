@@ -152,19 +152,27 @@ one; the server treats every node the same.
     has not told her yet (`NodeSession.pend`): after the last event it waits 1.5 s, and while a turn of hers runs it
     waits for the turn to end, then starts **one** turn (cause `part_switched`) whose input has the text of every
     event, one per line, in the order they happened.
-    **Next (decided, not built): how the change reaches her body.** The node gets a switch, `partsShown`: `kept`
-    (default: shown once the server answered `part_kept`) or `reaction` (shown with her reaction: the first `text` or
-    `audio` of the `part_switched` turn, or its `done` / `error`, or after about 30 s, so the lock never hangs). For
-    that `part_kept` says whether a turn follows (`told`); when none does (she has not chatted, no chat model), the node
-    shows the change at once. The server keeps writing the state when the `part` frame arrives, as her prompt (her look
-    and her parts) must follow it in the reaction turn, and other nodes must see it. On a timeout the node does not
-    give up blindly: it reads `GET .../body`, and takes a batch as kept when the server has the states it asked for,
-    and as not kept when it has not; when that call fails too, the server is gone and the controls are freed.
-    **Consent (idea, per assistant):** a setting *she may refuse* (off by default, only with `reaction`) makes a change
-    a **request**: the server keeps the old state, the event says the user *wants* the part switched, and she answers
-    with a tool (`allow` / `refuse` with a reason she says). On allow the server stores it and answers `part_kept`; on
-    refuse `part_refused` (her reason), and the node reverts the control. When no turn follows, or her turn ends without
-    an answer, or fails, the change is allowed: the body is the user's, a failed call is no refusal. `GET .../body` has, for each part, its states with the toggles each sets (`BodyPartState`), and
+    **When the change shows (built).** The node has a switch, `partsShown` (a checkbox in the controls panel, kept in
+    `NodeSettings`): `kept` (default: shown once the server answered `part_kept`) or `reaction` (shown with her
+    reaction: the first `text` or `audio` of the `part_switched` turn, or its `done` / `error`, or after 40 s, so the
+    lock never hangs). `part_kept` has `told`: whether her reaction is still to come; when it is not (she has not
+    chatted, no chat model, or she decided on it herself) the node shows the change at once. The server writes the
+    state when the `part` frame arrives, as her prompt (her look and her parts) must follow it in the reaction turn, and
+    other nodes must see it. **A batch the server does not answer** in 15 s is not given up on blindly: the node reads
+    `GET .../body` and takes a part as kept when the server has the state asked for; a part it does not have yet may
+    still be being decided, so it asks again, three times in all; when the call fails the server is gone, and the
+    controls are freed. An answer that comes after the node gave up on it is shown all the same.
+    **Consent (built, per personality).** A personality has a text, `partConsent` (blank: she never decides, the change
+    is made and she reacts), that says how she decides when the user asks to change a part: a tsundere's can say "If the
+    user begs, consider allowing it." A built-in personality's text is changed in the personality dialog like its
+    prompt (blank keeps the built-in one, which is blank), and a clone keeps it. With a text, a `part` is a **request**:
+    the body stays as it is, the server tells her (`PART_REQUEST_EVENT`, a template: the requests with a number each,
+    what else happened, `{{consent}}`) and she answers each with the tool `decide_part_change` (the request's number,
+    `allow` or `refuse` with a reason she says); the tool is only offered in the turn that told her. On allow the
+    server stores it and answers `part_kept` (`told` false); on refuse `part_refused` (her reason), and the node shows
+    the control as it was. A request she leaves unanswered, a turn that fails, and the case where she has not chatted or
+    has no chat model are all **allowed**: the body is the user's, and a failed call is no refusal. A request that
+    changes nothing (the part is in that state already) is just answered. `GET .../body` has, for each part, its states with the toggles each sets (`BodyPartState`), and
     every toggle of the model as the body has it (`BodyInfo.toggles`), so a node can show the state without reading
     the `.joim`'s metadata.
   - **Tools:** `tool_call` (call id, tool, arguments, the turn when it is this node's, a timeout) → the node checks
@@ -496,6 +504,13 @@ within it.
 - **Flavour, not behaviour.** A personality changes tone and banter only. It never changes what she does: she doesn't
   refuse approvals, sulk by withholding help, act against your interests or the harness. Jealousy or spite stay
   playful in-character teasing, never real manipulation (no guilt-tripping you about other people or time away).
+  **One exception, and the user's own choice:** when the user asks to change a part of her **body** (take off the
+  visor), a personality that has a *part consent* text (blank by default, in none of the built-in ones) lets her
+  decide, and she may refuse in character (see Her parts, 1.5). It covers her body's looks only: never a tool, an
+  approval, a task or help, and a failed call or no answer means allowed.
+- **Cloning.** A personality (built-in or the user's own) is cloned from its row in User Settings: the copy is the
+  user's own, as the personality is now (a changed built-in one with its changes), under a new key (`tsundere-copy`)
+  and opens to be edited, so a built-in one can be varied without losing it.
 - **Model limits:** strongly negative archetypes (spiteful, possessive) are softened or refused by many hosted models;
   local models follow them more closely. Expect a hosted model to play a gentler yandere.
 

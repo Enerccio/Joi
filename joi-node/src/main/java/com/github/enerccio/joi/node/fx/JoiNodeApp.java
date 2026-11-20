@@ -47,14 +47,21 @@ public class JoiNodeApp extends Application {
     private static final int HISTORY = 50;
     /** How long the user has to leave her parts alone before what they changed goes to the server, in one batch. */
     private static final long PART_QUIET_MILLIS = 4000;
-    /** How long the server has to answer a batch before the controls are freed and show what is kept. */
-    private static final long PART_ANSWER_MILLIS = 15000;
+    /**
+     * How long the server has to answer a batch before the node asks what it has; three times (it may be her deciding),
+     * then the controls are freed and show what is kept. How long her reaction is waited for when it is to come.
+     */
+    private static final PartStaging.Timing PART_TIMING = new PartStaging.Timing(PART_QUIET_MILLIS, 15000, 3, 40000);
+    /** The cause of her turn about what was changed in her parts. */
+    private static final String PART_SWITCHED = "part_switched";
 
     private final NodeSettings settings = NodeSettings.standard();
     private Stage stage;
     private ServerClient client;
     private NodeSocket socket;
     private java.util.concurrent.ScheduledExecutorService stagingTimer;
+    /** The turn of hers about the parts that her reaction to is waited for, null for none. */
+    private volatile String partsTurn;
     private RendererServer renderer;
     private LookingGlassWindow lookingGlass;
 
@@ -402,18 +409,33 @@ public class JoiNodeApp extends Application {
             thread.setDaemon(true);
             return thread;
         });
-        PartStaging staging = new PartStaging(PART_QUIET_MILLIS, PART_ANSWER_MILLIS, stagingTimer,
+        java.util.concurrent.atomic.AtomicBoolean withReaction = new java.util.concurrent.atomic.AtomicBoolean(
+                "reaction".equals(nodeSetting(node -> node.partsShown)));
+        controls.partsOption(withReaction.get(), on -> {
+            withReaction.set(on);
+            try {
+                settings.node().partsShown = on ? "reaction" : "kept";
+                settings.saveNode();
+            } catch (IOException e) {
+                chat.note("The choice was not saved: " + e.getMessage());
+            }
+        });
+        PartStaging staging = new PartStaging(PART_TIMING, stagingTimer,
                 (id, part, state) -> socket.part(id, part, state),
+                () -> {
+                    // what the server has now, to know what became of a batch it did not answer
+                    BodyInfo info = client.body(loaded.summary().id());
+                    Map<String, String> states = new HashMap<>();
+                    for (BodyPart part : info == null || info.parts() == null ? List.<BodyPart>of() : info.parts()) {
+                        states.put(part.id(), part.state());
+                    }
+                    return states;
+                },
+                withReaction::get,
                 locked -> Platform.runLater(() -> controls.lockParts(locked)),
-                (done, notKept) -> Platform.runLater(() -> {
+                (done, notKept, refused) -> Platform.runLater(() -> {
                     for (com.github.enerccio.joi.protocol.node.PartSwitch change : done) {
-                        BodyPart part = parts.get(change.part());
-                        BodyPartState state = part == null ? null : part.states().stream()
-                                .filter(candidate -> candidate.id().equals(change.state())).findFirst().orElse(null);
-                        if (state != null) {
-                            kept.put(part.id(), state.id());
-                            showState(toggles, state);
-                        }
+                        keepPart(parts, kept, toggles, controls, change);
                     }
                     for (com.github.enerccio.joi.protocol.node.PartSwitch change : notKept) {
                         controls.showPart(change.part(), kept.get(change.part()));
@@ -421,6 +443,12 @@ public class JoiNodeApp extends Application {
                     if (!notKept.isEmpty()) {
                         chat.note("The server did not keep " + notKept.size() + (notKept.size() == 1 ? " change" : " changes")
                                 + " of her parts.");
+                    }
+                    for (PartStaging.Refusal refusal : refused) {
+                        controls.showPart(refusal.change().part(), kept.get(refusal.change().part()));
+                        BodyPart part = parts.get(refusal.change().part());
+                        chat.note("She did not allow it: " + (part == null ? refusal.change().part() : part.name())
+                                + (refusal.reason() == null ? "" : " (" + refusal.reason() + ")"));
                     }
                 }));
         controls.setOnSwitch((part, state) -> {
@@ -435,11 +463,37 @@ public class JoiNodeApp extends Application {
         socket = new NodeSocket(new NodeSocket.Listener() {
             @Override
             public void turnStarted(String turn, String cause) {
+                if (PART_SWITCHED.equals(cause)) {
+                    partsTurn = turn;
+                }
                 Platform.runLater(() -> director.turnStarted(turn, cause, voiced));
+            }
+
+            /** Her reaction to the parts began (or the turn is over): what waited for it is shown. */
+            private void reacted(String turn) {
+                if (turn != null && turn.equals(partsTurn)) {
+                    partsTurn = null;
+                    staging.reaction();
+                }
+            }
+
+            @Override
+            public void partKept(String id, com.github.enerccio.joi.protocol.node.PartKept changed) {
+                if (!staging.kept(id, changed.told())) {
+                    // answered after the node gave up on it: the server has it, so it is shown
+                    Platform.runLater(() -> keepPart(parts, kept, toggles, controls,
+                            new com.github.enerccio.joi.protocol.node.PartSwitch(changed.part(), changed.state())));
+                }
+            }
+
+            @Override
+            public void partRefused(String id, com.github.enerccio.joi.protocol.node.PartRefused refusal) {
+                staging.refused(id, refusal.reason());
             }
 
             @Override
             public void text(String turn, String delta) {
+                reacted(turn);
                 Platform.runLater(() -> director.text(turn, delta));
             }
 
@@ -450,17 +504,14 @@ public class JoiNodeApp extends Application {
 
             @Override
             public void audio(String turn, com.github.enerccio.joi.protocol.http.AudioChunk chunk) {
+                reacted(turn);
                 Platform.runLater(() -> director.audio(turn, chunk));
             }
 
             @Override
             public void done(String turn, Done done) {
+                reacted(turn);
                 Platform.runLater(() -> director.done(turn));
-            }
-
-            @Override
-            public void partKept(String id, com.github.enerccio.joi.protocol.node.PartSwitch changed) {
-                staging.kept(id);
             }
 
             @Override
@@ -468,6 +519,7 @@ public class JoiNodeApp extends Application {
                 if (staging.failed(ref)) {
                     return;
                 }
+                reacted(ref);
                 Platform.runLater(() -> director.failed(ref, error));
             }
 
@@ -550,6 +602,19 @@ public class JoiNodeApp extends Application {
                 return null;
             }
         });
+    }
+
+    /** The server kept a part in a state: it is the kept one now, and shown on her body, and in the controls. */
+    private void keepPart(Map<String, BodyPart> parts, Map<String, String> kept, List<BodyToggle> toggles, ControlsPane controls,
+                          com.github.enerccio.joi.protocol.node.PartSwitch change) {
+        BodyPart part = parts.get(change.part());
+        BodyPartState state = part == null ? null : part.states().stream()
+                .filter(candidate -> candidate.id().equals(change.state())).findFirst().orElse(null);
+        if (state != null) {
+            kept.put(part.id(), state.id());
+            controls.showPart(part.id(), state.id());
+            showState(toggles, state);
+        }
     }
 
     /**

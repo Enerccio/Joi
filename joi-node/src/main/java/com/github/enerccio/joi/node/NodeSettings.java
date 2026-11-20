@@ -46,6 +46,11 @@ public final class NodeSettings {
         public com.github.enerccio.joi.node.renderer.LookingGlassTuning lookingGlassTuning;
         /** The Chrome (or Chromium) that shows her there, its executable; null to look where it is usually installed. */
         public String lookingGlassBrowser;
+        /**
+         * When a change of her parts is shown on her body: {@code kept} (null too) as soon as the server kept it,
+         * {@code reaction} when her reaction to it comes, so that the change and her words land together.
+         */
+        public String partsShown;
     }
 
     /** {@code credentials.json}: a token the user made, or the OAuth pair. */

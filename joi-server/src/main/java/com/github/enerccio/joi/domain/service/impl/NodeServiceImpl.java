@@ -17,6 +17,7 @@ import com.github.enerccio.joi.domain.node.NodeSession;
 import com.github.enerccio.joi.domain.node.NodeSession.PendingCall;
 import com.github.enerccio.joi.domain.node.NodeTransport;
 import com.github.enerccio.joi.domain.persona.JoiPromptField;
+import com.github.enerccio.joi.defaults.JoiDefaults;
 import com.github.enerccio.joi.domain.service.AccessTokenService.Principal;
 import com.github.enerccio.joi.domain.service.*;
 import com.github.enerccio.joi.domain.templates.NodeEventTemplateData;
@@ -48,6 +49,7 @@ import java.time.Instant;
 import java.util.*;
 import java.util.concurrent.*;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 /**
  * See {@link NodeService}. A node's tools are offered to every turn of its assistant by a listener of
@@ -72,6 +74,8 @@ public class NodeServiceImpl implements NodeService, InitializingBean, Disposabl
     public static final String LOOKING_GLASS_EXITED = "looking_glass_exited";
     /** The cause of her turn as the user switches a part of her body on the node ({@code part}). */
     public static final String PART_SWITCHED = "part_switched";
+    /** The tool she decides on the user's requests to change her parts with ({@code PART_REQUEST_EVENT}). */
+    public static final String DECIDE_PART_CHANGE = "decide_part_change";
 
     @Autowired
     private JoiApi joiApi;
@@ -122,6 +126,12 @@ public class NodeServiceImpl implements NodeService, InitializingBean, Disposabl
                     if (function != null) {
                         functions.add(function);
                     }
+                }
+            }
+            for (NodeSession session : sessions(event.getJoi().getId())) {
+                if (session.hasOpenRequests()) {
+                    functions.add(decidePartChange(session));
+                    break;
                 }
             }
             if (!functions.isEmpty()) {
@@ -443,66 +453,179 @@ public class NodeServiceImpl implements NodeService, InitializingBean, Disposabl
     }
 
     /**
-     * The user put a part of her body in another state on the node: kept on the body (the same at the next start and
-     * on every node), answered by {@code part_kept} when the frame has an id, and, when she is told (she has chatted
-     * and the part changed), the event waits for her turn about it ({@link #pend}), so what comes together is told
-     * together.
+     * The user put a part of her body in another state on the node. When her personality lets her decide
+     * (her personality has words about it) it is a request: the body stays as it is until she allows it (the node is
+     * answered then). Else it is kept on the body at once (the same at the next start and on every node), answered by
+     * {@code part_kept} when the frame has an id, and, when she is told (she has chatted and the part changed), the
+     * event waits for her turn about it ({@link #pend}), so what comes together is told together.
      */
     private void partSwitch(NodeSession session, Frame frame) throws Exception {
         PartSwitch change = data(frame, PartSwitch.class);
         require(StringUtils.isNotBlank(change.part()) && StringUtils.isNotBlank(change.state()), "part and state are what was switched");
         require(frame.id() == null || ID.matcher(frame.id()).matches(), "The id of a part is up to 64 letters, digits and ._:-");
         String text = null;
+        boolean kept = true;
         try (InRequestScope _ = new InRequestScope(session.attributes())) {
             Joi joi = joiService.find(session.joiId());
             Body body = joi == null ? null : bodyService.active(joi);
             require(body != null, "She is in no body");
-            List<QueuedEvent> events;
-            try {
-                events = bodyService.switchPart(body, change.part(), change.state());
-            } catch (IllegalArgumentException e) {
-                throw new IllegalArgumentException("Her body has no part " + change.part() + " in the state " + change.state());
-            }
-            QueuedEvent event = events.isEmpty() ? null : events.getFirst();
-            if (event != null) {
-                // told in the turn that follows: it does not wait for another delivery
-                queuedEventService.markDelivered(event, null);
-                if (chatService.chatModel(joi) != null) {
-                    text = event.getText();
+            boolean told = chatService.chatModel(joi) != null && chatMessageService.hasAny(joi);
+            if (told && personaService.personalityOf(joi).decidesOnParts()) {
+                BodyService.PartRequest request;
+                try {
+                    request = bodyService.partRequest(body, change.part(), change.state());
+                } catch (IllegalArgumentException e) {
+                    throw new IllegalArgumentException("Her body has no part " + change.part() + " in the state " + change.state());
+                }
+                if (request != null) {
+                    NodeSession.PartRequest asked = session.request(frame.id(), change.part(), change.state());
+                    JoiDefaults defaults = personaService.defaults();
+                    pend(session, new NodeSession.Pending(defaults.eventPartRequested(asked.number(), request.part(), request.state(),
+                            request.group(), request.sentence()), asked.number()));
+                    // answered when she decided
+                    return;
+                }
+                // nothing to decide: it is as it was asked
+            } else {
+                List<QueuedEvent> events;
+                try {
+                    events = bodyService.switchPart(body, change.part(), change.state());
+                } catch (IllegalArgumentException e) {
+                    throw new IllegalArgumentException("Her body has no part " + change.part() + " in the state " + change.state());
+                }
+                QueuedEvent event = events.isEmpty() ? null : events.getFirst();
+                if (event != null) {
+                    // told in the turn that follows: it does not wait for another delivery
+                    queuedEventService.markDelivered(event, null);
+                    if (told) {
+                        text = event.getText();
+                    }
                 }
             }
         }
         if (frame.id() != null) {
-            session.send(NodeMessage.PART_KEPT, null, frame.id(), new PartSwitch(change.part(), change.state()));
+            session.send(NodeMessage.PART_KEPT, null, frame.id(), new PartKept(change.part(), change.state(), text != null));
         }
         if (text != null) {
-            pend(session, text);
+            pend(session, new NodeSession.Pending(text, null));
         }
     }
 
     /** She is to be told: with what else is waiting, once nothing more comes for a moment and no turn of hers runs. */
-    private void pend(NodeSession session, String text) {
-        session.pend(text, () -> ticks.schedule(() -> tell(session), gatherMillis, TimeUnit.MILLISECONDS));
+    private void pend(NodeSession session, NodeSession.Pending item) {
+        session.pend(item, () -> ticks.schedule(() -> tell(session), gatherMillis, TimeUnit.MILLISECONDS));
     }
 
     /** Her turn about what waits for her: one turn for all of it, in the order it happened. */
     private void tell(NodeSession session) {
-        List<String> texts = session.takePending();
-        if (texts.isEmpty()) {
+        List<NodeSession.Pending> pending = session.takePending();
+        if (pending.isEmpty()) {
             return;
         }
+        String turn = "s-" + UUID.randomUUID().toString().substring(0, 12);
+        List<Integer> asked = pending.stream().map(NodeSession.Pending::request).filter(Objects::nonNull).toList();
+        boolean started = false;
         try {
             Joi joi;
+            String input;
             try (InRequestScope _ = new InRequestScope(session.attributes())) {
                 joi = joiService.find(session.joiId());
+                String others = pending.stream().filter(item -> item.request() == null).map(NodeSession.Pending::text)
+                        .collect(Collectors.joining("\n"));
+                String requests = pending.stream().filter(item -> item.request() != null).map(NodeSession.Pending::text)
+                        .collect(Collectors.joining("\n"));
+                // what she decides on is told with how she decides: her personality's words
+                String decided = asked.isEmpty() ? null : personaService.renderPartRequests(joi, requests, others);
+                input = decided != null ? decided : (others.isEmpty() ? requests : others + (requests.isEmpty() ? "" : "\n" + requests));
             }
-            String turn = "s-" + UUID.randomUUID().toString().substring(0, 12);
+            session.told(asked, turn);
             session.send(NodeMessage.TURN, null, null, new TurnStart(turn, PART_SWITCHED));
-            startTurn(session, turn, joi, new TurnInput(String.join("\n", texts), session.name(), session.speaks(), true,
+            started = startTurn(session, turn, joi, new TurnInput(input, session.name(), session.speaks(), true,
                     "node." + PART_SWITCHED), false);
         } catch (Exception e) {
             log.warn("Node {}: telling her what happened failed", session.name(), e);
         }
+        if (!started) {
+            // she was not asked after all: what was asked is allowed
+            decideLeft(session, turn);
+        }
+    }
+
+    /** What she left unanswered of the requests the turn told her is allowed: the body is the user's, and no answer is no refusal. */
+    private void decideLeft(NodeSession session, String turn) {
+        for (NodeSession.PartRequest left : session.takeUndecided(turn)) {
+            try {
+                answer(session, left, true, null);
+            } catch (Exception e) {
+                log.warn("Node {}: the change of {} was not kept", session.name(), left.part(), e);
+            }
+        }
+    }
+
+    /**
+     * Answers a request of the user: allowed, the change is made on the body (and the node told it is kept); refused,
+     * the node is told what she said.
+     */
+    private void answer(NodeSession session, NodeSession.PartRequest request, boolean allow, String reason) throws Exception {
+        if (!allow) {
+            if (request.frameId() != null) {
+                session.send(NodeMessage.PART_REFUSED, null, request.frameId(), new PartRefused(request.part(), request.state(), reason));
+            }
+            return;
+        }
+        try (InRequestScope _ = new InRequestScope(session.attributes())) {
+            Joi joi = joiService.find(session.joiId());
+            Body body = joi == null ? null : bodyService.active(joi);
+            if (body == null) {
+                throw new IllegalArgumentException("She is in no body");
+            }
+            // she decided on it herself, it is not told to her again
+            for (QueuedEvent event : bodyService.switchPart(body, request.part(), request.state())) {
+                queuedEventService.markDelivered(event, null);
+            }
+        } catch (IllegalArgumentException e) {
+            if (request.frameId() != null) {
+                session.error(request.frameId(), "bad_message", "Her body has no part " + request.part() + " in the state " + request.state());
+            }
+            return;
+        }
+        if (request.frameId() != null) {
+            session.send(NodeMessage.PART_KEPT, null, request.frameId(), new PartKept(request.part(), request.state(), false));
+        }
+    }
+
+    /** The tool she decides on the requests she was told with. */
+    private FunctionDefinition decidePartChange(NodeSession session) {
+        ObjectNode schema = jackson.createObjectNode();
+        schema.put("type", "object");
+        ObjectNode properties = schema.putObject("properties");
+        properties.putObject("request").put("type", "integer").put("description", "The number of the request you answer.");
+        properties.putObject("decision").put("type", "string").put("description", "Whether you allow the change.")
+                .putArray("enum").add("allow").add("refuse");
+        properties.putObject("reason").put("type", "string")
+                .put("description", "When you refuse: what you tell the user about it, in your own words.");
+        schema.putArray("required").add("request").add("decision");
+        return FunctionDefinition.dynamic(DECIDE_PART_CHANGE, "Answers a request of the user to change a part of your body: "
+                + "allow it (the change is made) or refuse it (nothing changes, and the user sees why).", schema, (continuation, arguments) -> {
+            JsonObject json = arguments == null ? new JsonObject() : NodeSession.GSON.toJsonTree(arguments).getAsJsonObject();
+            String decision = json.has("decision") && json.get("decision").isJsonPrimitive() ? json.get("decision").getAsString() : "";
+            if (!json.has("request") || !json.get("request").isJsonPrimitive() || !decision.equals("allow") && !decision.equals("refuse")) {
+                continuation.fail("Give the number of the request and allow or refuse");
+                return;
+            }
+            NodeSession.PartRequest request = session.take(json.get("request").getAsInt());
+            if (request == null) {
+                continuation.fail("There is no such request, or it was answered already");
+                return;
+            }
+            String reason = json.has("reason") && json.get("reason").isJsonPrimitive() ? json.get("reason").getAsString() : null;
+            try {
+                answer(session, request, decision.equals("allow"), StringUtils.defaultIfBlank(reason, null));
+                continuation.complete(decision.equals("allow") ? "Allowed: the change is made." : "Refused: nothing changes.");
+            } catch (Exception e) {
+                continuation.fail("It failed: " + StringUtils.defaultIfBlank(e.getMessage(), e.getClass().getSimpleName()));
+            }
+        });
     }
 
     /** How long ago, in words she can say. */
@@ -532,8 +655,12 @@ public class NodeServiceImpl implements NodeService, InitializingBean, Disposabl
                 say.reasoningOrDefault());
     }
 
-    /** Runs her turn in the connection's request scope; its frames refer to the turn's id. */
-    private void startTurn(NodeSession session, String turn, Joi joi, TurnInput input, boolean reasoning) throws Exception {
+    /**
+     * Runs her turn in the connection's request scope; its frames refer to the turn's id.
+     *
+     * @return false when it could not start (she has no model): the node was told
+     */
+    private boolean startTurn(NodeSession session, String turn, Joi joi, TurnInput input, boolean reasoning) throws Exception {
         CompletableFuture<ChatService.Result> result;
         try (InRequestScope _ = new InRequestScope(session.attributes())) {
             result = chatService.chat(joi, input, new ChatService.Listener() {
@@ -567,7 +694,7 @@ public class NodeServiceImpl implements NodeService, InitializingBean, Disposabl
             });
         } catch (NoModelException e) {
             session.error(turn, "no_model", e.getMessage());
-            return;
+            return false;
         }
         session.turnStarted(turn, result);
         result.whenComplete((done, error) -> {
@@ -593,12 +720,14 @@ public class NodeServiceImpl implements NodeService, InitializingBean, Disposabl
                     session.error(turn, "model_failed", StringUtils.defaultIfBlank(shown.getMessage(), shown.getClass().getSimpleName()));
                 }
             } finally {
-                // what happened while it ran is told now, all together
+                // what she did not answer is allowed, and what happened while it ran is told now, all together
+                decideLeft(session, turn);
                 if (session.hasPending()) {
                     ticks.schedule(() -> tell(session), 0, TimeUnit.MILLISECONDS);
                 }
             }
         });
+        return true;
     }
 
     private void stop(NodeSession session, Frame frame) {

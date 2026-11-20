@@ -41,12 +41,17 @@ info:
          next start and on every node (`GET .../body` has the parts with their states and the toggles as the body has
          them), and starts her turn about it (`turn` with the cause `part_switched`), told with the description of the
          state, so she can react. A part or a state the body does not have is answered by `error` (`bad_message`).
-         A `part` with an `id` is answered, once the server kept it on the body, by `part_kept` (its `ref` the id, its
-         data the part and the state as kept); a failed one by `error` with that `ref`. A node that shows the change
-         only when it is kept, and holds its controls until then, sends `part` with an id. A node that asks for several
-         parts in a row (the user changed more of them within a few seconds) sends one `part` for each part, one after
-         another: the server **gathers** what it has not told her yet (for about a second after the last, and for as
-         long as a turn runs) and starts one turn about all of them, in the order they happened.
+         A `part` with an `id` is answered by `part_kept` (its `ref` the id; the part and the state as kept, and `told`:
+         whether her reaction is still to come), by `part_refused` (her `reason`) when her personality lets her decide
+         on such a request and she did not allow it, or by `error`; the answer is the only frame a node needs to take
+         the change as kept or not. A node that shows the change only when it is kept, and holds its controls until
+         then, sends `part` with an id; one that shows it with her reaction waits, after `part_kept` with `told`, for
+         the first `text`, `audio` or `done` of the next `turn` with the cause `part_switched`. When her personality lets
+         her decide, the body stays as it was until she allows the change (`part_kept` comes after her answer, with
+         `told` false), and a `part` that changes nothing is answered at once. A node that asks for several parts in a
+         row (the user changed more of them within a few seconds) sends one `part` for each part, one after another:
+         the server **gathers** what it has not told her yet (for about a second after the last, and for as long as
+         a turn runs) and starts one turn about all of them, in the order they happened.
        - **Tools.** The server sends `tool_call` (with its `callId`). The node checks the arguments and its own
          harness again, may send `tool_progress` and `approval` (asked, then allowed or denied), and answers with
          exactly one `tool_result`. Each frame about a call restarts its timeout; an approval that is asked waits for
@@ -98,6 +103,7 @@ channels:
       display: { $ref: "#/components/messages/display" }
       part: { $ref: "#/components/messages/part" }
       part_kept: { $ref: "#/components/messages/part_kept" }
+      part_refused: { $ref: "#/components/messages/part_refused" }
       reasoning: { $ref: "#/components/messages/reasoning" }
       text: { $ref: "#/components/messages/text" }
       tool: { $ref: "#/components/messages/tool" }
@@ -138,6 +144,7 @@ operations:
       - { $ref: "#/channels/node/messages/welcome" }
       - { $ref: "#/channels/node/messages/turn" }
       - { $ref: "#/channels/node/messages/part_kept" }
+      - { $ref: "#/channels/node/messages/part_refused" }
       - { $ref: "#/channels/node/messages/reasoning" }
       - { $ref: "#/channels/node/messages/text" }
       - { $ref: "#/channels/node/messages/tool" }
@@ -189,6 +196,10 @@ components:
       name: part_kept
       summary: The server kept a part in the state the node asked for (since 1.5)
       payload: { $ref: "#/components/schemas/partKeptFrame" }
+    part_refused:
+      name: part_refused
+      summary: She did not allow the change of a part the node asked for (since 1.5)
+      payload: { $ref: "#/components/schemas/partRefusedFrame" }
     reasoning:
       name: reasoning
       summary: A piece of the thinking of the model (only when asked for); ref is the turn
@@ -293,7 +304,12 @@ components:
     partKeptFrame:
       allOf:
         - $ref: "schemas/Frame.schema.json"
-        - properties: { type: { const: part_kept }, ref: { type: string }, data: { $ref: "schemas/PartSwitch.schema.json" } }
+        - properties: { type: { const: part_kept }, ref: { type: string }, data: { $ref: "schemas/PartKept.schema.json" } }
+          required: [ ref, data ]
+    partRefusedFrame:
+      allOf:
+        - $ref: "schemas/Frame.schema.json"
+        - properties: { type: { const: part_refused }, ref: { type: string }, data: { $ref: "schemas/PartRefused.schema.json" } }
           required: [ ref, data ]
     textDeltaFrame:
       allOf:

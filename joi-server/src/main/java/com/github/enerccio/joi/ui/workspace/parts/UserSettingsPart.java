@@ -283,7 +283,8 @@ public class UserSettingsPart implements WorkspacePart {
         personalityGrid.addColumn(p -> state(p.builtIn(), p.changed())).setHeader(loc.getValue(J_L.LABEL_STATE)).setFlexGrow(0)
                 .setWidth("10em");
         personalityGrid.addComponentColumn(p -> actions(p.builtIn(), p.changed(), () -> openPersonality(p.key()),
-                () -> personaService.resetPersonality(p.key()))).setFlexGrow(0).setWidth(UIConstants.TOOL_COLUMN_SIZE_LARGE);
+                () -> personaService.resetPersonality(p.key()), () -> clonePersonality(p))).setFlexGrow(0)
+                .setWidth(UIConstants.TOOL_COLUMN_SIZE_LARGE);
         return gridLayout(add, personalityGrid);
     }
 
@@ -298,7 +299,7 @@ public class UserSettingsPart implements WorkspacePart {
         moodGrid.addColumn(m -> m.delivery().label()).setHeader(loc.getValue(J_L.LABEL_DELIVERY)).setFlexGrow(0).setWidth("10em");
         moodGrid.addColumn(m -> state(m.builtIn(), m.changed())).setHeader(loc.getValue(J_L.LABEL_STATE)).setFlexGrow(0).setWidth("10em");
         moodGrid.addComponentColumn(m -> actions(m.builtIn(), m.changed(), () -> openMood(m.key()),
-                () -> personaService.resetMood(m.key()))).setFlexGrow(0).setWidth(UIConstants.TOOL_COLUMN_SIZE_LARGE);
+                () -> personaService.resetMood(m.key()), null)).setFlexGrow(0).setWidth(UIConstants.TOOL_COLUMN_SIZE_LARGE);
         return gridLayout(add, moodGrid);
     }
 
@@ -322,8 +323,8 @@ public class UserSettingsPart implements WorkspacePart {
         void run() throws Exception;
     }
 
-    /** Edit; reset for a changed built-in one, delete for the user's own one. */
-    private Component actions(boolean builtIn, boolean changed, Runnable edit, Action reset) {
+    /** Edit; clone when there is one to make; reset for a changed built-in one, delete for the user's own one. */
+    private Component actions(boolean builtIn, boolean changed, Runnable edit, Action reset, Action clone) {
         Button editButton = new Button(Solid.PEN.create(), e -> edit.run());
         editButton.setTooltipText(loc.getValue(L.LABEL_EDIT));
         Button resetButton = new Button(builtIn ? Solid.UNDO.create() : Solid.TRASH.create(),
@@ -338,9 +339,29 @@ public class UserSettingsPart implements WorkspacePart {
         resetButton.setTooltipText(loc.getValue(builtIn ? J_L.LABEL_RESET_TO_DEFAULT : L.LABEL_DELETE));
         resetButton.setThemeName(builtIn ? "tertiary" : "error tertiary");
         resetButton.setVisible(!builtIn || changed);
-        HorizontalLayout actions = new HorizontalLayout(editButton, resetButton);
+        HorizontalLayout actions = new HorizontalLayout(editButton);
+        if (clone != null) {
+            Button cloneButton = new Button(Solid.CLONE.create(), e -> {
+                try {
+                    clone.run();
+                } catch (Exception ex) {
+                    UIUtils.internalServerError(loc, ex);
+                }
+            });
+            cloneButton.setTooltipText(loc.getValue(J_L.LABEL_CLONE));
+            actions.add(cloneButton);
+        }
+        actions.add(resetButton);
         actions.setSpacing(true);
         return actions;
+    }
+
+    /** Makes the user's own personality of this one, and opens it so it can be changed. */
+    private void clonePersonality(Personality personality) throws Exception {
+        String copy = personaService.clonePersonality(personality.key(),
+                loc.getValue(J_L.LABEL_COPY_OF).formatted(personality.name()));
+        reloadLists();
+        openPersonality(copy);
     }
 
     private void openPersonality(String key) {

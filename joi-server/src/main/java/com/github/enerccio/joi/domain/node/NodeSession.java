@@ -19,6 +19,8 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -57,9 +59,32 @@ public class NodeSession {
     private volatile String turnId;
     private volatile CompletableFuture<?> turn;
 
-    /** What happened to her that she was not told yet (the texts of events, in order), and the timer that will tell her. */
-    private final List<String> pendingEvents = new ArrayList<>();
+    /**
+     * Something that happened to her that she is not told yet.
+     *
+     * @param text    what she is told
+     * @param request the number of the request of the user she is to decide on, null for an event
+     */
+    public record Pending(String text, Integer request) {
+    }
+
+    /**
+     * A change of a part the user asked for, that she decides on (her personality lets her): the body stays as it is
+     * until she allows it.
+     *
+     * @param number  what she calls it (the number the tool takes)
+     * @param frameId the id of the node's {@code part} frame, null when it had none (nothing is answered then)
+     */
+    public record PartRequest(int number, String frameId, String part, String state) {
+    }
+
+    /** What she is not told yet, in order, and the timer that will tell her. */
+    private final List<Pending> pendingEvents = new ArrayList<>();
     private ScheduledFuture<?> gather;
+    /** The requests she was not answered yet, by number; the turn she was told them in (null: not told yet). */
+    private final Map<Integer, PartRequest> requests = new LinkedHashMap<>();
+    private final Map<Integer, String> toldIn = new HashMap<>();
+    private int requestCounter;
 
     private final Map<String, PendingCall> calls = new ConcurrentHashMap<>();
 
@@ -195,8 +220,8 @@ public class NodeSession {
      * Adds an event she is to be told about to the ones waiting; the timer that tells her is replaced by {@code next}
      * (the earlier one is cancelled), so what comes in a burst is told together.
      */
-    public synchronized void pend(String text, java.util.function.Supplier<ScheduledFuture<?>> next) {
-        pendingEvents.add(text);
+    public synchronized void pend(Pending item, java.util.function.Supplier<ScheduledFuture<?>> next) {
+        pendingEvents.add(item);
         if (gather != null) {
             gather.cancel(false);
         }
@@ -207,14 +232,51 @@ public class NodeSession {
      * Takes the events waiting, none while a turn of hers runs (they wait for it: {@link #turnEnded} is followed by
      * another try), or when the connection is closed.
      */
-    public synchronized List<String> takePending() {
+    public synchronized List<Pending> takePending() {
         if (turn != null || closed || pendingEvents.isEmpty()) {
             return List.of();
         }
-        List<String> taken = List.copyOf(pendingEvents);
+        List<Pending> taken = List.copyOf(pendingEvents);
         pendingEvents.clear();
         gather = null;
         return taken;
+    }
+
+    /** Keeps a request of the user until she answers it; returns it with its number. */
+    public synchronized PartRequest request(String frameId, String part, String state) {
+        PartRequest request = new PartRequest(++requestCounter, frameId, part, state);
+        requests.put(request.number(), request);
+        return request;
+    }
+
+    /** The requests were told to her in the turn: from now on she may answer them. */
+    public synchronized void told(List<Integer> numbers, String turn) {
+        numbers.forEach(number -> toldIn.put(number, turn));
+    }
+
+    /** Takes the request she answers (told to her and not answered yet); null for none. */
+    public synchronized PartRequest take(int number) {
+        return toldIn.containsKey(number) ? requests.remove(number) : null;
+    }
+
+    /** Takes what she left unanswered of what the turn told her. */
+    public synchronized List<PartRequest> takeUndecided(String turn) {
+        List<PartRequest> left = new ArrayList<>();
+        for (Map.Entry<Integer, String> told : List.copyOf(toldIn.entrySet())) {
+            if (turn.equals(told.getValue())) {
+                toldIn.remove(told.getKey());
+                PartRequest request = requests.remove(told.getKey());
+                if (request != null) {
+                    left.add(request);
+                }
+            }
+        }
+        return left;
+    }
+
+    /** Whether she has requests to answer now (told to her, not answered yet). */
+    public synchronized boolean hasOpenRequests() {
+        return requests.keySet().stream().anyMatch(toldIn::containsKey);
     }
 
     /** Whether events wait to be told to her. */
@@ -250,6 +312,8 @@ public class NodeSession {
     public synchronized void markClosed() {
         closed = true;
         pendingEvents.clear();
+        requests.clear();
+        toldIn.clear();
         if (gather != null) {
             gather.cancel(false);
             gather = null;

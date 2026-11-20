@@ -48,6 +48,7 @@ public class PersonalityDialog extends Dialog {
     private TextField keyField;
     private TextField nameField;
     private TextAreaPopoverComponent promptArea;
+    private TextAreaPopoverComponent partConsentArea;
     private final Map<String, TextAreaPopoverComponent> expressionAreas = new LinkedHashMap<>();
 
     /**
@@ -89,6 +90,11 @@ public class PersonalityDialog extends Dialog {
         promptArea.setValue(StringUtils.defaultString(own.getPrompt()));
         promptArea.setHelperText(loc.getValue(J_L.HELP_PERSONALITY));
 
+        partConsentArea = PromptAreas.create(loc, loc.getValue(J_L.LABEL_PART_CONSENT), PromptAreas.TEXT_HEIGHT, ChatTemplateData.class,
+                builtIn == null ? null : builtIn.partConsent());
+        partConsentArea.setValue(StringUtils.defaultString(own.getPartConsent()));
+        partConsentArea.setHelperText(loc.getValue(J_L.HELP_PART_CONSENT));
+
         VerticalLayout expressions = new VerticalLayout();
         expressions.setPadding(false);
         List<Mood> moods = personaService.moods();
@@ -104,7 +110,7 @@ public class PersonalityDialog extends Dialog {
         Details moodsDetails = new Details(loc.getValue(J_L.LABEL_MOOD_EXPRESSIONS), expressions);
         moodsDetails.setWidthFull();
 
-        VerticalLayout content = new VerticalLayout(names, promptArea, moodsDetails);
+        VerticalLayout content = new VerticalLayout(names, promptArea, partConsentArea, moodsDetails);
         content.setPadding(false);
         add(content);
 
@@ -134,6 +140,7 @@ public class PersonalityDialog extends Dialog {
             PersonalitySetting setting = new PersonalitySetting(newKey);
             setting.setName(StringUtils.defaultIfBlank(nameField.getValue().strip(), null));
             setting.setPrompt(StringUtils.defaultIfBlank(promptArea.getValue().strip(), null));
+            setting.setPartConsent(StringUtils.defaultIfBlank(partConsentArea.getValue().strip(), null));
             Map<String, String> expressions = new LinkedHashMap<>();
             expressionAreas.forEach((mood, area) -> {
                 if (StringUtils.isNotBlank(area.getValue())) {
@@ -163,6 +170,11 @@ public class PersonalityDialog extends Dialog {
     /** The prompt, for tests. */
     public TextAreaPopoverComponent getPromptArea() {
         return promptArea;
+    }
+
+    /** How she decides on a change of her parts, for tests. */
+    public TextAreaPopoverComponent getPartConsentArea() {
+        return partConsentArea;
     }
 
     /** The area of how the mood sounds, for tests. */

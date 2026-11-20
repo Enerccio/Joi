@@ -257,6 +257,26 @@ public class BodyServiceImpl extends ExtendableServiceImpl<Body, BodyRepository>
     }
 
     @Override
+    @CommonTxReadOnly
+    public PartRequest partRequest(Body body, String partId, String stateId) throws Exception {
+        Body stored = find(body.getId());
+        Model model = model(stored);
+        ModelCapabilities capabilities = model == null ? null : ModelCapabilities.fromJson(model.getCapabilities());
+        DescribedPart part = model == null ? null : DescribedPart.of(model, capabilities).stream()
+                .filter(candidate -> candidate.id().equals(partId)).findFirst().orElse(null);
+        DescribedPart.State state = part == null ? null : BodyState.state(part, stateId);
+        if (state == null) {
+            throw new IllegalArgumentException("no such part or state: " + partId + " / " + stateId);
+        }
+        DescribedPart.State before = BodyState.stateOf(model, part, stored.partStateMap());
+        if (before != null && before.id().equals(state.id())) {
+            return null;
+        }
+        String stateName = part.group() ? state.name() : DescribedPart.SHOWN.equals(state.id()) ? "shown" : "hidden";
+        return new PartRequest(part.name(), stateName, part.group(), part.sentence(model, state.id()));
+    }
+
+    @Override
     @CommonTx
     public List<QueuedEvent> modelDescribed(Model model) throws Exception {
         List<QueuedEvent> events = new ArrayList<>();

@@ -67,6 +67,25 @@ public interface BodyService extends ExtendableService<Body, BodyRepository> {
     List<QueuedEvent> switchPart(Body body, String partId, String stateId) throws Exception;
 
     /**
+     * What the user's request to put a part in a state is, as she is told (nothing is changed: she decides on it).
+     *
+     * @return null when the part is in that state already
+     * @throws IllegalArgumentException when the body has no such part or state
+     */
+    PartRequest partRequest(Body body, String partId, String stateId) throws Exception;
+
+    /**
+     * A request to change a part.
+     *
+     * @param part     what she calls the part
+     * @param state    the state asked for: its name for a group, "shown" or "hidden" for a part of one toggle
+     * @param group    whether the part is a group of toggles (with named states)
+     * @param sentence how it looks in that state, null for not described
+     */
+    record PartRequest(String part, String state, boolean group, String sentence) {
+    }
+
+    /**
      * The model's description changed: each assistant who is in a body of it and has chatted is told how she looks now.
      *
      * @return the events queued, empty when none

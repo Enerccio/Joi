@@ -9,6 +9,7 @@ import com.github.enerccio.joi.domain.persona.*;
 import com.github.enerccio.joi.domain.service.PersonaService;
 import com.github.enerccio.joi.domain.templates.ChatTemplateData;
 import com.github.enerccio.joi.domain.templates.JoiTemplateData;
+import com.github.enerccio.joi.domain.templates.PartRequestTemplateData;
 import com.github.enerccio.marginalia.domain.security.model.User;
 import com.github.enerccio.marginalia.domain.service.SettingService;
 import com.github.enerccio.marginalia.domain.service.TemplateService;
@@ -89,6 +90,7 @@ public class PersonaServiceImpl implements PersonaService {
             boolean changed = false;
             String name = builtIn.name();
             String prompt = builtIn.prompt();
+            String partConsent = builtIn.partConsent();
             if (changes != null) {
                 changes.getMoodExpressions().forEach((mood, text) -> {
                     if (StringUtils.isNotBlank(text)) {
@@ -96,11 +98,13 @@ public class PersonaServiceImpl implements PersonaService {
                     }
                 });
                 changed = StringUtils.isNotBlank(changes.getName()) || StringUtils.isNotBlank(changes.getPrompt())
+                        || StringUtils.isNotBlank(changes.getPartConsent())
                         || changes.getMoodExpressions().values().stream().anyMatch(StringUtils::isNotBlank);
                 name = StringUtils.defaultIfBlank(changes.getName(), name);
                 prompt = StringUtils.defaultIfBlank(changes.getPrompt(), prompt);
+                partConsent = StringUtils.defaultIfBlank(changes.getPartConsent(), partConsent);
             }
-            result.add(new Personality(builtIn.key(), name, prompt, Map.copyOf(expressions), true, changed));
+            result.add(new Personality(builtIn.key(), name, prompt, Map.copyOf(expressions), partConsent, true, changed));
         }
         List<Personality> custom = new ArrayList<>();
         for (PersonalitySetting mine : own.values()) {
@@ -111,7 +115,7 @@ public class PersonaServiceImpl implements PersonaService {
                 }
             });
             custom.add(new Personality(mine.getKey(), StringUtils.defaultIfBlank(mine.getName(), mine.getKey()),
-                    StringUtils.defaultString(mine.getPrompt()), Map.copyOf(expressions), false, false));
+                    StringUtils.defaultString(mine.getPrompt()), Map.copyOf(expressions), mine.getPartConsent(), false, false));
         }
         custom.sort(Comparator.comparing(Personality::name, collator()));
         result.addAll(custom);
@@ -121,6 +125,29 @@ public class PersonaServiceImpl implements PersonaService {
     @Override
     public Personality personality(String key) throws Exception {
         return key == null ? null : personalities().stream().filter(p -> p.key().equals(key)).findFirst().orElse(null);
+    }
+
+    @Override
+    public Personality personalityOf(Joi joi) throws Exception {
+        Personality own = joi == null ? null : personality(joi.getPersonality());
+        return own != null ? own : currentPersonality();
+    }
+
+    @Override
+    public String renderPartRequests(Joi joi, String requests, String events) throws Exception {
+        Personality personality = personalityOf(joi);
+        if (personality == null || !personality.decidesOnParts()) {
+            return null;
+        }
+        PartRequestTemplateData data = new PartRequestTemplateData();
+        data.setRequests(requests);
+        data.setEvents(StringUtils.defaultIfBlank(events, null));
+        String name = StringUtils.isNotBlank(joi.getAssistantName()) ? joi.getAssistantName().strip() : assistantName();
+        String user = StringUtils.isNotBlank(joi.getUserName()) ? joi.getUserName().strip() : userName();
+        data.names(name, user);
+        // her personality's words may use the names too ({{user}}), so they are a template of their own
+        data.setConsent(fragment(personality.partConsent(), "partConsent", data));
+        return render(joi, JoiPromptField.PART_REQUEST_EVENT, data);
     }
 
     @Override
@@ -140,6 +167,28 @@ public class PersonaServiceImpl implements PersonaService {
         list.add(personality);
         setting.setPersonalities(list);
         settingService.save(setting);
+    }
+
+    @Override
+    public String clonePersonality(String key, String name) throws Exception {
+        Personality source = personality(key);
+        if (source == null) {
+            throw new IllegalArgumentException("No personality " + key);
+        }
+        Set<String> taken = personalities().stream().map(Personality::key).collect(Collectors.toSet());
+        String base = key.replaceFirst("-copy(-\\d+)?$", "") + "-copy";
+        String copyKey = base;
+        for (int n = 2; taken.contains(copyKey); n++) {
+            copyKey = base + "-" + n;
+        }
+        // as it is now: the copy is the user's own, it has no built-in text to fall back on
+        PersonalitySetting copy = new PersonalitySetting(copyKey);
+        copy.setName(StringUtils.defaultIfBlank(name, source.name()));
+        copy.setPrompt(source.prompt());
+        copy.setPartConsent(source.partConsent());
+        copy.setMoodExpressions(source.moodExpressions());
+        savePersonality(copy);
+        return copyKey;
     }
 
     @Override
@@ -291,7 +340,7 @@ public class PersonaServiceImpl implements PersonaService {
         return tidy(templateService.processTemplate(master, JoiPromptField.MASTER_TEMPLATE.templateName(), data));
     }
 
-    private String fragment(String text, String name, ChatTemplateData data) throws Exception {
+    private String fragment(String text, String name, JoiTemplateData data) throws Exception {
         if (StringUtils.isBlank(text)) {
             return null;
         }

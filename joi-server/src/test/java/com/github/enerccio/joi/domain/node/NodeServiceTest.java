@@ -7,6 +7,7 @@ import com.github.enerccio.joi.domain.model.impl.Body;
 import com.github.enerccio.joi.domain.model.impl.ChatMessage;
 import com.github.enerccio.joi.domain.model.impl.Joi;
 import com.github.enerccio.joi.domain.model.impl.Model;
+import com.github.enerccio.joi.domain.persona.PersonalitySetting;
 import com.github.enerccio.joi.domain.service.*;
 import com.github.enerccio.joi.domain.service.impl.NodeServiceImpl;
 import com.github.enerccio.joi.protocol.node.NodeMessage;
@@ -56,6 +57,8 @@ class NodeServiceTest extends PlatformTestBase {
     private BodyService bodyService;
     @Autowired
     private ModelService modelService;
+    @Autowired
+    private PersonaService personaService;
 
     private final JsonSchemaFactory schemas = JsonSchemaFactory.getInstance(SpecVersion.VersionFlag.V202012,
             builder -> builder.schemaMappers(m -> m.mapPrefix(BASE, "classpath:joi-protocol/schemas/")));
@@ -450,6 +453,96 @@ class NodeServiceTest extends PlatformTestBase {
         assertThat(chatMessageService.findLatest(joi, 1).getFirst().getInput().lines()
                 .filter(line -> line.startsWith("A part of you was switched")).count()).isEqualTo(2);
         assertThat(node.frames.poll(800, TimeUnit.MILLISECONDS)).as("no second turn").isNull();
+    }
+
+    /** A personality that decides on the changes of her parts, her assistant's: the halo body is hers. */
+    private Body stubbornJoi() throws Exception {
+        Body body = haloBody();
+        PersonalitySetting stubborn = new PersonalitySetting("stubborn");
+        stubborn.setName("Stubborn");
+        stubborn.setPrompt("You are stubborn.");
+        stubborn.setPartConsent("If {{user}} begs, consider allowing it.");
+        personaService.savePersonality(stubborn);
+        joi.setPersonality("stubborn");
+        joi = joiService.save(joi);
+        return body;
+    }
+
+    private Node chattedNode() throws Exception {
+        Node node = connect("Bearer " + token);
+        node.hello("n1", "desk", joi.getUuid(), "1.5");
+        node.next("welcome");
+        node.manifest(1);
+        node.frame("say", "t1", "{\"text\": \"Hi\", \"speak\": false}");
+        node.next("done");
+        return node;
+    }
+
+    @Test
+    void aPersonalityThatDecidesCanRefuseAChangeOfAPart() throws Exception {
+        Body body = stubbornJoi();
+        llm.enqueue(MockLLMResponse.text("Hello."),
+                MockLLMResponse.toolCall("decide_part_change", "{\"request\":1,\"decision\":\"refuse\",\"reason\":\"Not in front of the guests.\"}"),
+                MockLLMResponse.text("No."));
+        Node node = chattedNode();
+
+        node.frame("part", "p1", "{\"part\": \"key:Headgear/Hide Halo\", \"state\": \"hidden\"}");
+        // nothing is kept until she decided: her turn comes first
+        assertThat(node.next("turn").getAsJsonObject("data").get("cause").getAsString()).isEqualTo("part_switched");
+        JsonObject refused = node.next("part_refused");
+        assertThat(refused.get("ref").getAsString()).isEqualTo("p1");
+        assertThat(refused.getAsJsonObject("data").get("reason").getAsString()).isEqualTo("Not in front of the guests.");
+        node.next("done");
+        assertThat(bodyService.find(body.getId()).partStateMap()).doesNotContainKey("key:Headgear/Hide Halo");
+        assertThat(node.frames.stream().map(frame -> frame.get("type").getAsString())).doesNotContain("part_kept");
+        // how she decides is what her personality says, told with the request
+        String told = chatMessageService.findLatest(joi, 1).getFirst().getInput();
+        assertThat(told).contains("Request 1:").contains("How you decide: If").contains("begs, consider allowing it.")
+                .contains("decide_part_change");
+    }
+
+    @Test
+    void aPersonalityThatDecidesCanAllowAChangeOfAPart() throws Exception {
+        Body body = stubbornJoi();
+        llm.enqueue(MockLLMResponse.text("Hello."),
+                MockLLMResponse.toolCall("decide_part_change", "{\"request\":1,\"decision\":\"allow\"}"),
+                MockLLMResponse.text("Fine."));
+        Node node = chattedNode();
+
+        node.frame("part", "p1", "{\"part\": \"key:Headgear/Hide Halo\", \"state\": \"hidden\"}");
+        JsonObject kept = node.next("part_kept");
+        assertThat(kept.get("ref").getAsString()).isEqualTo("p1");
+        // she was told already: the node has no reaction to wait for
+        assertThat(kept.getAsJsonObject("data").get("told").getAsBoolean()).isFalse();
+        node.next("done");
+        assertThat(bodyService.find(body.getId()).partStateMap()).containsEntry("key:Headgear/Hide Halo", "hidden");
+        assertThat(node.frames.poll(800, TimeUnit.MILLISECONDS)).as("she is not told again").isNull();
+    }
+
+    @Test
+    void aRequestSheDoesNotAnswerIsAllowed() throws Exception {
+        Body body = stubbornJoi();
+        llm.enqueue(MockLLMResponse.text("Hello."), MockLLMResponse.text("Hmm, whatever."));
+        Node node = chattedNode();
+
+        node.frame("part", "p1", "{\"part\": \"key:Headgear/Hide Halo\", \"state\": \"hidden\"}");
+        node.next("turn");
+        JsonObject kept = node.next("part_kept");
+        assertThat(kept.get("ref").getAsString()).isEqualTo("p1");
+        assertThat(bodyService.find(body.getId()).partStateMap()).containsEntry("key:Headgear/Hide Halo", "hidden");
+    }
+
+    @Test
+    void aRequestThatChangesNothingIsKeptAtOnce() throws Exception {
+        stubbornJoi();
+        llm.enqueue(MockLLMResponse.text("Hello."));
+        Node node = chattedNode();
+
+        // the halo is shown by default: asking for it shown is nothing to decide
+        node.frame("part", "p1", "{\"part\": \"key:Headgear/Hide Halo\", \"state\": \"shown\"}");
+        JsonObject kept = node.next("part_kept");
+        assertThat(kept.get("ref").getAsString()).isEqualTo("p1");
+        assertThat(node.frames.poll(800, TimeUnit.MILLISECONDS)).as("no turn").isNull();
     }
 
     @Test

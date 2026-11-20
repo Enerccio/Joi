@@ -94,6 +94,11 @@ public class Joi extends ExtendableEntity implements PersonaAttributes {
     @Transient
     private String lookingGlassExitedEvent;
 
+    /** What she is told when the user asks to change parts of her body and her personality lets her decide ({@code PartRequestTemplateData}). */
+    @ExtendedAttribute
+    @Transient
+    private String partRequestEvent;
+
     @ExtendedAttribute
     @Transient
     private String personality;
@@ -427,5 +432,15 @@ public class Joi extends ExtendableEntity implements PersonaAttributes {
     @Override
     public void setLookingGlassExitedEvent(String lookingGlassExitedEvent) {
         this.lookingGlassExitedEvent = lookingGlassExitedEvent;
+    }
+
+    @Override
+    public String getPartRequestEvent() {
+        return partRequestEvent;
+    }
+
+    @Override
+    public void setPartRequestEvent(String partRequestEvent) {
+        this.partRequestEvent = partRequestEvent;
     }
 }

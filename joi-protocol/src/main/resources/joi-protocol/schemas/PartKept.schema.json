@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Enerccio/joi/protocol/v1/PartKept.schema.json",
+  "title": "PartKept",
+  "description": "part_kept (since 1.5): the server kept a part in the state the node asked for with a part frame that had an id (the ref of this frame).",
+  "type": "object",
+  "properties": {
+    "part": {
+      "type": "string",
+      "description": "The part's id (BodyPart.id)."
+    },
+    "state": {
+      "type": "string",
+      "description": "The state's id (BodyPartState.id), as kept."
+    },
+    "told": {
+      "type": "boolean",
+      "description": "True when her reaction is still to come (a turn with the cause part_switched follows): a node that shows the change with her reaction waits for it. False when she was told already (she decided on it) or is not told at all: show it at once."
+    }
+  },
+  "required": [
+    "part",
+    "state",
+    "told"
+  ]
+}

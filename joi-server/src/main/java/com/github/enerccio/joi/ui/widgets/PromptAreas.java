@@ -51,6 +51,7 @@ public final class PromptAreas {
             case CONNECTED_EVENT -> J_L.LABEL_CONNECTED_EVENT;
             case LOOKING_GLASS_ENTERED_EVENT -> J_L.LABEL_LOOKING_GLASS_ENTERED_EVENT;
             case LOOKING_GLASS_EXITED_EVENT -> J_L.LABEL_LOOKING_GLASS_EXITED_EVENT;
+            case PART_REQUEST_EVENT -> J_L.LABEL_PART_REQUEST_EVENT;
         };
     }
 

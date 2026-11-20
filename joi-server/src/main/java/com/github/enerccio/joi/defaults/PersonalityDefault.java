@@ -10,10 +10,17 @@ import java.util.Map;
  * @param name            the name for people
  * @param prompt          the fragment that goes into the system prompt
  * @param moodExpressions mood key to how that mood sounds in this personality
+ * @param partConsent     what she does when the user asks to change a part of her body (take off the visor): blank for
+ *                        nothing, the change is made; a text lets her decide, and is what she is told about how
  */
-public record PersonalityDefault(String key, String name, String prompt, Map<String, String> moodExpressions) {
+public record PersonalityDefault(String key, String name, String prompt, Map<String, String> moodExpressions, String partConsent) {
 
     public PersonalityDefault {
         moodExpressions = moodExpressions == null ? Map.of() : Map.copyOf(moodExpressions);
+    }
+
+    /** A personality that never decides on a change of her parts. */
+    public PersonalityDefault(String key, String name, String prompt, Map<String, String> moodExpressions) {
+        this(key, name, prompt, moodExpressions, null);
     }
 }

@@ -81,6 +81,25 @@ final class ControlsPane extends ScrollPane {
         section("Her parts", box);
     }
 
+    /**
+     * The choice of when a change of her parts is shown on her body: as soon as the server kept it, or when her
+     * reaction to it comes. Its own section, so that it stays free while a batch of changes is locked.
+     *
+     * @param withReaction whether it is shown with her reaction now
+     * @param onChange     told the choice the user made
+     */
+    void partsOption(boolean withReaction, Consumer<Boolean> onChange) {
+        CheckBox option = new CheckBox("Show changes with her reaction");
+        option.setWrapText(true);
+        option.setSelected(withReaction);
+        option.setOnAction(e -> onChange.accept(option.isSelected()));
+        Label help = new Label("Off: the change shows as soon as the server has it. On: it shows when she reacts to it, "
+                + "which takes a few seconds longer; her personality may also refuse it.");
+        help.setWrapText(true);
+        help.setStyle("-fx-opacity: 0.6;");
+        section("Her parts: when to show", new VBox(4, option, help));
+    }
+
     /** Locks the parts (a batch waits for the server) or frees them. */
     void lockParts(boolean locked) {
         if (partsBox != null) {

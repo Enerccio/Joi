@@ -31,7 +31,7 @@ class SchemaContractTest {
             JoiSummary.class, JoiList.class, Personality.class, Voice.class, JoiInfo.class, ChatRequest.class, Audio.class, Usage.class,
             ChatReply.class, TextDelta.class, AudioChunk.class, Done.class, ApiError.class, DeviceAuthorization.class,
             TokenResponse.class, OAuthError.class, OAuthMetadata.class, Download.class, BodyModel.class, BodyPart.class,
-            BodyToggle.class, BodyPartState.class, PartSwitch.class,
+            BodyToggle.class, BodyPartState.class, PartSwitch.class, PartKept.class, PartRefused.class,
             BodyAnimation.class, BodyAnimations.class, BodyInfo.class, JoiAnimations.class, Frame.class, Hello.class, Welcome.class, Manifest.class,
             ToolDefinition.class, Say.class, Stop.class, Display.class, ToolUse.class, ToolCall.class, ToolProgress.class, ToolResult.class,
             ToolCancel.class, Approval.class, ServerEvent.class, TurnStart.class, ChatEntry.class, ChatHistory.class);
@@ -182,6 +182,9 @@ class SchemaContractTest {
         valid(new Stop("t1"));
         valid(new Display(true));
         valid(new PartSwitch("group:eyes", "bare"));
+        valid(new PartKept("group:eyes", "bare", true));
+        valid(new PartRefused("group:eyes", "bare", "Not in front of the guests."));
+        valid(new PartRefused("group:eyes", "bare", null));
         valid(new ToolUse("desk__read_file", "{\"path\":\"~/notes.md\"}", "milk, eggs", true));
         valid(new ToolUse("desk__shell", "{}", null, false));
         valid(new ToolCall("c1", "read_file", arguments, "t1", 60));
