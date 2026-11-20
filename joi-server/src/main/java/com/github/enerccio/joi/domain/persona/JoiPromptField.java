@@ -6,6 +6,7 @@ import com.github.enerccio.joi.domain.templates.BodyTemplateData;
 import com.github.enerccio.joi.domain.templates.ChatTemplateData;
 import com.github.enerccio.joi.domain.templates.DaySummaryTemplateData;
 import com.github.enerccio.joi.domain.templates.FactsTemplateData;
+import com.github.enerccio.joi.domain.templates.NodeEventTemplateData;
 import com.github.enerccio.joi.domain.templates.PartImageTemplateData;
 import com.github.enerccio.joi.domain.templates.SelfImageTemplateData;
 import com.github.enerccio.joi.domain.templates.SummaryTemplateData;
@@ -34,7 +35,11 @@ public enum JoiPromptField {
     SELF_IMAGE_PROMPT("selfImagePrompt", SelfImageTemplateData.class, PersonaAttributes::getSelfImagePrompt,
             PersonaAttributes::setSelfImagePrompt, JoiDefaults::selfImagePrompt),
     PART_IMAGE_PROMPT("partImagePrompt", PartImageTemplateData.class, PersonaAttributes::getPartImagePrompt,
-            PersonaAttributes::setPartImagePrompt, JoiDefaults::partImagePrompt);
+            PersonaAttributes::setPartImagePrompt, JoiDefaults::partImagePrompt),
+    FIRST_BOOT_EVENT("firstBootEvent", NodeEventTemplateData.class, PersonaAttributes::getFirstBootEvent,
+            PersonaAttributes::setFirstBootEvent, JoiDefaults::firstBootEvent),
+    CONNECTED_EVENT("connectedEvent", NodeEventTemplateData.class, PersonaAttributes::getConnectedEvent,
+            PersonaAttributes::setConnectedEvent, JoiDefaults::connectedEvent);
 
     private final String templateName;
     private final Class<? extends TemplateData> dataClass;

@@ -34,7 +34,8 @@ public class StoreStep extends TurnStepBase {
             Date sent = controller.getSent();
             ChatMessage message = new ChatMessage();
             message.setJoi(controller.getJoi());
-            message.setType(ChatMessageType.USER);
+            message.setType(controller.getInput().isEvent() ? ChatMessageType.EVENT : ChatMessageType.USER);
+            message.setEventKind(controller.getInput().eventKind());
             message.setSentAt(sent);
             message.setInput(controller.getInput().text());
             message.setNode(StringUtils.defaultIfBlank(controller.getInput().node(), null));

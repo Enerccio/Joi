@@ -244,6 +244,26 @@ Your other bodies: {{.}}.{{/otherBodies}}
 """;
     }
 
+    /**
+     * The event of her first waking up, on a node ({@code NodeEventTemplateData}): she has never talked with the user
+     * before.
+     */
+    public String firstBootEvent() {
+        return """
+[Event: you wake up for the very first time, on {{node}}{{#if nodeKind}} ({{nodeKind}}){{/if}}. You have never talked \
+with {{user}} before.]
+Greet {{user}} as you come to for the first time. Tell them briefly what you can do for them, and say what you think \
+of the body you find yourself in. Keep it warm and short enough to say aloud.""";
+    }
+
+    /** The event of the user coming back to her on a node ({@code NodeEventTemplateData}). */
+    public String connectedEvent() {
+        return """
+[Event: {{user}} is back with you, on {{node}}{{#if nodeKind}} ({{nodeKind}}){{/if}}.{{#if lastChatted}} You last \
+talked {{lastChatted}}.{{/if}}]
+Greet {{user}} in a sentence or two, as fits how long they were away.""";
+    }
+
     /** Her name changed: the old name, the new one. */
     public String eventRenamed(String from, String to) {
         return "You were renamed from %s to %s.".formatted(from, to);

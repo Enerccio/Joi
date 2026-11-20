@@ -80,6 +80,8 @@ public class JoiLocalizationBundleEN extends TextBundleBase<J_L> {
         setValue(J_L.LABEL_FACTS_PROMPT, "Memories prompt (facts to remember)");
         setValue(J_L.LABEL_SELF_IMAGE_PROMPT, "Appearance prompt (a model described from its snapshots)");
         setValue(J_L.LABEL_PART_IMAGE_PROMPT, "Part prompt (a toggle described from close-ups, shown and hidden)");
+        setValue(J_L.LABEL_FIRST_BOOT_EVENT, "First waking up (the event when she first wakes up on a node)");
+        setValue(J_L.LABEL_CONNECTED_EVENT, "User is back (the event when the user comes back to her on a node)");
         setValue(J_L.LABEL_BODY_PROMPT, "Body section (the body she is in, put into {{#body}})");
         setValue(J_L.LABEL_PREVIEW_SYSTEM_PROMPT, "Preview the system prompt");
         setValue(J_L.LABEL_KEY, "Key");
@@ -453,6 +455,8 @@ public class JoiLocalizationBundleEN extends TextBundleBase<J_L> {
         setValue(J_L.DESC_TEMPLATE_SUMMARIES, "The summaries of the day's conversations.");
         setValue(J_L.DESC_TEMPLATE_KNOWN_MEMORIES, "The facts already remembered.");
         setValue(J_L.DESC_TEMPLATE_BODY_NAME, "The body's name.");
+        setValue(J_L.DESC_TEMPLATE_NODE_KIND, "What the node is (desktop, phone...); empty when it did not say.");
+        setValue(J_L.DESC_TEMPLATE_LAST_CHATTED, "When she last talked with the user, in words (3 hours ago); empty for never.");
         setValue(J_L.DESC_TEMPLATE_MODEL_NAME, "The model's name.");
         setValue(J_L.DESC_TEMPLATE_PART_NAME, "What the part is called: the toggle's name, or the group's.");
         setValue(J_L.DESC_TEMPLATE_PART_SOURCE, "The mesh, or the mesh / the shape key, that shows or hides the part; the names of a group's toggles.");

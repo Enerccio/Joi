@@ -9,7 +9,7 @@ import java.util.List;
  * @param protocol the version the node speaks, {@code major.minor}
  * @param nodeId   its stable id, chosen once and kept (a UUID); a second connection of the same node and assistant
  *                 replaces the first
- * @param name     its short name ({@code desk}): its tools are offered to her as {@code desk.<tool>}
+ * @param name     its short name ({@code desk}): its tools are offered to her as {@code desk__<tool>}
  * @param kind     what it is ({@code desktop}, {@code phone}, {@code pi}...), null when not said
  * @param software the program and its version, null when not said
  * @param joi      the id of the assistant

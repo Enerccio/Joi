@@ -74,6 +74,16 @@ public class Joi extends ExtendableEntity implements PersonaAttributes {
     @Transient
     private String bodyPrompt;
 
+    /** What she is told when she first wakes up on a node ({@code NodeEventTemplateData}). */
+    @ExtendedAttribute
+    @Transient
+    private String firstBootEvent;
+
+    /** What she is told when the user comes back to her on a node ({@code NodeEventTemplateData}). */
+    @ExtendedAttribute
+    @Transient
+    private String connectedEvent;
+
     @ExtendedAttribute
     @Transient
     private String personality;
@@ -367,5 +377,25 @@ public class Joi extends ExtendableEntity implements PersonaAttributes {
 
     public void setAnimationRoleSet(AnimationRoles roles) {
         this.animationRoles = AnimationRoles.toJson(roles);
+    }
+
+    @Override
+    public String getFirstBootEvent() {
+        return firstBootEvent;
+    }
+
+    @Override
+    public void setFirstBootEvent(String firstBootEvent) {
+        this.firstBootEvent = firstBootEvent;
+    }
+
+    @Override
+    public String getConnectedEvent() {
+        return connectedEvent;
+    }
+
+    @Override
+    public void setConnectedEvent(String connectedEvent) {
+        this.connectedEvent = connectedEvent;
     }
 }

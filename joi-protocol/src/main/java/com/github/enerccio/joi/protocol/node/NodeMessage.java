@@ -23,6 +23,8 @@ public enum NodeMessage {
     SAY("say", Direction.TO_SERVER, Say.class),
     /** {@link Stop} a turn of the node. */
     STOP("stop", Direction.TO_SERVER, Stop.class),
+    /** {@link TurnStart}: a turn the server started (first boot, the user is back); answered like a say. */
+    TURN("turn", Direction.TO_NODE, TurnStart.class),
     /** {@link TextDelta} of the thinking (only when asked for). */
     REASONING("reasoning", Direction.TO_NODE, TextDelta.class),
     /** {@link TextDelta} of the reply. */

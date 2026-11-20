@@ -5,7 +5,7 @@ import com.google.gson.JsonObject;
 /**
  * A tool of a node.
  *
- * @param name        unique in the node ({@code read_file}); she sees it as {@code <node>.<name>}
+ * @param name        unique in the node ({@code read_file}); she sees it as {@code <node>__<name>} (model APIs allow no dots in names)
  * @param description what it does, for the model
  * @param parameters  a JSON Schema of the arguments (an object)
  * @param tier        its harness tier

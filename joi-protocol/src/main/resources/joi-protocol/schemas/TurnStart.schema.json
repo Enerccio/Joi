@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Enerccio/joi/protocol/v1/TurnStart.schema.json",
+  "title": "TurnStart",
+  "description": "turn: the server starts a turn the node did not ask for; her answer follows in frames that refer to its id.",
+  "type": "object",
+  "properties": {
+    "turn": {
+      "type": "string",
+      "description": "The id of the turn.",
+      "pattern": "^[A-Za-z0-9._:-]{1,64}$"
+    },
+    "cause": {
+      "type": "string",
+      "description": "Why: first_boot (she wakes up for the very first time), connected (the user is back). Unknown causes are played as a plain turn."
+    }
+  },
+  "required": [
+    "turn",
+    "cause"
+  ]
+}

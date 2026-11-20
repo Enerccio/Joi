@@ -17,7 +17,7 @@ Administration page behind a button under the tabs, as in Marginalia: users and 
 `Memory`, `JoiTask`, `JoiTaskMessage`, `QueuedEvent` (see `DESIGN.md` → Several assistants), with the Jois tab and the Joi dialog (its Chats tab shows the transcript, lazily, and deletes messages, one or checked with shift-click ranges; its Memories tab lists, adds, edits and deletes her memories, `JoiMemoriesPart`; its Animations tab chooses what she plays asleep, falling asleep, waking up, idle and talking, `AnimationRoles`, `JoiAnimationsPart`; `ui/workspace/parts/JoisPart`,
 `ui/dialogs/JoiDialog` and its parts in `ui/dialogs/joi`). The HTTP API is built (`joi-protocol` 1.0: list, info,
 chat with text and speech, whole or streamed (a turn is asynchronous steps and events in `domain/chat/turn`, as Marginalia's generation: listeners, observers, tool rounds; see `DESIGN.md` → A chat turn); 1.1: her body (models, the state of their parts, animations) and the
-`.joim` / `.joia` downloads, ETag by hash; tokens, OAuth device grant, no auth for development; see `DESIGN.md` →
+`.joim` / `.joia` downloads, ETag by hash; tokens, OAuth device grant, no auth for development; 1.2: her animation roles in the info and the node WebSocket (`api/NodeEndpoint`, `domain/service/NodeService`, `domain/node/NodeSession`: handshake, manifest of tools offered as `<node>__<tool>`, say and her streamed answer, tool calls, her first waking up and the greeting as server-started turns from templates); see `DESIGN.md` →
 The node protocol): `api/` (`JoiApiServlet`, `JoiApi`), `domain/chat/ChatService`, `ui/access`. `spikes/` holds throwaway experiments for the avatar renderer.
 
 ## Build
@@ -62,7 +62,7 @@ with the code.
 ## Layout
 
 - `joi-protocol/` — the public API: JSON Schemas, `openapi.yaml` (HTTP) and `asyncapi.yaml` (the node WebSocket, 1.2,
-  not served yet; records in `protocol/node`) in `src/main/resources/joi-protocol` (the source of
+  served by `api/NodeEndpoint` and `NodeService`; records in `protocol/node`) in `src/main/resources/joi-protocol` (the source of
   truth; `SchemaContractTest` checks the records against them), records in `com.github.enerccio.joi.protocol`, Gson
   only. A change of the API changes the schema, the record and `DESIGN.md` → The node protocol together.
   The `.joim` and `.joia` containers (`protocol/joim`, `protocol/joia`, documented in `joim.md` and `joia.md` there;

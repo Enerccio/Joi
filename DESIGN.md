@@ -107,7 +107,7 @@ one; the server treats every node the same.
     first administrator; a credential that is sent must still be valid. Turning a way off stops its credentials at
     once. Credentials are `AccessToken` rows (prefix + SHA-256, like Marginalia's API keys), listed and revoked under
     Access.
-- **The node WebSocket (specified as 1.2, not served yet):** `asyncapi.yaml` and the schemas in `joi-protocol`,
+- **The node WebSocket (built, 1.2):** `asyncapi.yaml` and the schemas in `joi-protocol`,
   the records in `protocol/node`; `SchemaContractTest` checks the records, the enums and the AsyncAPI document
   against each other. `GET /api/v1/node` with `Upgrade: websocket`, the API's credentials (or in `hello.token` for a
   client that cannot set headers; never in the URL). Every message is a JSON text frame
@@ -118,12 +118,19 @@ one; the server treats every node the same.
     connection; the same node connecting again for her replaces the old connection.
   - **Manifest:** `manifest` after `welcome` and again on every change, with a growing `version` (this is the
     `tools_changed` of the design): OS, architecture, free-form capabilities, and the tools (name, description, JSON
-    Schema of the arguments, tier `allow` / `ask` / `deny` / `depends`). She sees them as `<node>.<tool>` while the
-    node is connected.
+    Schema of the arguments, tier `allow` / `ask` / `deny` / `depends`). She sees them as `<node>__<tool>` while the
+    node is connected (model APIs allow no dots in function names), described as "On the node "desk" (desktop): ..."
+    with what the tier means.
   - **Talking:** `say` (text, speak, reasoning); the frame's id is the turn, and the answer is the streamed chat as
     frames that refer to it: `reasoning`, `text`, `tool` (she used a tool), `reply`, `audio`, then `done`, or
     `error` (`stopped` for a turn stopped by `stop`, the barge-in). Chat moves onto the socket so that stopping and
-    streaming share one connection; the HTTP chat stays for simple clients.
+    streaming share one connection; the HTTP chat stays for simple clients. The server starts a turn itself with
+    `turn` (its id and cause), answered the same way: after the first manifest of a connection she **wakes up for
+    the very first time** (`first_boot`, when she has no message yet) or **greets the user who is back**
+    (`connected`). Each is an event she is told as the user's turn, from a template the user can change
+    (`JoiPromptField.FIRST_BOOT_EVENT`, `CONNECTED_EVENT`, `NodeEventTemplateData`: the node, its kind, when they
+    last talked), and stored as an event message (`node.first_boot`, `node.connected`). Nothing is said when she has
+    no chat model.
   - **Tools:** `tool_call` (call id, tool, arguments, the turn when it is this node's, a timeout) → the node checks
     its harness again, may send `tool_progress` and `approval` (asked, then allowed or denied, with scope and how)
     → exactly one `tool_result` (ok, content, an error word: `denied`, `failed`, `cancelled`, `timeout`,
@@ -133,9 +140,18 @@ one; the server treats every node the same.
     `ping` / `pong` both ways; a connection silent for twice the heartbeat is closed.
   - **Errors:** an `error` frame (`ApiError`, `ref` the frame) keeps the connection; close codes 4001 unauthorized,
     4002 unsupported version, 4003 replaced, 4004 no such assistant, 4008 timeout, 4009 revoked.
-  - Not in 1.2 yet: audio in, avatar state frames, screen images (later minor versions).
-  - Next: the server's side (the registry of connected nodes and their tools as a `COLLECT_TOOLS` listener, a user
-    scope for the connection's turns), then the headless joi-node, then the conformance tests.
+  - **On the server:** `api/NodeEndpoint` (Jakarta WebSocket, registered on the container once Spring is up; it
+    keeps the `Authorization` of the upgrade) hands the frames to `NodeService`. A connection is a `NodeSession`
+    holding its user's request scope (`ApiRequestAttributes`) for as long as it lives: its turns run in it. The
+    tools of her connected nodes join every turn of hers through a `COLLECT_TOOLS` listener; a call is a
+    `tool_call` and the turn waits, nothing blocked, for the `tool_result` (a failure or a denial reaches her as its
+    reason). A stopped turn cancels its open calls (`tool_cancel`), and so does a turn stopped elsewhere, seen by
+    the heartbeat tick, which also closes silent connections and times out calls. A node leaving fails its calls
+    and stops its turn. `NodeServiceTest` drives it all through a fake transport, checking every frame against the
+    schemas.
+  - Not in 1.2 yet: audio in, avatar state frames, screen images (later minor versions); `event` frames are sent
+    by `NodeService.notify` but nothing calls it yet.
+  - Next: the JavaFX joi-node (see Node → The first node), then the conformance tests.
 - **Same idea for renderers:** the node ↔ renderer state frames are documented too, so a renderer can be three.js,
   Unity, Godot or anything else.
 

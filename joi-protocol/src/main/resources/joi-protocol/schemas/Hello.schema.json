@@ -17,7 +17,7 @@
     },
     "name": {
       "type": "string",
-      "description": "The short name of the node (desk, phone, kitchen): its tools are offered as <name>.<tool>.",
+      "description": "The short name of the node (desk, phone, kitchen): its tools are offered as <name>__<tool>.",
       "pattern": "^[a-z][a-z0-9_-]{0,31}$"
     },
     "kind": {

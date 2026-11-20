@@ -48,6 +48,14 @@ public interface PersonaAttributes {
 
     void setBodyPrompt(String bodyPrompt);
 
+    String getFirstBootEvent();
+
+    void setFirstBootEvent(String firstBootEvent);
+
+    String getConnectedEvent();
+
+    void setConnectedEvent(String connectedEvent);
+
     /** The key of the personality, blank when not set. */
     String getPersonality();
 

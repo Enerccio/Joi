@@ -453,7 +453,8 @@ public class JoiApi implements DisposableBean {
         }
     }
 
-    private ChatReply reply(ChatMessage message, boolean withReasoning, Audio audio, String speechError, long speechMs) {
+    /** Her reply as the API gives it (the node WebSocket too). */
+    public static ChatReply reply(ChatMessage message, boolean withReasoning, Audio audio, String speechError, long speechMs) {
         long request = message.getRequest() == null ? 0 : message.getRequest().getTime();
         long first = message.getTtft() == null ? -1 : message.getTtft().getTime() - request;
         long text = message.getResponseEnd() == null ? 0 : message.getResponseEnd().getTime() - request;
@@ -473,7 +474,14 @@ public class JoiApi implements DisposableBean {
 
     /** Who the call acts for, null when nobody: its bearer credential, else the configured user of no auth. */
     Principal authenticate(ApiCall call) throws Exception {
-        String authorization = call.header("Authorization");
+        return authenticate(call.header("Authorization"));
+    }
+
+    /**
+     * Whom a call with this {@code Authorization} header (null for none) acts for, as for every call of the API (the
+     * node WebSocket uses it too); null when the credentials are missing or not valid.
+     */
+    public Principal authenticate(String authorization) throws Exception {
         if (authorization != null && authorization.regionMatches(true, 0, "Bearer ", 0, 7)) {
             // a credential that is sent must be valid, also when no auth is on
             return accessTokenService.authenticate(authorization.substring(7).strip());
@@ -611,7 +619,8 @@ public class JoiApi implements DisposableBean {
         return StringUtils.defaultIfBlank((root == null ? e : root).getMessage(), e.getClass().getSimpleName());
     }
 
-    private static String version() {
+    /** The version of joi-server. */
+    public static String version() {
         String version = JoiApi.class.getPackage().getImplementationVersion();
         return version == null ? "dev" : version;
     }

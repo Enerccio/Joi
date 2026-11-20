@@ -42,7 +42,7 @@ class SchemaContractTest {
             TokenResponse.class, OAuthError.class, OAuthMetadata.class, Download.class, BodyModel.class, BodyPart.class,
             BodyAnimation.class, BodyAnimations.class, BodyInfo.class, JoiAnimations.class, Frame.class, Hello.class, Welcome.class, Manifest.class,
             ToolDefinition.class, Say.class, Stop.class, ToolUse.class, ToolCall.class, ToolProgress.class, ToolResult.class,
-            ToolCancel.class, Approval.class, ServerEvent.class);
+            ToolCancel.class, Approval.class, ServerEvent.class, TurnStart.class);
 
     /** The enums with a schema of their own: the values are the schema's enum. */
     static final List<Class<? extends Enum<?>>> ENUMS = List.of(AuthMethod.class, NodePart.class, ToolTier.class,
@@ -184,8 +184,8 @@ class SchemaContractTest {
         valid(new Say("Hi", false, true));
         valid(new Stop(null));
         valid(new Stop("t1"));
-        valid(new ToolUse("desk.read_file", "{\"path\":\"~/notes.md\"}", "milk, eggs", true));
-        valid(new ToolUse("desk.shell", "{}", null, false));
+        valid(new ToolUse("desk__read_file", "{\"path\":\"~/notes.md\"}", "milk, eggs", true));
+        valid(new ToolUse("desk__shell", "{}", null, false));
         valid(new ToolCall("c1", "read_file", arguments, "t1", 60));
         valid(new ToolCall("c2", "shell", new JsonObject(), null, 60));
         valid(new ToolProgress("c1", "Reading"));
@@ -195,6 +195,7 @@ class SchemaContractTest {
         valid(new Approval("c2", ApprovalState.ASKED, null, null));
         valid(new Approval("c2", ApprovalState.ALLOWED, "session", "voice"));
         valid(new ServerEvent("body", "2026-11-19T12:00:00Z"));
+        valid(new TurnStart("s1", "first_boot"));
 
         valid(new Frame("hello", null, null, GSON.toJsonTree(hello)));
         valid(new Frame("say", "t1", null, GSON.toJsonTree(new Say("Hi", null, null))));

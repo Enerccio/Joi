@@ -121,7 +121,8 @@ public class ChatServiceImpl implements ChatService, InitializingBean, Disposabl
             throw new NoModelException(joiService.name(joi) + " has no chat model: choose one in her About tab or in User Settings");
         }
         TurnEngine engine = new TurnEngine(joi, ai,
-                new TurnInput(input.text().strip(), StringUtils.defaultIfBlank(input.node(), null), input.speak(), input.pieces()),
+                new TurnInput(input.text().strip(), StringUtils.defaultIfBlank(input.node(), null), input.speak(), input.pieces(),
+                        StringUtils.defaultIfBlank(input.eventKind(), null)),
                 listener == null ? new Listener() {
                 } : listener, RequestContextHolder.getRequestAttributes());
         CompletableFuture<Void> before;

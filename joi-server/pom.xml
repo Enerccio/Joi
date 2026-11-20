@@ -56,6 +56,19 @@
       <version>6.1.0</version>
       <scope>provided</scope>
     </dependency>
+    <!-- the node WebSocket (api/NodeEndpoint); the container (Jetty) has the implementation -->
+    <dependency>
+      <groupId>jakarta.websocket</groupId>
+      <artifactId>jakarta.websocket-api</artifactId>
+      <version>2.2.0</version>
+      <scope>provided</scope>
+    </dependency>
+    <dependency>
+      <groupId>jakarta.websocket</groupId>
+      <artifactId>jakarta.websocket-client-api</artifactId>
+      <version>2.2.0</version>
+      <scope>provided</scope>
+    </dependency>
 
     <!-- TESTS -->
     <dependency>

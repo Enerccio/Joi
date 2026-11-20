@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Joi API
-  version: "1.1"
+  version: "1.2"
   description: |
     The HTTP API of a Joi server for nodes and other clients: the assistants of the user, chat with one of them,
     answered in text and speech, and the body she is in with the files to show it (`.joim`, `.joia`). The message shapes are the JSON Schemas in `schemas/` (the source of truth); the Java
