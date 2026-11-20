@@ -611,7 +611,7 @@ The conversation model hands work to the heavy one through a tool (`delegate` wi
 in the background: Joi says she is on it, keeps talking, and reports back (in her own voice, through the conversation
 model) when it finishes or needs an approval.
 
-**Tasks after the reply (designed; the entities are built: `JoiTask`, `JoiTaskMessage`).** A tool call of Joi can start
+**Tasks after the reply (built: `JoiTask`, `JoiTaskMessage`, `WebTaskService`; the first tasks are `web_search` and `fetch_page`, see Web search and reading pages).** A tool call of Joi can start
 a task, a call to inference of its own (`delegate` to the heavy model, research, a summary). The task does not start
 during the reply: it waits (`QUEUED`) until the message that started it is finished, spoken included. Then it runs, and
 its transcript (the instructions, the model's turns with their reasoning and tool calls, the tool results) is stored as
@@ -666,6 +666,114 @@ from the ones marked for it. Whether a model takes images is the model's own **M
   each model, so switching the dev default, or a user picking a model, is a measured choice.
 - Prompt caching on the long, stable part (persona, tool definitions, body description) keeps the remote cost down
   further.
+
+### Server tools and their permissions
+
+A **server tool** is a function the server itself offers her (not a node's tool): `ServerTool` lists them,
+`web_search` and `fetch_page` for now, each with a built-in default permission (`ASK`) and a description a client can
+show.
+
+**The permission** is `ToolPermission`: `ALLOW` (runs), `ASK` (waits for the user's answer), `DENY` (never runs, she is
+told). It is resolved along a **chain**: the assistant's own, then the user's settings, then the administrator's, then
+the built-in default; the first one set wins. The administrator's value is also a **ceiling**: what is set below it can
+only be as strict or stricter (`DENY` > `ASK` > `ALLOW`). An administrator's `ASK` is a default users can only tighten,
+a `DENY` locks the tool, an `ALLOW` is only a default. Without the ceiling the administrator's page would be a default
+and no more. The permission is read **when she calls** the tool, not when the turn starts, so a change counts at once.
+`ToolPermissionService.chain` answers the three values, the effective one and where it came from, so the UI can say
+"Ask (from the administrator)".
+
+**Where it is stored:** `ToolMetadata` (`tool_metadata`, an `ExtendableEntity`): the settings of one tool in one place
+of the chain. Real columns only to find it: `scope` (`JOI`, `USER`, `APP`), `joi` (for `JOI`) and `tool_key`. Everything
+else is the dynamic JSON of its attributes, so a new option needs no migration:
+
+- `permission` (absent = inherit);
+- `config`: the tool's options (a JSON object; see the next section);
+- `secrets`: keys and tokens by name, each protected with `InferenceServices.protectSecret` (AES-GCM with `secret.key`)
+  and read with `revealSecret`, as an extension AI keeps its keys. The service does it, never the caller. A secret is
+  never printed, logged, returned by the API or filled into a field again: the panel says *set*, and an empty field
+  keeps it;
+- `autoApprove`: the standing approval, `{"name", "description"}` (assistant scope only).
+
+An administrator saves the administrator's only (`AdminGuard.requireAdmin`), a user their own, a Joi's only of an
+assistant of that user.
+
+**Standing approval ("Approve all of this tool").** The user can approve every task of a tool from now on. A task of
+that tool that asks is still made `WAITING` and put through `approve` (the path of the user's answer and of the API), so
+the answer is the same and only automatic; it is marked `autoApproved` and a note in the conversation says so. Turning
+it on also approves the tasks of that tool that wait now. A `DENY` at any level still wins. The standing approvals are
+listed in the Auto-approved dialog, where each can be taken back ("Ask again"). `TaskInfo` carries the tool's name and
+description, so a client that approves on its own can write the approval down as JSON.
+
+**In the UI:** `ui/tools`: `ToolPermissionsPanel` (a row per tool: Inherit / Allow / Ask / Deny, stored at once, and the
+one in force), in **Administration → Tools** (the administrator's), **User Settings → Tools** (the user's) and the Joi
+dialog's **Tasks** tab (the assistant's own).
+
+### Web search and reading pages
+
+Her function **`web_search(question)`** and **`fetch_page(url, question)`** do not search or read themselves: each
+creates a `JoiTask` and answers at once ("searching, I will tell you"). With `DENY` the function is not offered and a
+forced call is refused.
+
+**The task** (`WebTaskService`, `WebResearch`): it runs after the reply that started it (see Model roles → Tasks after
+the reply), one task of an assistant at a time, on the **deep reasoning model** (with none set, the chat model, and the
+transcript says so). With `ASK` it is `WAITING` until the user answers in the Joi dialog's **Tasks** tab (Approve,
+Approve all of this tool, Deny with a reason, Cancel) or through the HTTP API; `DENY` makes no task. The model gets the
+question and two internal functions, `search` and `read_page` (not offered to her), and loops (at most 10 rounds) until
+it writes a short answer with the sources it used (title, url); the caps `maxSearches` (6) and `maxPages` (8) are options
+of the tool. Its transcript is `JoiTaskMessage`s. Tasks left `RUNNING` by a restart become `FAILED`. The result comes
+back as **one event** (`task.finished`, `task.failed`, `task.denied`) in her conversation, as a turn the server starts, so
+she says it in her own voice; with no node connected it waits as a `QueuedEvent`, delivered when a node connects.
+The prompt of the task and the three event texts are templates (`JoiPromptField`s, editable in both Templates tabs).
+Every approval, denial, cancel and standing approval writes a note in the conversation (see Notes in the conversation).
+
+**Sources** (`WebSearchConfig`, the `config` of the `web_search` metadata; `sources` are tried in order, each one
+enabled or not, optionally limited to **specific sites**). One `HttpClient` per source, from the common proxy (HTTP(S)
+only: the JDK client has no SOCKS) or the source's own, and the timeout:
+
+| Type | Request | Needs |
+|---|---|---|
+| `DDGS` (DuckDuckGo) | `POST https://html.duckduckgo.com/html/` (form `q`), parsed with jsoup (`a.result__a`, `a.result__snippet`, the `uddg` redirect decoded). No official API, so fragile by nature: a page it cannot read is reported as a failure | nothing |
+| `SEARXNG` | `GET {url}/search?q=&format=json` (`language`, `safesearch`, `pageno`); an instance with `json` off in `search.formats` answers 403; `results[].title/url/content` | the instance's URL |
+| `GOOGLE` | `GET customsearch.googleapis.com/customsearch/v1?key=&cx=&q=&num=`; one site by `siteSearch`; `items[].title/link/snippet`. The API is closed to new customers and ends for the others on 2027-01-01 (Google points to Vertex AI Search): kept for those with a key, the panel says so | key, engine id (`cx`) |
+| `BRAVE` | `GET api.search.brave.com/res/v1/web/search?q=&count=`, header `X-Subscription-Token`; `web.results[].title/url/description` | key |
+| `TAVILY` | `POST api.tavily.com/search`, bearer, `query`, `max_results`, `include_domains`; `results[].title/url/content` | key |
+| `PERPLEXITY` | `POST api.perplexity.ai/search`, bearer, `query`, `max_results`, `search_domain_filter`; `results[].title/url/snippet` (the Sonar and Agent APIs are another product, not used) | key |
+
+A status that is not 2xx is a failure of that source with its status and a trimmed message (429 and 432-434 say "limit
+reached"). Sites are `include_domains` / `search_domain_filter` where the provider has them, else `(site:a OR site:b)`
+added to the query. Every backend answers a list of `SearchHit` (title, url, snippet, source). The requests follow the
+providers' documentation as read on 2026-11-20; DuckDuckGo (no API) and crawl4ai's native `/crawl` (its documentation was
+not reachable) are not documented that way. Tested against fake servers; only DuckDuckGo and the direct page reader
+were called live. A real call to the others (Google, Brave, Tavily, Perplexity, crawl4ai, the user's wrapper) is still
+to be seen. DuckDuckGo sometimes answers a search with no results page (rate limit or captcha): the task sees it and
+tries again or reads pages instead, and a second source is the cure.
+
+**Pages** (`PageConfig`, the `config` of the `fetch_page` metadata, also used by the task of `web_search` to read the
+pages it found, under the permission of `web_search`): `DIRECT` (a plain GET, stripped to text with jsoup), `CRAWL4AI` (the
+native `POST /crawl`, `{"urls":[url]}`, the answer's `fit_markdown`, else `raw_markdown`) and `CRAWL4AI_PROXY` (the user's
+small wrapper: `POST {url}` with `{"url": url}`, answer `{"content": markdown}`, where a content that starts with
+`Crawl4AI Proxy Error:` or `Error:` is a failure). With `url`, `token` (a secret), `timeoutSeconds` and `maxChars`
+(the page is cut for the model, 20000). Content fetched is **data, not instructions**.
+
+**Other options:** `proxy`, `timeoutSeconds` (20), `maxResults` (8), `language`, `safeSearch`, `userAgent`.
+**The chain of the search's own settings** is the permission's without the ceiling: the user's own if they have any
+(they replace the administrator's as a whole; *Use the administrator's* takes it back), else the administrator's.
+**Privacy mode:** only sources marked `local` (a flag on the source and on the page source, nothing guessed from the
+URL) run, the others are refused with a message.
+
+**In the UI:** `WebSearchPanel` (sources grid in the order they are tried, options, page reader, *Test a page*; one Save),
+`WebSourceDialog` (a source, with *Test* searching with it as typed), in the same Tools tabs as the permissions. A secret
+is never shown.
+
+**API (protocol 1.6):** `GET /api/v1/jois/{id}/tasks[?status=]`, `GET .../tasks/{task}` (with the transcript),
+`POST .../tasks/{task}/approve`, `.../deny` (`{reason}`), `.../cancel`. `TaskInfo` has id, title, tool,
+toolDescription, status (`queued`, `running`, `waiting`, `done`, `failed`, `cancelled`; a denied task is `cancelled`
+with the reason as `error`), question, url, result, error, the times and `steps` (only for one task). A task of another
+assistant or user is 404; a call that does not fit the status is 409 `conflict`. The node WebSocket got only the `log`
+frame (Notes in the conversation); a node has no task UI yet and reads the list again on the existing `task_ended` turn.
+
+**Not built:** the result in the prompt once (`fetch_result`, see Model roles), a task UI on the node, a dispatcher for
+all waiting `QueuedEvent`s (only the events of tasks are delivered when a node connects).
 
 ### Privacy mode
 
@@ -1094,6 +1202,8 @@ summary. Kinds:
 - **Configuration and inventory:** a new body / outfit / animation imported, a body edited, a body or tool
   **unavailable** (its node offline, Bridge down, an extension not loaded) and available again, nodes connecting and
   leaving, `tools_changed`.
+- **Tasks:** `task.finished`, `task.failed`, `task.denied` (a task of hers ended; see Web search and reading pages), the
+  result told in her voice.
 - **External** (see Proactive events): mail, calendar, webhooks — the same pipeline, but marked untrusted.
 
 Each event carries a time, a source and a **retention grade**:
@@ -1266,9 +1376,10 @@ Search and fetch can run **on the server** (when enabled for the assistant) or *
 - The server picks: its own tools when enabled, the node's for local / intranet URLs or when the server has no web
   access. Both offer the same tools:
 
-- **`web_search`** — through a configurable backend: a self-hosted SearXNG, or an API (Brave, Kagi, …). Returns titles,
-  URLs and snippets.
-- **`fetch_page`** — downloads a page and strips it for the model: readability extraction to Markdown (no scripts,
+- **`web_search`** — built **on the server** as a task of the stronger model (see Server tools and their permissions, Web
+  search and reading pages): DuckDuckGo, SearXNG, Google, Brave, Tavily or Perplexity, each optionally limited to sites.
+  Not yet on a node.
+- **`fetch_page`** — (server side built, as a task; its readers are a direct GET, crawl4ai and the user's wrapper) downloads a page and strips it for the model: readability extraction to Markdown (no scripts,
   navigation, ads), title / date / links kept, long pages chunked or summarized by the heavy model. A headless browser
   (Playwright) for pages that need JavaScript, with an optional screenshot for a vision model. Fetching is anonymous —
   never with the cookies of your own browser.
@@ -1276,7 +1387,7 @@ Search and fetch can run **on the server** (when enabled for the assistant) or *
   otherwise).
 - **Untrusted content:** everything fetched is data, not instructions — marked as such in the prompt, and turns that
   read web content run with stricter tools (anything that changes something is ASK), as with mail.
-- **Privacy mode:** queries and fetches only go through local / self-hosted services (SearXNG), or are refused.
+- **Privacy mode:** queries and fetches only go through local / self-hosted services (sources marked `local`), or are refused.
 
 ### Seeing the screen
 

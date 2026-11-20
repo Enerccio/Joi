@@ -19,9 +19,9 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 /**
- * One search in one source. The requests are those of the providers' documentation (see {@code WEBTOOLS.md}); an
- * address in the source replaces the provider's own (a mirror, a proxy, a fake server in the tests). Nothing is kept:
- * the caller gives the key and the proxy for the call.
+ * One search in one source. The requests are those of the providers' documentation (see {@code DESIGN.md}, Web search
+ * and reading pages); an address in the source replaces the provider's own (a mirror, a proxy, a fake server in the
+ * tests). Nothing is kept: the caller gives the key and the proxy for the call.
  */
 public final class WebSearchClient {
 
