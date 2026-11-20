@@ -638,6 +638,13 @@ A per-conversation switch for when the topic should not leave the house while an
 
 1. **Facts** — short, editable entries with their source, activated by keywords or embeddings (Marginalia's lorebook
    activation is most of this already). Joi writes them through a `remember` tool; you can approve / edit them in the UI.
+   **Built:** `remember` (the fact, its keywords, its importance) and `recall` (words; the best matches) are offered to
+   every turn (`domain/chat/MemoryTools`, `MemoryService.remember` / `search`). What she writes is **unapproved** (the
+   user reviews it in the Memories tab) but recalled all the same. Her prompt's `{{#memories}}` is filled each turn
+   (`MemoryService.prompt`): the **important** memories always, then those with a **keyword** found in what was
+   just said, at most 20, one line each; a memory scores for `recall` by the query's words in its keywords (3) and its
+   name and text (1). Not yet: the source message on a memory she writes (it is stored after the turn), embeddings, a
+   `forget`, memories learned in privacy mode kept from remote models.
 2. **Episodes** — summaries of past conversations (like Marginalia's summary chain), searchable.
 3. **Profile** — a small always-in-prompt block about the user.
    - **How the user looks (idea):** the user can upload photos of themselves, or Joi can ask for one ("I don't know

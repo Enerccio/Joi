@@ -113,7 +113,9 @@ class ChatTurnTest extends PlatformTestBase {
         List<MockLLMRequest> requests = llm.getCompletionRequests();
         assertThat(requests).hasSize(2);
         JsonArray tools = requests.getFirst().getBody().getAsJsonArray("tools");
-        assertThat(tools.get(0).getAsJsonObject().getAsJsonObject("function").get("name").getAsString()).isEqualTo("note");
+        // hers (the memory functions of the server come with it), by name
+        assertThat(tools.asList().stream().map(tool -> tool.getAsJsonObject().getAsJsonObject("function").get("name").getAsString()))
+                .contains("note", "remember", "recall");
         assertThat(requests.get(1).getLastMessage().role()).isEqualTo("tool");
         assertThat(requests.get(1).getLastMessage().content()).isEqualTo("noted milk");
 

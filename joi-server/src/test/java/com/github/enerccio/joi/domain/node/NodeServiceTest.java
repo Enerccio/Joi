@@ -1,6 +1,8 @@
 package com.github.enerccio.joi.domain.node;
 
+import com.github.enerccio.joi.domain.collections.MemoryImportance;
 import com.github.enerccio.joi.domain.model.impl.AnimationPack;
+import com.github.enerccio.joi.domain.model.impl.Memory;
 import com.github.enerccio.joi.domain.bodies.ModelFiles;
 import com.github.enerccio.joi.domain.bodies.UnityFixtures;
 import com.github.enerccio.joi.domain.collections.ChatMessageType;
@@ -59,6 +61,8 @@ class NodeServiceTest extends PlatformTestBase {
     private BodyService bodyService;
     @Autowired
     private AnimationPackService packService;
+    @Autowired
+    private MemoryService memoryService;
     @Autowired
     private ModelService modelService;
     @Autowired
@@ -539,6 +543,54 @@ class NodeServiceTest extends PlatformTestBase {
         node.frame("say", "t3", "{\"text\": \"Moonwalk!\", \"speak\": false}");
         node.next("done");
         assertThat(llm.getCompletionRequests().get(4).getLastMessage().content()).contains("no such animation").contains("Wave");
+    }
+
+    @Test
+    void sheWritesDownWhatSheLearnsAndItComesBackWhenItsKeywordsAreSaid() throws Exception {
+        llm.enqueue(MockLLMResponse.text("Hello."),
+                MockLLMResponse.text("Noted.").andToolCall("remember",
+                        "{\"text\":\"The user's sister is called Mia.\",\"keywords\":\"Mia, sister\",\"importance\":\"important\"}"),
+                MockLLMResponse.text("I will not forget."),
+                MockLLMResponse.toolCall("recall", "{\"query\":\"sister\"}"),
+                MockLLMResponse.text("Mia, right."),
+                MockLLMResponse.text("Yes."));
+        Node node = connect("Bearer " + token);
+        node.hello("n1", "desk", joi.getUuid(), "1.5");
+        node.next("welcome");
+        node.manifest(1);
+        node.frame("say", "t1", "{\"text\": \"Hi\", \"speak\": false}");
+        node.next("done");
+        assertThat(llm.getCompletionRequests().getFirst().getPromptText()).doesNotContain("WHAT YOU REMEMBER");
+
+        node.frame("say", "t2", "{\"text\": \"My sister is called Mia.\", \"speak\": false}");
+        node.next("done");
+        List<Memory> memories = memoryService.findAll(joi);
+        assertThat(memories).hasSize(1);
+        assertThat(memories.getFirst().getText()).isEqualTo("The user's sister is called Mia.");
+        assertThat(memories.getFirst().getKeywords()).isEqualTo("mia, sister");
+        assertThat(memories.getFirst().getImportance()).isEqualTo(MemoryImportance.IMPORTANT);
+        assertThat(memories.getFirst().getApproved()).isFalse();
+
+        // she looks it up
+        node.frame("say", "t3", "{\"text\": \"Who is my sister?\", \"speak\": false}");
+        node.next("done");
+        assertThat(llm.getCompletionRequests().get(4).getLastMessage().content()).contains("The user's sister is called Mia.");
+        // and the important memory is in her prompt from then on
+        node.frame("say", "t4", "{\"text\": \"Thanks.\", \"speak\": false}");
+        node.next("done");
+        assertThat(llm.getCompletionRequests().getLast().getPromptText()).contains("WHAT YOU REMEMBER").contains("- The user's sister is called Mia.");
+    }
+
+    @Test
+    void anUnimportantMemoryIsRecalledOnlyForItsKeywordsAndSearchScoresThem() throws Exception {
+        memoryService.remember(joi, null, "Likes green tea.", "tea", MemoryImportance.MEDIUM);
+        memoryService.remember(joi, null, "Allergic to peanuts.", "peanut, allergy", MemoryImportance.IMPORTANT);
+        memoryService.remember(joi, null, "Went to Brno once.", "brno", null);
+        assertThat(memoryService.prompt(joi, "Hello", 20)).isEqualTo("- Allergic to peanuts.");
+        assertThat(memoryService.prompt(joi, "I made some TEA", 20)).isEqualTo("- Allergic to peanuts.\n- Likes green tea.");
+        assertThat(memoryService.prompt(joi, "tea and brno", 2)).isEqualTo("- Allergic to peanuts.\n- Went to Brno once.");
+        assertThat(memoryService.search(joi, "green tea", 5)).extracting(Memory::getText).containsExactly("Likes green tea.");
+        assertThat(memoryService.search(joi, "ab", 5)).isEmpty();
     }
 
     @Test

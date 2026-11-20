@@ -29,6 +29,27 @@ public interface MemoryService extends ExtendableService<Memory, MemoryRepositor
     Memory update(Joi joi, Memory memory) throws Exception;
 
     /**
+     * What she writes down herself ({@code remember}): an unapproved memory, the user reviews it in the Memories tab.
+     *
+     * @param importance null for medium
+     */
+    Memory remember(Joi joi, String name, String text, String keywords, MemoryImportance importance) throws Exception;
+
+    /**
+     * Her memories that fit the words, the best first ({@code recall}): a memory scores by the words of the query found
+     * in its keywords, its name and its text, the keywords counting most.
+     *
+     * @param limit at most this many
+     */
+    List<Memory> search(Joi joi, String query, int limit) throws Exception;
+
+    /**
+     * The memories recalled into her prompt ({@code {{#memories}}}) for what was said: the important ones always, then
+     * the ones with a keyword in the words said, at most {@code limit}; one line each. Null when there is none.
+     */
+    String prompt(Joi joi, String said, int limit) throws Exception;
+
+    /**
      * Deletes her memories (soft); an id that isn't one of hers is skipped.
      *
      * @return how many were deleted

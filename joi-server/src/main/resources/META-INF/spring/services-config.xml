@@ -312,5 +312,7 @@
     <bean class="com.github.enerccio.joi.domain.chat.BodyTools" />
     <!-- she plays an animation of her body herself -->
     <bean class="com.github.enerccio.joi.domain.chat.AnimationTools" />
+    <!-- she writes down and looks up what she remembers -->
+    <bean class="com.github.enerccio.joi.domain.chat.MemoryTools" />
 
 </beans>

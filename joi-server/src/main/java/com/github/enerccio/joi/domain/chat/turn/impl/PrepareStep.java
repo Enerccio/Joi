@@ -7,6 +7,7 @@ import com.github.enerccio.joi.domain.chat.turn.TurnStepType;
 import com.github.enerccio.joi.domain.model.impl.Joi;
 import com.github.enerccio.joi.domain.service.BodyService;
 import com.github.enerccio.joi.domain.service.JoiService;
+import com.github.enerccio.joi.domain.service.MemoryService;
 import com.github.enerccio.joi.domain.templates.ChatTemplateData;
 import com.github.enerccio.joi.tts.model.Actor;
 import org.apache.commons.lang3.StringUtils;
@@ -21,6 +22,12 @@ public class PrepareStep extends TurnStepBase {
     @Autowired
     private BodyService bodyService;
 
+    @Autowired
+    private MemoryService memoryService;
+
+    /** How many memories her prompt recalls at most. */
+    private static final int MEMORIES = 20;
+
     @Override
     protected void onStep(TurnController controller) throws Exception {
         controller.emitEvent(TurnEvents.BEFORE_PREPARE, () -> {
@@ -31,6 +38,7 @@ public class PrepareStep extends TurnStepBase {
             ChatTemplateData data = new ChatTemplateData();
             data.setNode(StringUtils.defaultIfBlank(controller.getInput().node(), null));
             data.setBody(bodyService.prompt(joi));
+            data.setMemories(memoryService.prompt(joi, controller.getInput().text(), MEMORIES));
             Actor voice = chatService.ttsModel(joi) == null ? null : chatService.voiceActor(joi);
             data.setVoice(voice == null ? null : StringUtils.defaultIfBlank(voice.getDescription(), null));
             controller.setTemplateData(data);
