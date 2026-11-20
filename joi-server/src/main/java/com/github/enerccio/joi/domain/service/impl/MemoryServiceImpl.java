@@ -94,25 +94,33 @@ public class MemoryServiceImpl extends ExtendableServiceImpl<Memory, MemoryRepos
 
     @Override
     @CommonTxReadOnly
-    public String prompt(Joi joi, String said, int limit) throws Exception {
+    public String important(Joi joi, int limit) throws Exception {
+        List<Memory> chosen = getRepository().findAll(joi).stream()
+                .filter(memory -> memory.getImportance() == MemoryImportance.IMPORTANT && StringUtils.isNotBlank(memory.getText()))
+                // oldest first: a new memory goes at the end, so the lines before it stay as they were
+                .sorted(Comparator.comparing(Memory::getId)).toList();
+        return lines(chosen, limit);
+    }
+
+    @Override
+    @CommonTxReadOnly
+    public String recalled(Joi joi, String said, int limit) throws Exception {
         String lower = StringUtils.defaultString(said).toLowerCase(Locale.ROOT);
-        List<Memory> chosen = new ArrayList<>();
-        for (Memory memory : getRepository().findAll(joi)) {
-            if (StringUtils.isBlank(memory.getText())) {
-                continue;
-            }
-            boolean important = memory.getImportance() == MemoryImportance.IMPORTANT;
-            boolean keyed = !lower.isBlank() && keywordList(memory.getKeywords()).stream().anyMatch(lower::contains);
-            if (important || keyed) {
-                chosen.add(memory);
-            }
-        }
-        // important ones first, then by recency (the list is newest first)
-        chosen.sort((a, b) -> Boolean.compare(b.getImportance() == MemoryImportance.IMPORTANT, a.getImportance() == MemoryImportance.IMPORTANT));
-        if (chosen.isEmpty()) {
+        if (lower.isBlank()) {
             return null;
         }
-        return chosen.stream().limit(limit).map(memory -> "- " + memory.getText().strip().replaceAll("\\s*\\R\\s*", " "))
+        // the newest first (the list is)
+        List<Memory> chosen = getRepository().findAll(joi).stream()
+                .filter(memory -> memory.getImportance() != MemoryImportance.IMPORTANT && StringUtils.isNotBlank(memory.getText())
+                        && keywordList(memory.getKeywords()).stream().anyMatch(lower::contains)).toList();
+        return lines(chosen, limit);
+    }
+
+    private static String lines(List<Memory> memories, int limit) {
+        if (memories.isEmpty()) {
+            return null;
+        }
+        return memories.stream().limit(limit).map(memory -> "- " + memory.getText().strip().replaceAll("\\s*\\R\\s*", " "))
                 .collect(Collectors.joining("\n"));
     }
 

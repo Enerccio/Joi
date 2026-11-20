@@ -7,6 +7,7 @@ import com.github.enerccio.joi.domain.chat.turn.TurnEvents;
 import com.github.enerccio.joi.domain.chat.turn.TurnInput;
 import com.github.enerccio.joi.domain.chat.turn.TurnOutcome;
 import com.github.enerccio.joi.domain.chat.turn.TurnProperties;
+import com.github.enerccio.joi.domain.collections.MemoryImportance;
 import com.github.enerccio.joi.domain.model.impl.ChatMessage;
 import com.github.enerccio.joi.domain.model.impl.Joi;
 import com.github.enerccio.joi.domain.service.ChatMessageService;
@@ -41,6 +42,8 @@ class ChatTurnTest extends PlatformTestBase {
 
     @Autowired
     private ChatService chatService;
+    @Autowired
+    private com.github.enerccio.joi.domain.service.MemoryService memoryService;
     @Autowired
     private JoiService joiService;
     @Autowired
@@ -128,6 +131,58 @@ class ChatTurnTest extends PlatformTestBase {
                 TurnEvents.BEFORE_TOOL_CALL, TurnEvents.AFTER_TOOL_CALL, TurnEvents.BEFORE_INFERENCE,
                 TurnEvents.AFTER_INFERENCE, TurnEvents.BEFORE_STORE, TurnEvents.AFTER_STORE, TurnEvents.AFTER_CLEANUP);
         assertThat(seen).contains(TurnEvents.CHUNK_RECEIVED);
+    }
+
+    @Test
+    void aMessageReadsTheSameInEveryPromptAfterItAndTheSystemPromptHasNoClock() throws Exception {
+        llm.enqueue(MockLLMResponse.text("One."), MockLLMResponse.text("Two."), MockLLMResponse.text("Three."));
+        chat("First", new ChatService.Listener() {
+        });
+        chat("Second", new ChatService.Listener() {
+        });
+        chat("Third", new ChatService.Listener() {
+        });
+        List<MockLLMRequest> requests = llm.getCompletionRequests();
+
+        // the first message of the prompt has the time line of when it was said, and her own replies have none
+        String first = requests.get(0).getLastMessage().content();
+        assertThat(first).matches("(?s)\\[[A-Z][a-z]+, [A-Z][a-z]+ \\d+, \\d{4}, \\d+:\\d\\d [AP]M\\]\nFirst");
+        // the clock is not in the system prompt: it would break the model's cache of it with every minute
+        assertThat(requests.get(0).getMessages("system").getFirst()).doesNotContain("It is ").doesNotContain("{{");
+        assertThat(requests.get(0).getMessages("system").getFirst()).contains("Lines in square brackets");
+
+        // no pause between them: the later ones have no line, and every message reads in the later prompts as it read
+        // when it was the newest
+        assertThat(requests.get(1).getMessages().get(1).content()).isEqualTo(first);
+        assertThat(requests.get(1).getLastMessage().content()).isEqualTo("Second");
+        assertThat(requests.get(2).getMessages().get(1).content()).isEqualTo(first);
+        assertThat(requests.get(2).getMessages().get(3).content()).isEqualTo("Second");
+        assertThat(requests.get(2).getMessages().get(2).content()).isEqualTo("One.");
+    }
+
+    @Test
+    void theMemoriesThatFitAMessageAreAddedToItAndTheImportantOnesAreInTheSystemPrompt() throws Exception {
+        memoryService.remember(joi, null, "Allergic to peanuts.", "peanut", MemoryImportance.IMPORTANT);
+        memoryService.remember(joi, null, "Likes green tea.", "tea", MemoryImportance.MEDIUM);
+        llm.enqueue(MockLLMResponse.text("Hello."), MockLLMResponse.text("Tea!"), MockLLMResponse.text("Yes."));
+        chat("Hi", new ChatService.Listener() {
+        });
+        chat("I made some tea", new ChatService.Listener() {
+        });
+        chat("Thanks", new ChatService.Listener() {
+        });
+        List<MockLLMRequest> requests = llm.getCompletionRequests();
+
+        // the system prompt is the same in every prompt, the always recalled memory is in it, the other is not
+        String system = requests.get(0).getMessages("system").getFirst();
+        assertThat(system).contains("- Allergic to peanuts.").doesNotContain("Likes green tea.");
+        assertThat(requests.get(1).getMessages("system").getFirst()).isEqualTo(system);
+        assertThat(requests.get(2).getMessages("system").getFirst()).isEqualTo(system);
+        assertThat(requests.get(0).getLastMessage().content()).doesNotContain("Likes green tea.");
+
+        // the one that fits is after the message that called it, in this prompt only: it is not stored with it
+        assertThat(requests.get(1).getLastMessage().content()).startsWith("I made some tea\n[You remember").contains("- Likes green tea.");
+        assertThat(requests.get(2).getMessages().get(3).content()).isEqualTo("I made some tea");
     }
 
     @Test

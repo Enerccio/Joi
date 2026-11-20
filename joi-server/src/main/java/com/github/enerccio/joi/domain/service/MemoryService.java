@@ -44,10 +44,18 @@ public interface MemoryService extends ExtendableService<Memory, MemoryRepositor
     List<Memory> search(Joi joi, String query, int limit) throws Exception;
 
     /**
-     * The memories recalled into her prompt ({@code {{#memories}}}) for what was said: the important ones always, then
-     * the ones with a keyword in the words said, at most {@code limit}; one line each. Null when there is none.
+     * The memories in her system prompt ({@code {{#memories}}}): the important ones, always, at most {@code limit}, one
+     * line each. They do not depend on what was said, so the system prompt is the same from turn to turn (the model's
+     * cache of it keeps). Null when there is none.
      */
-    String prompt(Joi joi, String said, int limit) throws Exception;
+    String important(Joi joi, int limit) throws Exception;
+
+    /**
+     * The memories that fit what was said, for the message ({@code RECALLED_MEMORIES}): the ones with a keyword in the
+     * words said, the important ones left out (they are in her system prompt), at most {@code limit}, one line each.
+     * Null when there is none.
+     */
+    String recalled(Joi joi, String said, int limit) throws Exception;
 
     /**
      * Deletes her memories (soft); an id that isn't one of hers is skipped.

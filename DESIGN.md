@@ -463,6 +463,33 @@ run by `ChatServiceImpl`). Marginalia's agent runner is not used.
 - **Who hooks in:** the server's own features (her memories in the prompt, server tools such as `remember` or
   `set_mood`, the nodes' tools and approvals) and later extensions. Nothing is offered yet: `COLLECT_TOOLS` starts
   empty.
+- **A prompt the model's cache keeps (built).** A model reuses the work it did on a prompt only up to the first token
+  that differs from the last one; everything after that is done again, her whole history included. So the prompt is
+  written to change as late and as seldom as it can:
+  - **The system prompt is the same from turn to turn.** It holds nothing of the moment: no clock, and of her memories
+    only the *important* ones (`MemoryService.important`, oldest first, so a new one goes at the end). What changes it
+    is rare: the daily mood roll, a changed personality, body, memory or summary.
+  - **When a message was said is in the message.** Before a message of the user, or an event, goes a line from the
+    template `MESSAGE_STAMP` (`[Friday, November 20, 2026, 3:42 PM, 3 hours after the last message]`), made by
+    `MessageStamps` and only put in the prompt, never stored. It depends on the message and the one before it and
+    never on the clock of the prompt, so a message reads the same when it is the newest and in every prompt after.
+    It is there for the first message of the prompt (she always knows the day), after a pause of 10 minutes or more,
+    and when the day changes (the server's zone); the time is the minute it was sent. Her replies, tool results and
+    the system prompt have none. Her prompt says what the lines are and not to write one.
+  - **The memories that fit a message come after it.** The ones whose keywords were said (`MemoryService.recalled`)
+    are added to the current message from the template `RECALLED_MEMORIES`, in that prompt only: they change with
+    every message, so they are not in the system prompt.
+  - **Still open:** the history is the latest `ChatService.HISTORY` messages, so once it is full its first message
+    drops out with every turn and the prefix moves; summaries in place of old messages (see Memory) must come in
+    steps, not one a turn, for the cache to keep.
+- **Warming the cache (designed, not built).** With the prompt stable, a request that generates nothing and only
+  reads the prompt (llama.cpp `n_predict: 0`, with the prompt cache on) can be sent right after something changes the
+  stable part (a memory approved or edited, a summary written, a mood, a personality or a body changed), so the next
+  message does not wait for it. It is sent a few seconds after the last change (several edits make one request),
+  only when nothing else runs and gives way to the user's speech, to speech synthesis and to a model swap on the
+  same GPU (it can be cancelled); for local models only by default (on a paid API it spends tokens on a guess, and
+  hosted caches expire in minutes). Where the disk caches are ported, it saves the cache after it, so a server that
+  starts is warm too.
 
 ### Persona
 

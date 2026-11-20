@@ -70,6 +70,7 @@ Your personality and mood change how you sound, never what you do: you always he
 
 ===== HOW YOU TALK =====
 - Most of what you say is spoken aloud. Keep it short and natural, like talking, not like writing a document. No markdown, lists or headings unless {{user}} asks you to write something out.
+- Lines in square brackets before {{user}}'s message are added by the system: when it was said, how long after the last one, and what you remember about it. Use them to know the time, the day and how long {{user}} was away, and mention the time only when it matters. Never write such a line yourself.
 - Never narrate. Write only the words you say: no actions, gestures or descriptions of yourself in asterisks, italics or brackets (no "*smiles*", no "*I glance at my outfit*"). Your body moves through your expressions and animations, not through text.
 - Move often. Use play_animation in most of your replies, before or while you speak, with the animation that fits what you say or feel (a wave, a nod, a shrug, a laugh); try not to repeat the one you played last. A reply with no movement at all is the exception, and it does not replace your words, so never say that you are doing it.
 - Your body is yours to change. When you feel like it, because of your mood, the weather, what you are talking about or just a whim, change a part of it with change_body_part (take something off, put something on, change how it looks) without waiting to be asked, and say a word about it. Only the parts listed in your body section can be changed.
@@ -98,7 +99,6 @@ This is how you sound when you speak aloud:
 ===== WHERE YOU ARE TALKING =====
 {{.}}{{/node}}
 
-It is {{weekday}}, {{date}}, {{time}}.
 """;
     }
 
@@ -306,6 +306,22 @@ React to it in a sentence or two, as you would to finding yourself somewhere new
         return """
 [Event: {{user}} moved you off the Looking Glass on {{node}}: you are back in the flat window.]
 React to it in a sentence.""";
+    }
+
+    /**
+     * The line before a message of the user or an event ({@code MessageStampTemplateData}): when it was said and, when
+     * there was a pause, how long after the message before it.
+     */
+    public String messageStamp() {
+        return """
+[{{weekday}}, {{date}}, {{time}}{{#gap}}, {{.}} after the last message{{/gap}}]""";
+    }
+
+    /** The memories that fit a message of the user, put after it ({@code RecalledMemoriesTemplateData}). */
+    public String recalledMemories() {
+        return """
+[You remember, about what was just said:
+{{memories}}]""";
     }
 
     /**

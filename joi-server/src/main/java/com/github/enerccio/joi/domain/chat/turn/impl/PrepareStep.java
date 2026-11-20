@@ -38,7 +38,7 @@ public class PrepareStep extends TurnStepBase {
             ChatTemplateData data = new ChatTemplateData();
             data.setNode(StringUtils.defaultIfBlank(controller.getInput().node(), null));
             data.setBody(bodyService.prompt(joi));
-            data.setMemories(memoryService.prompt(joi, controller.getInput().text(), MEMORIES));
+            data.setMemories(memoryService.important(joi, MEMORIES));
             Actor voice = chatService.ttsModel(joi) == null ? null : chatService.voiceActor(joi);
             data.setVoice(voice == null ? null : StringUtils.defaultIfBlank(voice.getDescription(), null));
             controller.setTemplateData(data);

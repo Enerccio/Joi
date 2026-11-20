@@ -336,8 +336,10 @@ class JoiApiTest extends PlatformTestBase {
         // without asking for it, no reasoning
         assertThat(second.json().get("reasoning").isJsonNull()).isTrue();
         List<MockLLMRequest.Message> messages = llm.lastCompletionRequest().getMessages();
-        assertThat(messages.stream().map(MockLLMRequest.Message::content))
-                .containsSubsequence("Hi!", "Hello, Peter.", "Still there?");
+        List<String> contents = messages.stream().map(MockLLMRequest.Message::content).toList();
+        // the first message of the prompt has the line of when it was said before it
+        assertThat(contents.get(1)).startsWith("[").endsWith("]\nHi!");
+        assertThat(contents).containsSubsequence(contents.get(1), "Hello, Peter.", "Still there?");
 
         Answer listed = get("/api/v1/jois");
         assertThat(listed.json().getAsJsonArray("jois").get(0).getAsJsonObject().get("lastChatted").isJsonNull()).isFalse();

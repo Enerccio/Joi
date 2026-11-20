@@ -99,6 +99,16 @@ public class Joi extends ExtendableEntity implements PersonaAttributes {
     @Transient
     private String serverRestartedEvent;
 
+    /** The line before each message of the user and each event: when it was said ({@code MessageStampTemplateData}). */
+    @ExtendedAttribute
+    @Transient
+    private String messageStamp;
+
+    /** The memories that fit the message, added to it ({@code RecalledMemoriesTemplateData}). */
+    @ExtendedAttribute
+    @Transient
+    private String recalledMemories;
+
     /** What she is told when the user asks to change parts of her body and her personality lets her decide ({@code PartRequestTemplateData}). */
     @ExtendedAttribute
     @Transient
@@ -440,6 +450,22 @@ public class Joi extends ExtendableEntity implements PersonaAttributes {
     }
 
     @Override
+    public String getMessageStamp() {
+        return messageStamp;
+    }
+
+    public void setMessageStamp(String messageStamp) {
+        this.messageStamp = messageStamp;
+    }
+
+    public String getRecalledMemories() {
+        return recalledMemories;
+    }
+
+    public void setRecalledMemories(String recalledMemories) {
+        this.recalledMemories = recalledMemories;
+    }
+
     public String getServerRestartedEvent() {
         return serverRestartedEvent;
     }

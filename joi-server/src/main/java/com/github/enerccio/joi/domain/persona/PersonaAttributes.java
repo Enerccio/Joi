@@ -64,6 +64,14 @@ public interface PersonaAttributes {
 
     void setLookingGlassExitedEvent(String lookingGlassExitedEvent);
 
+    String getMessageStamp();
+
+    void setMessageStamp(String messageStamp);
+
+    String getRecalledMemories();
+
+    void setRecalledMemories(String recalledMemories);
+
     String getServerRestartedEvent();
 
     void setServerRestartedEvent(String serverRestartedEvent);

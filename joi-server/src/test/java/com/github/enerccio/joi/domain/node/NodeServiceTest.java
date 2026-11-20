@@ -586,9 +586,11 @@ class NodeServiceTest extends PlatformTestBase {
         memoryService.remember(joi, null, "Likes green tea.", "tea", MemoryImportance.MEDIUM);
         memoryService.remember(joi, null, "Allergic to peanuts.", "peanut, allergy", MemoryImportance.IMPORTANT);
         memoryService.remember(joi, null, "Went to Brno once.", "brno", null);
-        assertThat(memoryService.prompt(joi, "Hello", 20)).isEqualTo("- Allergic to peanuts.");
-        assertThat(memoryService.prompt(joi, "I made some TEA", 20)).isEqualTo("- Allergic to peanuts.\n- Likes green tea.");
-        assertThat(memoryService.prompt(joi, "tea and brno", 2)).isEqualTo("- Allergic to peanuts.\n- Went to Brno once.");
+        // the system prompt holds the important ones whatever was said, the message the ones its words call back
+        assertThat(memoryService.important(joi, 20)).isEqualTo("- Allergic to peanuts.");
+        assertThat(memoryService.recalled(joi, "Hello", 20)).isNull();
+        assertThat(memoryService.recalled(joi, "I made some TEA", 20)).isEqualTo("- Likes green tea.");
+        assertThat(memoryService.recalled(joi, "tea, brno and a peanut", 1)).isEqualTo("- Went to Brno once.");
         assertThat(memoryService.search(joi, "green tea", 5)).extracting(Memory::getText).containsExactly("Likes green tea.");
         assertThat(memoryService.search(joi, "ab", 5)).isEmpty();
     }

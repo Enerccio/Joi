@@ -4,6 +4,8 @@ import com.github.enerccio.joi.defaults.JoiDefaults;
 import com.github.enerccio.joi.domain.model.impl.settings.JoiUserSetting;
 import com.github.enerccio.joi.domain.templates.BodyTemplateData;
 import com.github.enerccio.joi.domain.templates.ChatTemplateData;
+import com.github.enerccio.joi.domain.templates.MessageStampTemplateData;
+import com.github.enerccio.joi.domain.templates.RecalledMemoriesTemplateData;
 import com.github.enerccio.joi.domain.templates.DaySummaryTemplateData;
 import com.github.enerccio.joi.domain.templates.FactsTemplateData;
 import com.github.enerccio.joi.domain.templates.NodeEventTemplateData;
@@ -47,6 +49,10 @@ public enum JoiPromptField {
             PersonaAttributes::setLookingGlassExitedEvent, JoiDefaults::lookingGlassExitedEvent),
     SERVER_RESTARTED_EVENT("serverRestartedEvent", NodeEventTemplateData.class, PersonaAttributes::getServerRestartedEvent,
             PersonaAttributes::setServerRestartedEvent, JoiDefaults::serverRestartedEvent),
+    MESSAGE_STAMP("messageStamp", MessageStampTemplateData.class, PersonaAttributes::getMessageStamp,
+            PersonaAttributes::setMessageStamp, JoiDefaults::messageStamp),
+    RECALLED_MEMORIES("recalledMemories", RecalledMemoriesTemplateData.class, PersonaAttributes::getRecalledMemories,
+            PersonaAttributes::setRecalledMemories, JoiDefaults::recalledMemories),
     PART_REQUEST_EVENT("partRequestEvent", PartRequestTemplateData.class, PersonaAttributes::getPartRequestEvent,
             PersonaAttributes::setPartRequestEvent, JoiDefaults::partRequestEvent);
 
