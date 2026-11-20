@@ -56,6 +56,8 @@ public final class PromptAreas {
             case MESSAGE_STAMP -> J_L.LABEL_MESSAGE_STAMP;
             case RECALLED_MEMORIES -> J_L.LABEL_RECALLED_MEMORIES;
             case PART_REQUEST_EVENT -> J_L.LABEL_PART_REQUEST_EVENT;
+            case WEB_TASK_PROMPT -> J_L.LABEL_WEB_TASK_PROMPT;
+            case TASK_EVENT -> J_L.LABEL_TASK_EVENT;
         };
     }
 

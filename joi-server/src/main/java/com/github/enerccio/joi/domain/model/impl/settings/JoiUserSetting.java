@@ -117,6 +117,16 @@ public class JoiUserSetting extends BaseUserSetting implements PersonaAttributes
     @Transient
     private String partRequestEvent;
 
+    /** What the stronger model is told when it searches the web or reads a page for her ({@code WebTaskTemplateData}). */
+    @ExtendedAttribute
+    @Transient
+    private String webTaskPrompt;
+
+    /** What she is told when a task of hers ends ({@code TaskEventTemplateData}). */
+    @ExtendedAttribute
+    @Transient
+    private String taskEvent;
+
     /** The key of the personality, blank for the default one. */
     @ExtendedAttribute
     @Transient
@@ -416,5 +426,25 @@ public class JoiUserSetting extends BaseUserSetting implements PersonaAttributes
     @Override
     public void setPartRequestEvent(String partRequestEvent) {
         this.partRequestEvent = partRequestEvent;
+    }
+
+    @Override
+    public String getWebTaskPrompt() {
+        return webTaskPrompt;
+    }
+
+    @Override
+    public void setWebTaskPrompt(String webTaskPrompt) {
+        this.webTaskPrompt = webTaskPrompt;
+    }
+
+    @Override
+    public String getTaskEvent() {
+        return taskEvent;
+    }
+
+    @Override
+    public void setTaskEvent(String taskEvent) {
+        this.taskEvent = taskEvent;
     }
 }

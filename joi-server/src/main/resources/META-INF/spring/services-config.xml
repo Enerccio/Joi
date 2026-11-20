@@ -243,6 +243,8 @@
     <bean class="com.github.enerccio.joi.domain.service.impl.ToolPermissionServiceImpl" />
     <!-- the search sources, proxy and page reader of web_search and fetch_page, with their keys -->
     <bean class="com.github.enerccio.joi.domain.service.impl.WebToolSettingsServiceImpl" />
+    <!-- what she asks of the web becomes a task of the stronger model; the user answers an ask in her dialog or through the API -->
+    <bean class="com.github.enerccio.joi.domain.service.impl.WebTaskServiceImpl" />
 
     <!-- the 3D models of the user, what bodies are made of; their files are resources -->
     <bean id="modelRepository" class="com.github.enerccio.joi.domain.repository.impl.JpaModelRepository">
@@ -325,5 +327,7 @@
     <bean class="com.github.enerccio.joi.domain.chat.AnimationTools" />
     <!-- she writes down and looks up what she remembers -->
     <bean class="com.github.enerccio.joi.domain.chat.MemoryTools" />
+    <!-- she searches the web and reads pages through tasks of the stronger model -->
+    <bean class="com.github.enerccio.joi.domain.chat.WebTools" />
 
 </beans>

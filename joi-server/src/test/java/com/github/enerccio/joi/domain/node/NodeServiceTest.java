@@ -2,7 +2,9 @@ package com.github.enerccio.joi.domain.node;
 
 import com.github.enerccio.joi.domain.collections.MemoryImportance;
 import com.github.enerccio.joi.domain.model.impl.AnimationPack;
+import com.github.enerccio.joi.domain.events.JoiEvents;
 import com.github.enerccio.joi.domain.model.impl.Memory;
+import com.github.enerccio.joi.domain.model.impl.QueuedEvent;
 import com.github.enerccio.joi.domain.bodies.ModelFiles;
 import com.github.enerccio.joi.domain.bodies.UnityFixtures;
 import com.github.enerccio.joi.domain.collections.ChatMessageType;
@@ -67,6 +69,8 @@ class NodeServiceTest extends PlatformTestBase {
     private ModelService modelService;
     @Autowired
     private PersonaService personaService;
+    @Autowired
+    private QueuedEventService queuedEventService;
 
     private final JsonSchemaFactory schemas = JsonSchemaFactory.getInstance(SpecVersion.VersionFlag.V202012,
             builder -> builder.schemaMappers(m -> m.mapPrefix(BASE, "classpath:joi-protocol/schemas/")));
@@ -868,5 +872,51 @@ class NodeServiceTest extends PlatformTestBase {
         assertThat(stopped.get("ref").getAsString()).isEqualTo("t1");
         assertThat(stopped.getAsJsonObject("data").get("code").getAsString()).isEqualTo("stopped");
         assertThat(chatMessageService.findLatest(joi, 10)).isEmpty();
+    }
+
+    @Test
+    void whatATaskFoundWhileNoNodeWasConnectedIsToldWhenOneConnects() throws Exception {
+        QueuedEvent waiting = new QueuedEvent();
+        waiting.setJoi(joi);
+        waiting.setKind(JoiEvents.TASK_ENDED);
+        waiting.setOccurredAt(new java.util.Date());
+        waiting.setText("[Event: your task \"capital of Australia\" is finished.]\nCanberra.");
+        waiting = queuedEventService.save(waiting);
+        // the other kinds of waiting events are not delivered yet
+        QueuedEvent other = new QueuedEvent();
+        other.setJoi(joi);
+        other.setKind(JoiEvents.RENAMED);
+        other.setOccurredAt(new java.util.Date());
+        other.setText("Your name changed.");
+        other = queuedEventService.save(other);
+
+        llm.enqueue(MockLLMResponse.text("Canberra, it seems."));
+        Node node = connect("Bearer " + token);
+        node.hello("n1", "desk", joi.getUuid(), "1.5");
+        node.next("welcome");
+        node.manifest(1);
+        assertThat(node.next("turn").getAsJsonObject("data").get("cause").getAsString()).isEqualTo("task_ended");
+        node.next("done");
+        ChatMessage told = chatMessageService.findLatest(joi, 1).getFirst();
+        assertThat(told.getType()).isEqualTo(ChatMessageType.EVENT);
+        assertThat(told.getEventKind()).isEqualTo("node.task_ended");
+        assertThat(told.getInput()).contains("capital of Australia").contains("Canberra.").doesNotContain("Your name changed");
+        assertThat(told.getResponse()).isEqualTo("Canberra, it seems.");
+        assertThat(queuedEventService.findWaiting(joi)).extracting(QueuedEvent::getKind).containsExactly(JoiEvents.RENAMED);
+    }
+
+    @Test
+    void whatATaskFindsWhileANodeIsConnectedIsToldAtOnceAndAloneWithoutIt() throws Exception {
+        assertThat(nodeService.tell(joi, "[Event: your task is finished.]", "task_ended")).isFalse();
+
+        llm.enqueue(MockLLMResponse.text("Found it."));
+        Node node = connect("Bearer " + token);
+        node.hello("n1", "desk", joi.getUuid(), "1.5");
+        node.next("welcome");
+        node.manifest(1);
+        assertThat(nodeService.tell(joi, "[Event: your task \"x\" is finished.]\nThe answer.", "task_ended")).isTrue();
+        assertThat(node.next("turn").getAsJsonObject("data").get("cause").getAsString()).isEqualTo("task_ended");
+        node.next("done");
+        assertThat(chatMessageService.findLatest(joi, 1).getFirst().getInput()).contains("The answer.");
     }
 }

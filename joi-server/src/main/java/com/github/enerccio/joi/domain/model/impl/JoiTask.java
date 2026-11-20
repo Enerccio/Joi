@@ -59,6 +59,16 @@ public class JoiTask extends ExtendableEntity {
     @Transient
     private String instructions;
 
+    /** The function of the server tool that started it ({@code web_search}, {@code fetch_page}). */
+    @ExtendedAttribute
+    @Transient
+    private String tool;
+
+    /** The page to read, for {@code fetch_page}. */
+    @ExtendedAttribute
+    @Transient
+    private String url;
+
     /** The id of the tool call that started the task, to answer it. */
     @ExtendedAttribute
     @Transient
@@ -135,6 +145,22 @@ public class JoiTask extends ExtendableEntity {
 
     public void setInstructions(String instructions) {
         this.instructions = instructions;
+    }
+
+    public String getTool() {
+        return tool;
+    }
+
+    public void setTool(String tool) {
+        this.tool = tool;
+    }
+
+    public String getUrl() {
+        return url;
+    }
+
+    public void setUrl(String url) {
+        this.url = url;
     }
 
     public String getToolCallId() {

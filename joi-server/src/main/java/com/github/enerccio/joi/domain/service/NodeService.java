@@ -43,6 +43,15 @@ public interface NodeService {
     void notify(Joi joi, String event);
 
     /**
+     * Tells her something that happened, in a turn of hers on one of her connected nodes: what happens in a burst is told
+     * together, and after the turn that runs now.
+     *
+     * @param cause why, as the node sees it ({@code task_ended}); null for the default
+     * @return false when no node of hers is connected: the caller keeps the event for later
+     */
+    boolean tell(Joi joi, String text, String cause);
+
+    /**
      * She plays an animation: an {@code animation} frame to her nodes.
      *
      * @return how many nodes were told (none when no node is connected)

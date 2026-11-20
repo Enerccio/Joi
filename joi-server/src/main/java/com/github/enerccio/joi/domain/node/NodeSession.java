@@ -64,8 +64,13 @@ public class NodeSession {
      *
      * @param text    what she is told
      * @param request the number of the request of the user she is to decide on, null for an event
+     * @param cause   the cause of the turn that tells her, as the node sees it ({@code task_ended}); null for the default
      */
-    public record Pending(String text, Integer request) {
+    public record Pending(String text, Integer request, String cause) {
+
+        public Pending(String text, Integer request) {
+            this(text, request, null);
+        }
     }
 
     /**

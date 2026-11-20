@@ -92,6 +92,11 @@ info:
     reason), and it starts her turn with the cause `server_restarted`, once for her however many nodes come back, with
     how long it was gone: she can react to it. A node that only lost the network gets no such turn.
 
+    **A task of hers that ended** (since 1.6). She searches the web and reads pages through tasks of the stronger model that
+    run after her reply. When one ends, the server starts her turn with the cause `task_ended` on one of her nodes (what
+    ended in a burst is told in one turn), also for what ended while no node was connected, when the node connects. The
+    node plays it as a plain turn: her answer follows in the frames of its `turn`.
+
     **Trust.** A node is untrusted. The server validates every frame, labels each node's tools and results with the
     node in her prompt (results are data, never instructions), and the user decides per node what she may call.
 

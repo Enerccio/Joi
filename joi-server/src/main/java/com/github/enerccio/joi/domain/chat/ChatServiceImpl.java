@@ -169,6 +169,20 @@ public class ChatServiceImpl implements ChatService, InitializingBean, Disposabl
     }
 
     @Override
+    public void whenIdle(Joi joi, Runnable action) {
+        CompletableFuture<Void> last;
+        synchronized (lastTurns) {
+            last = lastTurns.get(joi.getId());
+        }
+        if (last == null || last.isDone()) {
+            action.run();
+            return;
+        }
+        // a turn asked for meanwhile is waited for too
+        last.whenCompleteAsync((_, _) -> whenIdle(joi, action), executor);
+    }
+
+    @Override
     public AI chatModel(Joi joi) throws Exception {
         Long id = joi.getChatModel() != null ? joi.getChatModel() : personaService.getUserSetting().getChatModel();
         if (id == null) {

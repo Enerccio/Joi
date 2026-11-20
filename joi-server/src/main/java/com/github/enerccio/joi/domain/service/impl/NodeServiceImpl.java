@@ -12,6 +12,7 @@ import com.github.enerccio.joi.domain.chat.turn.TurnInput;
 import com.github.enerccio.joi.domain.model.impl.Body;
 import com.github.enerccio.joi.domain.model.impl.ChatMessage;
 import com.github.enerccio.joi.domain.model.impl.Joi;
+import com.github.enerccio.joi.domain.events.JoiEvents;
 import com.github.enerccio.joi.domain.model.impl.QueuedEvent;
 import com.github.enerccio.joi.domain.node.NodeSession;
 import com.github.enerccio.joi.domain.node.NodeSession.PendingCall;
@@ -76,6 +77,8 @@ public class NodeServiceImpl implements NodeService, InitializingBean, Disposabl
     public static final String LOOKING_GLASS_EXITED = "looking_glass_exited";
     /** The cause of her turn as the user switches a part of her body on the node ({@code part}). */
     public static final String PART_SWITCHED = "part_switched";
+    /** The cause of the turn about a task of hers that ended (a search, a page): the node plays it as a plain turn. */
+    public static final String TASK_ENDED = "task_ended";
     /** The tool she decides on the user's requests to change her parts with ({@code PART_REQUEST_EVENT}). */
     public static final String DECIDE_PART_CHANGE = "decide_part_change";
 
@@ -222,6 +225,18 @@ public class NodeServiceImpl implements NodeService, InitializingBean, Disposabl
 
     private List<NodeSession> sessions(Long joiId) {
         return registered.values().stream().filter(s -> joiId.equals(s.joiId()) && !s.closed()).toList();
+    }
+
+    @Override
+    public boolean tell(Joi joi, String text, String cause) {
+        List<NodeSession> connected = sessions(joi);
+        if (connected.isEmpty() || StringUtils.isBlank(text)) {
+            return false;
+        }
+        // one node tells her: the first that speaks, else the first
+        NodeSession session = connected.stream().filter(NodeSession::speaks).findFirst().orElse(connected.getFirst());
+        pend(session, new NodeSession.Pending(text, null, cause));
+        return true;
     }
 
     @Override
@@ -412,6 +427,7 @@ public class NodeServiceImpl implements NodeService, InitializingBean, Disposabl
         if (session.offer(manifest) && greeting) {
             greet(session);
         }
+        deliverWaitingTasks(session);
     }
 
     /**
@@ -455,6 +471,27 @@ public class NodeServiceImpl implements NodeService, InitializingBean, Disposabl
         session.send(NodeMessage.TURN, null, null, new TurnStart(turn, cause));
         startTurn(session, turn, joi, new TurnInput(text, session.name(), session.speaks(), true,
                 "node." + cause), false);
+    }
+
+    /**
+     * What her tasks found while no node of hers was connected: told now, in the order they ended, in a turn after the
+     * greeting. (Other events that wait are not delivered yet: see {@code DESIGN.md} → Events.)
+     */
+    private void deliverWaitingTasks(NodeSession session) {
+        try (InRequestScope _ = new InRequestScope(session.attributes())) {
+            Joi joi = joiService.find(session.joiId());
+            if (joi == null) {
+                return;
+            }
+            for (QueuedEvent event : queuedEventService.findWaiting(joi)) {
+                if (JoiEvents.TASK_ENDED.equals(event.getKind())) {
+                    queuedEventService.markDelivered(event, null);
+                    pend(session, new NodeSession.Pending(event.getText(), null, TASK_ENDED));
+                }
+            }
+        } catch (Exception e) {
+            log.warn("Node {}: what her tasks found was not told to her", session.name(), e);
+        }
     }
 
     /** Whether the server started since the connection the node lost: it was down, whatever the reason. */
@@ -591,10 +628,12 @@ public class NodeServiceImpl implements NodeService, InitializingBean, Disposabl
                 joi = joiService.find(session.joiId());
                 input = told(joi, pending);
             }
+            // a turn that is only about tasks that ended has that cause; with anything else it is the usual one
+            String cause = pending.stream().allMatch(item -> TASK_ENDED.equals(item.cause())) ? TASK_ENDED : PART_SWITCHED;
             session.told(asked, turn);
-            session.send(NodeMessage.TURN, null, null, new TurnStart(turn, PART_SWITCHED));
+            session.send(NodeMessage.TURN, null, null, new TurnStart(turn, cause));
             started = startTurn(session, turn, joi, new TurnInput(input, session.name(), session.speaks(), true,
-                    "node." + PART_SWITCHED), false);
+                    "node." + cause), false);
         } catch (Exception e) {
             log.warn("Node {}: telling her what happened failed", session.name(), e);
         }

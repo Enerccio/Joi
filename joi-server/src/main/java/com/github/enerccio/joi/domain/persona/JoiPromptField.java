@@ -12,6 +12,8 @@ import com.github.enerccio.joi.domain.templates.NodeEventTemplateData;
 import com.github.enerccio.joi.domain.templates.OutfitImageTemplateData;
 import com.github.enerccio.joi.domain.templates.PartImageTemplateData;
 import com.github.enerccio.joi.domain.templates.PartRequestTemplateData;
+import com.github.enerccio.joi.domain.templates.TaskEventTemplateData;
+import com.github.enerccio.joi.domain.templates.WebTaskTemplateData;
 import com.github.enerccio.joi.domain.templates.SelfImageTemplateData;
 import com.github.enerccio.joi.domain.templates.SummaryTemplateData;
 import com.github.enerccio.marginalia.domain.templates.TemplateData;
@@ -57,7 +59,11 @@ public enum JoiPromptField {
     RECALLED_MEMORIES("recalledMemories", RecalledMemoriesTemplateData.class, PersonaAttributes::getRecalledMemories,
             PersonaAttributes::setRecalledMemories, JoiDefaults::recalledMemories),
     PART_REQUEST_EVENT("partRequestEvent", PartRequestTemplateData.class, PersonaAttributes::getPartRequestEvent,
-            PersonaAttributes::setPartRequestEvent, JoiDefaults::partRequestEvent);
+            PersonaAttributes::setPartRequestEvent, JoiDefaults::partRequestEvent),
+    WEB_TASK_PROMPT("webTaskPrompt", WebTaskTemplateData.class, PersonaAttributes::getWebTaskPrompt,
+            PersonaAttributes::setWebTaskPrompt, JoiDefaults::webTaskPrompt),
+    TASK_EVENT("taskEvent", TaskEventTemplateData.class, PersonaAttributes::getTaskEvent,
+            PersonaAttributes::setTaskEvent, JoiDefaults::taskEvent);
 
     private final String templateName;
     private final Class<? extends TemplateData> dataClass;

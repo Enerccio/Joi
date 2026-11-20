@@ -84,6 +84,14 @@ public interface PersonaAttributes {
 
     void setPartRequestEvent(String partRequestEvent);
 
+    String getWebTaskPrompt();
+
+    void setWebTaskPrompt(String webTaskPrompt);
+
+    String getTaskEvent();
+
+    void setTaskEvent(String taskEvent);
+
     /** The key of the personality, blank when not set. */
     String getPersonality();
 

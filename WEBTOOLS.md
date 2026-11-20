@@ -1,6 +1,6 @@
 # Tool permissions and `web_search` (plan)
 
-Status: **stages 1 (permissions) and 2 (search clients, page readers, settings) are built and tested; 3 to 6 are plan.** Nothing here is in `DESIGN.md` yet; when it is
+Status: **stages 1 (permissions), 2 (search clients, page readers, settings) and 3 (the task, `web_search`, `fetch_page`, the event) are built and tested; 4 to 6 are plan.** Nothing here is in `DESIGN.md` yet; when it is
 built it moves into `DESIGN.md` (Tools, Web, Tasks after the reply) and this file goes away.
 
 ## What is asked

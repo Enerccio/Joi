@@ -39,6 +39,12 @@ public final class JoiEvents {
     /** The user put an outfit on her (payload: {@code to}, the uuid of the body; {@code outfit}, the outfit's id; null for none). */
     public static final String OUTFIT_CHANGED = "body.outfit_changed";
 
+    /**
+     * A task of hers ended (payload: {@code task}, its uuid; {@code status}: {@code done}, {@code failed}, {@code denied} or
+     * {@code cancelled}). The text has what she is told, the result of a search included.
+     */
+    public static final String TASK_ENDED = "task.ended";
+
     private JoiEvents() {
     }
 }

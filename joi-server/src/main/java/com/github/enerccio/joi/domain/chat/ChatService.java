@@ -120,6 +120,13 @@ public interface ChatService {
     /** Watches the assistant's conversation, see {@link Feed}. Remove it when its owner goes away. */
     Registration watch(Joi joi, Feed feed);
 
+    /**
+     * Runs the action when no turn of the assistant runs or waits any more, at once when there is none: the way to do
+     * something after the reply that is going on is finished, and what is queued behind it. It runs on the thread that
+     * ended the last turn, and sets up no scope of any user: that is for the action to do.
+     */
+    void whenIdle(Joi joi, Runnable action);
+
     /** Her chat model: hers, else the user's; null when none is set up (or it is gone). */
     AI chatModel(Joi joi) throws Exception;
 

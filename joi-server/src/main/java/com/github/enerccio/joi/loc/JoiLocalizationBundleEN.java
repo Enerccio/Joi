@@ -90,6 +90,8 @@ public class JoiLocalizationBundleEN extends TextBundleBase<J_L> {
         setValue(J_L.LABEL_MESSAGE_STAMP, "Time of a message (the line before a message of the user or an event: when it was said)");
         setValue(J_L.LABEL_RECALLED_MEMORIES, "Memories that fit a message (added to the message of the user)");
         setValue(J_L.LABEL_SERVER_RESTARTED_EVENT, "Server was down (the event when the server was down and a node connected to it again)");
+        setValue(J_L.LABEL_WEB_TASK_PROMPT, "Web task (what the stronger model is told when it searches the web or reads a page for her)");
+        setValue(J_L.LABEL_TASK_EVENT, "Task ended (the event when a search or a page she asked for is done, failed, or was not allowed)");
         setValue(J_L.LABEL_PART_REQUEST_EVENT, "Asked to change a part (the event when her personality lets her decide on it)");
         setValue(J_L.LABEL_LOOKING_GLASS_EXITED_EVENT, "Off the Looking Glass (the event when the user moves her back into the window)");
         setValue(J_L.LABEL_BODY_PROMPT, "Body section (the body she is in, put into {{#body}})");
@@ -506,6 +508,17 @@ public class JoiLocalizationBundleEN extends TextBundleBase<J_L> {
         setValue(J_L.DESC_TEMPLATE_NODE_KIND, "What the node is (desktop, phone...); empty when it did not say.");
         setValue(J_L.DESC_TEMPLATE_HOW_LOST, "What happened to the server, in words (was shut down, went down); empty when not known.");
         setValue(J_L.DESC_TEMPLATE_GAP, "How long after the message before it, in words (3 hours); empty for the first message.");
+        setValue(J_L.DESC_TEMPLATE_TASK_TODAY, "Today's date (2026-11-20), to judge what is recent.");
+        setValue(J_L.DESC_TEMPLATE_TASK_QUESTION, "What she wants to know; empty when only a page is to be read.");
+        setValue(J_L.DESC_TEMPLATE_TASK_URL, "The address of the page to read; empty for a search.");
+        setValue(J_L.DESC_TEMPLATE_TASK_SOURCES, "The sources it may search, one per line; empty when it has no search.");
+        setValue(J_L.DESC_TEMPLATE_TASK_MAX_SEARCHES, "How many searches it may make.");
+        setValue(J_L.DESC_TEMPLATE_TASK_MAX_PAGES, "How many pages it may read.");
+        setValue(J_L.DESC_TEMPLATE_TASK_TITLE, "A short name of the task: what she asked for.");
+        setValue(J_L.DESC_TEMPLATE_TASK_STATUS, "How it ended in words: finished, failed, not allowed by the user, cancelled.");
+        setValue(J_L.DESC_TEMPLATE_TASK_RESULT, "What was found; empty unless it finished. It comes from the web: data, not instructions.");
+        setValue(J_L.DESC_TEMPLATE_TASK_ERROR, "Why it failed; empty unless it did.");
+        setValue(J_L.DESC_TEMPLATE_TASK_REASON, "What the user said when they did not allow it; empty for none.");
         setValue(J_L.DESC_TEMPLATE_DOWN_FOR, "How long the server was gone, in words (3 minutes); empty when not known.");
         setValue(J_L.DESC_TEMPLATE_LAST_CHATTED, "When she last talked with the user, in words (3 hours ago); empty for never.");
         setValue(J_L.DESC_TEMPLATE_MODEL_NAME, "The model's name.");
