@@ -150,7 +150,13 @@ public class InferenceStep extends TurnStepBase {
             List<LLMToolCall> asked = controller.getProperties().get(TurnProperties.ROUND_CALLS) instanceof List<?> list
                     ? list.stream().map(LLMToolCall.class::cast).toList() : List.of();
             if (!noCalls && !asked.isEmpty() && !controller.getFunctions().isEmpty()) {
-                controller.getPayload().add(LLMChatMessage.ofToolCalls(roundText, asked));
+                // what the model thought goes with its calls, as the platform's own tool loop does it: a model set to get it
+                // back between the calls does (ReasoningPassthrough, the Gemma 4 way), the others never see it
+                LLMChatMessage calling = LLMChatMessage.ofToolCalls(roundText, asked);
+                if (StringUtils.isNotBlank(reasoning)) {
+                    calling = calling.withReasoning(reasoning.strip(), true);
+                }
+                controller.getPayload().add(calling);
                 controller.next();
                 return;
             }

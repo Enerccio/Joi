@@ -7,6 +7,8 @@ import com.github.enerccio.joi.domain.chat.turn.TurnEvents;
 import com.github.enerccio.joi.domain.chat.turn.TurnInput;
 import com.github.enerccio.joi.domain.chat.turn.TurnOutcome;
 import com.github.enerccio.joi.domain.chat.turn.TurnProperties;
+import com.github.enerccio.marginalia.domain.collections.ReasoningPassthrough;
+import com.github.enerccio.marginalia.domain.model.impl.OpenAICompatible;
 import com.github.enerccio.joi.domain.collections.MemoryImportance;
 import com.github.enerccio.joi.domain.model.impl.ChatMessage;
 import com.github.enerccio.joi.domain.model.impl.Joi;
@@ -183,6 +185,56 @@ class ChatTurnTest extends PlatformTestBase {
         // the one that fits is after the message that called it, in this prompt only: it is not stored with it
         assertThat(requests.get(1).getLastMessage().content()).startsWith("I made some tea\n[You remember").contains("- Likes green tea.");
         assertThat(requests.get(2).getMessages().get(3).content()).isEqualTo("I made some tea");
+    }
+
+    @Test
+    void theThinkingOfARoundThatCalledToolsGoesBackWithItsCallsWhenTheModelWantsIt() throws Exception {
+        // a model set to get its thoughts back between the calls (Gemma 4) does, and the thinking of the turn is stored
+        OpenAICompatible ai = createAI();
+        ai.setReasoningPassthrough(ReasoningPassthrough.TOOL_CALLS);
+        aiService.save(ai);
+        joi.setChatModel(ai.getId());
+        joi = joiService.save(joi);
+        offerNote(new CopyOnWriteArrayList<>());
+        llm.enqueue(MockLLMResponse.text("Let me note it.").withReasoning("I should note the milk.").andToolCall("note", "{\"text\":\"milk\"}"),
+                MockLLMResponse.text("Noted.").withReasoning("It is done."));
+
+        ChatService.Result result = chat("Remember the milk", new ChatService.Listener() {
+        });
+
+        assertThat(result.message().getResponseReasoning()).isEqualTo("I should note the milk.\n\nIt is done.");
+        JsonArray messages = llm.getCompletionRequests().get(1).getBody().getAsJsonArray("messages");
+        com.google.gson.JsonObject calling = null;
+        for (com.google.gson.JsonElement message : messages) {
+            if (message.getAsJsonObject().has("tool_calls")) {
+                calling = message.getAsJsonObject();
+            }
+        }
+        assertThat(calling).isNotNull();
+        assertThat(calling.get("reasoning_content").getAsString()).isEqualTo("I should note the milk.");
+    }
+
+    @Test
+    void theThinkingSwitchOfTheModelIsSentAndAChangeOfItReachesTheNextTurn() throws Exception {
+        OpenAICompatible ai = createAI();
+        ai.getAdditionalParameters().add("chat_template_kwargs", com.google.gson.JsonParser.parseString("{\"enable_thinking\": true}"));
+        aiService.save(ai);
+        joi.setChatModel(ai.getId());
+        joi = joiService.save(joi);
+        llm.enqueue(MockLLMResponse.text("One."), MockLLMResponse.text("Two."));
+
+        chat("First", new ChatService.Listener() {
+        });
+        // as the user changes it in the model's dialog while the server runs
+        OpenAICompatible edited = (OpenAICompatible) aiService.findForUser(ai.getUuid());
+        edited.getAdditionalParameters().add("chat_template_kwargs", com.google.gson.JsonParser.parseString("{\"enable_thinking\": false}"));
+        aiService.save(edited);
+        chat("Second", new ChatService.Listener() {
+        });
+
+        List<MockLLMRequest> requests = llm.getCompletionRequests();
+        assertThat(requests.get(0).getBody().getAsJsonObject("chat_template_kwargs").get("enable_thinking").getAsBoolean()).isTrue();
+        assertThat(requests.get(1).getBody().getAsJsonObject("chat_template_kwargs").get("enable_thinking").getAsBoolean()).isFalse();
     }
 
     @Test
