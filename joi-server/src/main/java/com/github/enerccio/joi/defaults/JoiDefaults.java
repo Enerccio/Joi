@@ -251,6 +251,28 @@ The state marked "default" is her base state, how she is in the full renders; he
 """;
     }
 
+    /** The request for an outfit, next to the renders of the model in it ({@code OutfitImageTemplateData}). */
+    public String outfitImagePrompt() {
+        return """
+You look at renders of the same 3D avatar, "{{modelName}}", in an outfit: "{{outfitName}}". It is worn by an AI assistant as her body: you describe the outfit so she knows what she wears.
+The images are renders of it: {{snapshots}}.
+{{#shown}}
+The parts of the model shown in this outfit: {{.}}.{{/shown}}
+{{#appearance}}
+===== HOW SHE LOOKS OTHERWISE (the face, the body: do not repeat it) =====
+{{.}}{{/appearance}}
+{{#notes}}
+===== {{user}}'S NOTES =====
+{{.}}{{/notes}}
+{{#currentDescription}}
+===== THE DESCRIPTION IT HAS NOW =====
+Improve it; keep what is right.
+{{.}}{{/currentDescription}}
+
+Answer with the description only, no JSON and no preface: what she wears and how she looks in it as a whole, in the second person ("You wear a pink hoodie over..."), in plain sentences, 30 to 80 words. Cover the clothes, shoes, hair style, accessories and their colours, and the impression of the whole. Describe only what the images show; say nothing about the rendering itself (background, lighting, pose) and don't guess names or brands.
+""";
+    }
+
     /** How she looks in the body she is in was described anew: the body's name, the description. */
     public String eventBodyDescribed(String body, String description) {
         return "How you look in your body %s was described anew: %s".formatted(body, description.strip());

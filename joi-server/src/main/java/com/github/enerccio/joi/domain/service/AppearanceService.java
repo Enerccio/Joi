@@ -1,12 +1,15 @@
 package com.github.enerccio.joi.domain.service;
 
 import com.github.enerccio.joi.domain.bodies.AppearanceProposal;
+import com.github.enerccio.joi.domain.bodies.Outfit;
+import com.github.enerccio.joi.domain.model.impl.Body;
 import com.github.enerccio.joi.domain.model.impl.Model;
 import com.github.enerccio.joi.domain.model.impl.QueuedEvent;
 import com.github.enerccio.marginalia.domain.model.impl.AI;
 
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 
 /**
  * How she looks in a model (see {@code DESIGN.md} → Bodies, self-image): a multimodal model looks at the model's
@@ -61,4 +64,14 @@ public interface AppearanceService {
 
     /** Forgets the proposal; returns the saved model. */
     Model discard(Model model) throws Exception;
+
+    /**
+     * The photoshoot of an outfit: the multimodal model looks at renders of the body's model in the outfit and describes
+     * what she wears as a whole, in the background (not stored: the user reviews it). Several may run, one at a time.
+     *
+     * @param renders the renders of the model in the outfit by their names ({@code full-front}), in the order of the images
+     * @return the description, or the failure
+     * @throws IllegalStateException when the user has no model that takes images, or there are no renders
+     */
+    CompletableFuture<String> describeOutfit(Body body, Outfit outfit, Map<String, byte[]> renders) throws Exception;
 }

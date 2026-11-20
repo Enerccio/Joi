@@ -82,6 +82,7 @@ public class JoiLocalizationBundleEN extends TextBundleBase<J_L> {
         setValue(J_L.LABEL_DAY_SUMMARY_PROMPT, "Day summary prompt");
         setValue(J_L.LABEL_FACTS_PROMPT, "Memories prompt (facts to remember)");
         setValue(J_L.LABEL_SELF_IMAGE_PROMPT, "Appearance prompt (a model described from its snapshots)");
+        setValue(J_L.LABEL_OUTFIT_IMAGE_PROMPT, "Outfit prompt (an outfit described from the renders of the model in it)");
         setValue(J_L.LABEL_PART_IMAGE_PROMPT, "Part prompt (a toggle described from close-ups, shown and hidden)");
         setValue(J_L.LABEL_FIRST_BOOT_EVENT, "First waking up (the event when she first wakes up on a node)");
         setValue(J_L.LABEL_CONNECTED_EVENT, "User is back (the event when the user comes back to her on a node)");

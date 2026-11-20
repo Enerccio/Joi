@@ -67,6 +67,11 @@ public class JoiUserSetting extends BaseUserSetting implements PersonaAttributes
     @Transient
     private String partImagePrompt;
 
+    /** The request for an outfit from the renders of the model in it ({@code OutfitImageTemplateData}). */
+    @ExtendedAttribute
+    @Transient
+    private String outfitImagePrompt;
+
     /** The section of her system prompt about the body she is in ({@code {{#body}}}). */
     @ExtendedAttribute
     @Transient
@@ -221,6 +226,16 @@ public class JoiUserSetting extends BaseUserSetting implements PersonaAttributes
     @Override
     public void setSelfImagePrompt(String selfImagePrompt) {
         this.selfImagePrompt = selfImagePrompt;
+    }
+
+    @Override
+    public String getOutfitImagePrompt() {
+        return outfitImagePrompt;
+    }
+
+    @Override
+    public void setOutfitImagePrompt(String outfitImagePrompt) {
+        this.outfitImagePrompt = outfitImagePrompt;
     }
 
     @Override

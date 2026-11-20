@@ -3,6 +3,8 @@ package com.github.enerccio.joi.domain.service.impl;
 import com.github.enerccio.joi.domain.bodies.AppearanceProposal;
 import com.github.enerccio.joi.domain.bodies.DescribedPart;
 import com.github.enerccio.joi.domain.bodies.ModelCapabilities;
+import com.github.enerccio.joi.domain.bodies.Outfit;
+import com.github.enerccio.joi.domain.model.impl.Body;
 import com.github.enerccio.joi.domain.collections.ProposalStatus;
 import com.github.enerccio.joi.domain.model.impl.Model;
 import com.github.enerccio.joi.domain.model.impl.QueuedEvent;
@@ -11,6 +13,7 @@ import com.github.enerccio.joi.domain.service.AppearanceService;
 import com.github.enerccio.joi.domain.service.BodyService;
 import com.github.enerccio.joi.domain.service.ModelService;
 import com.github.enerccio.joi.domain.service.PersonaService;
+import com.github.enerccio.joi.domain.templates.OutfitImageTemplateData;
 import com.github.enerccio.joi.domain.templates.PartImageTemplateData;
 import com.github.enerccio.joi.domain.templates.SelfImageTemplateData;
 import com.github.enerccio.marginalia.bound.ApiRequestAttributes;
@@ -278,6 +281,77 @@ public class AppearanceServiceImpl implements AppearanceService, DisposableBean 
         }
         model.setProposalProgress(null);
         return modelService.save(model);
+    }
+
+    @Override
+    public CompletableFuture<String> describeOutfit(Body body, Outfit outfit, Map<String, byte[]> renders) throws Exception {
+        Model model = body.getModel() == null ? null : modelService.find(body.getModel().getId());
+        if (model == null || model.isDeleted() || model.getOwner() == null || !model.getOwner().getId().equals(currentUser.getId())) {
+            throw new IllegalArgumentException("not a model of the user");
+        }
+        if (renders == null || renders.isEmpty()) {
+            throw new IllegalStateException("There are no renders to look at");
+        }
+        AI ai = model();
+        if (ai == null) {
+            throw new IllegalStateException("You have no model that takes images: mark your deep reasoning or chat model as multimodal");
+        }
+        // asked in the user's request scope, rendered here: the template is the user's
+        User user = userService.find(currentUser.getId());
+        CompletableFuture<String> done = new CompletableFuture<>();
+        Map<String, byte[]> shots = new LinkedHashMap<>(renders);
+        executor.submit(() -> {
+            try (ApiRequestAttributes attributes = new ApiRequestAttributes(user, new SessionPoint());
+                 InRequestScope _ = new InRequestScope(attributes)) {
+                done.complete(outfitDescription(ai, modelService.find(model.getId()), outfit, shots));
+            } catch (Throwable t) {
+                log.warn("The photoshoot of the outfit {} failed", outfit.name(), t);
+                done.completeExceptionally(t);
+            }
+        });
+        return done;
+    }
+
+    private String outfitDescription(AI ai, Model model, Outfit outfit, Map<String, byte[]> renders) throws Exception {
+        ModelCapabilities capabilities = ModelCapabilities.fromJson(model.getCapabilities());
+        List<String> shown = new ArrayList<>();
+        if (capabilities != null) {
+            for (ModelCapabilities.Toggle toggle : capabilities.toggles()) {
+                if (outfit.toggles().getOrDefault(toggle.id(), model.shownByDefault(toggle)) && toggle.key() == null) {
+                    shown.add(name(model, toggle));
+                }
+            }
+        }
+        LLMChatMessage request = LLMChatMessage.of(LLMRole.USER, null);
+        List<String> names = new ArrayList<>();
+        for (Map.Entry<String, byte[]> render : renders.entrySet()) {
+            LLMAttachment attachment = new LLMAttachment();
+            attachment.setKind(LLMAttachment.Kind.IMAGE);
+            attachment.setMimeType("image/jpeg");
+            attachment.setName(render.getKey() + ".jpg");
+            attachment.setData(render.getValue());
+            request.addAttachment(attachment);
+            names.add(render.getKey().replace('-', ' '));
+        }
+        OutfitImageTemplateData data = new OutfitImageTemplateData();
+        data.setModelName(StringUtils.defaultIfBlank(model.getName(), "unnamed"));
+        data.setOutfitName(outfit.name());
+        data.setSnapshots(String.join(", ", names));
+        data.setShown(shown.isEmpty() ? null : String.join(", ", shown));
+        data.setAppearance(StringUtils.defaultIfBlank(model.getAppearance(), null));
+        data.setNotes(StringUtils.defaultIfBlank(model.getNotes(), null));
+        data.setCurrentDescription(StringUtils.defaultIfBlank(outfit.description(), null));
+        request.setContent(personaService.render(JoiPromptField.OUTFIT_IMAGE_PROMPT, data));
+        String answer = StringUtils.strip(ask(ai, List.of(request)));
+        // no preface, no fence, no quotes around it
+        answer = answer.replaceAll("(?s)^```[a-z]*\\s*|\\s*```$", "").strip();
+        if (answer.length() > 1 && answer.startsWith("\"") && answer.endsWith("\"")) {
+            answer = answer.substring(1, answer.length() - 1).strip();
+        }
+        if (answer.isBlank()) {
+            throw new IllegalStateException("The model did not describe the outfit");
+        }
+        return answer;
     }
 
     private void progress(Long id, int done, int total) throws Exception {

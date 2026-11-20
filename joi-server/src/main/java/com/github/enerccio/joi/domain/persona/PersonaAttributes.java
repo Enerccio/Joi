@@ -44,6 +44,10 @@ public interface PersonaAttributes {
 
     void setPartImagePrompt(String partImagePrompt);
 
+    String getOutfitImagePrompt();
+
+    void setOutfitImagePrompt(String outfitImagePrompt);
+
     String getBodyPrompt();
 
     void setBodyPrompt(String bodyPrompt);
