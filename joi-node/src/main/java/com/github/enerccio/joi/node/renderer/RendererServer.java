@@ -42,6 +42,7 @@ import java.util.function.BiConsumer;
  */
 public class RendererServer implements AutoCloseable {
 
+    private static final System.Logger LOG = System.getLogger(RendererServer.class.getName());
     private static final Gson GSON = new GsonBuilder().disableHtmlEscaping().create();
     private static final String PAGE = "joi-renderer/";
     private static final long MAX_POST = 64 * 1024;
@@ -149,6 +150,7 @@ public class RendererServer implements AutoCloseable {
         play.add("clips", urls);
         play.add("sequence", sequence);
         playMessage = GSON.toJson(play);
+        LOG.log(System.Logger.Level.INFO, "play " + id + " " + found.name() + (loop ? " (loops)" : "") + " to " + pages.size() + " page(s)");
         broadcast(play);
         if (!loop) {
             watchdog.schedule(() -> finish(id, null), (long) ((seconds + GRACE_SECONDS) * 1000), TimeUnit.MILLISECONDS);
@@ -199,6 +201,7 @@ public class RendererServer implements AutoCloseable {
             }
             pages.add(queue);
         }
+        LOG.log(System.Logger.Level.INFO, "a page connected (" + pages.size() + ")");
         exchange.getResponseHeaders().set("Content-Type", "text/event-stream");
         exchange.getResponseHeaders().set("Cache-Control", "no-cache");
         exchange.sendResponseHeaders(200, 0);
@@ -219,6 +222,7 @@ public class RendererServer implements AutoCloseable {
             // the page closed
         } finally {
             pages.remove(queue);
+            LOG.log(System.Logger.Level.INFO, "a page disconnected (" + pages.size() + ")");
         }
     }
 

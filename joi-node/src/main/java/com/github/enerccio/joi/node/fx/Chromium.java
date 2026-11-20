@@ -39,6 +39,10 @@ final class Chromium {
             builder.setInstallDir(bundle);
             builder.setMirrors(List.of());
             builder.getCefSettings().windowless_rendering_enabled = true;
+            String debug = System.getenv("JOI_CHROMIUM_DEBUG_PORT");
+            if (debug != null) {
+                builder.getCefSettings().remote_debugging_port = Integer.parseInt(debug);
+            }
             builder.getCefSettings().root_cache_path = dir.resolve("profile").toString();
             builder.getCefSettings().log_file = dir.resolve("chromium.log").toString();
             builder.setAppHandler(new MavenCefAppHandlerAdapter() {

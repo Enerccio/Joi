@@ -16,12 +16,17 @@ import java.nio.IntBuffer;
 
 /**
  * A web page in a JavaFX pane: Chromium renders it off screen ({@link JoiOsrBrowser}) and each frame is copied into
- * the image shown here, at the screen's pixels. It only shows: the mouse and the keys don't reach the page.
+ * the image shown here, at the screen's pixels. The browser is made once the pane is shown, at its size and the
+ * screen's scale (made again when the scale changes: Chromium can't be told). It only shows: the mouse and the keys
+ * don't reach the page.
  */
 class ChromiumPane extends Region {
 
     private final ImageView view = new ImageView();
-    private final JoiOsrBrowser browser;
+    private final CefClient client;
+    private final String url;
+    /** Made once the pane is in a window, at its size and the screen's scale; again when the scale changes. */
+    private JoiOsrBrowser browser;
     /** The last frame from Chromium, waiting for the UI thread. */
     private final Object lock = new Object();
     private ByteBuffer staged;
@@ -38,8 +43,8 @@ class ChromiumPane extends Region {
         setStyle("-fx-background-color: #111114;");
         view.setPreserveRatio(false);
         getChildren().add(view);
-        browser = new JoiOsrBrowser(client, url, null, this::frame);
-        browser.createImmediately();
+        this.client = client;
+        this.url = url;
     }
 
     /** Saves the frame shown now as a PNG (for development). */
@@ -67,7 +72,10 @@ class ChromiumPane extends Region {
 
     /** Closes the page. */
     void close() {
-        browser.close(true);
+        if (browser != null) {
+            browser.close(true);
+            browser = null;
+        }
     }
 
     @Override
@@ -77,19 +85,56 @@ class ChromiumPane extends Region {
         view.relocate(0, 0);
         view.setFitWidth(width);
         view.setFitHeight(height);
-        double scale = getScene() == null || getScene().getWindow() == null ? 1 : getScene().getWindow().getOutputScaleX();
+        if (getScene() == null || getScene().getWindow() == null || !getScene().getWindow().isShowing()) {
+            return;
+        }
+        double scale = getScene().getWindow().getOutputScaleX();
         int w = (int) Math.round(width);
         int h = (int) Math.round(height);
-        if (w > 0 && h > 0 && (w != lastWidth || h != lastHeight || scale != lastScale)) {
-            lastWidth = w;
-            lastHeight = h;
-            lastScale = scale;
-            browser.resize(w, h, scale);
+        if (w <= 0 || h <= 0 || w == lastWidth && h == lastHeight && scale == lastScale) {
+            return;
         }
+        try {
+            if (browser == null || scale != lastScale) {
+                close();
+                browser = new JoiOsrBrowser(client, url, null, this::frame);
+                browser.size(w, h, scale);
+                browser.createImmediately();
+                System.err.println("Chromium: opened " + url + " at " + w + "x" + h + ", scale " + scale);
+            } else {
+                browser.resize(w, h);
+            }
+        } catch (Throwable e) {
+            System.err.println("Chromium: resize failed: " + e);
+            e.printStackTrace();
+        }
+        lastWidth = w;
+        lastHeight = h;
+        lastScale = scale;
     }
 
     /** A frame from Chromium (on its thread): kept, and shown on the UI thread. */
+    private boolean firstFrame = true;
+
+    private long frames;
+
     private void frame(ByteBuffer bgra, int width, int height) {
+        try {
+            copy(bgra, width, height);
+        } catch (Throwable e) {
+            System.err.println("Chromium: frame failed: " + e);
+            e.printStackTrace();
+        }
+    }
+
+    private void copy(ByteBuffer bgra, int width, int height) {
+        if (firstFrame) {
+            firstFrame = false;
+            System.err.println("Chromium: first frame " + width + "x" + height + " on " + Thread.currentThread().getName());
+        }
+        if (++frames % 300 == 0) {
+            System.err.println("Chromium: " + frames + " frames, " + width + "x" + height);
+        }
         synchronized (lock) {
             int size = width * height * 4;
             if (staged == null || staged.capacity() < size) {
@@ -111,6 +156,15 @@ class ChromiumPane extends Region {
     }
 
     private void show() {
+        try {
+            showNow();
+        } catch (Throwable e) {
+            System.err.println("Chromium: show failed: " + e);
+            e.printStackTrace();
+        }
+    }
+
+    private void showNow() {
         synchronized (lock) {
             scheduled = false;
             if (staged == null) {

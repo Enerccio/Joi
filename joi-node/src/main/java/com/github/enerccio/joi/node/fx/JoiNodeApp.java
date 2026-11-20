@@ -73,6 +73,10 @@ public class JoiNodeApp extends Application {
 
     @Override
     public void start(Stage stage) throws Exception {
+        Thread.setDefaultUncaughtExceptionHandler((thread, error) -> {
+            System.err.println("Uncaught in " + thread.getName() + ":");
+            error.printStackTrace();
+        });
         this.stage = stage;
         stage.setTitle("Joi");
         stage.setScene(new Scene(new StackPane(), 1100, 700));
@@ -90,6 +94,8 @@ public class JoiNodeApp extends Application {
             renderer.close();
         }
         Chromium.dispose();
+        // Chromium's and AWT's threads would keep the process alive after its window closed
+        Runtime.getRuntime().halt(0);
     }
 
     private void show(Parent view) {

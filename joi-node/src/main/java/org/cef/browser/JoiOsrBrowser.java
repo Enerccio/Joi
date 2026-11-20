@@ -35,11 +35,17 @@ public class JoiOsrBrowser extends CefBrowser_N implements CefRenderHandler {
         this.frames = frames;
     }
 
-    /** The size of the view in points, and the pixels per point. */
-    public void resize(int width, int height, double scale) {
+    /** The size of the view in points, and the pixels per point, before the browser is created. */
+    public void size(int width, int height, double scale) {
         this.view = new Rectangle(0, 0, Math.max(1, width), Math.max(1, height));
         this.scale = scale;
+    }
+
+    /** A new size of the view in points (the scale stays: Chromium can't be told it changed). */
+    public void resize(int width, int height) {
+        this.view = new Rectangle(0, 0, Math.max(1, width), Math.max(1, height));
         wasResized(view.width, view.height);
+        invalidate();
     }
 
     /** Where the view's corner is on the screen, in points. */
@@ -83,8 +89,15 @@ public class JoiOsrBrowser extends CefBrowser_N implements CefRenderHandler {
 
     @Override
     public boolean getScreenInfo(CefBrowser browser, CefScreenInfo info) {
-        info.Set(scale, 32, 8, false, view, view);
-        return true;
+        try {
+            info.Set(scale, 32, 8, false, view, view);
+            return true;
+        } catch (Throwable e) {
+            // an exception left in a call from Chromium's native code is lost: told here
+            System.err.println("Chromium: getScreenInfo failed: " + e);
+            e.printStackTrace();
+            return false;
+        }
     }
 
     @Override
@@ -105,7 +118,12 @@ public class JoiOsrBrowser extends CefBrowser_N implements CefRenderHandler {
     @Override
     public void onPaint(CefBrowser browser, boolean popup, Rectangle[] dirtyRects, ByteBuffer buffer, int width, int height) {
         if (!popup) {
-            frames.paint(buffer, width, height);
+            try {
+                frames.paint(buffer, width, height);
+            } catch (Throwable e) {
+                System.err.println("Chromium: onPaint failed: " + e);
+                e.printStackTrace();
+            }
         }
     }
 

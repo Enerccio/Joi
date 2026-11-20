@@ -38,8 +38,10 @@ viewer.addEventListener('animation-error', event => {
 });
 
 const events = new EventSource('events');
+events.onerror = () => console.log('joi renderer: the node\'s events dropped (reconnecting)');
 events.onmessage = event => {
   const message = JSON.parse(event.data);
+  console.log('joi renderer: ' + message.type + (message.id !== undefined ? ' ' + message.id : ''));
   switch (message.type) {
     case 'model':
       if (viewer.getAttribute('src') !== message.src) {

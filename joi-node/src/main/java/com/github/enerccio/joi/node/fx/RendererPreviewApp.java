@@ -66,6 +66,7 @@ public class RendererPreviewApp extends Application {
         }
         renderer.close();
         Chromium.dispose();
+        Runtime.getRuntime().halt(0);
     }
 
     private static Path newest(Path dir, String extension) throws IOException {
