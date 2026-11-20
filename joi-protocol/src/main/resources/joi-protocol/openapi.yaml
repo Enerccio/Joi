@@ -165,6 +165,61 @@ paths:
           content:
             application/json:
               schema: { $ref: "schemas/ApiError.schema.json" }
+  /api/v1/jois/{id}/auto-approved:
+    get:
+      summary: The tools approved ahead of time for her (since 1.7)
+      description: |
+        "Approve all of this tool": the tools whose tasks are approved without asking. The server keeps it (set in its UI or
+        by `approve` with `always`); a tool the user denies at any level stays denied.
+      parameters:
+        - { $ref: "#/components/parameters/JoiId" }
+      responses:
+        "200":
+          description: The list
+          content:
+            application/json:
+              schema: { $ref: "schemas/AutoApprovalList.schema.json" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /api/v1/jois/{id}/auto-approved/{tool}:
+    put:
+      summary: Approve a tool ahead of time: its tasks are approved without asking (since 1.7)
+      description: |
+        The tasks of the tool that wait now are approved, and the later ones when they are made. A tool the user denies at any
+        level stays denied. A tool that is approved already is as it was (no error). A note in her conversation says it.
+      parameters:
+        - { $ref: "#/components/parameters/JoiId" }
+        - name: tool
+          in: path
+          required: true
+          description: The tool's name (`AutoApproval.tool`)
+          schema: { type: string }
+      responses:
+        "200":
+          description: The tools approved now
+          content:
+            application/json:
+              schema: { $ref: "schemas/AutoApprovalList.schema.json" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    delete:
+      summary: Take back the approval of a tool: its tasks ask again (since 1.7)
+      description: A tool that was not approved is as it was (no error). A note in her conversation says it.
+      parameters:
+        - { $ref: "#/components/parameters/JoiId" }
+        - name: tool
+          in: path
+          required: true
+          description: The tool's name (`AutoApproval.tool`)
+          schema: { type: string }
+      responses:
+        "200":
+          description: The tools approved now
+          content:
+            application/json:
+              schema: { $ref: "schemas/AutoApprovalList.schema.json" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
   /api/v1/jois/{id}/tasks:
     get:
       summary: Her tasks, the newest first (since 1.6)

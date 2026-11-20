@@ -99,7 +99,7 @@ with the code.
   extend the platform's `PlatformTestBase` and start `src/test/resources/META-INF/spring/test-application-config.xml`.
 - `joi-node/` — the reference node (`com.github.enerccio.joi.node`): `ServerClient` (HTTP API, device grant, her
   body's files cached by hash), `NodeSocket` (the node WebSocket), `AvatarDirector` (what her body plays: idle,
-  talking, asleep through her first turn, waking up), `NodeSettings` (`~/.joi-client`, `JOI_CLIENT`), `JoiNodeCli`
+  talking, asleep through her first turn, waking up), `NodeSettings` (`~/.joi-client`, `JOI_CLIENT`), `Notifications` (the node's first tool, `notify`, off until the user allows it), `TaskQuestions` (the tasks of hers that wait for the user's answer), `JoiNodeCli`
   (the node in a terminal), `renderer/` (her body's files unpacked, `BodyFiles`; the renderer page served on localhost and
   driven by server-sent events, `RendererServer`; `RendererPreview` shows cached files without a server). The page is
   `src/main/renderer` (Vite; the server's `joi-model-viewer.js` copied in at build time), built by the `fx` profile

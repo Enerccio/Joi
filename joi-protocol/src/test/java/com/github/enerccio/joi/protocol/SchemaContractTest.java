@@ -35,7 +35,7 @@ class SchemaContractTest {
             BodyAnimation.class, BodyAnimations.class, BodyInfo.class, JoiAnimations.class, Frame.class, Hello.class, Resume.class, Welcome.class, Manifest.class,
             ToolDefinition.class, Say.class, Stop.class, Display.class, ToolUse.class, ToolCall.class, ToolProgress.class, ToolResult.class,
             ToolCancel.class, Approval.class, ServerEvent.class, TurnStart.class, ChatEntry.class, ChatHistory.class,
-            ChatLog.class, TaskStep.class, TaskInfo.class, TaskList.class, TaskDenial.class, TaskApproval.class);
+            ChatLog.class, TaskStep.class, TaskInfo.class, TaskList.class, TaskDenial.class, TaskApproval.class, AutoApproval.class, AutoApprovalList.class);
 
     /** The enums with a schema of their own: the values are the schema's enum. */
     static final List<Class<? extends Enum<?>>> ENUMS = List.of(AuthMethod.class, NodePart.class, ToolTier.class,
@@ -136,6 +136,8 @@ class SchemaContractTest {
         valid(new ChatHistory(List.of(new ChatEntry("m3", "2026-11-20T10:00:00Z", "log", "Approved", "task.approved", null, null)), false));
         valid(new TaskDenial(null));
         valid(new TaskDenial("Not now"));
+        valid(new AutoApprovalList(List.of(new AutoApproval("web_search", "web_search", "Search the web"), new AutoApproval("fetch_page", "fetch_page", null))));
+        valid(new AutoApprovalList(List.of()));
         valid(new TaskApproval(null));
         valid(new TaskApproval(true));
         valid(new JoiList(List.of(new JoiSummary("2f0c", "Joi", "2026-11-18T19:00:00Z"), new JoiSummary("88aa", "Kairo", null))));

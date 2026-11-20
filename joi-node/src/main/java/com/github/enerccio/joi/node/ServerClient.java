@@ -2,6 +2,7 @@ package com.github.enerccio.joi.node;
 
 import com.github.enerccio.joi.protocol.JoiProtocol;
 import com.github.enerccio.joi.protocol.http.ApiError;
+import com.github.enerccio.joi.protocol.http.AutoApprovalList;
 import com.github.enerccio.joi.protocol.http.BodyInfo;
 import com.github.enerccio.joi.protocol.http.ChatHistory;
 import com.github.enerccio.joi.protocol.http.Download;
@@ -12,6 +13,7 @@ import com.github.enerccio.joi.protocol.http.ServerInfo;
 import com.github.enerccio.joi.protocol.http.TaskApproval;
 import com.github.enerccio.joi.protocol.http.TaskDenial;
 import com.github.enerccio.joi.protocol.http.TaskInfo;
+import com.github.enerccio.joi.protocol.http.TaskList;
 import com.github.enerccio.joi.protocol.oauth.DeviceAuthorization;
 import com.github.enerccio.joi.protocol.oauth.OAuthError;
 import com.github.enerccio.joi.protocol.oauth.TokenResponse;
@@ -150,18 +152,42 @@ public class ServerClient {
         return postJson(JoiProtocol.API + "/jois/" + joi + "/tasks/" + task + "/deny", reason == null ? null : new TaskDenial(reason), TaskInfo.class);
     }
 
+    /** Her tasks, the newest first; {@code status} ({@code waiting}...) limits them, null for all (since 1.6). */
+    public TaskList tasks(String joi, String status) throws IOException, InterruptedException {
+        return get(JoiProtocol.API + "/jois/" + joi + "/tasks" + (status == null ? "" : "?status=" + URLEncoder.encode(status, StandardCharsets.UTF_8)),
+                TaskList.class, true);
+    }
+
+    /** The tools the user approved ahead of time for her (since 1.7). */
+    public AutoApprovalList autoApproved(String joi) throws IOException, InterruptedException {
+        return get(JoiProtocol.API + "/jois/" + joi + "/auto-approved", AutoApprovalList.class, true);
+    }
+
+    /**
+     * Approves a tool ahead of time ({@code on}: its tasks are approved without asking, the ones that wait now too), or takes
+     * that back (they ask again). The server keeps it. Answers the tools approved now.
+     */
+    public AutoApprovalList autoApprove(String joi, String tool, boolean on) throws IOException, InterruptedException {
+        return callJson(on ? "PUT" : "DELETE", JoiProtocol.API + "/jois/" + joi + "/auto-approved/" + URLEncoder.encode(tool, StandardCharsets.UTF_8),
+                null, AutoApprovalList.class);
+    }
+
     private <T> T postJson(String path, Object body, Class<T> type) throws IOException, InterruptedException {
-        HttpResponse<String> response = sendJson(path, body);
+        return callJson("POST", path, body, type);
+    }
+
+    private <T> T callJson(String method, String path, Object body, Class<T> type) throws IOException, InterruptedException {
+        HttpResponse<String> response = sendJson(method, path, body);
         if (response.statusCode() == 401 && settings.credentials().refreshToken != null) {
             refresh();
-            response = sendJson(path, body);
+            response = sendJson(method, path, body);
         }
         return answer(response, type);
     }
 
-    private HttpResponse<String> sendJson(String path, Object body) throws IOException, InterruptedException {
+    private HttpResponse<String> sendJson(String method, String path, Object body) throws IOException, InterruptedException {
         HttpRequest.Builder request = HttpRequest.newBuilder(URI.create(server + path)).timeout(Duration.ofSeconds(30))
-                .POST(body == null ? HttpRequest.BodyPublishers.noBody() : HttpRequest.BodyPublishers.ofString(GSON.toJson(body), StandardCharsets.UTF_8));
+                .method(method, body == null ? HttpRequest.BodyPublishers.noBody() : HttpRequest.BodyPublishers.ofString(GSON.toJson(body), StandardCharsets.UTF_8));
         if (body != null) {
             request.header("Content-Type", "application/json");
         }

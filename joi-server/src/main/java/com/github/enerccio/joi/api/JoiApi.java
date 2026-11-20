@@ -212,6 +212,20 @@ public class JoiApi implements DisposableBean {
             chat(call, joi(path.get(1)), sink);
         } else if (get && path.size() == 3 && path.getFirst().equals("jois") && path.get(2).equals("body")) {
             json(sink, 200, bodyInfo(call, joi(path.get(1))));
+        } else if (get && path.size() == 3 && path.getFirst().equals("jois") && path.get(2).equals("auto-approved")) {
+            json(sink, 200, autoApproved(joi(path.get(1))));
+        } else if (("DELETE".equalsIgnoreCase(call.method()) || "PUT".equalsIgnoreCase(call.method())) && path.size() == 4
+                && path.getFirst().equals("jois") && path.get(2).equals("auto-approved")) {
+            Joi joi = joi(path.get(1));
+            ServerTool tool = ServerTool.of(path.get(3));
+            if (tool == null) {
+                throw new ApiException(404, "not_found", "No tool " + path.get(3));
+            }
+            boolean on = "PUT".equalsIgnoreCase(call.method());
+            if (on != webTaskService.autoApproves(joi, tool)) {
+                webTaskService.autoApprove(joi, tool, on);
+            }
+            json(sink, 200, autoApproved(joi));
         } else if (get && path.size() == 3 && path.getFirst().equals("jois") && path.get(2).equals("tasks")) {
             json(sink, 200, tasks(call, joi(path.get(1))));
         } else if (get && path.size() == 4 && path.getFirst().equals("jois") && path.get(2).equals("tasks")) {
@@ -313,6 +327,14 @@ public class JoiApi implements DisposableBean {
             }
         }
         return new TaskList(list);
+    }
+
+    private AutoApprovalList autoApproved(Joi joi) throws Exception {
+        List<AutoApproval> tools = new ArrayList<>();
+        for (ServerTool tool : webTaskService.autoApproved(joi)) {
+            tools.add(new AutoApproval(tool.function(), tool.function(), tool.description()));
+        }
+        return new AutoApprovalList(tools);
     }
 
     /** The task of the assistant; a task of another assistant or user is not found. */

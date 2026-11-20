@@ -329,6 +329,11 @@ public class NodeSocket {
         return true;
     }
 
+    /** Tells the server where the approval of a call the node asked the user about is (the result still comes as the call's result). */
+    public void approval(String callId, com.github.enerccio.joi.protocol.node.ApprovalState state, String scope, String via) {
+        send(NodeMessage.APPROVAL, null, null, new com.github.enerccio.joi.protocol.node.Approval(callId, state, scope, via));
+    }
+
     /** Sends a newer manifest (its version higher than the last); it is the one sent when connecting again. */
     public void manifest(Manifest manifest) {
         this.manifest = manifest;

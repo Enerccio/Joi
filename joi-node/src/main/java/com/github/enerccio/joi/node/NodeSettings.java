@@ -57,6 +57,11 @@ public final class NodeSettings {
          * {@code reaction} when her reaction to it comes, so that the change and her words land together.
          */
         public String partsShown;
+        /**
+         * What she may do with the notification tool: {@code off} (null too: she does not get the tool), {@code ask} (the user
+         * approves each notification) or {@code allow}. The user's choice on this node ({@link Notifications}).
+         */
+        public String notifications;
     }
 
     /** {@code credentials.json}: the credentials of each server the node has been connected to, by its address. */

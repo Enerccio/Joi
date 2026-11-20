@@ -683,4 +683,36 @@ class JoiApiTest extends PlatformTestBase {
         // a task that does not wait is not answered again, even with always
         assertThat(post(tasks(joi) + "/" + first.getUuid() + "/approve", "{\"always\": true}").status).isEqualTo(409);
     }
+
+    @Test
+    void theToolsApprovedAheadOfTimeAreListedSetAndTakenBackAndEachSaysSoInTheConversation() throws Exception {
+        String path = "/api/v1/jois/" + joi.getUuid() + "/auto-approved";
+        Answer none = get(path);
+        assertThat(none.status).isEqualTo(200);
+        valid("AutoApprovalList", none.body);
+        assertThat(none.json().getAsJsonArray("tools")).isEmpty();
+
+        Answer on = call("PUT", path + "/web_search", "Bearer " + token, null);
+        assertThat(on.status).isEqualTo(200);
+        valid("AutoApprovalList", on.body);
+        assertThat(on.json().getAsJsonArray("tools")).hasSize(1);
+        var approved = on.json().getAsJsonArray("tools").get(0).getAsJsonObject();
+        assertThat(approved.get("tool").getAsString()).isEqualTo("web_search");
+        assertThat(approved.get("description").getAsString()).isNotBlank();
+        assertThat(webTaskService.autoApproves(joi, ServerTool.WEB_SEARCH)).isTrue();
+        // again is as it was
+        assertThat(call("PUT", path + "/web_search", "Bearer " + token, null).json().getAsJsonArray("tools")).hasSize(1);
+
+        Answer off = call("DELETE", path + "/web_search", "Bearer " + token, null);
+        assertThat(off.status).isEqualTo(200);
+        assertThat(off.json().getAsJsonArray("tools")).isEmpty();
+        assertThat(webTaskService.autoApproves(joi, ServerTool.WEB_SEARCH)).isFalse();
+        assertThat(call("DELETE", path + "/web_search", "Bearer " + token, null).status).isEqualTo(200);
+
+        assertThat(call("PUT", path + "/no_such_tool", "Bearer " + token, null).status).isEqualTo(404);
+        assertThat(call("GET", path, null, null).status).isEqualTo(401);
+        // once set and once taken back: two notes (the repeats wrote none)
+        assertThat(get("/api/v1/jois/" + joi.getUuid() + "/chat?limit=10").body).contains("task.standing_approval\"")
+                .contains("task.standing_approval_removed");
+    }
 }

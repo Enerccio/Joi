@@ -767,7 +767,10 @@ is never shown.
 
 **API (protocol 1.6, 1.7):** `GET /api/v1/jois/{id}/tasks[?status=]`, `GET .../tasks/{task}` (with the transcript),
 `POST .../tasks/{task}/approve` (`{always: true}`, since 1.7: also the standing approval of the tool, kept by the server),
-`.../deny` (`{reason}`), `.../cancel`. `TaskInfo` has id, title, tool,
+`.../deny` (`{reason}`), `.../cancel`. The standing approvals (since 1.7): `GET /api/v1/jois/{id}/auto-approved` (the tools:
+`tool`, `name`, `description`), `PUT .../auto-approved/{tool}` (approve a tool ahead of time) and `DELETE` (take it back,
+the tasks ask again); each answers the list as it is now, and a repeat is as it was (404 for a tool the server does not
+have). A change writes the note in the conversation as the dialog does. `TaskInfo` has id, title, tool,
 toolDescription, status (`queued`, `running`, `waiting`, `done`, `failed`, `cancelled`; a denied task is `cancelled`
 with the reason as `error`), question, url, result, error, the times and `steps` (only for one task). A task of another
 assistant or user is 404; a call that does not fit the status is 409 `conflict`. 
@@ -783,8 +786,8 @@ the terminal node (`/yes`, `/always`, `/no [reason]` answer the oldest question:
 dialog with Approve, Approve all of this tool, Deny, Later); the approval card in 3D on the Looking Glass comes with the
 other cards. A node without an answer leaves the task waiting, and the dialog still answers it.
 
-**Not built:** the result in the prompt once (`fetch_result`, see Model roles) and a list of the standing approvals on a node
-(the server's Auto-approved dialog has it).
+**Not built:** the result in the prompt once (`fetch_result`, see Model roles). A node lists, approves and takes back the
+standing approvals through the API (terminal: `/tasks`, `/auto`, `/auto on|off <tool>`; JavaFX: **Joi → Auto-approved tools**).
 
 ### Privacy mode
 
@@ -1376,6 +1379,17 @@ enforces its harness again.
 - **Server-side tools** (memory, search, bodies / outfits / camera / animations, mood, delegate) are defined by the
   server; only node tools come from nodes.
 - A node can host **local MCP servers** and expose their tools the same way, under its own harness.
+- **The first node tool: `notify` (built, `Notifications`).** She shows the user a notification on this machine (a task of
+  hers finished, something happened and they may not be looking): `notify(title?, text)`, as `<node>__notify`. It is the
+  proof of the whole path of a node tool, and the choice is the **user's, on the node**: `off` (the default: the manifest
+  has no such tool, so she does not get it), `ask` (tier ASK: each notification is asked about, `approval` frames `asked`,
+  then `allowed` or `denied`; no answer in two minutes is a no) or `allow` (tier ALLOW). A change of the choice sends a new
+  manifest, so she gets the tool, or loses it, at once (and is told that the tools changed). The node cleans the text
+  (one line, no control characters, cut to 500 characters, the title to 100) and shows it in the system's notification area:
+  on macOS with `osascript` (the two texts are arguments of the script, never part of it), elsewhere the Java tray icon;
+  the terminal node prints it. Terminal node: `/notify off|ask|allow|test`, and an asked one is answered with `/yes` or `/no`;
+  JavaFX node: the **Joi → Notifications** menu and a dialog. She is told about the tool through its description (the
+  tier is said in it too), so she uses it for what matters, not as a way to chat.
 - What Joi sees in a turn: the server tools plus the tools of the node you are talking through, and of the other
   connected nodes by name ("on the desk"), so she can act on another machine when it makes sense.
 

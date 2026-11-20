@@ -66,6 +66,25 @@ public class JoiNodeApp extends Application {
     private ServerClient client;
     /** The tasks of hers that wait for the user's answer, and the dialog that asks about each ({@code task} frames, since 1.7). */
     private final TaskQuestions taskQuestions = new TaskQuestions();
+    /** What she may do with the notification tool, the user's choice ({@link Notifications}); works once she is loaded. */
+    private final RadioMenuItem notifyOff = new RadioMenuItem("Off (she does not get the tool)");
+    private final RadioMenuItem notifyAsk = new RadioMenuItem("Ask me each time");
+    private final RadioMenuItem notifyAllow = new RadioMenuItem("Allow");
+    private final MenuItem notifyTest = new MenuItem("Show a test notification");
+    private final Menu notifyMenu = new Menu("Notifications", null, notifyOff, notifyAsk, notifyAllow, new SeparatorMenuItem(), notifyTest);
+    {
+        ToggleGroup group = new ToggleGroup();
+        notifyOff.setToggleGroup(group);
+        notifyAsk.setToggleGroup(group);
+        notifyAllow.setToggleGroup(group);
+        notifyMenu.setDisable(true);
+    }
+    /** The menu item of the tools approved ahead of time: it works once she is loaded. */
+    private final MenuItem approvals = new MenuItem("Auto-approved tools…") {
+        {
+            setDisable(true);
+        }
+    };
     private final Map<String, Alert> taskAlerts = new HashMap<>();
     private NodeSocket socket;
     private java.util.concurrent.ScheduledExecutorService stagingTimer;
@@ -134,12 +153,12 @@ public class JoiNodeApp extends Application {
      * The Edit menu: on macOS the keys of cut, copy, paste and select all are the menu's, and an app without the menu gets
      * none of them (not even in a text field). It is the system's menu bar there, a bar above the window elsewhere.
      */
-    private static MenuBar editMenu() {
+    private MenuBar editMenu() {
         MenuItem cut = editItem("Cut", KeyCode.X, TextInputControl::cut);
         MenuItem copy = editItem("Copy", KeyCode.C, TextInputControl::copy);
         MenuItem paste = editItem("Paste", KeyCode.V, TextInputControl::paste);
         MenuItem all = editItem("Select All", KeyCode.A, TextInputControl::selectAll);
-        MenuBar bar = new MenuBar(new Menu("Edit", null, cut, copy, paste, new SeparatorMenuItem(), all));
+        MenuBar bar = new MenuBar(new Menu("Edit", null, cut, copy, paste, new SeparatorMenuItem(), all), new Menu("Joi", null, approvals, notifyMenu));
         bar.setUseSystemMenuBar(true);
         return bar;
     }
@@ -475,6 +494,90 @@ public class JoiNodeApp extends Application {
         alert.show();
     }
 
+    /**
+     * The tools the user approved ahead of time ("approve all of this tool", kept by the server): each can be taken back, and
+     * its tasks ask again.
+     */
+    private void showApprovals(String joi, ChatPane chat) {
+        VBox rows = new VBox(8);
+        rows.setPadding(new Insets(8));
+        Dialog<Void> dialog = new Dialog<>();
+        dialog.setTitle("Auto-approved tools");
+        dialog.setHeaderText("Tasks of these tools run without asking.");
+        dialog.getDialogPane().setContent(rows);
+        dialog.getDialogPane().getButtonTypes().add(ButtonType.CLOSE);
+        Runnable[] refresh = new Runnable[1];
+        refresh[0] = () -> {
+            Thread thread = new Thread(() -> {
+                try {
+                    AutoApprovalList list = client.autoApproved(joi);
+                    Platform.runLater(() -> {
+                        rows.getChildren().clear();
+                        if (list.tools().isEmpty()) {
+                            rows.getChildren().add(new Label("No tool is approved ahead of time."));
+                        }
+                        for (AutoApproval approved : list.tools()) {
+                            Label name = new Label(approved.tool() + (approved.description() == null ? "" : " - " + approved.description()));
+                            name.setWrapText(true);
+                            Button ask = new Button("Ask again");
+                            ask.setOnAction(e -> {
+                                ask.setDisable(true);
+                                Thread off = new Thread(() -> {
+                                    try {
+                                        client.autoApprove(joi, approved.tool(), false);
+                                    } catch (IOException | InterruptedException ex) {
+                                        Platform.runLater(() -> chat.note("Could not take the approval back: " + ex.getMessage()));
+                                    }
+                                    Platform.runLater(refresh[0]);
+                                }, "Joi approvals");
+                                off.setDaemon(true);
+                                off.start();
+                            });
+                            HBox row = new HBox(12, name, ask);
+                            row.setAlignment(Pos.CENTER_LEFT);
+                            HBox.setHgrow(name, Priority.ALWAYS);
+                            name.setMaxWidth(Double.MAX_VALUE);
+                            rows.getChildren().add(row);
+                        }
+                    });
+                } catch (IOException | InterruptedException e) {
+                    Platform.runLater(() -> {
+                        rows.getChildren().setAll(new Label("Could not read them: " + e.getMessage()));
+                    });
+                }
+            }, "Joi approvals");
+            thread.setDaemon(true);
+            thread.start();
+        };
+        refresh[0].run();
+        dialog.show();
+    }
+
+    /** Asks the user whether she may show a notification; blocks the calling thread (the tool's own) until they answer, or time runs out. */
+    private boolean askNotification(String title, String text, long seconds) throws InterruptedException {
+        java.util.concurrent.CompletableFuture<Boolean> answer = new java.util.concurrent.CompletableFuture<>();
+        Alert[] shown = new Alert[1];
+        Platform.runLater(() -> {
+            Alert alert = new Alert(Alert.AlertType.CONFIRMATION, text, ButtonType.YES, ButtonType.NO);
+            alert.setTitle("She wants to notify you");
+            alert.setHeaderText(title);
+            alert.resultProperty().addListener((o, before, result) -> answer.complete(result == ButtonType.YES));
+            alert.setOnHidden(e -> answer.complete(false));
+            shown[0] = alert;
+            alert.show();
+        });
+        try {
+            return answer.get(seconds, java.util.concurrent.TimeUnit.SECONDS);
+        } catch (java.util.concurrent.ExecutionException | java.util.concurrent.TimeoutException e) {
+            Platform.runLater(() -> {
+                if (shown[0] != null) {
+                    shown[0].close();
+                }
+            });
+            return false;
+        }
+    }
+
     private void connect(Loaded loaded) {
         try {
             if (renderer == null) {
@@ -490,6 +593,29 @@ public class JoiNodeApp extends Application {
         renderer.toggles(toggles);
         AvatarPane avatarPane = new AvatarPane(loaded.animations(), renderer, loaded.chromium(), url -> getHostServices().showDocument(url));
         ChatPane chat = new ChatPane(loaded.summary().name());
+        approvals.setOnAction(e -> showApprovals(loaded.summary().id(), chat));
+        approvals.setDisable(false);
+        Notifications notifications = new Notifications(settings, new DesktopScreen(), (title, text, seconds) -> askNotification(title, text, seconds));
+        notifyOff.setSelected(notifications.mode() == Notifications.Mode.OFF);
+        notifyAsk.setSelected(notifications.mode() == Notifications.Mode.ASK);
+        notifyAllow.setSelected(notifications.mode() == Notifications.Mode.ALLOW);
+        java.util.Map<RadioMenuItem, Notifications.Mode> modes = java.util.Map.of(notifyOff, Notifications.Mode.OFF,
+                notifyAsk, Notifications.Mode.ASK, notifyAllow, Notifications.Mode.ALLOW);
+        modes.forEach((item, mode) -> item.setOnAction(e -> {
+            try {
+                notifications.setMode(mode);
+            } catch (IOException ex) {
+                chat.note("The choice was not kept: " + ex.getMessage());
+            }
+        }));
+        notifyTest.setOnAction(e -> {
+            try {
+                notifications.test();
+            } catch (IOException ex) {
+                chat.note("The notification could not be shown: " + ex.getMessage());
+            }
+        });
+        notifyMenu.setDisable(false);
         chat.history(loaded.history());
         SpeechPlayer speech = new SpeechPlayer();
         AvatarDirector director = new AvatarDirector(new AvatarDirector.Avatar() {
@@ -827,9 +953,20 @@ public class JoiNodeApp extends Application {
             protected Void call() throws Exception {
                 NodeSettings.Node node = settings.node();
                 Hello hello = new Hello(JoiProtocol.NODE_VERSION, node.nodeId, node.name, node.kind == null ? "desktop" : node.kind,
-                        "joi-node (JavaFX)", loaded.summary().id(), List.of(NodePart.AUDIO_OUT, NodePart.AVATAR), null, null);
-                Manifest manifest = new Manifest(1, System.getProperty("os.name") + " " + System.getProperty("os.version"),
-                        System.getProperty("os.arch"), null, List.of());
+                        "joi-node (JavaFX)", loaded.summary().id(), List.of(NodePart.AUDIO_OUT, NodePart.AVATAR, NodePart.TOOLS), null, null);
+                Manifest manifest = notifications.manifest();
+                socket.setTools(notifications::run);
+                notifications.attach(new Notifications.Frames() {
+                    @Override
+                    public void approval(String callId, com.github.enerccio.joi.protocol.node.ApprovalState state, String scope, String via) {
+                        socket.approval(callId, state, scope, via);
+                    }
+
+                    @Override
+                    public void manifest(Manifest changed) {
+                        socket.manifest(changed);
+                    }
+                });
                 socket.connect(client.nodeSocket(), client.authorization(), hello, manifest).get();
                 Platform.runLater(() -> {
                     director.start();

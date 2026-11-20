@@ -2,6 +2,8 @@ package com.github.enerccio.joi.node;
 
 import com.github.enerccio.joi.protocol.JoiProtocol;
 import com.github.enerccio.joi.protocol.http.ApiError;
+import com.github.enerccio.joi.protocol.http.AutoApproval;
+import com.github.enerccio.joi.protocol.http.AutoApprovalList;
 import com.github.enerccio.joi.protocol.http.AuthMethod;
 import com.github.enerccio.joi.protocol.http.BodyAnimation;
 import com.github.enerccio.joi.protocol.http.BodyInfo;
@@ -14,6 +16,7 @@ import com.github.enerccio.joi.protocol.http.ServerInfo;
 import com.github.enerccio.joi.protocol.http.TaskInfo;
 import com.github.enerccio.joi.protocol.node.Hello;
 import com.github.enerccio.joi.protocol.node.Manifest;
+import com.github.enerccio.joi.protocol.node.NodePart;
 import com.github.enerccio.joi.protocol.node.ToolUse;
 import com.github.enerccio.joi.protocol.oauth.DeviceAuthorization;
 
@@ -27,10 +30,12 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * The node in a terminal: logs in to the server (a token in {@code JOI_TOKEN}, the device grant, or none when the
@@ -38,7 +43,10 @@ import java.util.concurrent.TimeUnit;
  * connects and chats in text. What her body would play is printed ({@link AvatarDirector}); a non-looping animation
  * is taken as played after a moment. Commands: {@code /stop}, {@code /sleep}, {@code /quit}; and for a task of hers
  * that waits for the user's answer ({@code task} frame): {@code /yes}, {@code /always} (the tool from now on, kept by
- * the server) and {@code /no [reason]}, which answer the oldest question.
+ * the server) and {@code /no [reason]}, which answer the oldest question; {@code /tasks} lists her tasks, {@code /auto}
+ * the tools approved ahead of time, {@code /auto on <tool>} and {@code /auto off <tool>} approve one or take it back;
+ * {@code /notify off|ask|allow} sets whether she gets the notification tool ({@link Notifications}), {@code /notify test}
+ * shows one.
  * <p>
  * {@code java ... JoiNodeCli [http://server:port]}
  */
@@ -94,6 +102,21 @@ public final class JoiNodeCli {
         Object lock = director;
         CountDownLatch closed = new CountDownLatch(1);
         TaskQuestions questions = new TaskQuestions();
+        // the notification tool (off until the user allows it with /notify); an asked notification is answered with /yes or /no
+        AtomicReference<CompletableFuture<Boolean>> asking = new AtomicReference<>();
+        Notifications notifications = new Notifications(settings, (title, text) -> out.println("[notification] " + title + ": " + text + "\u0007"),
+                (title, text, seconds) -> {
+                    CompletableFuture<Boolean> answer = new CompletableFuture<>();
+                    asking.set(answer);
+                    out.println("[asks] she wants to show you a notification \"" + title + ": " + text + "\" - /yes or /no");
+                    try {
+                        return answer.get(seconds, TimeUnit.SECONDS);
+                    } catch (java.util.concurrent.ExecutionException | java.util.concurrent.TimeoutException e) {
+                        return false;
+                    } finally {
+                        asking.compareAndSet(answer, null);
+                    }
+                });
         NodeSocket socket = new NodeSocket(new NodeSocket.Listener() {
             @Override
             public void turnStarted(String turn, String cause) {
@@ -180,9 +203,20 @@ public final class JoiNodeCli {
             }
         });
         Hello hello = new Hello(JoiProtocol.NODE_VERSION, node.nodeId, node.name, node.kind, "joi-node " + version(), chosen.id(),
-                List.of(), null, null);
-        Manifest manifest = new Manifest(1, System.getProperty("os.name") + " " + System.getProperty("os.version"),
-                System.getProperty("os.arch"), null, List.of());
+                List.of(NodePart.TOOLS), null, null);
+        Manifest manifest = notifications.manifest();
+        socket.setTools(notifications::run);
+        notifications.attach(new Notifications.Frames() {
+            @Override
+            public void approval(String callId, com.github.enerccio.joi.protocol.node.ApprovalState state, String scope, String via) {
+                socket.approval(callId, state, scope, via);
+            }
+
+            @Override
+            public void manifest(Manifest changed) {
+                socket.manifest(changed);
+            }
+        });
         try {
             socket.connect(client.nodeSocket(), client.authorization(), hello, manifest).get(20, TimeUnit.SECONDS);
         } catch (Exception e) {
@@ -205,7 +239,33 @@ public final class JoiNodeCli {
                     return;
                 }
                 case "/stop" -> socket.stop(null);
-                case "/yes", "/always", "/no" -> answer(client, chosen.id(), questions, line, null);
+                case "/yes", "/no" -> {
+                    CompletableFuture<Boolean> asked = asking.get();
+                    if (asked != null) {
+                        asked.complete("/yes".equals(line));
+                    } else {
+                        answer(client, chosen.id(), questions, line, null);
+                    }
+                }
+                case "/always" -> answer(client, chosen.id(), questions, line, null);
+                case "/notify" -> out.println("[notifications: " + notifications.mode().setting() + "; /notify off, ask, allow or test]");
+                case "/notify test" -> {
+                    try {
+                        notifications.test();
+                    } catch (IOException e) {
+                        out.println("[the notification could not be shown: " + e.getMessage() + "]");
+                    }
+                }
+                case "/notify off", "/notify ask", "/notify allow" -> {
+                    try {
+                        notifications.setMode(Notifications.Mode.of(line.substring(8)));
+                        out.println("[notifications: " + notifications.mode().setting() + "]");
+                    } catch (IOException e) {
+                        out.println("[not kept: " + e.getMessage() + "]");
+                    }
+                }
+                case "/tasks" -> tasks(client, chosen.id());
+                case "/auto" -> autoApproved(client, chosen.id(), null, null);
                 case "/sleep" -> {
                     synchronized (lock) {
                         director.fallAsleep();
@@ -214,6 +274,9 @@ public final class JoiNodeCli {
                 default -> {
                     if (line.startsWith("/no ")) {
                         answer(client, chosen.id(), questions, "/no", line.substring(4).strip());
+                    } else if (line.startsWith("/auto ")) {
+                        String[] words = line.substring(6).strip().split("\\s+");
+                        autoApproved(client, chosen.id(), words[0], words.length > 1 ? words[1] : null);
                     } else {
                         socket.say(line, false, false);
                     }
@@ -244,6 +307,45 @@ public final class JoiNodeCli {
             out.println("[not answered: " + e.getMessage() + "]");
         }
         questions.answered(asked.id());
+    }
+
+    /** Her tasks, the newest first. */
+    private void tasks(ServerClient client, String joi) {
+        try {
+            List<TaskInfo> tasks = client.tasks(joi, null).tasks();
+            if (tasks.isEmpty()) {
+                out.println("[no tasks]");
+            }
+            for (TaskInfo task : tasks) {
+                out.println("[task] " + task.status() + " " + task.tool() + ": " + task.title());
+            }
+        } catch (IOException | InterruptedException e) {
+            out.println("[the tasks could not be read: " + e.getMessage() + "]");
+        }
+    }
+
+    /** The tools approved ahead of time ({@code on} and {@code tool} null), or one approved ({@code on}) or taken back ({@code off}). */
+    private void autoApproved(ServerClient client, String joi, String on, String tool) {
+        try {
+            AutoApprovalList list;
+            if (on == null) {
+                list = client.autoApproved(joi);
+            } else if (tool != null && ("on".equals(on) || "off".equals(on))) {
+                list = client.autoApprove(joi, tool, "on".equals(on));
+            } else {
+                out.println("[/auto, /auto on <tool> or /auto off <tool>]");
+                return;
+            }
+            if (list.tools().isEmpty()) {
+                out.println("[no tool is approved ahead of time]");
+            }
+            for (AutoApproval approved : list.tools()) {
+                out.println("[approved] " + approved.tool() + (approved.description() == null ? "" : " (" + approved.description() + ")")
+                        + " - /auto off " + approved.tool() + " takes it back");
+            }
+        } catch (IOException | InterruptedException e) {
+            out.println("[not done: " + e.getMessage() + "]");
+        }
     }
 
     private void login(ServerClient client, NodeSettings settings, ServerInfo info, String nodeName) throws IOException, InterruptedException {

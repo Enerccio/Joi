@@ -27,6 +27,7 @@ class ServerClientTasksTest {
     private HttpServer server;
     private final List<String> calls = new CopyOnWriteArrayList<>();
     private volatile int status = 200;
+    private volatile String body;
 
     @BeforeEach
     void start() throws Exception {
@@ -35,7 +36,7 @@ class ServerClientTasksTest {
             String body = new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
             calls.add(exchange.getRequestMethod() + " " + exchange.getRequestURI().getPath() + " " + exchange.getRequestHeaders().getFirst("Authorization")
                     + " [" + body + "]");
-            String answer = status == 200
+            String answer = status == 200 && this.body != null ? this.body : status == 200
                     ? "{\"id\":\"t1\",\"title\":\"Prague\",\"tool\":\"web_search\",\"status\":\"queued\",\"created\":\"2026-11-20T10:00:00Z\"}"
                     : "{\"code\":\"conflict\",\"message\":\"The task is not waiting\"}";
             byte[] bytes = answer.getBytes(StandardCharsets.UTF_8);
@@ -80,5 +81,19 @@ class ServerClientTasksTest {
                     assertThat(e.status()).isEqualTo(409);
                     assertThat(e.code()).isEqualTo("conflict");
                 });
+    }
+
+    @Test
+    void theTasksAndTheToolsApprovedAheadOfTimeAreReadAndChangedThroughTheApi() throws Exception {
+        body = "{\"tasks\":[{\"id\":\"t1\",\"title\":\"Prague\",\"tool\":\"web_search\",\"status\":\"waiting\",\"created\":\"2026-11-20T10:00:00Z\"}]}";
+        assertThat(client().tasks("j1", "waiting").tasks()).extracting(TaskInfo::id).containsExactly("t1");
+        assertThat(calls.get(0)).startsWith("GET /api/v1/jois/j1/tasks Bearer tok");
+
+        body = "{\"tools\":[{\"tool\":\"web_search\",\"name\":\"web_search\",\"description\":\"Search the web\"}]}";
+        assertThat(client().autoApproved("j1").tools()).extracting(a -> a.tool()).containsExactly("web_search");
+        client().autoApprove("j1", "web_search", true);
+        client().autoApprove("j1", "web_search", false);
+        assertThat(calls.get(2)).startsWith("PUT /api/v1/jois/j1/auto-approved/web_search Bearer tok");
+        assertThat(calls.get(3)).startsWith("DELETE /api/v1/jois/j1/auto-approved/web_search Bearer tok");
     }
 }

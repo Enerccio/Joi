@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Enerccio/joi/protocol/v1/AutoApproval.schema.json",
+  "title": "AutoApproval",
+  "description": "A tool of the server the user approved ahead of time for the assistant (since 1.7): its tasks are approved without asking (\"approve all of this tool\").",
+  "type": "object",
+  "properties": {
+    "tool": {
+      "type": "string",
+      "description": "The tool's name (web_search), the id to take the approval back with."
+    },
+    "name": {
+      "type": "string",
+      "description": "The name to show."
+    },
+    "description": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "What the tool does, for the user to see what they approved."
+    }
+  },
+  "required": [
+    "tool",
+    "name"
+  ]
+}
