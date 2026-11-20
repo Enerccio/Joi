@@ -42,7 +42,7 @@ class SchemaContractTest {
             TokenResponse.class, OAuthError.class, OAuthMetadata.class, Download.class, BodyModel.class, BodyPart.class,
             BodyAnimation.class, BodyAnimations.class, BodyInfo.class, JoiAnimations.class, Frame.class, Hello.class, Welcome.class, Manifest.class,
             ToolDefinition.class, Say.class, Stop.class, ToolUse.class, ToolCall.class, ToolProgress.class, ToolResult.class,
-            ToolCancel.class, Approval.class, ServerEvent.class, TurnStart.class);
+            ToolCancel.class, Approval.class, ServerEvent.class, TurnStart.class, ChatEntry.class, ChatHistory.class);
 
     /** The enums with a schema of their own: the values are the schema's enum. */
     static final List<Class<? extends Enum<?>>> ENUMS = List.of(AuthMethod.class, NodePart.class, ToolTier.class,
@@ -131,6 +131,8 @@ class SchemaContractTest {
                         new OAuthEndpoints("http://h/oauth/device_authorization", "http://h/oauth/token", "http://h/?device="))));
         valid(new ServerInfo("1.0", "joi-server", "0.1.0", new AuthInfo(List.of(AuthMethod.NONE), null)));
         valid(new Me("peter", "Peter", AuthMethod.NONE));
+        valid(new ChatHistory(List.of(new ChatEntry("m1", "2026-11-18T19:00:00Z", "event", null, "node.first_boot", "desk", "I'm awake."),
+                new ChatEntry("m2", "2026-11-18T19:01:00Z", "user", "Hi", null, null, null)), true));
         valid(new JoiList(List.of(new JoiSummary("2f0c", "Joi", "2026-11-18T19:00:00Z"), new JoiSummary("88aa", "Kairo", null))));
         valid(new JoiInfo("2f0c", "Joi", "Peter", new Personality("warm", "Warm"), null, "Hey Joi", null, "Gemma", new Voice("Higgs", "C", "low and warm"),
                 new JoiAnimations("p1", null, "p2", List.of("p3", "p4"), List.of())));

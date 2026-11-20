@@ -82,8 +82,33 @@ class AvatarDirectorTest {
         director.reply("s1", reply("Hello."));
 
         director.disconnected();
-        assertThat(log).containsExactly("play idle loop", "play sleep loop", "play idle loop", "text Hel", "reply Hello.",
-                "play talk loop", "play idle loop");
+        assertThat(log).containsExactly("play idle loop", "play sleep loop", "play idle loop", "text Hel", "reply Hello.");
+        assertThat(director.state()).isEqualTo(AvatarDirector.State.IDLE);
+    }
+
+    @Test
+    void herWordsWaitForHerVoice() {
+        AvatarDirector director = new AvatarDirector(avatar, ALL, new Random(1));
+        director.start();
+        director.turnStarted("t1", NodeSocket.SAY, true);
+        director.text("t1", "Hel");
+        director.text("t1", "lo.");
+        director.reply("t1", reply("Hello."));
+        assertThat(log).containsExactly("play idle loop");
+
+        director.audio("t1", new AudioChunk(0, "Hello.", "audio/wav", ""));
+        director.audio("t1", new AudioChunk(1, "Hi.", "audio/wav", ""));
+        assertThat(log).containsExactly("play idle loop", "text Hel", "text lo.", "reply Hello.", "play talk loop", "speak 0", "speak 1");
+
+        // a turn whose voice never comes shows its words when it ends
+        log.clear();
+        director.speechEnded();
+        director.turnStarted("t2", NodeSocket.SAY, true);
+        director.text("t2", "Hm.");
+        director.reply("t2", reply("Hm."));
+        assertThat(log).containsExactly("play idle loop");
+        director.done("t2");
+        assertThat(log).containsExactly("play idle loop", "text Hm.", "reply Hm.");
         assertThat(director.state()).isEqualTo(AvatarDirector.State.IDLE);
     }
 

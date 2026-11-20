@@ -6,6 +6,7 @@ import com.github.enerccio.joi.domain.bodies.DescribedPart;
 import com.github.enerccio.joi.domain.bodies.ModelCapabilities;
 import com.github.enerccio.joi.domain.bodies.joim.JoimMetadata;
 import com.github.enerccio.joi.domain.chat.ChatService;
+import com.github.enerccio.joi.domain.collections.ChatMessageType;
 import com.github.enerccio.joi.domain.chat.turn.TurnInput;
 import com.github.enerccio.joi.domain.chat.ChatService.NoModelException;
 import com.github.enerccio.joi.domain.model.impl.AnimationPack;
@@ -76,6 +77,8 @@ public class JoiApi implements DisposableBean {
     private static final Logger log = LoggerFactory.getLogger(JoiApi.class);
 
     static final int MAX_TEXT = 20_000;
+    static final int DEFAULT_HISTORY = 50;
+    static final int MAX_HISTORY = 200;
     static final long KEEP_ALIVE_SECONDS = 15;
     static final String JSON = "application/json;charset=UTF-8";
 
@@ -209,6 +212,8 @@ public class JoiApi implements DisposableBean {
             json(sink, 200, jois());
         } else if (get && path.size() == 2 && path.getFirst().equals("jois")) {
             json(sink, 200, info(joi(path.get(1))));
+        } else if (get && path.size() == 3 && path.getFirst().equals("jois") && path.get(2).equals("chat")) {
+            json(sink, 200, history(call, joi(path.get(1))));
         } else if (post && path.size() == 3 && path.getFirst().equals("jois") && path.get(2).equals("chat")) {
             chat(call, joi(path.get(1)), sink);
         } else if (get && path.size() == 3 && path.getFirst().equals("jois") && path.get(2).equals("body")) {
@@ -244,6 +249,46 @@ public class JoiApi implements DisposableBean {
                 joi.getMood(), StringUtils.defaultIfBlank(joi.getWakeWord(), "Hey " + name), iso(last),
                 model == null ? null : model.getName(), tts == null || actor == null ? null : new Voice(tts.getName(), actor.getName(),
                         StringUtils.defaultIfBlank(actor.getDescription(), null)), animations(joi));
+    }
+
+    /**
+     * Her latest exchanges ({@code limit}, at most {@value #MAX_HISTORY}), oldest first, or the ones before the message
+     * {@code before}.
+     */
+    private ChatHistory history(ApiCall call, Joi joi) throws Exception {
+        int limit = DEFAULT_HISTORY;
+        String asked = call.query().get("limit");
+        if (StringUtils.isNotBlank(asked)) {
+            try {
+                limit = Integer.parseInt(asked.strip());
+            } catch (NumberFormatException e) {
+                throw new IllegalArgumentException("limit is not a number: " + asked);
+            }
+            if (limit < 1 || limit > MAX_HISTORY) {
+                throw new IllegalArgumentException("limit is 1 to " + MAX_HISTORY);
+            }
+        }
+        String before = call.query().get("before");
+        List<ChatMessage> messages;
+        if (StringUtils.isNotBlank(before)) {
+            Long id = chatMessageService.find(before.strip());
+            ChatMessage first = id == null ? null : chatMessageService.find(id);
+            if (first == null || first.isDeleted() || !first.getJoi().getId().equals(joi.getId())) {
+                throw new ApiException(404, "not_found", "No message " + before);
+            }
+            messages = chatMessageService.findBefore(joi, first, limit + 1);
+        } else {
+            messages = chatMessageService.findLatest(joi, limit + 1);
+        }
+        boolean more = messages.size() > limit;
+        List<ChatEntry> entries = new ArrayList<>();
+        for (ChatMessage message : more ? messages.subList(1, messages.size()) : messages) {
+            boolean event = message.getType() == ChatMessageType.EVENT;
+            entries.add(new ChatEntry(message.getUuid(), iso(message.getSentAt()), event ? "event" : "user",
+                    event ? null : message.getInput(), event ? message.getEventKind() : null,
+                    StringUtils.defaultIfBlank(message.getNode(), null), StringUtils.defaultIfBlank(message.getResponse(), null)));
+        }
+        return new ChatHistory(entries, more);
     }
 
     /** The animations she plays in her states, the ones still in the user's library. */

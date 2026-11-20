@@ -11,6 +11,7 @@ import com.github.enerccio.joi.protocol.http.ApiError;
 import com.github.enerccio.joi.protocol.http.AuthMethod;
 import com.github.enerccio.joi.protocol.http.BodyAnimation;
 import com.github.enerccio.joi.protocol.http.BodyInfo;
+import com.github.enerccio.joi.protocol.http.ChatEntry;
 import com.github.enerccio.joi.protocol.http.ChatReply;
 import com.github.enerccio.joi.protocol.http.Done;
 import com.github.enerccio.joi.protocol.http.Download;
@@ -61,6 +62,9 @@ import java.util.Random;
  * localhost and shown in the pane by Chromium (JCEF); without it, it opens in a browser.
  */
 public class JoiNodeApp extends Application {
+
+    /** How many of her latest exchanges the chat starts with. */
+    private static final int HISTORY = 50;
 
     private final NodeSettings settings = NodeSettings.standard();
     private Stage stage;
@@ -265,8 +269,8 @@ public class JoiNodeApp extends Application {
     // ----------------------------------------------------------------------------------------------------------------
 
     /** What the loading screen got: her, her body (null for none) and the names of her animations. */
-    private record Loaded(JoiSummary summary, JoiInfo joi, BodyInfo body, Map<String, String> animations, BodyFiles files,
-                          org.cef.CefClient chromium) {
+    private record Loaded(JoiSummary summary, JoiInfo joi, List<ChatEntry> history, BodyInfo body, Map<String, String> animations,
+                          BodyFiles files, org.cef.CefClient chromium) {
     }
 
     private void load(JoiSummary chosen) {
@@ -285,6 +289,14 @@ public class JoiNodeApp extends Application {
                 node.joi = chosen.id();
                 settings.saveNode();
                 JoiInfo joi = client.joi(chosen.id());
+                List<ChatEntry> history;
+                try {
+                    history = client.history(chosen.id(), HISTORY).messages();
+                } catch (ServerClient.ServerException e) {
+                    // a server before 1.3: the chat starts empty
+                    System.err.println("No chat history: " + e.getMessage());
+                    history = List.of();
+                }
                 BodyInfo body = client.body(chosen.id());
                 Map<String, String> names = new HashMap<>();
                 Path joim = null;
@@ -316,7 +328,7 @@ public class JoiNodeApp extends Application {
                     System.err.println("Chromium did not start: " + e);
                     chromium = null;
                 }
-                return new Loaded(chosen, joi, body, names, files, chromium);
+                return new Loaded(chosen, joi, history, body, names, files, chromium);
             }
 
             private Path fetch(String label, Download file) throws Exception {
@@ -342,6 +354,7 @@ public class JoiNodeApp extends Application {
         renderer.show(loaded.files());
         AvatarPane avatarPane = new AvatarPane(loaded.animations(), renderer, loaded.chromium(), url -> getHostServices().showDocument(url));
         ChatPane chat = new ChatPane(loaded.summary().name());
+        chat.history(loaded.history());
         SpeechPlayer speech = new SpeechPlayer();
         AvatarDirector director = new AvatarDirector(new AvatarDirector.Avatar() {
             @Override
@@ -377,10 +390,12 @@ public class JoiNodeApp extends Application {
         avatarPane.setOnAnimationEnded(director::animationEnded);
         speech.setOnEnded(director::speechEnded);
 
+        // with a voice her words wait for it
+        boolean voiced = loaded.joi().voice() != null;
         socket = new NodeSocket(new NodeSocket.Listener() {
             @Override
             public void turnStarted(String turn, String cause) {
-                Platform.runLater(() -> director.turnStarted(turn, cause, true));
+                Platform.runLater(() -> director.turnStarted(turn, cause, voiced));
             }
 
             @Override
@@ -500,6 +515,18 @@ public class JoiNodeApp extends Application {
                 input.clear();
                 add("You: " + text);
                 onSay.accept(text);
+            }
+        }
+
+        /** Her history from the server: the chat goes on where it was. */
+        void history(List<ChatEntry> entries) {
+            for (ChatEntry entry : entries) {
+                if (entry.text() != null) {
+                    add("You: " + entry.text());
+                }
+                if (entry.reply() != null) {
+                    add(name + ": " + entry.reply());
+                }
             }
         }
 

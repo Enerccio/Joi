@@ -90,6 +90,9 @@ one; the server treats every node the same.
     every 15 s. Both are useful: a simple client takes the whole reply, a voice node the stream. The speech starts once the
     text is whole (speaking while the model still writes is roadmap step 3). The turn is stored as a `ChatMessage`
     with its prompt; turns of one assistant run one at a time.
+  - `GET /api/v1/jois/{id}/chat` (1.3): her history, the latest 50 exchanges (`limit`, up to 200) oldest first,
+    each the user's words or the kind of the event, and her reply; `more` and `before` page back. A node shows it
+    when it starts, so the chat goes on where it was.
   - `GET /api/v1/jois/{id}/body` (1.1): the body she is in (`404 no_body` for none): its models, the full one and
     the Looking Glass one, each with its `.joim` to download; the parts of the full model that can be switched, each
     in the state the body is in (the model's state); how she looks; and the animations the body plays (whether all of
@@ -962,7 +965,9 @@ The first real node is a desktop app in JavaFX (`joi-node`). What it does, in or
      animation is over should work for every animation. Then she waits for the user (text for now).
    - **Before: the user is back.** The synthetic event `connected`, its own template (`CONNECTED_EVENT`: a greeting
      that fits how long they were away).
-5. **The chat** beside her body: text chat with her voice played back (no microphone yet). Her body is a 3D view next
+5. **The chat** beside her body: text chat with her voice played back (no microphone yet). It starts with her
+   history from the server (`GET /api/v1/jois/{id}/chat`), so it goes on where it was. When she has a voice, the
+   text of a reply waits for its first piece of speech, so the chat doesn't run ahead of her. Her body is a 3D view next
    to the chat that **pops out** into a window of its own and goes **fullscreen** onto the Looking Glass.
 
 While she waits she plays one of her **idle** animations (another each time), while she speaks one of her **talking**

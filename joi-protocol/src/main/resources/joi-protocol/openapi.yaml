@@ -66,6 +66,33 @@ paths:
         "401": { $ref: "#/components/responses/Unauthorized" }
         "404": { $ref: "#/components/responses/NotFound" }
   /api/v1/jois/{id}/chat:
+    get:
+      summary: Her history, the latest exchanges first (since 1.3)
+      description: |
+        Her latest exchanges, oldest first: what the user said (or the kind of the event she reacted to) and her
+        reply. A client shows them when it starts, so the chat goes on where it was. `more` says there are earlier
+        ones: ask again with `before`, the id of the first one given.
+      parameters:
+        - { $ref: "#/components/parameters/JoiId" }
+        - name: limit
+          in: query
+          required: false
+          description: How many, 1 to 200 (default 50)
+          schema: { type: integer, minimum: 1, maximum: 200, default: 50 }
+        - name: before
+          in: query
+          required: false
+          description: The id of a message (ChatEntry.id); the ones before it are given
+          schema: { type: string }
+      responses:
+        "200":
+          description: Her exchanges, oldest first
+          content:
+            application/json:
+              schema: { $ref: "schemas/ChatHistory.schema.json" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
     post:
       summary: Say something to her; she answers in text and speech
       description: |

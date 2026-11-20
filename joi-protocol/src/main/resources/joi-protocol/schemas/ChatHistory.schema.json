@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Enerccio/joi/protocol/v1/ChatHistory.schema.json",
+  "title": "ChatHistory",
+  "description": "GET /api/v1/jois/{id}/chat (since 1.3): her latest exchanges, oldest first, and whether there are earlier ones (asked for with before, the id of the first one here).",
+  "type": "object",
+  "properties": {
+    "messages": {
+      "type": "array",
+      "items": {
+        "$ref": "ChatEntry.schema.json"
+      }
+    },
+    "more": {
+      "type": "boolean",
+      "description": "Whether there are earlier exchanges."
+    }
+  },
+  "required": [
+    "messages",
+    "more"
+  ]
+}

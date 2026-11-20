@@ -153,7 +153,9 @@ class JoiApiTest extends PlatformTestBase {
             map.put(headers[i].toLowerCase(Locale.ROOT), headers[i + 1]);
         }
         Answer answer = new Answer();
-        api.handle(new ApiCall(method, path, Map.of(), map, body == null ? new byte[0] : body.getBytes(StandardCharsets.UTF_8),
+        int query = path.indexOf('?');
+        api.handle(new ApiCall(method, query < 0 ? path : path.substring(0, query),
+                query < 0 ? Map.of() : ApiCall.parse(path.substring(query + 1)), map, body == null ? new byte[0] : body.getBytes(StandardCharsets.UTF_8),
                 "http://joi.test:8080"), answer);
         return answer;
     }
@@ -341,6 +343,31 @@ class JoiApiTest extends PlatformTestBase {
         assertThat(listed.json().getAsJsonArray("jois").get(0).getAsJsonObject().get("lastChatted").isJsonNull()).isFalse();
         // the mood of the day stays
         assertThat(second.json().get("mood").getAsString()).isEqualTo(reply.get("mood").getAsString());
+
+        // her history, oldest first, paged back
+        Answer history = get("/api/v1/jois/" + joi.getUuid() + "/chat");
+        assertThat(history.status).as(history.body).isEqualTo(200);
+        valid("ChatHistory", history.body);
+        JsonArray entries = history.json().getAsJsonArray("messages");
+        assertThat(entries).hasSize(2);
+        JsonObject said = entries.get(0).getAsJsonObject();
+        assertThat(said.get("id").getAsString()).isEqualTo(reply.get("messageId").getAsString());
+        assertThat(said.get("type").getAsString()).isEqualTo("user");
+        assertThat(said.get("text").getAsString()).isEqualTo("Hi!");
+        assertThat(said.get("node").getAsString()).isEqualTo("kitchen");
+        assertThat(said.get("reply").getAsString()).isEqualTo("Hello, Peter.");
+        assertThat(entries.get(1).getAsJsonObject().get("reply").getAsString()).isEqualTo("Still here.");
+        assertThat(history.json().get("more").getAsBoolean()).isFalse();
+
+        Answer latest = get("/api/v1/jois/" + joi.getUuid() + "/chat?limit=1");
+        assertThat(latest.json().getAsJsonArray("messages")).hasSize(1);
+        assertThat(latest.json().get("more").getAsBoolean()).isTrue();
+        String last = latest.json().getAsJsonArray("messages").get(0).getAsJsonObject().get("id").getAsString();
+        Answer earlier = get("/api/v1/jois/" + joi.getUuid() + "/chat?limit=1&before=" + last);
+        assertThat(earlier.json().getAsJsonArray("messages").get(0).getAsJsonObject().get("text").getAsString()).isEqualTo("Hi!");
+        assertThat(earlier.json().get("more").getAsBoolean()).isFalse();
+        assertThat(get("/api/v1/jois/" + joi.getUuid() + "/chat?limit=0").status).isEqualTo(400);
+        assertThat(get("/api/v1/jois/" + joi.getUuid() + "/chat?before=nope").status).isEqualTo(404);
     }
 
     @Test

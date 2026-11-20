@@ -14,7 +14,9 @@ import java.util.random.RandomGenerator;
  * while she waits (one of the idle ones, another each time), talking while she speaks, and her very first waking up
  * (cause {@code first_boot}): she sleeps while the server writes and renders her words, which are held back; when the
  * turn is done she wakes up, and her words come once the waking-up animation is over. A missing animation is skipped
- * (her rest pose). The renderer and the speech are the {@link Avatar}'s; it tells back when they end.
+ * (her rest pose). When she speaks, her words wait for her voice: the text of a turn is shown with its first piece of
+ * speech (or when the turn ends without one), so the chat doesn't run ahead of her. The renderer and the speech are the
+ * {@link Avatar}'s; it tells back when they end.
  * <p>
  * Not thread safe: call it from one thread (the UI's, or the socket's in the terminal client).
  */
@@ -69,6 +71,11 @@ public class AvatarDirector {
     private String speakingTurn;
     private boolean speechPlaying;
     private boolean speechExpected;
+    /** The turn whose words wait for her voice, null for none, and its words. */
+    private String unvoiced;
+    private final List<Runnable> unvoicedFrames = new ArrayList<>();
+    /** The turn whose voice came. */
+    private String voiced;
 
     public AvatarDirector(Avatar avatar, JoiAnimations roles, RandomGenerator random) {
         this.avatar = avatar;
@@ -105,14 +112,15 @@ public class AvatarDirector {
     }
 
     public void text(String turn, String delta) {
-        if (hold(turn, () -> text(turn, delta))) {
+        if (hold(turn, () -> text(turn, delta)) || waitForVoice(turn, () -> avatar.text(turn, delta))) {
             return;
         }
         avatar.text(turn, delta);
     }
 
     public void reply(String turn, ChatReply reply) {
-        if (hold(turn, () -> reply(turn, reply))) {
+        if (hold(turn, () -> reply(turn, reply)) || waitForVoice(turn, () -> avatar.reply(turn, reply))) {
+            // she starts talking with her voice
             return;
         }
         avatar.reply(turn, reply);
@@ -123,6 +131,8 @@ public class AvatarDirector {
         if (hold(turn, () -> audio(turn, chunk))) {
             return;
         }
+        voiced = turn;
+        showUnvoiced();
         talk(turn);
         speechPlaying = true;
         avatar.speak(turn, chunk);
@@ -134,6 +144,7 @@ public class AvatarDirector {
             wakeUp();
             return;
         }
+        showUnvoiced();
         if (turn != null && turn.equals(speakingTurn) && (!speechExpected || !speechPlaying)) {
             // no speech (or none came): back to idle once the reply is shown
             speakingTurn = null;
@@ -148,6 +159,7 @@ public class AvatarDirector {
             heldDone = false;
             replayHeld(turn);
         }
+        showUnvoiced();
         avatar.failed(turn, error);
         if (turn != null && turn.equals(speakingTurn) || state == State.SLEEPING) {
             speakingTurn = null;
@@ -168,6 +180,7 @@ public class AvatarDirector {
             idle();
             replayHeld(turn);
         }
+        showUnvoiced();
         if (speakingTurn != null && !speechPlaying) {
             speakingTurn = null;
             idle();
@@ -213,6 +226,27 @@ public class AvatarDirector {
             return true;
         }
         return false;
+    }
+
+    /** A frame of her words is kept until her voice comes; true when it was. */
+    private boolean waitForVoice(String turn, Runnable frame) {
+        if (!speechExpected || turn == null || turn.equals(voiced)) {
+            return false;
+        }
+        if (!turn.equals(unvoiced)) {
+            showUnvoiced();
+            unvoiced = turn;
+        }
+        unvoicedFrames.add(frame);
+        return true;
+    }
+
+    /** The words that waited for her voice. */
+    private void showUnvoiced() {
+        unvoiced = null;
+        List<Runnable> frames = List.copyOf(unvoicedFrames);
+        unvoicedFrames.clear();
+        frames.forEach(Runnable::run);
     }
 
     private void wakeUp() {

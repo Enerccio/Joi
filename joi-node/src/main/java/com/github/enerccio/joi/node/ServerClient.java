@@ -3,6 +3,7 @@ package com.github.enerccio.joi.node;
 import com.github.enerccio.joi.protocol.JoiProtocol;
 import com.github.enerccio.joi.protocol.http.ApiError;
 import com.github.enerccio.joi.protocol.http.BodyInfo;
+import com.github.enerccio.joi.protocol.http.ChatHistory;
 import com.github.enerccio.joi.protocol.http.Download;
 import com.github.enerccio.joi.protocol.http.JoiInfo;
 import com.github.enerccio.joi.protocol.http.JoiList;
@@ -104,6 +105,11 @@ public class ServerClient {
 
     public JoiInfo joi(String id) throws IOException, InterruptedException {
         return get(JoiProtocol.API + "/jois/" + id, JoiInfo.class, true);
+    }
+
+    /** Her latest {@code limit} exchanges, oldest first (since 1.3). */
+    public ChatHistory history(String joi, int limit) throws IOException, InterruptedException {
+        return get(JoiProtocol.API + "/jois/" + joi + "/chat?limit=" + limit, ChatHistory.class, true);
     }
 
     /** The body she is in, null for none. */
