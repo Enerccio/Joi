@@ -657,6 +657,26 @@ from the ones marked for it. Whether a model takes images is the model's own **M
   does the thinking.
   Gemma 4 31B Q6_K (the heavy-role candidate) gains as much: 20 → about 33 tok/s on free text and 53 tok/s on tool
   calls with MTP (40 % / 89 % accepted), tool calls the same.
+- **Gemma 4 on the conversation role, replayed 2026-11-20/21** (one stored prompt sent to llama.cpp, 8 to 10 samples
+  per setting, throwaway scripts; the numbers are rough):
+  - With thinking on, Gemma 4 decides per reply whether to think. Its template adds nothing after `<|turn>model` on a
+    fresh turn and `<|channel>thought` after a tool result. A reply that skips thinking starts with an empty thought
+    block, and two failures sit on that path.
+  - **The call written as text:** the model plans `play_animation(animation="Bashful")` as a line in its thinking and
+    copies the plan into its words, so no call is made. The "show skin" prompt did it in 7 to 9 of 10 replies, also
+    after real thinking.
+  - **The loop:** the model writes empty thought blocks (`<|channel>thought`, newline, `<channel|>`) again and again
+    until the token budget. llama.cpp holds them back, so Joi gets no chunk at all and the turn fails after 2 to 3
+    minutes at 10000 tokens. A guard on the streamed text can't see it; only silence shows it, and a watchdog needs a
+    hook in the platform's stream.
+  - **Not the cause:** the MTP head (same results without it), the GGUF (checksum matches), the chat template (the
+    embedded one equals Google's and the 31B's), the sampler defaults, the old event messages in the history. Banning
+    the two channel tokens (`logit_bias`) ends the loop but also removes real calls (6 → 2 of 10).
+  - **The `TOOLS` section** at the end of the master template ("You act only through function calls…") is the fix that
+    worked: the 12B's text calls went from 7 to 1 of 10, and the 26B-A4B Q5 made real calls in 9 of 10 instead of 1.
+  - Real calls of 10 on the "show skin" prompt, thinking on: 12B Q6_K 2, 26B-A4B Q5 1 (9 with the section), 31B Q6_K 10
+    (it also never looped). The 31B Q6_K does not fit next to Chatterbox (about 5.9 GB); the 26B-A4B Q5 (18 GB) does.
+  - Open: the text-call parser as a safety net, the loop watchdog, the 31B at Q4.
 - **Local stays in the loop:** a quantized local model is tested on purpose (a nightly run or before a release), since
   that's what the local setup ships with and weaker models break tool calls first.
 - **Most tests use no LLM at all:** a scripted fake provider that returns canned replies and tool calls drives the tool
