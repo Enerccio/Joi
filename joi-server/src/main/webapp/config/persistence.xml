@@ -38,6 +38,7 @@
         <class>com.github.enerccio.joi.domain.model.impl.JoiTaskMessage</class>
         <class>com.github.enerccio.joi.domain.model.impl.Memory</class>
         <class>com.github.enerccio.joi.domain.model.impl.QueuedEvent</class>
+        <class>com.github.enerccio.joi.domain.model.impl.ToolMetadata</class>
         <class>com.github.enerccio.joi.domain.model.impl.AccessToken</class>
         <class>com.github.enerccio.joi.domain.model.impl.Model</class>
         <class>com.github.enerccio.joi.domain.model.impl.Body</class>

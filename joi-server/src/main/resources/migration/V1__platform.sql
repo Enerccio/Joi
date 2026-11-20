@@ -561,6 +561,23 @@ CREATE TABLE memories
     source_message_id bigint      REFERENCES chat_messages (id)
 );
 
+-- ToolMetadata: the permission, options and secrets of a server tool in one place of the chain (an assistant, a user, the
+-- administrator); all but the three columns that find it are in the extended content.
+CREATE TABLE tool_metadata
+(
+    id              bigint      not null primary key,
+    creation        timestamp,
+    is_deleted      boolean     not null,
+    modification    timestamp,
+    uuid            varchar(36) not null unique,
+    extendedContent blob,
+    _fulltext       clob,
+    userId          bigint,
+    scope           varchar(8)  not null,
+    joi_id          bigint      REFERENCES assistants (id),
+    tool_key        varchar(64) not null
+);
+
 -- QueuedEvent: an event that waits until a node is connected, then becomes an EVENT message.
 CREATE TABLE queued_events
 (
@@ -706,6 +723,12 @@ CREATE TABLE access_tokens_SEQ
 );
 INSERT INTO access_tokens_SEQ (next_val) VALUES (1);
 
+CREATE TABLE tool_metadata_SEQ
+(
+    next_val bigint
+);
+INSERT INTO tool_metadata_SEQ (next_val) VALUES (1);
+
 CREATE TABLE queued_events_SEQ
 (
     next_val bigint
@@ -756,4 +779,5 @@ CREATE INDEX ix_memories_joi ON memories (joi_id, is_deleted, importance);
 CREATE INDEX ix_memories_user ON memories (userId, is_deleted);
 CREATE INDEX ix_queued_events_joi ON queued_events (joi_id, handled, is_deleted, occurredAt);
 CREATE INDEX ix_queued_events_user ON queued_events (userId, is_deleted);
+CREATE INDEX ix_tool_metadata_place ON tool_metadata (scope, tool_key, joi_id, userId, is_deleted);
 CREATE INDEX ix_access_tokens_user ON access_tokens (userId, is_deleted);

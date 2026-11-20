@@ -233,6 +233,15 @@
         <property name="repository" ref="queuedEventRepository" />
     </bean>
 
+    <!-- the permission and the options of the server's tools, in the places of the chain: the assistant, the user, the administrator -->
+    <bean id="toolMetadataRepository" class="com.github.enerccio.joi.domain.repository.impl.JpaToolMetadataRepository">
+        <property name="entityManager" ref="em" />
+    </bean>
+    <bean class="com.github.enerccio.joi.domain.service.impl.ToolMetadataServiceImpl">
+        <property name="repository" ref="toolMetadataRepository" />
+    </bean>
+    <bean class="com.github.enerccio.joi.domain.service.impl.ToolPermissionServiceImpl" />
+
     <!-- the 3D models of the user, what bodies are made of; their files are resources -->
     <bean id="modelRepository" class="com.github.enerccio.joi.domain.repository.impl.JpaModelRepository">
         <property name="entityManager" ref="em" />
