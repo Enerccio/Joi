@@ -43,6 +43,12 @@ public interface NodeService {
     void notify(Joi joi, String event);
 
     /**
+     * A task of hers was made or changed its status: a {@code task} frame to her nodes. One that waits is the node's to ask
+     * the user about (the answer comes through the HTTP API).
+     */
+    void task(Joi joi, com.github.enerccio.joi.protocol.http.TaskInfo task);
+
+    /**
      * Tells her something that happened, in a turn of hers on one of her connected nodes: what happens in a burst is told
      * together, and after the turn that runs now.
      *

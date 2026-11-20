@@ -11,6 +11,7 @@ import com.github.enerccio.joi.protocol.http.JoiInfo;
 import com.github.enerccio.joi.protocol.http.JoiList;
 import com.github.enerccio.joi.protocol.http.JoiSummary;
 import com.github.enerccio.joi.protocol.http.ServerInfo;
+import com.github.enerccio.joi.protocol.http.TaskInfo;
 import com.github.enerccio.joi.protocol.node.Hello;
 import com.github.enerccio.joi.protocol.node.Manifest;
 import com.github.enerccio.joi.protocol.node.ToolUse;
@@ -35,7 +36,9 @@ import java.util.concurrent.TimeUnit;
  * The node in a terminal: logs in to the server (a token in {@code JOI_TOKEN}, the device grant, or none when the
  * server runs without auth), picks her (the one chosen last, else asks), downloads her body's files into the cache,
  * connects and chats in text. What her body would play is printed ({@link AvatarDirector}); a non-looping animation
- * is taken as played after a moment. Commands: {@code /stop}, {@code /sleep}, {@code /quit}.
+ * is taken as played after a moment. Commands: {@code /stop}, {@code /sleep}, {@code /quit}; and for a task of hers
+ * that waits for the user's answer ({@code task} frame): {@code /yes}, {@code /always} (the tool from now on, kept by
+ * the server) and {@code /no [reason]}, which answer the oldest question.
  * <p>
  * {@code java ... JoiNodeCli [http://server:port]}
  */
@@ -90,6 +93,7 @@ public final class JoiNodeCli {
         avatar.director = director;
         Object lock = director;
         CountDownLatch closed = new CountDownLatch(1);
+        TaskQuestions questions = new TaskQuestions();
         NodeSocket socket = new NodeSocket(new NodeSocket.Listener() {
             @Override
             public void turnStarted(String turn, String cause) {
@@ -111,6 +115,16 @@ public final class JoiNodeCli {
             @Override
             public void log(com.github.enerccio.joi.protocol.http.ChatLog note) {
                 System.out.println("[note] " + note.text());
+            }
+
+            @Override
+            public void task(TaskInfo task) {
+                TaskInfo asked = questions.take(task);
+                if (asked != null) {
+                    out.println("[asks] " + asked.tool() + ": \"" + asked.title() + "\""
+                            + (asked.toolDescription() == null ? "" : " (" + asked.toolDescription() + ")")
+                            + (asked.url() == null ? "" : " " + asked.url()) + " - /yes, /always (this tool from now on) or /no [reason]");
+                }
             }
 
             @Override
@@ -191,16 +205,45 @@ public final class JoiNodeCli {
                     return;
                 }
                 case "/stop" -> socket.stop(null);
+                case "/yes", "/always", "/no" -> answer(client, chosen.id(), questions, line, null);
                 case "/sleep" -> {
                     synchronized (lock) {
                         director.fallAsleep();
                     }
                 }
-                default -> socket.say(line, false, false);
+                default -> {
+                    if (line.startsWith("/no ")) {
+                        answer(client, chosen.id(), questions, "/no", line.substring(4).strip());
+                    } else {
+                        socket.say(line, false, false);
+                    }
+                }
             }
         }
         socket.close();
         later.shutdownNow();
+    }
+
+    /** Answers the oldest question the server asked about a task of hers, through the HTTP API. */
+    private void answer(ServerClient client, String joi, TaskQuestions questions, String command, String reason) {
+        TaskInfo asked = questions.oldest();
+        if (asked == null) {
+            out.println("[nothing is asked]");
+            return;
+        }
+        try {
+            if ("/no".equals(command)) {
+                client.denyTask(joi, asked.id(), reason == null || reason.isBlank() ? null : reason);
+            } else {
+                client.approveTask(joi, asked.id(), "/always".equals(command));
+            }
+        } catch (ServerClient.ServerException e) {
+            // answered elsewhere in the meantime: the server's next frame takes it back anyway
+            out.println(e.status() == 409 ? "[it was answered already]" : "[not answered: " + e.getMessage() + "]");
+        } catch (IOException | InterruptedException e) {
+            out.println("[not answered: " + e.getMessage() + "]");
+        }
+        questions.answered(asked.id());
     }
 
     private void login(ServerClient client, NodeSettings settings, ServerInfo info, String nodeName) throws IOException, InterruptedException {

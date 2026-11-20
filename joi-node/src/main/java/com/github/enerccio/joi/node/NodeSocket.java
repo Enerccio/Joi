@@ -67,6 +67,14 @@ public class NodeSocket {
         default void log(com.github.enerccio.joi.protocol.http.ChatLog log) {
         }
 
+        /**
+         * A task of hers was made or changed its status (since 1.7). One that is {@code waiting} is for the node to ask the user
+         * about: answer with {@link ServerClient#approveTask} or {@link ServerClient#denyTask}. The next call for the same id with
+         * another status says it was answered, here or elsewhere: take the question back.
+         */
+        default void task(com.github.enerccio.joi.protocol.http.TaskInfo task) {
+        }
+
         /** She plays an animation of her own choice (her {@code play_animation}): see {@link AvatarDirector#gesture}. */
         default void animation(PlayAnimation animation) {
         }
@@ -529,6 +537,7 @@ public class NodeSocket {
             case EVENT -> listener.event(data(frame, ServerEvent.class));
             case ANIMATION -> listener.animation(data(frame, PlayAnimation.class));
             case LOG -> listener.log(data(frame, com.github.enerccio.joi.protocol.http.ChatLog.class));
+            case TASK -> listener.task(data(frame, com.github.enerccio.joi.protocol.http.TaskInfo.class));
             case TOOL_CALL -> call(data(frame, ToolCall.class));
             case TOOL_CANCEL -> {
                 // the tools of this node finish quickly; a long one would stop here (data(frame, ToolCancel.class))

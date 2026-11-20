@@ -1,7 +1,7 @@
 asyncapi: 3.0.0
 info:
   title: Joi node WebSocket
-  version: "1.6"
+  version: "1.7"
   description: |
     The live connection between a node and a Joi server: who the node is, the tools it offers and their calls, the
     user talking to her through it and her answer in text and speech, approvals, and what changes on the server. The
@@ -62,6 +62,14 @@ info:
          seen in the transcript without being said to her: the user's approval of a task of hers, for one. It is not an
          exchange: it is never given to the model and does not count as her being talked to. A node shows it or ignores
          it; the history of the HTTP API has the same notes (`ChatEntry` of the type `log`).
+       - **Her tasks** (since 1.7). The server sends `task` (a `TaskInfo`, without its transcript) when a task of hers is made
+         and each time its status changes. One with the status `waiting` is **asked to the node's user**: the server has
+         no standing approval of its tool (the user's "approve all of this tool"), so the answer is the user's. The node
+         shows what is asked (`title`, `tool`, `toolDescription`, `question`, `url`) and answers through the HTTP API:
+         `POST /api/v1/jois/{id}/tasks/{task}/approve` (with `{"always": true}` for the standing approval, which the
+         server keeps), `.../deny` or `.../cancel`. A later `task` frame of the same id with another status says that it
+         was answered, here or elsewhere (the Joi dialog, another node): the node takes the question back. A node that
+         connects gets a `task` frame for each task that waits. Answering twice is a 409 `conflict`, not an error to show.
        - **Tools.** The server sends `tool_call` (with its `callId`). The node checks the arguments and its own
          harness again, may send `tool_progress` and `approval` (asked, then allowed or denied), and answers with
          exactly one `tool_result`. Each frame about a call restarts its timeout; an approval that is asked waits for
@@ -129,6 +137,7 @@ channels:
       part_refused: { $ref: "#/components/messages/part_refused" }
       animation: { $ref: "#/components/messages/animation" }
       log: { $ref: "#/components/messages/log" }
+      task: { $ref: "#/components/messages/task" }
       reasoning: { $ref: "#/components/messages/reasoning" }
       text: { $ref: "#/components/messages/text" }
       tool: { $ref: "#/components/messages/tool" }
@@ -172,6 +181,7 @@ operations:
       - { $ref: "#/channels/node/messages/part_refused" }
       - { $ref: "#/channels/node/messages/animation" }
       - { $ref: "#/channels/node/messages/log" }
+      - { $ref: "#/channels/node/messages/task" }
       - { $ref: "#/channels/node/messages/reasoning" }
       - { $ref: "#/channels/node/messages/text" }
       - { $ref: "#/channels/node/messages/tool" }
@@ -235,6 +245,10 @@ components:
       name: log
       summary: A note in her conversation, not given to the model (since 1.6)
       payload: { $ref: "#/components/schemas/logFrame" }
+    task:
+      name: task
+      summary: A task of hers was made or changed its status; one that waits is asked to the user (since 1.7)
+      payload: { $ref: "#/components/schemas/taskFrame" }
     reasoning:
       name: reasoning
       summary: A piece of the thinking of the model (only when asked for); ref is the turn
@@ -355,6 +369,11 @@ components:
       allOf:
         - $ref: "schemas/Frame.schema.json"
         - properties: { type: { const: log }, data: { $ref: "schemas/ChatLog.schema.json" } }
+          required: [ data ]
+    taskFrame:
+      allOf:
+        - $ref: "schemas/Frame.schema.json"
+        - properties: { type: { const: task }, data: { $ref: "schemas/TaskInfo.schema.json" } }
           required: [ data ]
     textDeltaFrame:
       allOf:

@@ -765,14 +765,25 @@ URL) run, the others are refused with a message.
 `WebSourceDialog` (a source, with *Test* searching with it as typed), in the same Tools tabs as the permissions. A secret
 is never shown.
 
-**API (protocol 1.6):** `GET /api/v1/jois/{id}/tasks[?status=]`, `GET .../tasks/{task}` (with the transcript),
-`POST .../tasks/{task}/approve`, `.../deny` (`{reason}`), `.../cancel`. `TaskInfo` has id, title, tool,
+**API (protocol 1.6, 1.7):** `GET /api/v1/jois/{id}/tasks[?status=]`, `GET .../tasks/{task}` (with the transcript),
+`POST .../tasks/{task}/approve` (`{always: true}`, since 1.7: also the standing approval of the tool, kept by the server),
+`.../deny` (`{reason}`), `.../cancel`. `TaskInfo` has id, title, tool,
 toolDescription, status (`queued`, `running`, `waiting`, `done`, `failed`, `cancelled`; a denied task is `cancelled`
 with the reason as `error`), question, url, result, error, the times and `steps` (only for one task). A task of another
-assistant or user is 404; a call that does not fit the status is 409 `conflict`. The node WebSocket got only the `log`
-frame (Notes in the conversation); a node has no task UI yet and reads the list again on the existing `task_ended` turn.
+assistant or user is 404; a call that does not fit the status is 409 `conflict`. 
 
-**Not built:** the result in the prompt once (`fetch_result`, see Model roles), a task UI on the node, a dispatcher for
+**The node asks the user (protocol 1.7).** The standing approval is the server's. A task that asks and has none is asked
+**to the user of a node**, as well as shown in the Joi dialog: the server sends the node a `task` frame (a `TaskInfo`
+without the transcript) when a task is made and each time its status changes, and to a node that connects for each task
+that waits. A `waiting` one is the question: the node shows the title, the tool and its description, the question and the
+url, and answers through the HTTP API (`approve`, `approve` with `always`, `deny`), so the node needs nothing of its own
+beyond the API it already has. The first answer wins, from the dialog, the API or any node; a later frame of the same task
+with another status takes the question back on the others, and a second answer is a 409 the node does not show. Built in
+the terminal node (`/yes`, `/always`, `/no [reason]` answer the oldest question: `TaskQuestions`) and the JavaFX node (a
+dialog with Approve, Approve all of this tool, Deny, Later); the approval card in 3D on the Looking Glass comes with the
+other cards. A node without an answer leaves the task waiting, and the dialog still answers it.
+
+**Not built:** the result in the prompt once (`fetch_result`, see Model roles), a list of the standing approvals on a node (the server's Auto-approved dialog has it), a dispatcher for
 all waiting `QueuedEvent`s (only the events of tasks are delivered when a node connects).
 
 ### Privacy mode

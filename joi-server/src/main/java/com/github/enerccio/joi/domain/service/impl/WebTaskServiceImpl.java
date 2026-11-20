@@ -19,6 +19,7 @@ import com.github.enerccio.joi.domain.service.JoiService;
 import com.github.enerccio.joi.domain.service.JoiTaskMessageService;
 import com.github.enerccio.joi.domain.service.JoiTaskService;
 import com.github.enerccio.joi.domain.service.NodeService;
+import com.github.enerccio.joi.domain.web.TaskInfos;
 import com.github.enerccio.joi.domain.service.PersonaService;
 import com.github.enerccio.joi.domain.service.QueuedEventService;
 import com.github.enerccio.joi.domain.service.ToolPermissionService;
@@ -108,6 +109,8 @@ public class WebTaskServiceImpl implements WebTaskService, InitializingBean, Dis
     private final Set<Long> stopping = ConcurrentHashMap.newKeySet();
     /** Who watches the tasks of an assistant (the Tasks tab), by the id of the assistant. */
     private final java.util.Map<Long, List<Runnable>> watchers = new ConcurrentHashMap<>();
+    /** The status of each task as its nodes were last told, so a step of its transcript is not a frame. */
+    private final java.util.Map<Long, JoiTaskStatus> told = new ConcurrentHashMap<>();
     private Registration registration;
 
     @Override
@@ -218,6 +221,19 @@ public class WebTaskServiceImpl implements WebTaskService, InitializingBean, Dis
     }
 
     @Override
+    public JoiTask approve(JoiTask task, boolean always) throws Exception {
+        JoiTask approved = approve(task);
+        if (always) {
+            ServerTool tool = ServerTool.of(approved.getTool());
+            if (tool != null) {
+                // this one was the user's own answer; the standing approval takes the others that wait and the later ones
+                autoApprove(joi(approved), tool, true);
+            }
+        }
+        return approved;
+    }
+
+    @Override
     public JoiTask deny(JoiTask task, String reason) throws Exception {
         JoiTask own = own(task);
         require(own, JoiTaskStatus.WAITING, "waits for an answer");
@@ -270,6 +286,19 @@ public class WebTaskServiceImpl implements WebTaskService, InitializingBean, Dis
         return "\"" + StringUtils.defaultString(task.getTitle()) + "\"";
     }
 
+    /** Her nodes are sent the task when it is made and each time its status changes ({@code task} frame): one that waits is theirs to ask about. */
+    private void tellNodes(JoiTask task) {
+        try {
+            JoiTaskStatus status = task.getStatus();
+            JoiTaskStatus before = status.isFinished() ? told.remove(task.getId()) : told.put(task.getId(), status);
+            if (before != status) {
+                nodeService.task(task.getJoi(), TaskInfos.of(task, null));
+            }
+        } catch (RuntimeException e) {
+            log.warn("The nodes were not told of the task {}: {}", task.getUuid(), e.getMessage());
+        }
+    }
+
     /** Writes what happened into her conversation, not for the model ({@link ChatService#log}); a note that fails is not a failure of the task. */
     private void note(Joi joi, String kind, String text) {
         try {
@@ -287,6 +316,7 @@ public class WebTaskServiceImpl implements WebTaskService, InitializingBean, Dis
 
     /** Tells the watchers of the task's assistant that one of its tasks changed. */
     private void changed(JoiTask task) {
+        tellNodes(task);
         List<Runnable> list = watchers.get(task.getJoi().getId());
         if (list != null) {
             for (Runnable watcher : list) {

@@ -9,6 +9,9 @@ import com.github.enerccio.joi.protocol.http.JoiInfo;
 import com.github.enerccio.joi.protocol.http.JoiList;
 import com.github.enerccio.joi.protocol.http.Me;
 import com.github.enerccio.joi.protocol.http.ServerInfo;
+import com.github.enerccio.joi.protocol.http.TaskApproval;
+import com.github.enerccio.joi.protocol.http.TaskDenial;
+import com.github.enerccio.joi.protocol.http.TaskInfo;
 import com.github.enerccio.joi.protocol.oauth.DeviceAuthorization;
 import com.github.enerccio.joi.protocol.oauth.OAuthError;
 import com.github.enerccio.joi.protocol.oauth.TokenResponse;
@@ -132,6 +135,41 @@ public class ServerClient {
             refresh();
         }
         return credentials.authorization();
+    }
+
+    /**
+     * Allows a task of hers that waits (since 1.7); with {@code always} also the tool from now on, which the server keeps.
+     * A task that was answered already is a {@link ServerException} 409 ({@code conflict}).
+     */
+    public TaskInfo approveTask(String joi, String task, boolean always) throws IOException, InterruptedException {
+        return postJson(JoiProtocol.API + "/jois/" + joi + "/tasks/" + task + "/approve", always ? new TaskApproval(true) : null, TaskInfo.class);
+    }
+
+    /** Does not allow a task of hers that waits; she is told, with the reason when there is one. */
+    public TaskInfo denyTask(String joi, String task, String reason) throws IOException, InterruptedException {
+        return postJson(JoiProtocol.API + "/jois/" + joi + "/tasks/" + task + "/deny", reason == null ? null : new TaskDenial(reason), TaskInfo.class);
+    }
+
+    private <T> T postJson(String path, Object body, Class<T> type) throws IOException, InterruptedException {
+        HttpResponse<String> response = sendJson(path, body);
+        if (response.statusCode() == 401 && settings.credentials().refreshToken != null) {
+            refresh();
+            response = sendJson(path, body);
+        }
+        return answer(response, type);
+    }
+
+    private HttpResponse<String> sendJson(String path, Object body) throws IOException, InterruptedException {
+        HttpRequest.Builder request = HttpRequest.newBuilder(URI.create(server + path)).timeout(Duration.ofSeconds(30))
+                .POST(body == null ? HttpRequest.BodyPublishers.noBody() : HttpRequest.BodyPublishers.ofString(GSON.toJson(body), StandardCharsets.UTF_8));
+        if (body != null) {
+            request.header("Content-Type", "application/json");
+        }
+        String authorization = settings.credentials().authorization();
+        if (authorization != null) {
+            request.header("Authorization", authorization);
+        }
+        return http.send(request.build(), HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
     }
 
     private <T> T get(String path, Class<T> type, boolean authorized) throws IOException, InterruptedException {

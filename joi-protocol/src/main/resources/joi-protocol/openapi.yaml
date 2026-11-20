@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Joi API
-  version: "1.6"
+  version: "1.7"
   description: |
     The HTTP API of a Joi server for nodes and other clients: the assistants of the user, chat with one of them,
     answered in text and speech, and the body she is in with the files to show it (`.joim`, `.joia`). The message shapes are the JSON Schemas in `schemas/` (the source of truth); the Java
@@ -205,10 +205,18 @@ paths:
   /api/v1/jois/{id}/tasks/{task}/approve:
     post:
       summary: Allow a task that waits (since 1.6)
-      description: It is queued and runs when her turns are done.
+      description: |
+        It is queued and runs when her turns are done. With `always` (since 1.7) the user also approves the tool ahead of
+        time: the tasks of it that wait now are approved, and the later ones are approved when they are made. The
+        server keeps that, and says so in the conversation; a deny of the tool at any level still wins.
       parameters:
         - { $ref: "#/components/parameters/JoiId" }
         - { $ref: "#/components/parameters/TaskId" }
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { $ref: "schemas/TaskApproval.schema.json" }
       responses:
         "200":
           description: The task as it is now

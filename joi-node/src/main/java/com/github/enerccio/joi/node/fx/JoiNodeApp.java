@@ -64,6 +64,9 @@ public class JoiNodeApp extends Application {
     /** What the scene is: the Edit menu above the screen shown. */
     private final BorderPane frame = new BorderPane();
     private ServerClient client;
+    /** The tasks of hers that wait for the user's answer, and the dialog that asks about each ({@code task} frames, since 1.7). */
+    private final TaskQuestions taskQuestions = new TaskQuestions();
+    private final Map<String, Alert> taskAlerts = new HashMap<>();
     private NodeSocket socket;
     private java.util.concurrent.ScheduledExecutorService stagingTimer;
     /** The turn of hers about the parts that her reaction to is waited for, null for none. */
@@ -428,6 +431,50 @@ public class JoiNodeApp extends Application {
     // the chat beside her body
     // ----------------------------------------------------------------------------------------------------------------
 
+    /**
+     * Asks the user about a task of hers that waits (the server has no standing approval of its tool): approve, approve the
+     * tool from now on (kept by the server), deny, or leave it (it can still be answered in the Joi dialog). The answer goes
+     * through the server's HTTP API; the dialog is taken back when the server says it was answered elsewhere.
+     */
+    private void askAboutTask(String joi, TaskInfo task, ChatPane chat) {
+        ButtonType approve = new ButtonType("Approve", ButtonBar.ButtonData.YES);
+        ButtonType always = new ButtonType("Approve all of this tool", ButtonBar.ButtonData.APPLY);
+        ButtonType deny = new ButtonType("Deny", ButtonBar.ButtonData.NO);
+        ButtonType later = new ButtonType("Later", ButtonBar.ButtonData.CANCEL_CLOSE);
+        Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
+        alert.setTitle("She asks to use " + task.tool());
+        alert.setHeaderText(task.title());
+        alert.setContentText((task.toolDescription() == null ? "" : task.toolDescription() + "\n")
+                + (task.url() == null ? "" : task.url() + "\n") + (task.question() == null ? "" : task.question()));
+        alert.getButtonTypes().setAll(approve, always, deny, later);
+        taskAlerts.put(task.id(), alert);
+        alert.setOnHidden(e -> taskAlerts.remove(task.id()));
+        alert.resultProperty().addListener((o, before, result) -> {
+            if (result == null || result == later) {
+                return;
+            }
+            Thread thread = new Thread(() -> {
+                try {
+                    if (result == deny) {
+                        client.denyTask(joi, task.id(), null);
+                    } else {
+                        client.approveTask(joi, task.id(), result == always);
+                    }
+                } catch (ServerClient.ServerException e) {
+                    if (e.status() != 409) {
+                        Platform.runLater(() -> chat.note("The answer was not taken: " + e.getMessage()));
+                    }
+                } catch (IOException | InterruptedException e) {
+                    Platform.runLater(() -> chat.note("The answer was not taken: " + e.getMessage()));
+                }
+                taskQuestions.answered(task.id());
+            }, "Joi task answer");
+            thread.setDaemon(true);
+            thread.start();
+        });
+        alert.show();
+    }
+
     private void connect(Loaded loaded) {
         try {
             if (renderer == null) {
@@ -644,6 +691,27 @@ public class JoiNodeApp extends Application {
             @Override
             public void animation(com.github.enerccio.joi.protocol.node.PlayAnimation play) {
                 Platform.runLater(() -> director.gesture(play.animation(), play.loops()));
+            }
+
+            @Override
+            public void log(com.github.enerccio.joi.protocol.http.ChatLog note) {
+                Platform.runLater(() -> chat.note(note.text()));
+            }
+
+            @Override
+            public void task(TaskInfo task) {
+                TaskInfo asked = taskQuestions.take(task);
+                if (asked != null) {
+                    Platform.runLater(() -> askAboutTask(loaded.summary().id(), asked, chat));
+                } else if (!"waiting".equals(task.status())) {
+                    // answered somewhere else: the question is taken back
+                    Platform.runLater(() -> {
+                        Alert open = taskAlerts.get(task.id());
+                        if (open != null) {
+                            open.close();
+                        }
+                    });
+                }
             }
 
             @Override

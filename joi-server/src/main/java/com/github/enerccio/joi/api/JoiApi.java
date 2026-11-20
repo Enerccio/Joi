@@ -14,6 +14,7 @@ import com.github.enerccio.joi.domain.collections.JoiTaskStatus;
 import com.github.enerccio.joi.domain.model.impl.*;
 import com.github.enerccio.joi.domain.service.*;
 import com.github.enerccio.joi.domain.tools.ServerTool;
+import com.github.enerccio.joi.domain.web.TaskInfos;
 import com.github.enerccio.joi.domain.service.AccessTokenService.Principal;
 import com.github.enerccio.joi.protocol.JoiProtocol;
 import com.github.enerccio.joi.protocol.http.*;
@@ -325,7 +326,10 @@ public class JoiApi implements DisposableBean {
 
     private TaskInfo taskCall(ApiCall call, JoiTask task, String action) throws Exception {
         JoiTask done = switch (action) {
-            case "approve" -> webTaskService.approve(task);
+            case "approve" -> {
+                TaskApproval approval = call.body().length == 0 ? null : gson.fromJson(call.text(), TaskApproval.class);
+                yield webTaskService.approve(task, approval != null && Boolean.TRUE.equals(approval.always()));
+            }
             case "deny" -> {
                 TaskDenial denial = call.body().length == 0 ? null : gson.fromJson(call.text(), TaskDenial.class);
                 yield webTaskService.deny(task, denial == null ? null : StringUtils.trimToNull(denial.reason()));
@@ -345,10 +349,7 @@ public class JoiApi implements DisposableBean {
                         StringUtils.defaultIfEmpty(message.getContent(), null), StringUtils.defaultIfEmpty(message.getToolCalls(), null)));
             }
         }
-        return new TaskInfo(task.getUuid(), StringUtils.defaultString(task.getTitle()), task.getTool(),
-                ServerTool.of(task.getTool()) == null ? null : ServerTool.of(task.getTool()).description(),
-                task.getStatus().name().toLowerCase(Locale.ROOT), task.getInstructions(), task.getUrl(), task.getResult(),
-                task.getError(), iso(task.getCreation()), iso(task.getStartedAt()), iso(task.getFinishedAt()), transcript);
+        return TaskInfos.of(task, transcript);
     }
 
     /** The animations she plays in her states, the ones still in the user's library. */

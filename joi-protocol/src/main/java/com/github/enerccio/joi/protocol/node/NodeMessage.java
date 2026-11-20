@@ -31,6 +31,8 @@ public enum NodeMessage {
     ANIMATION("animation", Direction.TO_NODE, PlayAnimation.class),
     /** {@link ChatLog}: a note in her conversation, not given to the model (since 1.6). */
     LOG("log", Direction.TO_NODE, ChatLog.class),
+    /** {@link TaskInfo}: a task of hers is made or changed its status; one that {@code waits} is for the node to ask the user about (since 1.7). */
+    TASK("task", Direction.TO_NODE, TaskInfo.class),
     /** {@link TurnStart}: a turn the server started (first boot, the user is back); answered like a say. */
     TURN("turn", Direction.TO_NODE, TurnStart.class),
     /** {@link TextDelta} of the thinking (only when asked for). */

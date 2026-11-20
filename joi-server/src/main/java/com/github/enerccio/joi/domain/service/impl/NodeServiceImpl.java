@@ -12,6 +12,10 @@ import com.github.enerccio.joi.domain.chat.turn.TurnInput;
 import com.github.enerccio.joi.domain.model.impl.Body;
 import com.github.enerccio.joi.domain.model.impl.ChatMessage;
 import com.github.enerccio.joi.domain.model.impl.Joi;
+import com.github.enerccio.joi.domain.model.impl.JoiTask;
+import com.github.enerccio.joi.domain.collections.JoiTaskStatus;
+import com.github.enerccio.joi.domain.web.TaskInfos;
+import com.github.enerccio.joi.protocol.http.TaskInfo;
 import com.github.enerccio.joi.domain.events.JoiEvents;
 import com.github.enerccio.joi.domain.model.impl.QueuedEvent;
 import com.github.enerccio.joi.domain.node.NodeSession;
@@ -100,6 +104,9 @@ public class NodeServiceImpl implements NodeService, InitializingBean, Disposabl
 
     @Autowired
     private ChatMessageService chatMessageService;
+
+    @Autowired
+    private JoiTaskService joiTaskService;
 
     @Autowired
     private PersonaService personaService;
@@ -258,6 +265,28 @@ public class NodeServiceImpl implements NodeService, InitializingBean, Disposabl
                 StringUtils.defaultString(message.getInput()));
         for (NodeSession session : sessions(message.getJoi().getId())) {
             session.send(NodeMessage.LOG, null, null, data);
+        }
+    }
+
+    @Override
+    public void task(Joi joi, TaskInfo task) {
+        for (NodeSession session : sessions(joi.getId())) {
+            session.send(NodeMessage.TASK, null, null, task);
+        }
+    }
+
+    /** The tasks that wait for an answer are asked to a node that connects: it may have come after they were made. */
+    private void sendWaitingTasks(NodeSession session) {
+        try (InRequestScope _ = new InRequestScope(session.attributes())) {
+            Joi joi = joiService.find(session.joiId());
+            if (joi == null) {
+                return;
+            }
+            for (JoiTask task : joiTaskService.findByStatus(joi, List.of(JoiTaskStatus.WAITING))) {
+                session.send(NodeMessage.TASK, null, null, TaskInfos.of(task, null));
+            }
+        } catch (Exception e) {
+            log.warn("Node {}: the tasks that wait were not sent", session.name(), e);
         }
     }
 
@@ -443,6 +472,7 @@ public class NodeServiceImpl implements NodeService, InitializingBean, Disposabl
             greet(session);
         }
         deliverWaitingTasks(session);
+        sendWaitingTasks(session);
     }
 
     /**

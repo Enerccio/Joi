@@ -11,6 +11,8 @@ import com.github.enerccio.joi.domain.collections.ChatMessageType;
 import com.github.enerccio.joi.domain.model.impl.Body;
 import com.github.enerccio.joi.domain.model.impl.ChatMessage;
 import com.github.enerccio.joi.domain.model.impl.Joi;
+import com.github.enerccio.joi.domain.model.impl.JoiTask;
+import com.github.enerccio.joi.domain.tools.ServerTool;
 import com.github.enerccio.joi.domain.model.impl.Model;
 import com.github.enerccio.joi.domain.persona.PersonalitySetting;
 import com.github.enerccio.joi.domain.service.*;
@@ -73,6 +75,8 @@ class NodeServiceTest extends PlatformTestBase {
     private PersonaService personaService;
     @Autowired
     private QueuedEventService queuedEventService;
+    @Autowired
+    private WebTaskService webTaskService;
 
     private final JsonSchemaFactory schemas = JsonSchemaFactory.getInstance(SpecVersion.VersionFlag.V202012,
             builder -> builder.schemaMappers(m -> m.mapPrefix(BASE, "classpath:joi-protocol/schemas/")));
@@ -581,6 +585,46 @@ class NodeServiceTest extends PlatformTestBase {
         List<ChatMessage> transcript = chatMessageService.findLatest(joi, 20);
         assertThat(transcript).extracting(ChatMessage::getType).contains(ChatMessageType.LOG);
         assertThat(chatMessageService.findLatestExchanges(joi, 20)).extracting(ChatMessage::getType).doesNotContain(ChatMessageType.LOG);
+    }
+
+    @Test
+    void aTaskThatWaitsIsAskedToTheNodeAndTakenBackWhenItIsAnsweredElsewhere() throws Exception {
+        llm.enqueue(MockLLMResponse.text("As you wish."));
+        Node node = connect("Bearer " + token);
+        node.hello("n1", "desk", joi.getUuid(), "1.7");
+        node.next("welcome");
+        node.manifest(1);
+
+        // nothing is set, so the tool asks: the node is the one to ask the user
+        JoiTask task = webTaskService.submit(joi, ServerTool.WEB_SEARCH, "What is new in Prague?", null, "call-1");
+        JsonObject asked = node.next("task").getAsJsonObject("data");
+        assertThat(asked.get("id").getAsString()).isEqualTo(task.getUuid());
+        assertThat(asked.get("status").getAsString()).isEqualTo("waiting");
+        assertThat(asked.get("tool").getAsString()).isEqualTo("web_search");
+        assertThat(asked.get("toolDescription").getAsString()).isNotBlank();
+        assertThat(asked.get("question").getAsString()).isEqualTo("What is new in Prague?");
+        assertThat(asked.has("steps") && !asked.get("steps").isJsonNull()).isFalse();
+
+        // a node that comes later is asked too
+        Node late = connect("Bearer " + token);
+        late.hello("n2", "phone", joi.getUuid(), "1.7");
+        late.next("welcome");
+        late.manifest(1);
+        assertThat(late.next("task").getAsJsonObject("data").get("id").getAsString()).isEqualTo(task.getUuid());
+
+        // answered somewhere else (the dialog, the API): every node is told the question is gone
+        webTaskService.deny(task, "not now");
+        assertThat(node.next("task").getAsJsonObject("data").get("status").getAsString()).isEqualTo("cancelled");
+        assertThat(late.next("task").getAsJsonObject("data").get("status").getAsString()).isEqualTo("cancelled");
+        // she is told on one of the two nodes
+        boolean told = false;
+        for (long until = System.currentTimeMillis() + 30_000; !told && System.currentTimeMillis() < until; ) {
+            for (Node each : List.of(node, late)) {
+                JsonObject frame = each.frames.poll(50, TimeUnit.MILLISECONDS);
+                told |= frame != null && "done".equals(frame.get("type").getAsString());
+            }
+        }
+        assertThat(told).isTrue();
     }
 
     @Test

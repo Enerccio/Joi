@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Enerccio/joi/protocol/v1/TaskApproval.schema.json",
+  "title": "TaskApproval",
+  "description": "The body of POST /api/v1/jois/{id}/tasks/{task}/approve (since 1.7), may be left out.",
+  "type": "object",
+  "properties": {
+    "always": {
+      "type": [
+        "boolean",
+        "null"
+      ],
+      "description": "true: the user approves every use of the task's tool ahead of time (the server keeps it, and the tool's later tasks are approved when they are made); false or null: this task only."
+    }
+  },
+  "required": []
+}

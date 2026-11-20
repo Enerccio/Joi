@@ -37,6 +37,12 @@ public interface WebTaskService {
     /** The user allows a task that waits: it runs when her turns are done. */
     JoiTask approve(JoiTask task) throws Exception;
 
+    /**
+     * The user allows a task that waits and, with {@code always}, the tool for the assistant ahead of time
+     * ({@link #autoApprove}): the answer of a client that offers "approve all of this tool".
+     */
+    JoiTask approve(JoiTask task, boolean always) throws Exception;
+
     /** The user does not allow a task that waits; she is told, with the reason when there is one. */
     JoiTask deny(JoiTask task, String reason) throws Exception;
 

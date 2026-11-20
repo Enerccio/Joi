@@ -72,4 +72,25 @@ class NodeSocketTest {
         assertThat(result.getAsJsonObject("data").get("content").getAsString()).isEqualTo("noted milk");
         assertThat(result.getAsJsonObject("data").get("ok").getAsBoolean()).isTrue();
     }
+
+    @Test
+    void aTaskThatWaitsIsAQuestionUntilAnotherFrameTakesItBack() {
+        List<String> seen = new CopyOnWriteArrayList<>();
+        TaskQuestions questions = new TaskQuestions();
+        NodeSocket socket = new NodeSocket(new NodeSocket.Listener() {
+            @Override
+            public void task(com.github.enerccio.joi.protocol.http.TaskInfo task) {
+                seen.add(task.id() + " " + task.status() + (questions.take(task) != null ? " asked" : ""));
+            }
+        });
+        String waiting = "{\"type\":\"task\",\"data\":{\"id\":\"t1\",\"title\":\"Prague\",\"tool\":\"web_search\",\"status\":\"waiting\","
+                + "\"created\":\"2026-11-20T10:00:00Z\"}}";
+        socket.receive(waiting);
+        socket.receive(waiting);
+        assertThat(questions.oldest().id()).isEqualTo("t1");
+        socket.receive("{\"type\":\"task\",\"data\":{\"id\":\"t1\",\"title\":\"Prague\",\"tool\":\"web_search\",\"status\":\"queued\","
+                + "\"created\":\"2026-11-20T10:00:00Z\"}}");
+        assertThat(questions.oldest()).isNull();
+        assertThat(seen).containsExactly("t1 waiting asked", "t1 waiting", "t1 queued");
+    }
 }

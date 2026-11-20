@@ -658,4 +658,29 @@ class JoiApiTest extends PlatformTestBase {
         assertThat(one.json().get("status").getAsString()).isIn("done", "failed");
         assertThat(one.json().get("finished").isJsonNull()).isFalse();
     }
+
+    @Test
+    void approvingWithAlwaysApprovesTheToolAheadOfTimeAndTheOthersThatWait() throws Exception {
+        useModel();
+        JoiTask first = waitingTask(joi);
+        JoiTask second = webTaskService.submit(joi, ServerTool.FETCH_PAGE, "And this?", "http://127.0.0.1:1/other", "call-2");
+        assertThat(webTaskService.autoApproves(joi, ServerTool.FETCH_PAGE)).isFalse();
+
+        // without a body (or with false) it is this task only
+        Answer once = post(tasks(joi) + "/" + first.getUuid() + "/approve", "{\"always\": false}");
+        assertThat(once.status).isEqualTo(200);
+        assertThat(webTaskService.autoApproves(joi, ServerTool.FETCH_PAGE)).isFalse();
+        assertThat(get(tasks(joi) + "/" + second.getUuid()).json().get("status").getAsString()).isEqualTo("waiting");
+
+        Answer always = post(tasks(joi) + "/" + second.getUuid() + "/approve", "{\"always\": true}");
+        assertThat(always.status).isEqualTo(200);
+        valid("TaskInfo", always.body);
+        assertThat(always.json().get("status").getAsString()).isNotEqualTo("waiting");
+        assertThat(webTaskService.autoApproves(joi, ServerTool.FETCH_PAGE)).isTrue();
+        // the tool is approved from now on: the next task does not wait
+        JoiTask third = webTaskService.submit(joi, ServerTool.FETCH_PAGE, "Later", "http://127.0.0.1:1/later", "call-3");
+        assertThat(third.getStatus()).isNotEqualTo(com.github.enerccio.joi.domain.collections.JoiTaskStatus.WAITING);
+        // a task that does not wait is not answered again, even with always
+        assertThat(post(tasks(joi) + "/" + first.getUuid() + "/approve", "{\"always\": true}").status).isEqualTo(409);
+    }
 }
