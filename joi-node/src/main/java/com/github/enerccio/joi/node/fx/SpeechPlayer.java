@@ -1,8 +1,10 @@
 package com.github.enerccio.joi.node.fx;
 
 import com.github.enerccio.joi.protocol.http.AudioChunk;
+import javafx.animation.PauseTransition;
 import javafx.scene.media.Media;
 import javafx.scene.media.MediaPlayer;
+import javafx.util.Duration;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -16,6 +18,9 @@ import java.util.Queue;
  * for the media player, deleted once played). Tells when the last one ended. Runs on the JavaFX thread.
  */
 class SpeechPlayer {
+
+    /** How long a finished player is kept before it is disposed. */
+    private static final double RETIRE_SECONDS = 2;
 
     private final Queue<Path> queue = new ArrayDeque<>();
     private MediaPlayer playing;
@@ -48,10 +53,25 @@ class SpeechPlayer {
     void stop() {
         queue.clear();
         if (playing != null) {
-            playing.stop();
-            playing.dispose();
+            retire(playing);
             playing = null;
         }
+    }
+
+    /**
+     * A player that is done is stopped and disposed a moment later, not at once: on macOS the media library reads it
+     * from an audio thread of its own, and disposing it under that thread crashed the whole node (SIGSEGV in
+     * {@code AudioQueueProcessingTapGetSourceAudio}).
+     */
+    private static void retire(MediaPlayer player) {
+        try {
+            player.stop();
+        } catch (RuntimeException e) {
+            // already finished
+        }
+        PauseTransition later = new PauseTransition(Duration.seconds(RETIRE_SECONDS));
+        later.setOnFinished(event -> player.dispose());
+        later.play();
     }
 
     private void next() {
@@ -64,7 +84,7 @@ class SpeechPlayer {
         MediaPlayer player = new MediaPlayer(new Media(file.toUri().toString()));
         playing = player;
         Runnable done = () -> {
-            player.dispose();
+            retire(player);
             try {
                 Files.deleteIfExists(file);
             } catch (IOException e) {

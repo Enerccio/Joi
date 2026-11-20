@@ -17,3 +17,6 @@ node_modules/
 /joi-server/vite.config.ts
 /joi-server/vite.generated.ts
 /.claude/launch.json
+
+# JVM crash logs
+hs_err_pid*.log
