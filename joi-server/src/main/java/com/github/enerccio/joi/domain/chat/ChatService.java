@@ -13,6 +13,7 @@ import com.github.enerccio.joi.tts.model.Actor;
 import com.github.enerccio.joi.tts.model.TtsModel;
 import com.github.enerccio.marginalia.domain.model.impl.AI;
 
+import java.util.Date;
 import java.util.concurrent.CompletableFuture;
 
 /**
@@ -94,6 +95,30 @@ public interface ChatService {
 
     /** An observer of an event of every turn, see {@link TurnObserver}. */
     Registration addEventObserver(TurnEvents event, TurnObserver observer);
+
+    /**
+     * What a conversation shows from the outside: a turn asked for, and the end of it. Called on the thread that asks
+     * or ends the turn; it returns quickly, what it throws is logged.
+     */
+    interface Feed {
+        /** A turn was asked for: it waits for the turn before it, or runs. {@code turn} names it until it finishes. */
+        default void queued(String turn, TurnInput input, Date at) {
+        }
+
+        /** The turn is over: the message it stored, null when it was stopped or failed. */
+        default void finished(String turn, ChatMessage message) {
+        }
+
+        /** The message got its clip: her reply spoken, see {@code ChatMessage.clipResourceId}. */
+        default void voiced(ChatMessage message) {
+        }
+    }
+
+    /** Tells the watchers of the assistant's conversation that the message got its clip. */
+    void voiced(ChatMessage message);
+
+    /** Watches the assistant's conversation, see {@link Feed}. Remove it when its owner goes away. */
+    Registration watch(Joi joi, Feed feed);
 
     /** Her chat model: hers, else the user's; null when none is set up (or it is gone). */
     AI chatModel(Joi joi) throws Exception;

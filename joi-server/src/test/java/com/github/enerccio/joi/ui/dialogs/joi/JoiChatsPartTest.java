@@ -122,4 +122,22 @@ class JoiChatsPartTest extends PlatformTestBase {
     void anAssistantWhoNeverChattedHasAnEmptyTab() throws Exception {
         assertThat(chats(joiService.create("Mira")).getShown()).isEmpty();
     }
+
+    @Test
+    void aClipIsTheMessagesResourceAndIsFoundAgain() throws Exception {
+        Joi joi = joiService.create("Clippy");
+        chat(joi, 1, 1000);
+        ChatMessage message = chatMessageService.findLatest(joi, 1).getFirst();
+        assertThat(chatMessageService.clipFile(message)).isNull();
+
+        java.io.File part = chatMessageService.newClipFile();
+        java.nio.file.Files.write(part.toPath(), new byte[]{1, 2, 3});
+        ChatMessage voiced = chatMessageService.attachClip(message, part, "mp3", "audio/mpeg");
+
+        assertThat(voiced.getClipResourceId()).isNotNull();
+        ChatMessage again = chatMessageService.find(message.getId());
+        assertThat(chatMessageService.clipFile(again)).isFile().hasSize(3);
+        assertThat(chatMessageService.clipMime(again)).isEqualTo("audio/mpeg");
+        assertThat(part).doesNotExist();
+    }
 }

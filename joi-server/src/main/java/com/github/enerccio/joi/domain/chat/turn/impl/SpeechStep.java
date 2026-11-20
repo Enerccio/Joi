@@ -1,6 +1,10 @@
 package com.github.enerccio.joi.domain.chat.turn.impl;
 
+import com.github.enerccio.joi.domain.chat.ClipWriter;
 import com.github.enerccio.joi.domain.chat.SpeechText;
+import com.github.enerccio.joi.domain.model.impl.ChatMessage;
+import com.github.enerccio.joi.domain.service.ChatMessageService;
+import com.github.enerccio.joi.tts.audio.AudioKind;
 import com.github.enerccio.joi.domain.chat.turn.TurnController;
 import com.github.enerccio.joi.domain.chat.turn.TurnEvents;
 import com.github.enerccio.joi.domain.chat.turn.TurnProperties;
@@ -17,6 +21,8 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
@@ -33,6 +39,12 @@ public class SpeechStep extends TurnStepBase {
 
     @Autowired
     private TtsService ttsService;
+
+    @Autowired
+    private ChatMessageService chatMessageService;
+
+    /** The clip of a turn being written, by its run. */
+    private final Map<String, ClipWriter> clips = new ConcurrentHashMap<>();
 
     @Override
     protected void onStep(TurnController controller) throws Exception {
@@ -70,6 +82,7 @@ public class SpeechStep extends TurnStepBase {
                                 spoken(controller, reason(error), false);
                             } else {
                                 controller.setAudio(audio);
+                                keep(controller, audio);
                                 controller.setSpeechMs(millisSince(start));
                                 spoken(controller, null, true);
                             }
@@ -97,6 +110,7 @@ public class SpeechStep extends TurnStepBase {
                         spoken(controller, reason(error), index > 0);
                         return;
                     }
+                    keep(controller, audio);
                     controller.getListener().onAudio(index, piece, audio);
                     piece(controller, model, voice, delivery, pieces, index + 1, start);
                 }).run());
@@ -115,12 +129,55 @@ public class SpeechStep extends TurnStepBase {
         if (error != null) {
             log.warn("The reply of {} could not be spoken: {}", controller.getJoi().getUuid(), error);
         }
+        keepClip(controller);
         controller.setSpeechError(error);
         if (!spoken) {
             controller.setSpeechMs(-1);
         }
         controller.getProperties().put(TurnProperties.SPEECH_ERROR, error);
         controller.emitEvent(TurnEvents.AFTER_SPEECH, controller::next);
+    }
+
+    /** Copies the piece of speech into the clip of the turn (the pieces become one file, never all in memory). */
+    private void keep(TurnController controller, byte[] audio) {
+        String run = (String) controller.getProperties().get(TurnProperties.RUN_ID);
+        try {
+            ClipWriter clip = clips.get(run);
+            if (clip == null) {
+                clip = new ClipWriter(chatMessageService.newClipFile());
+                clips.put(run, clip);
+            }
+            clip.add(audio);
+        } catch (Exception e) {
+            log.warn("The clip of the reply of {} could not be kept: {}", controller.getJoi().getUuid(), reason(e));
+            ClipWriter broken = clips.remove(run);
+            if (broken != null) {
+                broken.discard();
+            }
+        }
+    }
+
+    /** The speech is over: the clip, when there is one, becomes the message's resource and the watchers are told. */
+    private void keepClip(TurnController controller) {
+        ClipWriter clip = clips.remove((String) controller.getProperties().get(TurnProperties.RUN_ID));
+        if (clip == null) {
+            return;
+        }
+        try {
+            clip.close();
+            ChatMessage message = controller.getMessage();
+            if (!clip.hasAudio() || message == null) {
+                clip.discard();
+                return;
+            }
+            AudioKind kind = clip.kind();
+            message = chatMessageService.attachClip(message, clip.file(), kind.extension(), kind.mime());
+            controller.setMessage(message);
+            chatService.voiced(message);
+        } catch (Exception e) {
+            log.warn("The clip of the reply of {} could not be stored: {}", controller.getJoi().getUuid(), reason(e));
+            clip.discard();
+        }
     }
 
     private static String reason(Throwable e) {

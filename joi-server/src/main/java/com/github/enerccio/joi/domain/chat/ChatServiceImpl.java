@@ -67,6 +67,7 @@ public class ChatServiceImpl implements ChatService, InitializingBean, Disposabl
     private final Map<TurnEvents, List<TurnObserver>> observers = new ConcurrentHashMap<>();
     /** The end of the last turn of each assistant: the next one starts after it. */
     private final Map<Long, CompletableFuture<Void>> lastTurns = new HashMap<>();
+    private final Map<Long, List<Feed>> feeds = new ConcurrentHashMap<>();
     private final Random random = new Random();
     private ExecutorService executor;
 
@@ -105,6 +106,28 @@ public class ChatServiceImpl implements ChatService, InitializingBean, Disposabl
     }
 
     @Override
+    public Registration watch(Joi joi, Feed feed) {
+        List<Feed> list = feeds.computeIfAbsent(joi.getId(), _ -> new CopyOnWriteArrayList<>());
+        list.add(feed);
+        return () -> list.remove(feed);
+    }
+
+    @Override
+    public void voiced(ChatMessage message) {
+        tell(message.getJoi().getId(), feed -> feed.voiced(message));
+    }
+
+    private void tell(Long joi, java.util.function.Consumer<Feed> what) {
+        for (Feed feed : feeds.getOrDefault(joi, List.of())) {
+            try {
+                what.accept(feed);
+            } catch (Exception e) {
+                log.debug("A watcher of the conversation failed", e);
+            }
+        }
+    }
+
+    @Override
     public Registration addEventObserver(TurnEvents event, TurnObserver observer) {
         List<TurnObserver> list = observers.computeIfAbsent(event, _ -> new CopyOnWriteArrayList<>());
         list.add(observer);
@@ -133,6 +156,12 @@ public class ChatServiceImpl implements ChatService, InitializingBean, Disposabl
         engine.result.whenComplete((_, _) -> {
             if (engine.result.isCancelled()) {
                 engine.token.cancel();
+            }
+        });
+        tell(joi.getId(), feed -> feed.queued(engine.runId, engine.input, engine.sent));
+        engine.ended.whenComplete((_, _) -> {
+            if (engine.told.compareAndSet(false, true)) {
+                tell(joi.getId(), feed -> feed.finished(engine.runId, null));
             }
         });
         before.whenCompleteAsync((_, _) -> engine.start(), executor);
@@ -208,6 +237,8 @@ public class ChatServiceImpl implements ChatService, InitializingBean, Disposabl
         /** Completed when the cleanup is done, whatever the caller did with {@link #result}. */
         private final CompletableFuture<Void> ended = new CompletableFuture<>();
         private final AtomicBoolean finished = new AtomicBoolean();
+        /** Whether the watchers of the conversation were told how the turn ended. */
+        private final AtomicBoolean told = new AtomicBoolean();
         private final Executor scoped;
         private final long startNanos = System.nanoTime();
         private final Date sent = AppClock.now();
@@ -498,6 +529,9 @@ public class ChatServiceImpl implements ChatService, InitializingBean, Disposabl
         @Override
         public void setMessage(ChatMessage message) {
             this.message = message;
+            if (message != null && told.compareAndSet(false, true)) {
+                tell(joi.getId(), feed -> feed.finished(runId, message));
+            }
         }
 
         @Override

@@ -87,6 +87,10 @@
     margin-bottom: 0;
 }
 
+.chat-waiting {
+    opacity: 0.7;
+}
+
 .chat-meta {
     flex: 1;
     color: var(--lumo-tertiary-text-color);

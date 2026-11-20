@@ -251,7 +251,12 @@ check) is in [MARGINALIA.md](MARGINALIA.md).
     and when, which model, which node. It opens with the last 30 messages at the bottom; scrolling to the top loads
     the 30 before, keeping the message the user reads in place (the platform's lazy edges, as in Marginalia's story;
     nothing is dropped, unlike there). A message is deleted by its trash button, or checked (shift-click checks a
-    range) and deleted with the others. Editing and branching come with the conversation work.
+    range) and deleted with the others. Editing and branching come with the conversation work. The tab follows the
+    conversation while it is open (`ChatService.watch`): what is asked for shows at once, dimmed, "waiting for her
+    reply" (a turn waits for the one before it), and is replaced by the exchange when her reply is stored. When her reply
+    was spoken, the pieces of speech are copied into one clip as they are rendered (`ClipWriter`: wav pieces under one
+    header, mp3 one after another; never all in memory), stored as a resource of the user and kept on the message
+    (`ChatMessage.clipResourceId`, removed with it); the message then has a play button, and the card gets it live.
   - **Memories (built):** a grid of her memories, one row each (name, type, from you or her, created), newest first.
     A row opens into the memory: its name (only for the user, never in a prompt), its type (`MemoryImportance`), its
     keywords and its text in a growing text area, stored as typed. *Add memory* adds an approved one of medium

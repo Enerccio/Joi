@@ -8,12 +8,82 @@ import com.github.enerccio.marginalia.domain.service.impl.ExtendableServiceImpl;
 import com.github.enerccio.marginalia.domain.traits.CommonTx;
 import com.github.enerccio.marginalia.domain.traits.CommonTxReadOnly;
 
+import com.github.enerccio.marginalia.Configuration;
+import com.github.enerccio.marginalia.domain.model.impl.Resource;
+import com.github.enerccio.marginalia.domain.service.ResourceService;
+import org.apache.commons.codec.digest.DigestUtils;
+import org.springframework.beans.factory.annotation.Autowired;
+
+import java.io.File;
+import java.io.InputStream;
+import java.nio.file.Files;
 import java.util.Collection;
+import java.util.UUID;
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
 
 public class ChatMessageServiceImpl extends ExtendableServiceImpl<ChatMessage, ChatMessageRepository> implements ChatMessageService {
+
+    @Autowired
+    private Configuration configuration;
+
+    @Autowired
+    private ResourceService resourceService;
+
+    @Override
+    public File newClipFile() throws Exception {
+        File folder = configuration.getResourcesFolder(currentUser);
+        Files.createDirectories(folder.toPath());
+        return new File(folder, UUID.randomUUID() + ".part");
+    }
+
+    @Override
+    @CommonTx
+    public ChatMessage attachClip(ChatMessage message, File clip, String extension, String mime) throws Exception {
+        File folder = configuration.getResourcesFolder(currentUser).getCanonicalFile();
+        if (!folder.equals(clip.getCanonicalFile().getParentFile())) {
+            throw new IllegalArgumentException("not in the folder of resources: " + clip);
+        }
+        File named = new File(folder, UUID.randomUUID() + "." + extension);
+        Files.move(clip.toPath(), named.toPath());
+        Resource resource = new Resource();
+        resource.setOriginalName("voice." + extension);
+        resource.setMimeType(mime);
+        resource.setPath(named.getName());
+        resource.setSize(named.length());
+        try (InputStream in = Files.newInputStream(named.toPath())) {
+            resource.setHash(DigestUtils.sha256Hex(in));
+        }
+        resource = resourceService.save(resource);
+        ChatMessage own = find(message.getId());
+        resourceService.link(resource, ChatMessage.class, own.getId());
+        own.setClipResourceId(resource.getId());
+        return save(own);
+    }
+
+    @Override
+    @CommonTxReadOnly
+    public File clipFile(ChatMessage message) throws Exception {
+        Resource resource = clip(message);
+        return resource == null ? null : resourceService.getResourceFile(resource);
+    }
+
+    @Override
+    @CommonTxReadOnly
+    public String clipMime(ChatMessage message) throws Exception {
+        Resource resource = clip(message);
+        return resource == null ? null : resource.getMimeType();
+    }
+
+    private Resource clip(ChatMessage message) throws Exception {
+        if (message == null || message.getClipResourceId() == null) {
+            return null;
+        }
+        Resource resource = resourceService.find(message.getClipResourceId());
+        return resource == null || resource.isDeleted() || resource.getOwner() == null || !resource.getOwner().getId().equals(currentUser.getId())
+                ? null : resource;
+    }
 
     @Override
     @CommonTxReadOnly

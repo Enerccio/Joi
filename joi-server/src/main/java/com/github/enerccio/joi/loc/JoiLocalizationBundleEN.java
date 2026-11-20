@@ -389,6 +389,7 @@ public class JoiLocalizationBundleEN extends TextBundleBase<J_L> {
         setValue(J_L.MSG_API_OFF, "The administrator has turned off tokens and devices.");
         setValue(J_L.MSG_LOADING_EARLIER_MESSAGES, "Loading earlier messages…");
         setValue(J_L.MSG_NO_CHATS, "No chats yet.");
+        setValue(J_L.MSG_CHAT_WAITING, "waiting for her reply…");
         setValue(J_L.MSG_CHATS_SELECT_HINT, "Check messages to delete them; shift-click checks a range.");
         setValue(J_L.MSG_CONFIRM_DELETE_CHATS, "Delete %d messages? She forgets them: they leave her conversation.");
         setValue(J_L.MSG_CONFIRM_DELETE_CHAT, "Delete this message? She forgets it: it leaves her conversation.");

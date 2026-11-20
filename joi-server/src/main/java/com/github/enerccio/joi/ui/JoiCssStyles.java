@@ -25,6 +25,8 @@ public final class JoiCssStyles {
     public static final String CHAT_INPUT = "chat-input";
     public static final String CHAT_INPUT_USER = "chat-input-user";
     public static final String CHAT_INPUT_EVENT = "chat-input-event";
+    /** An exchange asked for, her reply still to come. */
+    public static final String CHAT_WAITING = "chat-waiting";
     /** The kind of an event, above its text. */
     public static final String CHAT_EVENT_KIND = "chat-event-kind";
     /** Her reply: the reasoning and the response. */

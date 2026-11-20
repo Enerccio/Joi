@@ -5,6 +5,7 @@ import com.github.enerccio.joi.domain.model.impl.Joi;
 import com.github.enerccio.joi.domain.repository.ChatMessageRepository;
 import com.github.enerccio.marginalia.domain.service.ExtendableService;
 
+import java.io.File;
 import java.util.Collection;
 import java.util.Date;
 import java.util.List;
@@ -30,6 +31,23 @@ public interface ChatMessageService extends ExtendableService<ChatMessage, ChatM
 
     /** Whether the assistant has any message. */
     boolean hasAny(Joi joi) throws Exception;
+
+    /** A new file in the user's folder of resources for a clip being written (a part file, {@link #attachClip} names it). */
+    File newClipFile() throws Exception;
+
+    /**
+     * Makes the file, written by {@link #newClipFile}, the message's clip: a resource of the user, linked to the message.
+     *
+     * @param extension {@code wav} or {@code mp3}
+     * @param mime      its content type
+     */
+    ChatMessage attachClip(ChatMessage message, File clip, String extension, String mime) throws Exception;
+
+    /** The file of the message's clip, null when it has none. */
+    File clipFile(ChatMessage message) throws Exception;
+
+    /** The content type of the message's clip, null when it has none. */
+    String clipMime(ChatMessage message) throws Exception;
 
     /**
      * Deletes the assistant's messages (soft, with their prompts); an id that isn't one of her messages is skipped.

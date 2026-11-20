@@ -203,13 +203,20 @@ public final class WavJoiner {
         return new Marks(format, starts, (double) written / format.byteRate());
     }
 
-    private static byte[] withHeader(Format f, byte[] data) {
-        ByteBuffer b = ByteBuffer.allocate(44 + data.length).order(ByteOrder.LITTLE_ENDIAN);
-        b.put(new byte[]{'R', 'I', 'F', 'F'}).putInt(36 + data.length).put(new byte[]{'W', 'A', 'V', 'E', 'f', 'm', 't', ' '}).putInt(16);
+    /** The 44 bytes that start a wav file of {@code dataLength} bytes of samples in the format. */
+    public static byte[] header(Format f, long dataLength) {
+        ByteBuffer b = ByteBuffer.allocate(44).order(ByteOrder.LITTLE_ENDIAN);
+        b.put(new byte[]{'R', 'I', 'F', 'F'}).putInt((int) (36 + dataLength)).put(new byte[]{'W', 'A', 'V', 'E', 'f', 'm', 't', ' '}).putInt(16);
         b.putShort((short) f.tag()).putShort((short) f.channels()).putInt(f.sampleRate()).putInt(f.byteRate()).putShort((short) f.blockAlign())
                 .putShort((short) f.bits());
-        b.put(new byte[]{'d', 'a', 't', 'a'}).putInt(data.length).put(data);
+        b.put(new byte[]{'d', 'a', 't', 'a'}).putInt((int) dataLength);
         return b.array();
+    }
+
+    private static byte[] withHeader(Format f, byte[] data) {
+        byte[] wav = java.util.Arrays.copyOf(header(f, data.length), 44 + data.length);
+        System.arraycopy(data, 0, wav, 44, data.length);
+        return wav;
     }
 
     /** A wav file of the samples (for the tests). */

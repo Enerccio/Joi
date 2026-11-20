@@ -2,6 +2,7 @@ package com.github.enerccio.joi.domain.model.impl;
 
 import com.github.enerccio.joi.domain.collections.ChatMessageType;
 import com.github.enerccio.marginalia.domain.model.ExtendableEntity;
+import com.github.enerccio.marginalia.domain.model.impl.Resource;
 import com.github.enerccio.marginalia.domain.traits.CleanupReference;
 import com.github.enerccio.marginalia.domain.traits.CleanupReference.Policy;
 import com.github.enerccio.marginalia.domain.traits.ExtendedAttribute;
@@ -79,6 +80,12 @@ public class ChatMessage extends ExtendableEntity {
     @ExtendedAttribute
     @Transient
     private String toolCalls;
+
+    /** Her reply spoken, one audio file as a resource of the user; null when it was not spoken (or the speech failed). */
+    @ExtendedAttribute
+    @Transient
+    @CleanupReference(value = Policy.OWNS, target = Resource.class)
+    private Long clipResourceId;
 
     /** The mood she was in. */
     @ExtendedAttribute
@@ -221,6 +228,14 @@ public class ChatMessage extends ExtendableEntity {
 
     public void setToolCalls(String toolCalls) {
         this.toolCalls = toolCalls;
+    }
+
+    public Long getClipResourceId() {
+        return clipResourceId;
+    }
+
+    public void setClipResourceId(Long clipResourceId) {
+        this.clipResourceId = clipResourceId;
     }
 
     public String getMood() {
