@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Enerccio/joi/protocol/v1/Display.schema.json",
+  "title": "Display",
+  "description": "display (since 1.4): the node shows her somewhere else now, as the user chose. The server starts her turn about it (turn with the cause looking_glass_entered or looking_glass_exited). A node that shows her there as it starts (it remembered) does not send it.",
+  "type": "object",
+  "properties": {
+    "lookingGlass": {
+      "type": "boolean",
+      "description": "True when she is shown on a Looking Glass now, false when she is back in the node's window."
+    }
+  },
+  "required": [
+    "lookingGlass"
+  ]
+}

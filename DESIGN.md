@@ -111,7 +111,7 @@ one; the server treats every node the same.
     first administrator; a credential that is sent must still be valid. Turning a way off stops its credentials at
     once. Credentials are `AccessToken` rows (prefix + SHA-256, like Marginalia's API keys), listed and revoked under
     Access.
-- **The node WebSocket (built, 1.3):** `asyncapi.yaml` and the schemas in `joi-protocol`,
+- **The node WebSocket (built, 1.4):** `asyncapi.yaml` and the schemas in `joi-protocol`,
   the records in `protocol/node`; `SchemaContractTest` checks the records, the enums and the AsyncAPI document
   against each other. `GET /api/v1/node` with `Upgrade: websocket`, the API's credentials (or in `hello.token` for a
   client that cannot set headers; never in the URL). Every message is a JSON text frame
@@ -135,6 +135,11 @@ one; the server treats every node the same.
     (`JoiPromptField.FIRST_BOOT_EVENT`, `CONNECTED_EVENT`, `NodeEventTemplateData`: the node, its kind, when they
     last talked), and stored as an event message (`node.first_boot`, `node.connected`). Nothing is said when she has
     no chat model.
+  - **Where she is shown (1.4):** `display` (`lookingGlass` true or false) when the user moves her onto a Looking
+    Glass or back into the node's window; the server starts her turn about it (`turn` with the cause
+    `looking_glass_entered` or `looking_glass_exited`) from its own template (`LOOKING_GLASS_ENTERED_EVENT`,
+    `LOOKING_GLASS_EXITED_EVENT`), stored as `node.looking_glass_entered` / `node.looking_glass_exited`. A node that
+    shows her there as it starts (it remembered the choice) does not send it: she was there already.
   - **Tools:** `tool_call` (call id, tool, arguments, the turn when it is this node's, a timeout) → the node checks
     its harness again, may send `tool_progress` and `approval` (asked, then allowed or denied, with scope and how)
     → exactly one `tool_result` (ok, content, an error word: `denied`, `failed`, `cancelled`, `timeout`,
@@ -158,7 +163,7 @@ one; the server treats every node the same.
     the heartbeat tick, which also closes silent connections and times out calls. A node leaving fails its calls
     and stops its turn. `NodeServiceTest` drives it all through a fake transport, checking every frame against the
     schemas.
-  - Not in 1.3 yet: audio in, avatar state frames, screen images (later minor versions); `event` frames are sent
+  - Not in 1.4 yet: audio in, avatar state frames, screen images (later minor versions); `event` frames are sent
     by `NodeService.notify` but nothing calls it yet.
   - Next: the JavaFX joi-node (see Node → The first node), then the conformance tests.
 - **Same idea for renderers:** the node ↔ renderer state frames are documented too, so a renderer can be three.js,
@@ -968,7 +973,13 @@ The first real node is a desktop app in JavaFX (`joi-node`). What it does, in or
 5. **The chat** beside her body: text chat with her voice played back (no microphone yet). It starts with her
    history from the server (`GET /api/v1/jois/{id}/chat`), so it goes on where it was. When she has a voice, the
    text of a reply waits for its first piece of speech, so the chat doesn't run ahead of her. Her body is a 3D view next
-   to the chat that **pops out** into a window of its own and goes **fullscreen** onto the Looking Glass.
+   to the chat; **On the Looking Glass** moves her onto the Looking Glass: the node asks Bridge where the display is
+   and for its calibration (`LookingGlassBridge`), opens a window full screen on it (`fx/LookingGlassWindow`) with
+   the renderer page in its Looking Glass mode, and closes the page in the pane (one renderer at a time). The server
+   is told (`display`), so she reacts. The choice is kept in `node.json` (`lookingGlass`): a node left with her on
+   the Looking Glass opens it again as it starts, without telling the server; one where it could not be opened
+   (no Bridge, no display) remembers that and only tries again from the button. An unplugged display closes the
+   window and brings her back.
 
 While she waits she plays one of her **idle** animations (another each time), while she speaks one of her **talking**
 ones; falling asleep and asleep come from her dialog too (`AvatarDirector`).
@@ -1180,7 +1191,21 @@ or runtime to install and the node owns the window:
   macOS / Windows / Linux) gives the same Chromium WebGL as the spike. JavaFX WebView is WebKit with weaker WebGL and no
   WebXR, so not it.
 - The node opens a **borderless window on the Looking Glass display**, at its position and size from Bridge, and the
-  page renders the quilt and applies the lenticular shader with the calibration the node passes in. That avoids the
+  page renders the quilt and applies the lenticular shader with the calibration the node passes in (built:
+  `src/main/renderer/src/looking-glass.js` hooks the viewer's frame, `renderFrame`: 66 cameras along the viewer
+  camera's right, each frustum turned back to meet at the point it looks at, a view cone of 54° × 0.47, into an sRGB
+  4092² quilt of 11 × 6 tiles, then each subpixel reads the view its lens shows; Chromium renders it at the
+  display's own pixels, scale 1, and the page is only made once the window is there). While she is on the Looking
+  Glass her pane shows a **tuning panel** instead of the page (`fx/LookingGlassTuningPane`, kept in `node.json` as
+  `lookingGlassTuning`, sent to the page live): depth (the share of the view cone), focus (the sharp plane, metres
+  from the point the camera looks at), zoom, nudges of the calibration's center and pitch, the views inverted, the
+  lenses from the top, the quilt size, a frame cap, and debug views (the quilt as it is, the middle view only).
+  Tuned by eye on the Go with the test avatar: depth 0.27, focus −0.35 m, zoom 0.97, center −0.003 (the defaults).
+  The window is JavaFX with Chromium off screen, as the pane: a windowed Chromium in an AWT frame (no copy of each
+  frame) only showed black while JavaFX runs the app.
+  **Performance is not good yet:** about 20 fps capped, with Chromium's GPU and page processes near 80% CPU each:
+  66 renders of the avatar a frame (MToon), as in the spike, plus the copy of each frame. To try: fewer views,
+  cheaper shading on the Go, the lighter Looking Glass model of the body. That avoids the
   WebXR polyfill's popup and "enter XR" button, which were the fragile part of the spike. The node still asks Bridge for
   the calibration (REST on 33334).
 - Other windows from the same code: a 2D window or HUD on a normal monitor (one view), and the body fitting editor in

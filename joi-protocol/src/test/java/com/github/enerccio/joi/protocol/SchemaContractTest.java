@@ -41,7 +41,7 @@ class SchemaContractTest {
             ChatReply.class, TextDelta.class, AudioChunk.class, Done.class, ApiError.class, DeviceAuthorization.class,
             TokenResponse.class, OAuthError.class, OAuthMetadata.class, Download.class, BodyModel.class, BodyPart.class,
             BodyAnimation.class, BodyAnimations.class, BodyInfo.class, JoiAnimations.class, Frame.class, Hello.class, Welcome.class, Manifest.class,
-            ToolDefinition.class, Say.class, Stop.class, ToolUse.class, ToolCall.class, ToolProgress.class, ToolResult.class,
+            ToolDefinition.class, Say.class, Stop.class, Display.class, ToolUse.class, ToolCall.class, ToolProgress.class, ToolResult.class,
             ToolCancel.class, Approval.class, ServerEvent.class, TurnStart.class, ChatEntry.class, ChatHistory.class);
 
     /** The enums with a schema of their own: the values are the schema's enum. */
@@ -186,6 +186,7 @@ class SchemaContractTest {
         valid(new Say("Hi", false, true));
         valid(new Stop(null));
         valid(new Stop("t1"));
+        valid(new Display(true));
         valid(new ToolUse("desk__read_file", "{\"path\":\"~/notes.md\"}", "milk, eggs", true));
         valid(new ToolUse("desk__shell", "{}", null, false));
         valid(new ToolCall("c1", "read_file", arguments, "t1", 60));

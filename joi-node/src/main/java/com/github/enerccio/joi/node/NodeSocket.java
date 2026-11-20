@@ -5,6 +5,7 @@ import com.github.enerccio.joi.protocol.http.AudioChunk;
 import com.github.enerccio.joi.protocol.http.ChatReply;
 import com.github.enerccio.joi.protocol.http.Done;
 import com.github.enerccio.joi.protocol.http.TextDelta;
+import com.github.enerccio.joi.protocol.node.Display;
 import com.github.enerccio.joi.protocol.node.Frame;
 import com.github.enerccio.joi.protocol.node.Hello;
 import com.github.enerccio.joi.protocol.node.Manifest;
@@ -295,6 +296,16 @@ public class NodeSocket {
     /** Stops her turn ({@code null} for the one running now): she was talked over. */
     public void stop(String turn) {
         send(NodeMessage.STOP, null, null, new Stop(turn));
+    }
+
+    /**
+     * Tells the server she is shown on a Looking Glass now, or no longer, as the user chose (since 1.4): she reacts to
+     * it in a turn the server starts. Not sent (nor kept) while the node is not connected.
+     */
+    public void display(boolean lookingGlass) {
+        if (connected()) {
+            send(NodeMessage.DISPLAY, null, null, new Display(lookingGlass));
+        }
     }
 
     /** Sends a newer manifest (its version higher than the last); it is the one sent when connecting again. */

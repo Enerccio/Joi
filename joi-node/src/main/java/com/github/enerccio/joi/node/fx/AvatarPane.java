@@ -17,7 +17,9 @@ import java.util.function.Consumer;
 /**
  * Where her body is shown: the renderer page ({@link RendererServer}) plays what the {@link AvatarDirector} asks and
  * tells when an animation that does not loop is over. The page is shown here by Chromium ({@link ChromiumPane}), with
- * her state and the animation over it; without Chromium, only those, and Open in browser shows her body.
+ * her state and the animation over it; without Chromium, only those, and Open in browser shows her body. On the
+ * Looking Glass button she moves onto the Looking Glass ({@link LookingGlassWindow}, opened by the app): the page here
+ * closes meanwhile (one renderer at a time) and comes back with her.
  */
 class AvatarPane extends BorderPane {
 
@@ -30,6 +32,13 @@ class AvatarPane extends BorderPane {
     /** The animation that plays now and does not loop, -1 for none. */
     private long waiting = -1;
     private ChromiumPane page;
+    private final org.cef.CefClient chromium;
+    private final StackPane stage = new StackPane();
+    /** Shown instead of the page while she is on the Looking Glass. */
+    private javafx.scene.Node away = new Label("She is on the Looking Glass");
+    private final javafx.scene.control.ToggleButton lookingGlass = new javafx.scene.control.ToggleButton("On the Looking Glass");
+    private Consumer<Boolean> onLookingGlass = on -> {
+    };
 
     /**
      * @param chromium the client to show the page with, null for none
@@ -37,10 +46,12 @@ class AvatarPane extends BorderPane {
     AvatarPane(Map<String, String> names, RendererServer renderer, org.cef.CefClient chromium, Consumer<String> browse) {
         this.names = names;
         this.renderer = renderer;
+        this.chromium = chromium;
         renderer.setOnEnded((id, problem) -> Platform.runLater(() -> ended(id, problem)));
         VBox shown = new VBox(4, state, animation);
-        StackPane stage = new StackPane();
         stage.setStyle("-fx-background-color: #111114;");
+        away.setStyle("-fx-font-size: 18px; -fx-text-fill: #aaa;");
+        StackPane.setAlignment(shown, Pos.TOP_LEFT);
         if (chromium != null) {
             page = new ChromiumPane(chromium, renderer.url().toString());
             stage.getChildren().add(page);
@@ -56,7 +67,14 @@ class AvatarPane extends BorderPane {
         animation.setStyle("-fx-text-fill: #aaa;");
         Button open = new Button("Open in browser");
         open.setOnAction(e -> browse.accept(renderer.url().toString()));
-        HBox buttons = new HBox(8, open);
+        lookingGlass.setDisable(chromium == null);
+        lookingGlass.setOnAction(e -> {
+            // the app says where she is once it tried
+            boolean wanted = lookingGlass.isSelected();
+            lookingGlass.setSelected(!wanted);
+            onLookingGlass.accept(wanted);
+        });
+        HBox buttons = new HBox(8, lookingGlass, open);
         buttons.setAlignment(Pos.CENTER_RIGHT);
         setCenter(stage);
         setBottom(buttons);
@@ -66,6 +84,35 @@ class AvatarPane extends BorderPane {
     void close() {
         if (page != null) {
             page.close();
+        }
+    }
+
+    /** The user wants her on the Looking Glass (true) or back here (false). */
+    void setOnLookingGlass(Consumer<Boolean> onLookingGlass) {
+        this.onLookingGlass = onLookingGlass;
+    }
+
+    /** What is shown instead of the page while she is on the Looking Glass (the tuning panel). */
+    void setLookingGlassPanel(javafx.scene.Node panel) {
+        if (page == null && stage.getChildren().getFirst() == away) {
+            stage.getChildren().set(0, panel);
+        }
+        away = panel;
+    }
+
+    /** She is on the Looking Glass now (the page here closes), or back here. */
+    void lookingGlass(boolean on) {
+        lookingGlass.setSelected(on);
+        if (chromium == null || on == (page == null)) {
+            return;
+        }
+        if (on) {
+            page.close();
+            stage.getChildren().set(0, away);
+            page = null;
+        } else {
+            page = new ChromiumPane(chromium, renderer.url().toString());
+            stage.getChildren().set(0, page);
         }
     }
 

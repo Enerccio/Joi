@@ -82,6 +82,16 @@ public class JoiUserSetting extends BaseUserSetting implements PersonaAttributes
     @Transient
     private String connectedEvent;
 
+    /** What she is told when the user moves her onto a Looking Glass ({@code NodeEventTemplateData}). */
+    @ExtendedAttribute
+    @Transient
+    private String lookingGlassEnteredEvent;
+
+    /** What she is told when the user moves her off the Looking Glass, back into the node's window ({@code NodeEventTemplateData}). */
+    @ExtendedAttribute
+    @Transient
+    private String lookingGlassExitedEvent;
+
     /** The key of the personality, blank for the default one. */
     @ExtendedAttribute
     @Transient
@@ -317,5 +327,25 @@ public class JoiUserSetting extends BaseUserSetting implements PersonaAttributes
     @Override
     public void setConnectedEvent(String connectedEvent) {
         this.connectedEvent = connectedEvent;
+    }
+
+    @Override
+    public String getLookingGlassEnteredEvent() {
+        return lookingGlassEnteredEvent;
+    }
+
+    @Override
+    public void setLookingGlassEnteredEvent(String lookingGlassEnteredEvent) {
+        this.lookingGlassEnteredEvent = lookingGlassEnteredEvent;
+    }
+
+    @Override
+    public String getLookingGlassExitedEvent() {
+        return lookingGlassExitedEvent;
+    }
+
+    @Override
+    public void setLookingGlassExitedEvent(String lookingGlassExitedEvent) {
+        this.lookingGlassExitedEvent = lookingGlassExitedEvent;
     }
 }

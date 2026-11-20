@@ -39,6 +39,9 @@ import java.util.function.BiConsumer;
  * comes back as a POST ({@code ended}). See {@code src/main/renderer/src/main.js} for the messages. Any browser can
  * show the page: JCEF in the app, or a normal one for development. An animation that does not loop also ends when no
  * page tells within its length and a few seconds (none is open, or it hangs), so her states go on without a renderer.
+ * <p>
+ * The page at {@link #lookingGlassUrl()} renders her for a Looking Glass, with the calibration given to
+ * {@link #lookingGlass} (served as {@code looking-glass.json}).
  */
 public class RendererServer implements AutoCloseable {
 
@@ -65,6 +68,10 @@ public class RendererServer implements AutoCloseable {
     private String playMessage;
     private long playing;
     private boolean playingLoops = true;
+    /** What the Looking Glass page renders with, null for none. */
+    private volatile String lookingGlass;
+    /** The last tuning message, sent again to a page that opens later. */
+    private String tuningMessage;
     private BiConsumer<Long, String> onEnded = (id, problem) -> {
     };
 
@@ -81,6 +88,24 @@ public class RendererServer implements AutoCloseable {
     /** The page's address. */
     public URI url() {
         return URI.create("http://127.0.0.1:" + http.getAddress().getPort() + "/" + secret + "/");
+    }
+
+    /** The page that renders her for a Looking Glass ({@link #lookingGlass}). */
+    public URI lookingGlassUrl() {
+        return URI.create(url() + "?looking-glass=1");
+    }
+
+    /** The calibration and the quilt of the Looking Glass for its page ({@code LookingGlassBridge.Device#renderer}), null for none. */
+    public void lookingGlass(JsonObject config) {
+        lookingGlass = config == null ? null : GSON.toJson(config);
+    }
+
+    /** How the Looking Glass page renders her: sent to the pages open, and to those that open later. */
+    public synchronized void tuning(LookingGlassTuning tuning) {
+        JsonObject message = message("tuning");
+        message.add("tuning", GSON.toJsonTree(tuning));
+        tuningMessage = GSON.toJson(message);
+        broadcast(message);
     }
 
     /**
@@ -178,6 +203,8 @@ public class RendererServer implements AutoCloseable {
                 events(exchange);
             } else if (path.equals("ended") && "POST".equals(exchange.getRequestMethod())) {
                 ended(exchange);
+            } else if (path.equals("looking-glass.json") && get) {
+                json(exchange, lookingGlass);
             } else if (path.equals("body/model.vrm") && get) {
                 file(exchange, body.model(), "model/gltf-binary");
             } else if (path.startsWith("body/clip/") && path.endsWith(".vrma") && get) {
@@ -198,6 +225,9 @@ public class RendererServer implements AutoCloseable {
             }
             if (playMessage != null) {
                 queue.add(playMessage);
+            }
+            if (tuningMessage != null) {
+                queue.add(tuningMessage);
             }
             pages.add(queue);
         }
@@ -264,6 +294,20 @@ public class RendererServer implements AutoCloseable {
         exchange.sendResponseHeaders(200, Files.size(file));
         try (OutputStream out = exchange.getResponseBody()) {
             Files.copy(file, out);
+        }
+    }
+
+    private static void json(HttpExchange exchange, String json) throws IOException {
+        if (json == null) {
+            exchange.sendResponseHeaders(404, -1);
+            return;
+        }
+        byte[] bytes = json.getBytes(StandardCharsets.UTF_8);
+        exchange.getResponseHeaders().set("Content-Type", "application/json");
+        exchange.getResponseHeaders().set("Cache-Control", "no-cache");
+        exchange.sendResponseHeaders(200, bytes.length);
+        try (OutputStream out = exchange.getResponseBody()) {
+            out.write(bytes);
         }
     }
 

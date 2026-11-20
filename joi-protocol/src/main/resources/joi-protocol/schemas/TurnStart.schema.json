@@ -12,7 +12,7 @@
     },
     "cause": {
       "type": "string",
-      "description": "Why: first_boot (she wakes up for the very first time), connected (the user is back). Unknown causes are played as a plain turn."
+      "description": "Why: first_boot (she wakes up for the very first time), connected (the user is back), looking_glass_entered and looking_glass_exited (the node shows her on a Looking Glass now, or no longer: display, since 1.4). Unknown causes are played as a plain turn."
     }
   },
   "required": [

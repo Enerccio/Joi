@@ -294,6 +294,34 @@ class NodeServiceTest extends PlatformTestBase {
     }
 
     @Test
+    void sheReactsAsSheIsMovedOntoTheLookingGlassAndBack() throws Exception {
+        llm.enqueue(MockLLMResponse.text("Ooh, depth!"), MockLLMResponse.text("Flat again."));
+        Node node = connect("Bearer " + token);
+        node.hello("n1", "desk", joi.getUuid(), "1.4");
+        node.next("welcome");
+        node.manifest(1);
+
+        node.frame("display", null, "{\"lookingGlass\": true}");
+        JsonObject turn = node.next("turn");
+        assertThat(turn.getAsJsonObject("data").get("cause").getAsString()).isEqualTo("looking_glass_entered");
+        assertThat(node.next("done").get("ref").getAsString()).isEqualTo(turn.getAsJsonObject("data").get("turn").getAsString());
+        ChatMessage entered = chatMessageService.findLatest(joi, 1).getFirst();
+        assertThat(entered.getType()).isEqualTo(ChatMessageType.EVENT);
+        assertThat(entered.getEventKind()).isEqualTo("node.looking_glass_entered");
+        assertThat(entered.getInput()).contains("onto the Looking Glass on desk");
+
+        node.frame("display", null, "{\"lookingGlass\": false}");
+        assertThat(node.next("turn").getAsJsonObject("data").get("cause").getAsString()).isEqualTo("looking_glass_exited");
+        node.next("done");
+        ChatMessage exited = chatMessageService.findLatest(joi, 1).getFirst();
+        assertThat(exited.getEventKind()).isEqualTo("node.looking_glass_exited");
+        assertThat(exited.getInput()).contains("off the Looking Glass on desk");
+
+        node.frame("display", "d1", null);
+        assertThat(node.next("error").getAsJsonObject("data").get("code").getAsString()).isEqualTo("bad_message");
+    }
+
+    @Test
     void aTurnIsStopped() throws Exception {
         Node node = connect("Bearer " + token);
         node.hello("n1", "desk", joi.getUuid(), "1.2");

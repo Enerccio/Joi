@@ -37,6 +37,13 @@ public final class NodeSettings {
         public String server;
         /** The assistant chosen last, null for none. */
         public String joi;
+        /**
+         * Whether she is shown on the Looking Glass: true to open it as the node starts, false when the user left it or
+         * it could not be opened (then it is only tried from the button), null for never chosen.
+         */
+        public Boolean lookingGlass;
+        /** How she is rendered there (the tuning panel), null for the defaults. */
+        public com.github.enerccio.joi.node.renderer.LookingGlassTuning lookingGlassTuning;
     }
 
     /** {@code credentials.json}: a token the user made, or the OAuth pair. */

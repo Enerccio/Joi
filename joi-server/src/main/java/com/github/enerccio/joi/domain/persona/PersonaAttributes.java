@@ -56,6 +56,14 @@ public interface PersonaAttributes {
 
     void setConnectedEvent(String connectedEvent);
 
+    String getLookingGlassEnteredEvent();
+
+    void setLookingGlassEnteredEvent(String lookingGlassEnteredEvent);
+
+    String getLookingGlassExitedEvent();
+
+    void setLookingGlassExitedEvent(String lookingGlassExitedEvent);
+
     /** The key of the personality, blank when not set. */
     String getPersonality();
 

@@ -26,7 +26,7 @@ class ChromiumPane extends Region {
     private final CefClient client;
     private final String url;
     /** Made once the pane is in a window, at its size and the screen's scale; again when the scale changes. */
-    private JoiOsrBrowser browser;
+    private volatile JoiOsrBrowser browser;
     /** The last frame from Chromium, waiting for the UI thread. */
     private final Object lock = new Object();
     private ByteBuffer staged;
@@ -42,6 +42,8 @@ class ChromiumPane extends Region {
         getStyleClass().add("joi-chromium");
         setStyle("-fx-background-color: #111114;");
         view.setPreserveRatio(false);
+        // the frame is at the screen's pixels: shown as it is (the Looking Glass needs each pixel where it is)
+        view.setSmooth(false);
         getChildren().add(view);
         this.client = client;
         this.url = url;
@@ -70,11 +72,16 @@ class ChromiumPane extends Region {
         }
     }
 
-    /** Closes the page. */
+    /**
+     * Closes the page. Its frames stop being shown at once; the page is blanked first, so that it stops rendering even
+     * while Chromium is still closing it.
+     */
     void close() {
         if (browser != null) {
-            browser.close(true);
+            JoiOsrBrowser closing = browser;
             browser = null;
+            closing.loadURL("about:blank");
+            closing.close(true);
         }
     }
 
@@ -97,7 +104,14 @@ class ChromiumPane extends Region {
         try {
             if (browser == null || scale != lastScale) {
                 close();
-                browser = new JoiOsrBrowser(client, url, null, this::frame);
+                JoiOsrBrowser[] made = new JoiOsrBrowser[1];
+                // a frame of a browser closed meanwhile (at another scale) is dropped
+                made[0] = new JoiOsrBrowser(client, url, null, (bgra, fw, fh) -> {
+                    if (browser == made[0]) {
+                        frame(bgra, fw, fh);
+                    }
+                });
+                browser = made[0];
                 browser.size(w, h, scale);
                 browser.createImmediately();
                 System.err.println("Chromium: opened " + url + " at " + w + "x" + h + ", scale " + scale);

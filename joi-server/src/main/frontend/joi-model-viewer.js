@@ -18,6 +18,9 @@
 // setAnimationPaused(paused) pauses. It fires "animation-started" ({duration} of one round), "animation-step"
 // ({index, repeats}) as a step starts or repeats, "animation-finished" (the animation ended) and "animation-error"
 // ({message}).
+// renderFrame, when set, is called each frame instead of rendering the scene to the canvas: renderFrame(renderer,
+// scene, camera, target), target being the point the camera looks at (the node's Looking Glass page renders her views
+// with it).
 // It fires "model-info" ({triangles, meshes, materials, vrm, expressions}) once the model is shown and "model-error"
 // ({message}) when it can't be.
 import * as THREE from 'three';
@@ -136,7 +139,11 @@ class JoiModelViewer extends HTMLElement {
     }
     this._controls.update();
     this._aimLight(this._camera, this._controls.target);
-    this._renderer.render(this._scene, this._camera);
+    if (this.renderFrame) {
+      this.renderFrame(this._renderer, this._scene, this._camera, this._controls.target);
+    } else {
+      this._renderer.render(this._scene, this._camera);
+    }
   }
 
   _setStatus(text, error) {

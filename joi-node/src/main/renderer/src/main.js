@@ -3,10 +3,25 @@
 // sequence: {steps: [{src, ...}], loop}} plays an animation (src the index of its clip in clips); {type: "stop"} puts
 // her at rest. The page posts {type: "ended", id} to "ended" when an animation that does not loop is over, and
 // {type: "error", id, message} when it could not play.
+// With ?looking-glass the page renders her for the Looking Glass whose calibration the node serves (looking-glass.js);
+// {type: "tuning", tuning} changes how (the node's tuning panel).
 import './generated/joi-model-viewer.js';
+import {lookingGlassRenderer} from './looking-glass.js';
 
 const viewer = document.getElementById('viewer');
 let playing = null;
+let tuning = null;
+
+if (new URLSearchParams(location.search).has('looking-glass')) {
+  document.body.classList.add('looking-glass');
+  fetch('looking-glass.json')
+    .then(response => response.ok ? response.json() : Promise.reject(new Error('HTTP ' + response.status)))
+    .then(config => {
+      viewer.renderFrame = lookingGlassRenderer(tuning ? {...config, tuning} : config);
+      console.log('joi renderer: on the Looking Glass ' + (config.calibration.serial || ''));
+    })
+    .catch(error => console.log('joi renderer: no Looking Glass calibration: ' + error.message));
+}
 
 function post(body) {
   fetch('ended', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body)})
@@ -50,6 +65,12 @@ events.onmessage = event => {
       break;
     case 'play':
       play(message);
+      break;
+    case 'tuning':
+      tuning = message.tuning;
+      if (viewer.renderFrame && viewer.renderFrame.tune) {
+        viewer.renderFrame.tune(tuning);
+      }
       break;
     case 'stop':
       playing = null;

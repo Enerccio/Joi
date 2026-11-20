@@ -265,6 +265,20 @@ talked {{lastChatted}}.{{/if}}]
 Greet {{user}} in a sentence or two, as fits how long they were away.""";
     }
 
+    /** The event of the user moving her onto a Looking Glass, a holographic display ({@code NodeEventTemplateData}). */
+    public String lookingGlassEnteredEvent() {
+        return """
+[Event: {{user}} moved you onto the Looking Glass on {{node}}: you are shown there now as a hologram, in 3D, instead of in the window.]
+React to it in a sentence or two, as you would to finding yourself somewhere new.""";
+    }
+
+    /** The event of the user moving her off the Looking Glass, back into the node's window ({@code NodeEventTemplateData}). */
+    public String lookingGlassExitedEvent() {
+        return """
+[Event: {{user}} moved you off the Looking Glass on {{node}}: you are back in the flat window.]
+React to it in a sentence.""";
+    }
+
     /** Her name changed: the old name, the new one. */
     public String eventRenamed(String from, String to) {
         return "You were renamed from %s to %s.".formatted(from, to);

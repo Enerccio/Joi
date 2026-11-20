@@ -1,10 +1,12 @@
 package com.github.enerccio.joi.node.fx;
 
 import com.github.enerccio.joi.node.AvatarDirector;
+import com.github.enerccio.joi.node.LookingGlassBridge;
 import com.github.enerccio.joi.node.NodeSettings;
 import com.github.enerccio.joi.node.NodeSocket;
 import com.github.enerccio.joi.node.ServerClient;
 import com.github.enerccio.joi.node.renderer.BodyFiles;
+import com.github.enerccio.joi.node.renderer.LookingGlassTuning;
 import com.github.enerccio.joi.node.renderer.RendererServer;
 import com.github.enerccio.joi.protocol.JoiProtocol;
 import com.github.enerccio.joi.protocol.http.ApiError;
@@ -58,6 +60,11 @@ import java.util.Random;
  * files download, then the chat beside her body ({@link AvatarPane}), which pops out into a window of its own and goes
  * fullscreen (the Looking Glass). Text chat, her voice played back ({@link SpeechPlayer}).
  * <p>
+ * The Looking Glass: the pane's button moves her onto it ({@link LookingGlassWindow}, the display found through
+ * Looking Glass Bridge) and back, and tells the server, so she reacts. The choice is remembered: a node that was left
+ * with her on the Looking Glass opens it again as it starts (without telling the server: she was there already), and one
+ * where it could not be opened does not try again until the button is pressed.
+ * <p>
  * Her body is the renderer page ({@link RendererServer}): her cached files unpacked ({@link BodyFiles}) and served on
  * localhost and shown in the pane by Chromium (JCEF); without it, it opens in a browser.
  */
@@ -71,6 +78,7 @@ public class JoiNodeApp extends Application {
     private ServerClient client;
     private NodeSocket socket;
     private RendererServer renderer;
+    private LookingGlassWindow lookingGlass;
 
     public static void main(String[] args) {
         launch(args);
@@ -85,6 +93,8 @@ public class JoiNodeApp extends Application {
         this.stage = stage;
         stage.setTitle("Joi");
         stage.setScene(new Scene(new StackPane(), 1100, 700));
+        // the Looking Glass window would keep the app going: closing this one quits
+        stage.setOnHidden(e -> Platform.exit());
         stage.show();
         NodeSettings.Node node = settings.node();
         showServer(node.server == null ? "http://localhost:8080" : node.server, null);
@@ -449,11 +459,33 @@ public class JoiNodeApp extends Application {
             director.speechEnded();
         });
 
+        avatarPane.setLookingGlassPanel(new LookingGlassTuningPane(nodeSetting(node -> node.lookingGlassTuning), tuning -> {
+            renderer.tuning(tuning);
+            try {
+                settings.node().lookingGlassTuning = tuning;
+                settings.saveNode();
+            } catch (IOException e) {
+                System.err.println("The Looking Glass tuning was not saved: " + e.getMessage());
+            }
+        }));
+        LookingGlassTuning tuning = nodeSetting(node -> node.lookingGlassTuning);
+        renderer.tuning(tuning == null ? new LookingGlassTuning() : tuning);
+        avatarPane.setOnLookingGlass(on -> {
+            if (on) {
+                openLookingGlass(loaded, avatarPane, chat, true);
+            } else if (lookingGlass != null) {
+                lookingGlass.close();
+            }
+        });
+
         SplitPane split = new SplitPane(chat, avatarPane);
         split.setDividerPositions(0.45);
         BorderPane root = new BorderPane(split);
         show(root);
         stage.setTitle("Joi: " + loaded.summary().name());
+        if (Boolean.TRUE.equals(nodeSetting(node -> node.lookingGlass)) && loaded.chromium() != null) {
+            openLookingGlass(loaded, avatarPane, chat, false);
+        }
 
         background(new Task<Void>() {
             @Override
@@ -468,6 +500,82 @@ public class JoiNodeApp extends Application {
                 return null;
             }
         });
+    }
+
+    // ----------------------------------------------------------------------------------------------------------------
+    // the Looking Glass
+    // ----------------------------------------------------------------------------------------------------------------
+
+    /**
+     * Moves her onto the Looking Glass: by the user ({@code asked}: the server is told, so she reacts), or as the node
+     * starts, where she was left. When it can't be done, it is remembered, and not tried at start again.
+     */
+    private void openLookingGlass(Loaded loaded, AvatarPane avatarPane, ChatPane chat, boolean asked) {
+        if (lookingGlass != null) {
+            return;
+        }
+        Thread.ofVirtual().name("Joi Looking Glass").start(() -> {
+            LookingGlassBridge.Device device;
+            try {
+                device = new LookingGlassBridge().find();
+            } catch (IOException e) {
+                Platform.runLater(() -> lookingGlassFailed(avatarPane, chat, e.getMessage(), asked));
+                return;
+            }
+            Platform.runLater(() -> {
+                if (lookingGlass != null) {
+                    return;
+                }
+                LookingGlassWindow window;
+                try {
+                    renderer.lookingGlass(device.renderer());
+                    window = LookingGlassWindow.open(device, loaded.chromium(), renderer.lookingGlassUrl().toString());
+                } catch (IOException | RuntimeException e) {
+                    lookingGlassFailed(avatarPane, chat, e.getMessage(), asked);
+                    return;
+                }
+                lookingGlass = window;
+                avatarPane.lookingGlass(true);
+                window.setOnClosed(() -> {
+                    lookingGlass = null;
+                    avatarPane.lookingGlass(false);
+                    if (window.closedOnPurpose()) {
+                        rememberLookingGlass(false);
+                    } else {
+                        // unplugged: tried again at the next start
+                        chat.note("The Looking Glass went away.");
+                    }
+                    socket.display(false);
+                });
+                rememberLookingGlass(true);
+                if (asked) {
+                    socket.display(true);
+                }
+            });
+        });
+    }
+
+    private void lookingGlassFailed(AvatarPane avatarPane, ChatPane chat, String problem, boolean asked) {
+        avatarPane.lookingGlass(false);
+        rememberLookingGlass(false);
+        chat.note("No Looking Glass: " + problem + (asked ? "" : ". It is not tried at start again until you open it."));
+    }
+
+    private void rememberLookingGlass(boolean on) {
+        try {
+            settings.node().lookingGlass = on;
+            settings.saveNode();
+        } catch (IOException e) {
+            System.err.println("The Looking Glass choice was not saved: " + e.getMessage());
+        }
+    }
+
+    private <T> T nodeSetting(java.util.function.Function<NodeSettings.Node, T> setting) {
+        try {
+            return setting.apply(settings.node());
+        } catch (IOException e) {
+            return null;
+        }
     }
 
     /** The transcript and the input. */

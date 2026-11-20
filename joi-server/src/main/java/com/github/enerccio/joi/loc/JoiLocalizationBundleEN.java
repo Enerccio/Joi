@@ -82,6 +82,8 @@ public class JoiLocalizationBundleEN extends TextBundleBase<J_L> {
         setValue(J_L.LABEL_PART_IMAGE_PROMPT, "Part prompt (a toggle described from close-ups, shown and hidden)");
         setValue(J_L.LABEL_FIRST_BOOT_EVENT, "First waking up (the event when she first wakes up on a node)");
         setValue(J_L.LABEL_CONNECTED_EVENT, "User is back (the event when the user comes back to her on a node)");
+        setValue(J_L.LABEL_LOOKING_GLASS_ENTERED_EVENT, "On the Looking Glass (the event when the user moves her onto a Looking Glass)");
+        setValue(J_L.LABEL_LOOKING_GLASS_EXITED_EVENT, "Off the Looking Glass (the event when the user moves her back into the window)");
         setValue(J_L.LABEL_BODY_PROMPT, "Body section (the body she is in, put into {{#body}})");
         setValue(J_L.LABEL_PREVIEW_SYSTEM_PROMPT, "Preview the system prompt");
         setValue(J_L.LABEL_KEY, "Key");

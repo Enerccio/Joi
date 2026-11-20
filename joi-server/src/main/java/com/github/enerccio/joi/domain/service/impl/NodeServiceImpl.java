@@ -28,6 +28,7 @@ import com.github.enerccio.joi.protocol.http.JoiSummary;
 import com.github.enerccio.joi.protocol.http.TextDelta;
 import com.github.enerccio.joi.protocol.node.Approval;
 import com.github.enerccio.joi.protocol.node.ApprovalState;
+import com.github.enerccio.joi.protocol.node.Display;
 import com.github.enerccio.joi.protocol.node.Frame;
 import com.github.enerccio.joi.protocol.node.Hello;
 import com.github.enerccio.joi.protocol.node.Manifest;
@@ -95,6 +96,9 @@ public class NodeServiceImpl implements NodeService, InitializingBean, Disposabl
     /** The causes of a turn the server starts. */
     public static final String FIRST_BOOT = "first_boot";
     public static final String CONNECTED = "connected";
+    /** The causes of her turns as the user moves her onto a Looking Glass and back ({@code display}). */
+    public static final String LOOKING_GLASS_ENTERED = "looking_glass_entered";
+    public static final String LOOKING_GLASS_EXITED = "looking_glass_exited";
 
     @Autowired
     private JoiApi joiApi;
@@ -296,6 +300,7 @@ public class NodeServiceImpl implements NodeService, InitializingBean, Disposabl
                 case MANIFEST -> manifest(session, frame);
                 case SAY -> say(session, frame);
                 case STOP -> stop(session, frame);
+                case DISPLAY -> display(session, frame);
                 case TOOL_PROGRESS -> progress(session, frame);
                 case TOOL_RESULT -> result(session, frame);
                 case APPROVAL -> approval(session, frame);
@@ -426,6 +431,28 @@ public class NodeServiceImpl implements NodeService, InitializingBean, Disposabl
         session.send(NodeMessage.TURN, null, null, new TurnStart(turn, first ? FIRST_BOOT : CONNECTED));
         startTurn(session, turn, joi, new TurnInput(text, session.name(), session.speaks(), true,
                 first ? "node.first_boot" : "node.connected"), false);
+    }
+
+    /** She is shown on a Looking Glass now, or no longer: her turn about it, so she can react. */
+    private void display(NodeSession session, Frame frame) throws Exception {
+        Display display = data(frame, Display.class);
+        Joi joi;
+        String text;
+        try (InRequestScope _ = new InRequestScope(session.attributes())) {
+            joi = joiService.find(session.joiId());
+            if (joi == null || chatService.chatModel(joi) == null) {
+                return;
+            }
+            NodeEventTemplateData data = new NodeEventTemplateData();
+            data.setNode(session.name());
+            data.setNodeKind(StringUtils.defaultIfBlank(session.hello().kind(), null));
+            text = personaService.render(joi, display.lookingGlass() ? JoiPromptField.LOOKING_GLASS_ENTERED_EVENT
+                    : JoiPromptField.LOOKING_GLASS_EXITED_EVENT, data).strip();
+        }
+        String cause = display.lookingGlass() ? LOOKING_GLASS_ENTERED : LOOKING_GLASS_EXITED;
+        String turn = "s-" + UUID.randomUUID().toString().substring(0, 12);
+        session.send(NodeMessage.TURN, null, null, new TurnStart(turn, cause));
+        startTurn(session, turn, joi, new TurnInput(text, session.name(), session.speaks(), true, "node." + cause), false);
     }
 
     /** How long ago, in words she can say. */

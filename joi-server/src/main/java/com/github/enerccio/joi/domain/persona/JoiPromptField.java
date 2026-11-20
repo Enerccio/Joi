@@ -39,7 +39,11 @@ public enum JoiPromptField {
     FIRST_BOOT_EVENT("firstBootEvent", NodeEventTemplateData.class, PersonaAttributes::getFirstBootEvent,
             PersonaAttributes::setFirstBootEvent, JoiDefaults::firstBootEvent),
     CONNECTED_EVENT("connectedEvent", NodeEventTemplateData.class, PersonaAttributes::getConnectedEvent,
-            PersonaAttributes::setConnectedEvent, JoiDefaults::connectedEvent);
+            PersonaAttributes::setConnectedEvent, JoiDefaults::connectedEvent),
+    LOOKING_GLASS_ENTERED_EVENT("lookingGlassEnteredEvent", NodeEventTemplateData.class, PersonaAttributes::getLookingGlassEnteredEvent,
+            PersonaAttributes::setLookingGlassEnteredEvent, JoiDefaults::lookingGlassEnteredEvent),
+    LOOKING_GLASS_EXITED_EVENT("lookingGlassExitedEvent", NodeEventTemplateData.class, PersonaAttributes::getLookingGlassExitedEvent,
+            PersonaAttributes::setLookingGlassExitedEvent, JoiDefaults::lookingGlassExitedEvent);
 
     private final String templateName;
     private final Class<? extends TemplateData> dataClass;

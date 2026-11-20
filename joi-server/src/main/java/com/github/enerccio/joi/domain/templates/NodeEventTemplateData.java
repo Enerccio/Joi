@@ -3,8 +3,9 @@ package com.github.enerccio.joi.domain.templates;
 import com.github.enerccio.joi.loc.J_L;
 
 /**
- * The data of the events a node brings ({@code JoiPromptField.FIRST_BOOT_EVENT}, {@code CONNECTED_EVENT}): what she is
- * told, as the user's turn, when she first wakes up on a node or when the user comes back to her there.
+ * The data of the events a node brings ({@code JoiPromptField.FIRST_BOOT_EVENT}, {@code CONNECTED_EVENT},
+ * {@code LOOKING_GLASS_ENTERED_EVENT}, {@code LOOKING_GLASS_EXITED_EVENT}): what she is told, as the user's turn, when
+ * she first wakes up on a node, when the user comes back to her there, or moves her onto a Looking Glass and back.
  */
 public class NodeEventTemplateData extends JoiTemplateData {
 
