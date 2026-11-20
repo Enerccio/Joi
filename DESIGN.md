@@ -596,6 +596,17 @@ of that report is the full synthesis again (text and voice); it may be one task 
 switches back only once. States: `QUEUED`, `RUNNING`, `WAITING` (an approval), `DONE`, `FAILED`, `CANCELLED`. Smaller roles — salience scoring of events, short classifications — can
 use the conversation model or a third cheap one.
 
+**A task's result is in the prompt once (designed, not built).** What a task brings back can be huge (a website of
+25k tokens read for her), and it should not weigh on every later prompt. So the result message is shown to the model in
+full **once**, in the prompt of the next message after it came, and is then **replaced in the history** by a short note
+of what she did ("You used web_search with 'bla bla'", the tool and its arguments). The result message carries a flag
+(on `ChatMessage`: whether the full result was *seen*, set when it went into a prompt; the full text stays stored, as
+the task's own). The note has a tool of its own, say `fetch_result` (the task or the message), which brings the original
+result back to her: as **another task result**, so it is again in the prompt once and then a note, never kept. Whether a
+result stays or is shown once is the **task kind's** choice (a flag on the kind of task, later a setting): small results
+(a calculation, a short lookup, a memory) stay in the history as they are, big ones (a page, a file, a long search) are
+shown once. The turn that reads it can still keep what matters of it through `remember`.
+
 In the UI each text model is marked for what it may be used for (`TextLLMType`, several allowed): **Chat** (the
 conversation role), **Deep reasoning** (the heavy role) and **Auxiliary** (the smaller jobs). A role picks its model
 from the ones marked for it. Whether a model takes images is the model's own **Multimodal** flag.
