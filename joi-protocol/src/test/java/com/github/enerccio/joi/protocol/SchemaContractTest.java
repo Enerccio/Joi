@@ -178,6 +178,7 @@ class SchemaContractTest {
         valid(new Manifest(0, null, null, null, List.of()));
         valid(new Say("What's on my calendar?", null, null));
         valid(new Say("Hi", false, true));
+        valid(new Say("Hi", null, null, true));
         valid(new Stop(null));
         valid(new Stop("t1"));
         valid(new Display(true));

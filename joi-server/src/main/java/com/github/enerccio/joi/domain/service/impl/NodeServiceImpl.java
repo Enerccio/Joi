@@ -530,13 +530,7 @@ public class NodeServiceImpl implements NodeService, InitializingBean, Disposabl
             String input;
             try (InRequestScope _ = new InRequestScope(session.attributes())) {
                 joi = joiService.find(session.joiId());
-                String others = pending.stream().filter(item -> item.request() == null).map(NodeSession.Pending::text)
-                        .collect(Collectors.joining("\n"));
-                String requests = pending.stream().filter(item -> item.request() != null).map(NodeSession.Pending::text)
-                        .collect(Collectors.joining("\n"));
-                // what she decides on is told with how she decides: her personality's words
-                String decided = asked.isEmpty() ? null : personaService.renderPartRequests(joi, requests, others);
-                input = decided != null ? decided : (others.isEmpty() ? requests : others + (requests.isEmpty() ? "" : "\n" + requests));
+                input = told(joi, pending);
             }
             session.told(asked, turn);
             session.send(NodeMessage.TURN, null, null, new TurnStart(turn, PART_SWITCHED));
@@ -549,6 +543,19 @@ public class NodeServiceImpl implements NodeService, InitializingBean, Disposabl
             // she was not asked after all: what was asked is allowed
             decideLeft(session, turn);
         }
+    }
+
+    /**
+     * What is told to her about what waited: the events (the changes already kept) first, then the requests for her
+     * to decide on, with how she decides: her personality's words.
+     */
+    private String told(Joi joi, List<NodeSession.Pending> pending) throws Exception {
+        String others = pending.stream().filter(item -> item.request() == null).map(NodeSession.Pending::text)
+                .collect(Collectors.joining("\n"));
+        String requests = pending.stream().filter(item -> item.request() != null).map(NodeSession.Pending::text)
+                .collect(Collectors.joining("\n"));
+        String decided = requests.isEmpty() ? null : personaService.renderPartRequests(joi, requests, others);
+        return decided != null ? decided : (others.isEmpty() ? requests : others + (requests.isEmpty() ? "" : "\n" + requests));
     }
 
     /** What she left unanswered of the requests the turn told her is allowed: the body is the user's, and no answer is no refusal. */
@@ -648,11 +655,24 @@ public class NodeServiceImpl implements NodeService, InitializingBean, Disposabl
         Say say = data(frame, Say.class);
         require(StringUtils.isNotBlank(say.text()), "say.text is what the user said");
         Joi joi;
+        String input = say.text();
+        List<Integer> asked = List.of();
         try (InRequestScope _ = new InRequestScope(session.attributes())) {
             joi = joiService.find(session.joiId());
+            if (say.withEventsOrDefault()) {
+                // what the user did just before these words is told with them, as one turn: the words first
+                List<NodeSession.Pending> pending = session.takeAllPending();
+                if (!pending.isEmpty()) {
+                    asked = pending.stream().map(NodeSession.Pending::request).filter(Objects::nonNull).toList();
+                    input = say.text() + "\n\n" + told(joi, pending);
+                }
+            }
         }
-        startTurn(session, frame.id(), joi, new TurnInput(say.text(), session.name(), say.speakOrDefault(), true),
-                say.reasoningOrDefault());
+        session.told(asked, frame.id());
+        if (!startTurn(session, frame.id(), joi, new TurnInput(input, session.name(), say.speakOrDefault(), true),
+                say.reasoningOrDefault())) {
+            decideLeft(session, frame.id());
+        }
     }
 
     /**

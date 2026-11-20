@@ -152,6 +152,17 @@ one; the server treats every node the same.
     has not told her yet (`NodeSession.pend`): after the last event it waits 1.5 s, and while a turn of hers runs it
     waits for the turn to end, then starts **one** turn (cause `part_switched`) whose input has the text of every
     event, one per line, in the order they happened.
+    **With the user's words (built).** A change of a part and a message are one thing to her when the user did them
+    together. `say` has an optional `withEvents`: the server then takes what waits for her (the events of the `part`
+    frames sent just before, in order on the connection, even while a turn runs, requests for her to decide on
+    included) into the turn of the words: one turn, with the `say`'s id, whose input is the words, then the events.
+    **Typed:** when the chat input has text as the user changes a part, the node asks as the batch is about to be sent,
+    after the quiet wait, with the controls locked ("Send your message with the change?": *Send together* / *Change only*;
+    nothing is asked when no words are typed by then); on *together* the message is sent right after the
+    batch's `part` frames, with `withEvents`, and the input is cleared (nothing goes with it when no part could be sent,
+    and the text stays). **Spoken (not built, same rule without asking):** when the user talks and changes a part in the
+    same moment, the utterance is sent as one `say` with `withEvents` after the `part` frames: nobody is asked, since
+    speaking and clicking are meant as one message.
     **When the change shows (built).** The node has a switch, `partsShown` (a checkbox in the controls panel, kept in
     `NodeSettings`): `kept` (default: shown once the server answered `part_kept`) or `reaction` (shown with her
     reaction: the first `text` or `audio` of the `part_switched` turn, or its `done` / `error`, or after 40 s, so the

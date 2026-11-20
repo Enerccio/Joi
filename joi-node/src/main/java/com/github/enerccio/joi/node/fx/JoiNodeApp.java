@@ -112,6 +112,17 @@ public class JoiNodeApp extends Application {
         Runtime.getRuntime().halt(0);
     }
 
+    /** Whether the message typed in the chat goes with the change of her parts: she gets both as one message. */
+    private static boolean askSendTyped() {
+        ButtonType together = new ButtonType("Send together", ButtonBar.ButtonData.YES);
+        ButtonType only = new ButtonType("Change only", ButtonBar.ButtonData.NO);
+        Alert ask = new Alert(Alert.AlertType.CONFIRMATION,
+                "You have typed a message. Send it together with the change of her parts? She gets both as one message.",
+                together, only);
+        ask.setHeaderText("Send your message with the change?");
+        return ask.showAndWait().orElse(only) == together;
+    }
+
     private void show(Parent view) {
         frame.setCenter(view);
     }
@@ -533,6 +544,21 @@ public class JoiNodeApp extends Application {
         controls.setDisable(true);
 
         // with a voice her words wait for it
+        // words typed in the chat go with the change when the user says so, asked as the batch is about to be sent: the
+        // server tells her both in one turn
+        staging.withWords(() -> {
+            java.util.concurrent.CompletableFuture<Boolean> answer = new java.util.concurrent.CompletableFuture<>();
+            Platform.runLater(() -> answer.complete(chat.hasTyped() && askSendTyped()));
+            try {
+                return answer.get(10, java.util.concurrent.TimeUnit.MINUTES);
+            } catch (Exception e) {
+                return false;
+            }
+        }, sent -> {
+            if (sent > 0) {
+                Platform.runLater(chat::sayWithParts);
+            }
+        });
         boolean voiced = loaded.joi().voice() != null;
         socket = new NodeSocket(new NodeSocket.Listener() {
             @Override
@@ -665,6 +691,7 @@ public class JoiNodeApp extends Application {
             protected Void call() throws Exception {
                 NodeSettings.Node node = settings.node();
                 Hello hello = new Hello(JoiProtocol.NODE_VERSION, node.nodeId, node.name, node.kind == null ? "desktop" : node.kind,
+        chat.setOnSayWithParts(text -> socket.say(text, true, false, true));
                         "joi-node (JavaFX)", loaded.summary().id(), List.of(NodePart.AUDIO_OUT, NodePart.AVATAR), null, null);
                 Manifest manifest = new Manifest(1, System.getProperty("os.name") + " " + System.getProperty("os.version"),
                         System.getProperty("os.arch"), null, List.of());
@@ -835,6 +862,8 @@ public class JoiNodeApp extends Application {
 
         /** Her history from the server: the chat goes on where it was. */
         void history(List<ChatEntry> entries) {
+        private java.util.function.Consumer<String> onSayWithParts = text -> {
+        };
             for (ChatEntry entry : entries) {
                 if (entry.text() != null) {
                     add("You: " + entry.text());
@@ -860,6 +889,26 @@ public class JoiNodeApp extends Application {
         }
 
         void note(String text) {
+        /** What is said when the typed words go with a change of her parts. */
+        void setOnSayWithParts(java.util.function.Consumer<String> onSayWithParts) {
+            this.onSayWithParts = onSayWithParts;
+        }
+
+        /** Whether words are typed and not sent. */
+        boolean hasTyped() {
+            return !input.getText().isBlank();
+        }
+
+        /** Sends the typed words as the part of one message with the change of her parts just sent (nothing when none are typed). */
+        void sayWithParts() {
+            String text = input.getText().strip();
+            if (!text.isEmpty()) {
+                input.clear();
+                add("You: " + text);
+                onSayWithParts.accept(text);
+            }
+        }
+
             Label line = add(text);
             line.setStyle("-fx-opacity: 0.6;");
         }

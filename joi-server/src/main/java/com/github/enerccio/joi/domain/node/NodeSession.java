@@ -242,6 +242,23 @@ public class NodeSession {
         return taken;
     }
 
+    /**
+     * Takes the events waiting even while a turn of hers runs (a turn asked for with them follows that one): the user's
+     * words take them along. None when the connection is closed.
+     */
+    public synchronized List<Pending> takeAllPending() {
+        if (closed || pendingEvents.isEmpty()) {
+            return List.of();
+        }
+        List<Pending> taken = List.copyOf(pendingEvents);
+        pendingEvents.clear();
+        if (gather != null) {
+            gather.cancel(false);
+        }
+        gather = null;
+        return taken;
+    }
+
     /** Keeps a request of the user until she answers it; returns it with its number. */
     public synchronized PartRequest request(String frameId, String part, String state) {
         PartRequest request = new PartRequest(++requestCounter, frameId, part, state);

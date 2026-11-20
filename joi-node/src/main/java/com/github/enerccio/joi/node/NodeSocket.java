@@ -247,8 +247,16 @@ public class NodeSocket {
      * waits and is sent once it is; it fails when the connection is over for good.
      */
     public String say(String text, boolean speak, boolean reasoning) {
+        return say(text, speak, reasoning, false);
+    }
+
+    /**
+     * As {@link #say(String, boolean, boolean)}; {@code withEvents} takes along what the server holds to tell her, the
+     * changes of her parts sent just before: one turn about the words and those, whose id is the one returned.
+     */
+    public String say(String text, boolean speak, boolean reasoning, boolean withEvents) {
         String turn = "t-" + ids.incrementAndGet();
-        Say say = new Say(text, speak, reasoning);
+        Say say = new Say(text, speak, reasoning, withEvents ? true : null);
         listener.turnStarted(turn, SAY);
         if (!testing) {
             synchronized (queued) {

@@ -65,6 +65,32 @@ class PartStagingTest {
     }
 
     @Test
+    void whatGoesWithTheBatchIsToldHowManyPartsWentOutAfterThem() throws Exception {
+        List<String> order = new CopyOnWriteArrayList<>();
+        PartStaging staging = new PartStaging(new PartStaging.Timing(50, 5000, 3, 5000), timer, (id, part, state) -> {
+            order.add("part " + part);
+            return connected;
+        }, () -> Map.of(), () -> false, locks::add, (k, f, r) -> {
+        });
+        staging.withWords(() -> {
+            order.add("asked");
+            return true;
+        }, count -> order.add("sent " + count));
+        staging.change("visor", "hidden");
+        staging.change("gloves", "shown");
+        await(() -> order.size() == 4);
+        assertThat(order).containsExactly("asked", "part visor", "part gloves", "sent 2");
+        staging.cancel();
+
+        // not connected: the parts did not go out, so nothing goes with them
+        order.clear();
+        connected = false;
+        staging.change("visor", "shown");
+        await(() -> order.size() == 3);
+        assertThat(order).containsExactly("asked", "part visor", "sent 0");
+    }
+
+    @Test
     void changesInAQuietWindowAreSentTogetherTheLastStateOfAPartCounting() throws Exception {
         PartStaging staging = staging(150, 5000, 3);
         assertThat(staging.change("visor", "hidden")).isTrue();

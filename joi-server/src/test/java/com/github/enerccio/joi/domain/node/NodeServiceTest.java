@@ -424,6 +424,30 @@ class NodeServiceTest extends PlatformTestBase {
     }
 
     @Test
+    void wordsSaidWithTheEventsTakeThemAlongInTheirOwnTurn() throws Exception {
+        haloBody();
+        llm.enqueue(MockLLMResponse.text("Hello."), MockLLMResponse.text("Yes, it is gone."));
+        Node node = connect("Bearer " + token);
+        node.hello("n1", "desk", joi.getUuid(), "1.5");
+        node.next("welcome");
+        node.manifest(1);
+        node.frame("say", "t1", "{\"text\": \"Hi\", \"speak\": false}");
+        node.next("done");
+
+        // the change and the words typed with it: one turn, the one of the words, told as one message
+        node.frame("part", "p1", "{\"part\": \"key:Headgear/Hide Halo\", \"state\": \"hidden\"}");
+        node.frame("say", "t2", "{\"text\": \"Do you like it?\", \"speak\": false, \"withEvents\": true}");
+        assertThat(node.next("part_kept").get("ref").getAsString()).isEqualTo("p1");
+        assertThat(node.next("text").get("ref").getAsString()).isEqualTo("t2");
+        node.next("reply");
+        node.next("done");
+        ChatMessage said = chatMessageService.findLatest(joi, 1).getFirst();
+        assertThat(said.getEventKind()).isNull();
+        assertThat(said.getInput()).startsWith("Do you like it?").contains("Nothing floats above you now.");
+        assertThat(node.frames.poll(2500, TimeUnit.MILLISECONDS)).as("no second turn about the part").isNull();
+    }
+
+    @Test
     void partsSwitchedWhileATurnRunsAreToldTogetherWhenItEnds() throws Exception {
         haloBody();
         llm.enqueue(MockLLMResponse.text("Hello."), MockLLMResponse.toolCall("desk__note", "{\"text\":\"milk\"}"),

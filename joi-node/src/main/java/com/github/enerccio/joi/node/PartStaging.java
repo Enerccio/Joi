@@ -97,6 +97,11 @@ public final class PartStaging {
     /** Each batch is a generation: what a late check or timer says of an older one is ignored. */
     private long generation;
     private int checked;
+    /** Asked as a batch is about to be sent: whether the user's words go with it. */
+    private volatile BooleanSupplier withWords = () -> false;
+    /** Told, after a batch the user's words go with is sent, how many of its parts went out. */
+    private volatile java.util.function.IntConsumer afterSent = sent -> {
+    };
 
     /**
      * @param waitsForReaction whether a change is shown with her reaction (asked when a batch is answered)
@@ -129,6 +134,17 @@ public final class PartStaging {
         }
         sendTimer = timer.schedule(this::send, timing.quietMillis(), TimeUnit.MILLISECONDS);
         return true;
+    }
+
+    /**
+     * The user's words that go with a batch of parts. {@code ask} is asked when a batch is about to be sent (the controls
+     * are locked then; it may take as long as the user does) and says whether the words go with it; if they do,
+     * {@code sent} is told after the parts went out, with how many (none when the node was not connected), so that the
+     * words follow right after and the server tells her both in one turn. Both are called on the staging thread.
+     */
+    public void withWords(BooleanSupplier ask, java.util.function.IntConsumer sent) {
+        this.withWords = ask;
+        this.afterSent = sent;
     }
 
     /** Whether a batch waits (for the server, or for her reaction). */
@@ -167,6 +183,7 @@ public final class PartStaging {
             refused.clear();
         }
         locked.accept(true);
+        boolean words = withWords.getAsBoolean();
         synchronized (this) {
             for (PartSwitch change : batch) {
                 String id = "p-" + (++counter);
@@ -181,7 +198,14 @@ public final class PartStaging {
                 answerTimer = timer.schedule(() -> check(gen), timing.answerMillis(), TimeUnit.MILLISECONDS);
             }
         }
+        if (words) {
+            afterSent.accept(batch.size() - sentFailed(batch));
+        }
         answered();
+    }
+
+    private synchronized int sentFailed(List<PartSwitch> batch) {
+        return (int) failed.stream().filter(batch::contains).count();
     }
 
     /** The server kept the frame's part. Returns whether it was one of the batch waiting (a late answer is not). */

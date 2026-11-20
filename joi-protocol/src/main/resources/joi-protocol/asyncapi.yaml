@@ -51,7 +51,9 @@ info:
          `told` false), and a `part` that changes nothing is answered at once. A node that asks for several parts in a
          row (the user changed more of them within a few seconds) sends one `part` for each part, one after another:
          the server **gathers** what it has not told her yet (for about a second after the last, and for as long as
-         a turn runs) and starts one turn about all of them, in the order they happened.
+         a turn runs) and starts one turn about all of them, in the order they happened. A `say` with `withEvents`
+         true, sent right after the `part` frames, takes what waits for her along instead: one turn, with the `say`'s
+         id, whose input is the user's words, then the events (the user typed a message and changed a part).
        - **Tools.** The server sends `tool_call` (with its `callId`). The node checks the arguments and its own
          harness again, may send `tool_progress` and `approval` (asked, then allowed or denied), and answers with
          exactly one `tool_result`. Each frame about a call restarts its timeout; an approval that is asked waits for
