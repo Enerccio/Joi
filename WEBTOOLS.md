@@ -1,6 +1,6 @@
 # Tool permissions and `web_search` (plan)
 
-Status: **plan, agreed in outline, building starts with stage 1.** Nothing here is in `DESIGN.md` yet; when it is
+Status: **stages 1 (permissions) and 2 (search clients, page readers, settings) are built and tested; 3 to 6 are plan.** Nothing here is in `DESIGN.md` yet; when it is
 built it moves into `DESIGN.md` (Tools, Web, Tasks after the reply) and this file goes away.
 
 ## What is asked
@@ -65,19 +65,28 @@ metadata's); `ToolPermissionService.config` resolves assistant, else user, else 
 
 Sources (`SearchBackend` per type, all through one `HttpClient` built from the proxy and the timeout):
 
-| Type | Request | Needs |
+| Type | Request (checked against the provider's documentation on 2026-11-20, unless marked) | Needs |
 |---|---|---|
-| `DDGS` (DuckDuckGo) | `POST https://html.duckduckgo.com/html/` (form `q`), results parsed with jsoup (`a.result__a`, `a.result__snippet`, the `uddg` redirect decoded) | nothing; fragile by nature, so the parser is a test with a saved page |
-| `SEARXNG` | `GET {url}/search?q=&format=json` | the instance's URL (JSON format must be on) |
-| `GOOGLE` | `GET customsearch/v1?key=&cx=&q=&num=` | key and engine id (the engine can be limited to sites by itself) |
-| `BRAVE` | `GET api.search.brave.com/res/v1/web/search?q=&count=`, `X-Subscription-Token` | key |
-| `TAVILY` | `POST api.tavily.com/search` (`query`, `max_results`, `include_domains`), bearer | key; also returns an answer, kept |
-| `PERPLEXITY` | `POST api.perplexity.ai/search` (`query`, `max_results`), bearer | key |
+| `DDGS` (DuckDuckGo) | `POST https://html.duckduckgo.com/html/` (form `q`), results parsed with jsoup (`a.result__a`, `a.result__snippet`, the `uddg` redirect decoded). **No official API: unverified**, fragile by nature, so the parser is tested with a saved page and a failure to parse says so | nothing |
+| `SEARXNG` | `GET {url}/search?q=&format=json[&language=&safesearch=0..2&time_range=&pageno=]`; an instance with `json` not in `search.formats` answers **403**; results `results[].title/url/content/engine` | the instance's URL (JSON format on) |
+| `GOOGLE` | `GET https://customsearch.googleapis.com/customsearch/v1?key=&cx=&q=&num=` (`num` 1-10, `start`+`num` at most 100, `safe=active`, `hl`, `lr=lang_xx`); one site: `siteSearch=<domain>&siteSearchFilter=i`; items `items[].title/link/snippet`. **The API is closed to new customers and ends for existing ones on 2027-01-01** (Google points to Vertex AI Search): kept for those who still have a key, and the panel says so | key and engine id (`cx`) |
+| `BRAVE` | `GET https://api.search.brave.com/res/v1/web/search?q=&count=` (`count` at most 20, `offset` at most 9, `country`, `search_lang`, `safesearch=off\|moderate\|strict`, `freshness`), header `X-Subscription-Token`; sites by `site:` in `q`; `web.results[].title/url/description` | key |
+| `TAVILY` | `POST https://api.tavily.com/search`, `Authorization: Bearer tvly-...`, body `query`, `max_results` (at most 20), `search_depth` (`basic` default), `include_answer`, `include_domains` (restrict), `country`, `language`, `safe_search`; `results[].title/url/content/score`, `answer`; errors `{"detail":{"error":...}}`, 401, 429, 432/433/434 for plan limits | key |
+| `PERPLEXITY` | `POST https://api.perplexity.ai/search`, bearer, body `query`, `max_results` (at most 20), `search_domain_filter` (up to 200, `-` excludes), `country`, `search_language_filter`; `results[].title/url/snippet/date`; errors `{"error":{"message","type","code"}}`, 400, 401, 429; no answer text (the Sonar and Agent APIs are a different product, not used) | key |
 
-**Specific sites:** `include_domains` where the API has it (Tavily), else `(site:a OR site:b)` added to the query.
+**Errors:** any status that is not 2xx is a failure of that source with its status and a trimmed message (the first of
+`error.message`, `detail.error`, `error` or the start of the body); the bodies of Google's and Brave's errors were not
+found in their documentation, so none is relied on. 429 and 432-434 say "limit reached" in the message.
+
+**Specific sites:** `include_domains` (Tavily), `search_domain_filter` (Perplexity), `siteSearch` for one site (Google; several
+use `(site:a OR site:b)` in the query, unverified), else `(site:a OR site:b)` added to the query (Brave, SearXNG, DuckDuckGo).
 Every backend answers a `List<SearchHit>` (`title`, `url`, `snippet`, `source`); the answer of Tavily may add `answer`.
-The APIs' details above are from memory: each one is checked against its documentation (with the user's go-ahead to
-read it) before its code is written, and its test uses a fake server (the JDK's `HttpServer`), never the real service.
+Read in the documentation on 2026-11-20 with the user's go-ahead (Google, Brave, Tavily, Perplexity, SearXNG). **Not
+verified:** DuckDuckGo (no API), crawl4ai's native `/crawl` (its documentation was not reachable: the request and the
+answer follow the user's own wrapper, which is a working client of it: `POST /crawl` with `urls`, `results[0].markdown`
+as an object with `fit_markdown` / `raw_markdown`, or a plain string, else `results[0].raw_markdown`), and the exact top-level keys
+of SearXNG's JSON (`results` is what its attributes and clients use). Each test uses a fake server (the JDK's
+`HttpServer`), never the real service, so a first real call to each is part of the browser check of stage 5.
 
 **Privacy mode** (`DESIGN.md` → Web): only sources marked `local` (a flag on the source and on the page source, shown in
 the panel; nothing is guessed from the URL) run; the others are refused with a message.

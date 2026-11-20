@@ -1359,6 +1359,31 @@ A phone (iPhone / Android) as another node on the same protocol, with its own ma
   joi-protocol's JSON schemas. (The Looking Glass Unity plugin also targets iPhone 15/16 Pro, so a phone could drive
   the Go.)
 
+### Browser companion extension (idea)
+
+A **Chrome / Firefox extension** that pairs with a node and lets her control what plays in the user's own browser:
+pause, resume and seek a YouTube video, change its speed or volume, turn captions on, skip to the next one, open
+a video she found, say what is playing. A node tool set like any other (its manifest lists the tools and the tier of
+each), so the harness decides what needs a card.
+
+- **Shape:** a WebExtension (Manifest V3; Firefox accepts it with small differences) with content scripts and a
+  background worker. It talks only to the paired node, over a WebSocket on `127.0.0.1` (a pairing token the node
+  shows once, or native messaging), never to the server or the internet itself.
+- **Adapters:** a generic one on the page's `<video>` / `<audio>` element and the Media Session API (play, pause,
+  seek, the title and artist that are playing), and small adapters per site where the page has its own controls
+  (YouTube first: next video, captions, speed, the chapter list; later Spotify and Netflix on the web).
+- **Tools:** `media_status` (what plays in which tab), `media_control` (play, pause, seek, volume, speed, next),
+  `open_url` in a new tab, `list_tabs`, `focus_tab`. Reading a page is a separate, stricter tool.
+- **Events:** the node can tell her "a video started" or "the music stopped" as transient events, so she can
+  comment, and so "pause it" means the thing that is playing now.
+- **Harness:** media control of a tab the user has open is **ALLOW** right after they asked, otherwise **ASK**;
+  opening a URL, and anything that clicks or types in a page, is **ASK**; a site list says where the extension may act
+  at all (nothing on a bank or a mail site). Page content that is read is untrusted data, marked so in the prompt, as
+  everywhere (see Web).
+- **Unlike `fetch_page`,** it runs inside the user's logged-in browser. That is the point (their YouTube, their
+  playlists) and the risk (their sessions), so it sends no history nor page text to her unless a tool was called for
+  it, and it logs every action it takes to the node's audit log.
+
 ## Avatar and Looking Glass
 
 ### The display

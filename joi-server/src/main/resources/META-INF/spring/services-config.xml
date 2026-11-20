@@ -241,6 +241,8 @@
         <property name="repository" ref="toolMetadataRepository" />
     </bean>
     <bean class="com.github.enerccio.joi.domain.service.impl.ToolPermissionServiceImpl" />
+    <!-- the search sources, proxy and page reader of web_search and fetch_page, with their keys -->
+    <bean class="com.github.enerccio.joi.domain.service.impl.WebToolSettingsServiceImpl" />
 
     <!-- the 3D models of the user, what bodies are made of; their files are resources -->
     <bean id="modelRepository" class="com.github.enerccio.joi.domain.repository.impl.JpaModelRepository">
