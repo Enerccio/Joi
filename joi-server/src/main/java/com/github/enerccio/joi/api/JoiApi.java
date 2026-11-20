@@ -1,5 +1,6 @@
 package com.github.enerccio.joi.api;
 
+import com.github.enerccio.joi.domain.animations.AnimationRoles;
 import com.github.enerccio.joi.domain.bodies.BodyState;
 import com.github.enerccio.joi.domain.bodies.DescribedPart;
 import com.github.enerccio.joi.domain.bodies.ModelCapabilities;
@@ -13,6 +14,7 @@ import com.github.enerccio.joi.domain.model.impl.ChatMessage;
 import com.github.enerccio.joi.domain.model.impl.Joi;
 import com.github.enerccio.joi.domain.model.impl.Model;
 import com.github.enerccio.joi.domain.service.AccessTokenService;
+import com.github.enerccio.joi.domain.service.AnimationPackService;
 import com.github.enerccio.joi.domain.service.AccessTokenService.Principal;
 import com.github.enerccio.joi.domain.service.ApiAccessService;
 import com.github.enerccio.joi.domain.service.BodyService;
@@ -106,6 +108,9 @@ public class JoiApi implements DisposableBean {
 
     @Autowired
     private ModelService modelService;
+
+    @Autowired
+    private AnimationPackService packService;
 
     @Autowired
     private JoimService joimService;
@@ -238,7 +243,14 @@ public class JoiApi implements DisposableBean {
                 persona.personalityKey() == null ? null : new Personality(persona.personalityKey(), persona.personalityName()),
                 joi.getMood(), StringUtils.defaultIfBlank(joi.getWakeWord(), "Hey " + name), iso(last),
                 model == null ? null : model.getName(), tts == null || actor == null ? null : new Voice(tts.getName(), actor.getName(),
-                        StringUtils.defaultIfBlank(actor.getDescription(), null)));
+                        StringUtils.defaultIfBlank(actor.getDescription(), null)), animations(joi));
+    }
+
+    /** The animations she plays in her states, the ones still in the user's library. */
+    private JoiAnimations animations(Joi joi) throws Exception {
+        List<String> library = packService.findAllByName().stream().map(AnimationPack::getUuid).toList();
+        AnimationRoles roles = joi.animationRoleSet().existing(library);
+        return new JoiAnimations(roles.sleeping(), roles.fallingAsleep(), roles.wakingUp(), roles.idle(), roles.talking());
     }
 
     // ----------------------------------------------------------------------------------------------------------------

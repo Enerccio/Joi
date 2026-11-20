@@ -80,7 +80,8 @@ one; the server treats every node the same.
   records match the schemas, and the server's tests check every answer against them. The calls:
   - `GET /api/v1`: the version and how to authenticate (no auth needed). `GET /api/v1/me`.
   - `GET /api/v1/jois`: her assistants (id, name, last chatted). `GET /api/v1/jois/{id}`: one of them (names,
-    personality, today's mood, wake word, chat model, voice with its description).
+    personality, today's mood, wake word, chat model, voice with its description, and since 1.2 the animations she
+    plays in her states, `JoiAnimations`).
   - `POST /api/v1/jois/{id}/chat`: `{"text": ...}`; she answers in text and speech. Whole by default (`ChatReply`, the
     audio Base64), or **streamed** as server-sent events with `"stream": true` or `Accept: text/event-stream`: text
     pieces while the model writes, `reply` when the text is stored, `audio` pieces (a sentence or a few, each a whole
@@ -173,6 +174,11 @@ check) is in [MARGINALIA.md](MARGINALIA.md).
   the **Joi dialog**, after Marginalia's manuscript dialog: tabs on the left, each change stored at once, Exit.
   - **About:** her name, what she calls the user, her personality, the models of the three roles, the TTS model and
     the voice actor.
+  - **Animations (built):** the animations of the user's library she plays in her states on a node: asleep (it
+    loops), falling asleep, waking up, and lists of idle ones (while she waits) and talking ones (while she speaks), of
+    which the node plays one at a time (`AnimationRoles`, JSON on her; `JoiAnimationsPart`). A node plays them from
+    her body's `.joia`, so a body that plays only some animations needs these among them; one deleted is no longer
+    chosen. The API gives them with her (`JoiInfo.animations`).
   - **Templates:** her master system template, the memory prompts, the body section and the self-image prompt, with
     the preview of the system prompt.
   - **Chats (built, read only):** her conversation as a transcript, oldest at the top: the input (the user's words on

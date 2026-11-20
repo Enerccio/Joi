@@ -279,6 +279,9 @@ class JoiApiTest extends PlatformTestBase {
         assertThat(info.json().get("wakeWord").getAsString()).isEqualTo("Hey Kairo");
         assertThat(info.json().get("chatModel").isJsonNull()).isTrue();
         assertThat(info.json().get("voice").isJsonNull()).isTrue();
+        JsonObject animations = info.json().getAsJsonObject("animations");
+        assertThat(animations.get("sleeping").isJsonNull()).isTrue();
+        assertThat(animations.getAsJsonArray("idle")).isEmpty();
 
         Answer notYours = get("/api/v1/jois/" + theirs.getUuid());
         assertThat(notYours.status).isEqualTo(404);

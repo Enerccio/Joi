@@ -5,6 +5,7 @@ import com.github.enerccio.joi.domain.model.impl.QueuedEvent;
 import com.github.enerccio.joi.domain.service.JoiService;
 import com.github.enerccio.joi.loc.J_L;
 import com.github.enerccio.joi.ui.dialogs.joi.JoiAboutPart;
+import com.github.enerccio.joi.ui.dialogs.joi.JoiAnimationsPart;
 import com.github.enerccio.joi.ui.dialogs.joi.JoiBodiesPart;
 import com.github.enerccio.joi.ui.dialogs.joi.JoiChatsPart;
 import com.github.enerccio.joi.ui.dialogs.joi.JoiMemoriesPart;
@@ -59,6 +60,7 @@ public class JoiDialog extends Dialog {
     private JoiChatsPart chatsPart;
     private JoiMemoriesPart memoriesPart;
     private JoiBodiesPart bodiesPart;
+    private JoiAnimationsPart animationsPart;
 
     public JoiDialog(Joi joi) {
         this.joi = joi;
@@ -80,7 +82,7 @@ public class JoiDialog extends Dialog {
         tabs.setTabsWidth("200px");
         aboutPart = new JoiAboutPart(this);
         templatesPart = new JoiTemplatesPart(this);
-        for (JoiDialogPart part : List.of(aboutPart, bodiesPart = new JoiBodiesPart(), templatesPart, memoriesPart = new JoiMemoriesPart(),
+        for (JoiDialogPart part : List.of(aboutPart, bodiesPart = new JoiBodiesPart(), animationsPart = new JoiAnimationsPart(this), templatesPart, memoriesPart = new JoiMemoriesPart(),
                 new JoiNothingYetPart(J_L.LABEL_SUMMARIES), chatsPart = new JoiChatsPart())) {
             Component content = part.create();
             parts.put(part, content);
@@ -180,6 +182,10 @@ public class JoiDialog extends Dialog {
     /** The Bodies tab, for tests. */
     public JoiBodiesPart getBodiesPart() {
         return bodiesPart;
+    }
+
+    public JoiAnimationsPart getAnimationsPart() {
+        return animationsPart;
     }
 
     /** The Templates tab, for tests. */

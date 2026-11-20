@@ -1,5 +1,6 @@
 package com.github.enerccio.joi.domain.model.impl;
 
+import com.github.enerccio.joi.domain.animations.AnimationRoles;
 import com.github.enerccio.joi.domain.persona.MoodSetting;
 import com.github.enerccio.joi.domain.persona.PersonaAttributes;
 import com.github.enerccio.joi.domain.persona.PersonalitySetting;
@@ -115,6 +116,11 @@ public class Joi extends ExtendableEntity implements PersonaAttributes {
     @ExtendedAttribute
     @Transient
     private Integer pauseMinutes;
+
+    /** The animations she plays in her states, JSON ({@code AnimationRoles}); null for none chosen. */
+    @ExtendedAttribute
+    @Transient
+    private String animationRoles;
 
     /** The key of today's mood, null before the first roll. */
     @ExtendedAttribute
@@ -344,5 +350,22 @@ public class Joi extends ExtendableEntity implements PersonaAttributes {
 
     public void setMoodSince(Date moodSince) {
         this.moodSince = moodSince;
+    }
+
+    public String getAnimationRoles() {
+        return animationRoles;
+    }
+
+    public void setAnimationRoles(String animationRoles) {
+        this.animationRoles = animationRoles;
+    }
+
+    /** The animations she plays in her states. */
+    public AnimationRoles animationRoleSet() {
+        return AnimationRoles.fromJson(animationRoles);
+    }
+
+    public void setAnimationRoleSet(AnimationRoles roles) {
+        this.animationRoles = AnimationRoles.toJson(roles);
     }
 }

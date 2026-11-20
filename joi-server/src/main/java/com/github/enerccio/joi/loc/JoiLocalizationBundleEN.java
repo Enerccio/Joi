@@ -269,6 +269,12 @@ public class JoiLocalizationBundleEN extends TextBundleBase<J_L> {
         setValue(J_L.LABEL_PAUSE, "Pause");
         setValue(J_L.LABEL_ANIMATION_IN_PLACE, "In place");
         setValue(J_L.LABEL_ANIMATION_REVERSE, "Reverse");
+        setValue(J_L.LABEL_JOI_ANIMATIONS, "Animations");
+        setValue(J_L.LABEL_ANIMATION_SLEEPING, "Asleep");
+        setValue(J_L.LABEL_ANIMATION_FALLING_ASLEEP, "Falling asleep");
+        setValue(J_L.LABEL_ANIMATION_WAKING_UP, "Waking up");
+        setValue(J_L.LABEL_ANIMATION_IDLE, "Idle");
+        setValue(J_L.LABEL_ANIMATION_TALKING, "Talking");
         setValue(J_L.LABEL_ANIMATION_BLEND, "Blend in");
         setValue(J_L.LABEL_STEP_ROTATION, "Rotation of the step");
         setValue(J_L.LABEL_ROTATE_IN_PREVIEW, "Rotate in the preview");
@@ -427,6 +433,10 @@ public class JoiLocalizationBundleEN extends TextBundleBase<J_L> {
         setValue(J_L.MSG_ANIMATION_DESCRIPTION_HINT, "What it shows and when it fits, for her: she picks a clip by what it says.");
         setValue(J_L.MSG_ANIMATION_BLEND_HINT, "Seconds to blend from where the step before left her into this clip, so a pose that doesn't match flows into it; 0 cuts.");
         setValue(J_L.MSG_STEP_ROTATION_HINT, "Turns the whole clip of this step around her hips where it starts, for a clip made facing or lying another way. Degrees around X, Y and Z (Y turns her around), or drag the rings in the preview. The clip itself stays as it is.");
+        setValue(J_L.MSG_JOI_ANIMATIONS_HINT, "The animations of your library she plays in her states, on a node. They play from her body's animations: a body that plays only some of them needs these among them.");
+        setValue(J_L.MSG_ANIMATION_IDLE_HINT, "While she waits; the node plays one of them at a time.");
+        setValue(J_L.MSG_ANIMATION_TALKING_HINT, "While she speaks; the node plays one of them at a time.");
+        setValue(J_L.MSG_NO_ANIMATIONS_YET, "There are no animations yet: make them in the Animations tab of the workspace.");
         setValue(J_L.MSG_ANIMATION_REVERSE_HINT, "Plays the clip backwards: sitting down played back is standing up.");
         setValue(J_L.MSG_ANIMATION_IN_PLACE_HINT, "Her hips keep their spot on the floor: a walk or a dance that moves about stays put.");
 

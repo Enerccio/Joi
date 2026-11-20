@@ -159,6 +159,10 @@
     padding: var(--lumo-space-s) 0;
 }
 
+.joi-animations {
+    max-width: 40em;
+}
+
 .step-rotation-title {
     font-weight: 600;
     font-size: var(--lumo-font-size-s);

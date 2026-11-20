@@ -60,6 +60,17 @@
           "$ref": "Voice.schema.json"
         }
       ]
+    },
+    "animations": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "$ref": "JoiAnimations.schema.json"
+        }
+      ],
+      "description": "The animations she plays in her states (since 1.2)."
     }
   },
   "required": [

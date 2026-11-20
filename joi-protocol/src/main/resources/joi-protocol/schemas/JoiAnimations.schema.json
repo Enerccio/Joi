@@ -1,0 +1,48 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Enerccio/joi/protocol/v1/JoiAnimations.schema.json",
+  "title": "JoiAnimations",
+  "description": "The animations she plays in her states (since 1.2): ids of the user's animations, played from the .joia of her body; an id the body does not have is skipped.",
+  "type": "object",
+  "properties": {
+    "sleeping": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "While she sleeps (loops)."
+    },
+    "fallingAsleep": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "As she goes to sleep."
+    },
+    "wakingUp": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "As she wakes up."
+    },
+    "idle": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "While she waits; one at a time, chosen by the node."
+    },
+    "talking": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "While she speaks; one at a time, chosen by the node."
+    }
+  },
+  "required": [
+    "idle",
+    "talking"
+  ]
+}
