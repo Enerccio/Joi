@@ -184,12 +184,9 @@ public class ModelServiceImpl extends ExtendableServiceImpl<Model, ModelReposito
             // stored anyway: the preview tells what is wrong with it
             model.setCapabilities(null);
         }
-        if (previous != null) {
-            Resource old = resourceService.find(previous);
-            if (old != null) {
-                resourceService.softDelete(List.of(old.getUuid()));
-            }
-        }
+        // the converted VRM it replaces (a new conversion, the spring bones) goes with its file: it is made again from the
+        // upload, and kept it would be another 60 MB or more for each time
+        discardDerived(previous);
     }
 
     @Override
@@ -501,11 +498,20 @@ public class ModelServiceImpl extends ExtendableServiceImpl<Model, ModelReposito
         model.setExportResourceId(resource.getId());
         model.setExportFileSize(resource.getSize());
         model.setExportedAt(new java.util.Date());
-        if (previous != null) {
-            Resource old = resourceService.find(previous);
-            if (old != null && !old.isDeleted()) {
-                resourceService.softDelete(List.of(old.getUuid()));
-            }
+        discardDerived(previous);
+    }
+
+    @Override
+    @CommonTx
+    public void discardDerived(Long resourceId) throws Exception {
+        Resource old = resourceId == null ? null : resourceService.find(resourceId);
+        if (old == null || old.isDeleted()) {
+            return;
+        }
+        File file = resourceService.getResourceFile(old);
+        resourceService.softDelete(List.of(old.getUuid()));
+        if (file != null && file.isFile() && !getRepository().pathInUse(old.getPath())) {
+            Files.deleteIfExists(file.toPath());
         }
     }
 }

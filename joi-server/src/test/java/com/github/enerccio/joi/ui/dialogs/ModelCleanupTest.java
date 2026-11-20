@@ -74,6 +74,8 @@ class ModelCleanupTest extends PlatformTestBase {
         convert();
         firstVrm = modelService.convertedFile(model);
         convert();
+        // the converted VRM a new conversion replaces went with it
+        assertThat(firstVrm).doesNotExist();
         model = joimService.export(model, b -> {
         });
         File firstJoim = modelService.exportFile(model);
@@ -83,12 +85,15 @@ class ModelCleanupTest extends PlatformTestBase {
         });
         File vrm = modelService.convertedFile(model);
         File joim = modelService.exportFile(model);
+        // the replaced .joim went with its replacement: it is made again, it is not kept
+        assertThat(firstJoim).doesNotExist();
 
         ModelService.Cleanup cleanup = modelService.cleanup(model);
         assertThat(cleanup.uploadName()).isEqualTo("Ryuu.fbx");
         assertThat(cleanup.uploadBytes()).isEqualTo(4096);
-        assertThat(cleanup.oldFiles()).isEqualTo(2);
-        assertThat(cleanup.oldBytes()).isEqualTo(firstVrm.length() + firstJoim.length());
+        // only the upload is left to clean up: the older versions are not kept any more
+        assertThat(cleanup.oldFiles()).isZero();
+        assertThat(cleanup.oldBytes()).isZero();
 
         ModelDialog dialog = new ModelDialog(modelService.find(model.getId()));
         dialog.create();
@@ -98,7 +103,6 @@ class ModelCleanupTest extends PlatformTestBase {
 
         assertThat(upload).doesNotExist();
         assertThat(firstVrm).doesNotExist();
-        assertThat(firstJoim).doesNotExist();
         assertThat(vrm).exists();
         assertThat(joim).exists();
         model = modelService.find(model.getId());

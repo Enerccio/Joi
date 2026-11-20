@@ -452,9 +452,7 @@ public class BodyServiceImpl extends ExtendableServiceImpl<Body, BodyRepository>
     }
 
     private void forgetAnimations(Long resourceId) throws Exception {
-        Resource old = resourceService.find(resourceId);
-        if (old != null && !old.isDeleted()) {
-            resourceService.softDelete(List.of(old.getUuid()));
-        }
+        // a .joia is made again from the animations: the replaced one goes with its file
+        modelService.discardDerived(resourceId);
     }
 }

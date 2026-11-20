@@ -160,6 +160,15 @@ public interface ModelService extends ExtendableService<Model, ModelRepository> 
         }
     }
 
+    /**
+     * Drops a file the server made and has replaced (a model's {@code .joim}, a body's {@code .joia}): the resource is
+     * deleted and so is its file, at once, unless another resource uses it. It is rebuilt from what it holds when it is
+     * needed again, so it is not kept in the trash (it would be 60 MB or more for each save).
+     *
+     * @param resourceId the replaced resource, null or one that is gone is skipped
+     */
+    void discardDerived(Long resourceId) throws Exception;
+
     /** What {@link #cleanUp} would delete. */
     Cleanup cleanup(Model model) throws Exception;
 

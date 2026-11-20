@@ -93,6 +93,8 @@ class JoimServiceTest extends PlatformTestBase {
         });
         assertThat(model.getExportResourceId()).isNotEqualTo(before);
         assertThat(modelService.exportFile(model)).exists().isNotEqualTo(first);
+        // the one before is gone from the disk, not kept in the trash: a save is not 60 MB more for ever
+        assertThat(first).doesNotExist();
         assertThat(joimService.needsExport(model)).isFalse();
     }
 

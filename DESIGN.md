@@ -403,6 +403,12 @@ check) is in [MARGINALIA.md](MARGINALIA.md).
       resource of the model, in place of the one before, and the dialog shows its size, time and a download link, or
       that it will be written again. "Changed" is a fingerprint of the metadata and the VRM's hash
       (`ModelService.exportFingerprint`), so a model with no VRM, or with a conversion running, gets none.
+      The `.joim` holds the whole VRM, so even a changed description writes a file as big as the model (60 MB and more).
+      The one it replaces is **deleted with its file at once** (`ModelService.discardDerived`, the same for a body's
+      `.joia`), not left in the trash: a file the server makes again from what it holds is never kept twice. Only the
+      user's own uploads stay until the model's *Clean up*. A converted VRM that a new conversion (or the spring bones)
+      replaces goes the same way, so reprocessing a model does not double what it takes on the disk; the files of older
+      versions that were kept before are removed by the Administration's Cleanup and Resource Files.
     - **Imported by the upload:** a `.joim` uploaded in the model dialog becomes the model (format `JOIM`): its VRM
       the converted file, what was decided on it from the metadata (`JoimMetadata`), no upload kept, and the file
       itself its current export. The same VRM bytes keep the same hash, so a description that was current stays
