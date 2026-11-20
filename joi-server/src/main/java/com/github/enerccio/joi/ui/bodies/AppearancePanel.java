@@ -74,7 +74,7 @@ public class AppearancePanel {
     private AppearanceService appearanceService;
 
     /** The order of the snapshots of the whole model (the viewer's shots). */
-    private static final List<String> SHOT_ORDER = List.of("full-front", "full-three-quarter", "full-profile", "full-back",
+    public static final List<String> SHOT_ORDER = List.of("full-front", "full-three-quarter", "full-profile", "full-back",
             "face-front", "face-three-quarter");
 
     /** The height of the text area of a sentence of a part in its fixed mode. */

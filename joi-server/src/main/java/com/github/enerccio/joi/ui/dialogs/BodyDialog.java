@@ -4,6 +4,7 @@ import com.github.enerccio.joi.domain.bodies.Appearance;
 import com.github.enerccio.joi.domain.bodies.BodyState;
 import com.github.enerccio.joi.domain.bodies.DescribedPart;
 import com.github.enerccio.joi.domain.bodies.ModelCapabilities;
+import com.github.enerccio.joi.domain.bodies.Outfit;
 import com.github.enerccio.joi.domain.model.impl.AnimationPack;
 import com.github.enerccio.joi.domain.model.impl.Body;
 import com.github.enerccio.joi.domain.model.impl.Joi;
@@ -22,7 +23,9 @@ import com.github.enerccio.joi.ui.bodies.ModelViewer;
 import com.github.enerccio.marginalia.CssStyles;
 import com.github.enerccio.marginalia.loc.L;
 import com.github.enerccio.marginalia.loc.Localization;
+import com.github.enerccio.marginalia.ui.dialogs.ConfirmDialog;
 import com.github.enerccio.marginalia.ui.widgets.Notification;
+import com.flowingcode.vaadin.addons.fontawesome.FontAwesome.Solid;
 import com.github.enerccio.marginalia.utils.UIUtils;
 import com.github.enerccio.marginalia.ui.widgets.ResizableTextArea;
 import com.github.enerccio.joi.ui.widgets.PromptAreas;
@@ -93,6 +96,10 @@ public class BodyDialog extends Dialog {
     private Select<Long> modelSelect;
     private Select<Long> lookingGlassSelect;
     private TextArea description;
+    private TextArea bodyDescription;
+    private Div outfitsBox;
+    private Button addOutfitButton;
+    private Span outfitsHint;
     private Span capabilitiesInfo;
     private RadioButtonGroup<Boolean> previewChoice;
     private ModelViewer viewer;
@@ -170,6 +177,24 @@ public class BodyDialog extends Dialog {
         ResizableTextArea.install(loc, description, PromptAreas.TEMPLATE_HEIGHT);
         description.setHelperText(loc.getValue(J_L.MSG_BODY_APPEARANCE_HINT));
 
+        bodyDescription = new TextArea(loc.getValue(J_L.LABEL_BODY_DESCRIPTION));
+        bodyDescription.setWidthFull();
+        bodyDescription.setValue(body == null ? "" : StringUtils.defaultString(body.getDescription()));
+        ResizableTextArea.install(loc, bodyDescription, PromptAreas.TEMPLATE_HEIGHT);
+        bodyDescription.setHelperText(loc.getValue(J_L.MSG_BODY_DESCRIPTION_HINT));
+        bodyDescription.addValueChangeListener(e -> {
+            if (e.isFromClient()) {
+                store();
+            }
+        });
+
+        H4 outfitsTitle = new H4(loc.getValue(J_L.LABEL_BODY_OUTFITS));
+        outfitsHint = new Span(loc.getValue(J_L.MSG_BODY_OUTFITS_HINT));
+        outfitsHint.addClassName(CssStyles.HINT_TEXT);
+        outfitsBox = new Div();
+        outfitsBox.addClassName(JoiCssStyles.BODY_OUTFITS);
+        addOutfitButton = new Button(loc.getValue(J_L.LABEL_ADD_OUTFIT), Solid.PLUS.create(), e -> editOutfit(null));
+
         H4 partsTitle = new H4(loc.getValue(J_L.LABEL_BODY_PARTS));
         partsHint = new Span();
         partsHint.addClassName(CssStyles.HINT_TEXT);
@@ -207,8 +232,8 @@ public class BodyDialog extends Dialog {
         joiaInfo = new Div();
         joiaInfo.addClassName(CssStyles.HINT_TEXT);
 
-        VerticalLayout sidebar = new VerticalLayout(nameField, modelSelect, lookingGlassSelect, modelHint, capabilitiesInfo, description,
-                partsTitle, partsHint, parts, animationsTitle, animationsHint, allAnimations, animationSelect, joiaInfo);
+        VerticalLayout sidebar = new VerticalLayout(nameField, modelSelect, lookingGlassSelect, modelHint, capabilitiesInfo, bodyDescription, description,
+                outfitsTitle, outfitsHint, outfitsBox, addOutfitButton, partsTitle, partsHint, parts, animationsTitle, animationsHint, allAnimations, animationSelect, joiaInfo);
         sidebar.setPadding(false);
         sidebar.addClassName(JoiCssStyles.MODEL_SIDEBAR);
 
@@ -247,6 +272,7 @@ public class BodyDialog extends Dialog {
 
         addOpenedChangeListener(e -> {
             if (!e.isOpened()) {
+                announce();
                 onClose.run();
             }
         });
@@ -354,6 +380,7 @@ public class BodyDialog extends Dialog {
                 body = bodyService.find(body.getId());
             }
             body.setName(StringUtils.defaultIfBlank(name, null));
+            body.setDescription(StringUtils.defaultIfBlank(StringUtils.strip(bodyDescription.getValue()), null));
             Long before = body.getModel() == null ? null : body.getModel().getId();
             if (!java.util.Objects.equals(before, modelId)) {
                 // the parts are the model's: another model starts as it comes
@@ -381,6 +408,7 @@ public class BodyDialog extends Dialog {
                 : String.format(loc.getValue(J_L.MSG_BODY_CAPABILITIES), capabilities.expressions().size(), DescribedPart.of(model, capabilities).size()));
         showParts(model, capabilities);
         showDescription(model);
+        showOutfits();
         boolean lookingGlass = lookingGlassSelect.getValue() != null;
         previewChoice.setVisible(lookingGlass);
         if (!lookingGlass) {
@@ -395,7 +423,102 @@ public class BodyDialog extends Dialog {
     }
 
     private void showDescription(Model model) {
-        description.setValue(StringUtils.defaultString(model == null ? null : Appearance.of(model, BodyState.toggles(model, partStates()))));
+        try {
+            description.setValue(StringUtils.defaultString(model == null ? null
+                    : body != null ? bodyService.appearance(body) : Appearance.of(model, BodyState.toggles(model, partStates()))));
+        } catch (Exception e) {
+            UIUtils.internalServerError(loc, e);
+        }
+    }
+
+    /** The outfits of the body, each with what it looks like and what the user does with it. */
+    private void showOutfits() {
+        outfitsBox.removeAll();
+        Model model = modelSelect.getValue() == null ? null : models.get(modelSelect.getValue());
+        addOutfitButton.setEnabled(model != null);
+        outfitsHint.setText(loc.getValue(model == null ? J_L.MSG_BODY_OUTFITS_NEED_MODEL : J_L.MSG_BODY_OUTFITS_HINT));
+        if (body == null || model == null) {
+            return;
+        }
+        try {
+            Outfit wearing = bodyService.currentOutfit(body);
+            for (Outfit outfit : bodyService.outfits(body)) {
+                boolean worn = wearing != null && wearing.id().equals(outfit.id());
+                Span name = new Span(outfit.name() + (worn ? " · " + loc.getValue(J_L.LABEL_OUTFIT_WORN) : ""));
+                Span text = new Span(StringUtils.defaultIfBlank(outfit.description(), loc.getValue(J_L.LABEL_OUTFIT_UNDESCRIBED)));
+                text.addClassName(JoiCssStyles.BODY_OUTFIT_DESCRIPTION);
+                text.getElement().setProperty("title", text.getText());
+                Div label = new Div(name, text);
+                label.addClassName(JoiCssStyles.BODY_OUTFIT_TEXT);
+                Button wear = new Button(Solid.SHIRT.create(), e -> wear(outfit));
+                wear.setTooltipText(loc.getValue(J_L.LABEL_OUTFIT_WEAR));
+                wear.setEnabled(!worn);
+                Button edit = new Button(Solid.PEN.create(), e -> editOutfit(outfit));
+                edit.setTooltipText(loc.getValue(L.LABEL_EDIT));
+                Button delete = new Button(Solid.TRASH.create(), e -> ConfirmDialog.show(loc.getValue(L.MSG_CONFIRM_DELETE), () -> {
+                    try {
+                        bodyService.deleteOutfit(body, outfit.id());
+                        showOutfits();
+                    } catch (Exception ex) {
+                        UIUtils.internalServerError(loc, ex);
+                    }
+                }));
+                delete.setThemeName("error tertiary");
+                delete.setTooltipText(loc.getValue(L.LABEL_DELETE));
+                Div row = new Div(label, wear, edit, delete);
+                row.addClassName(JoiCssStyles.BODY_OUTFIT);
+                outfitsBox.add(row);
+            }
+        } catch (Exception e) {
+            UIUtils.internalServerError(loc, e);
+        }
+    }
+
+    /** The user puts an outfit on the body: stored (she is told when she is in the body), shown everywhere in the dialog. */
+    private void wear(Outfit outfit) {
+        try {
+            bodyService.wear(body, outfit.id());
+            body = bodyService.find(body.getId());
+            Model model = modelSelect.getValue() == null ? null : models.get(modelSelect.getValue());
+            showParts(model, model == null ? null : ModelCapabilities.fromJson(model.getCapabilities()));
+            showDescription(model);
+            showOutfits();
+            showState();
+        } catch (Exception e) {
+            UIUtils.internalServerError(loc, e);
+        }
+    }
+
+    /** Opens the outfit's dialog: a new outfit (null; it starts from what the body shows) or a stored one. */
+    private void editOutfit(Outfit outfit) {
+        try {
+            if (body == null) {
+                store();
+            }
+            Model model = modelSelect.getValue() == null ? null : models.get(modelSelect.getValue());
+            if (body == null || model == null) {
+                return;
+            }
+            OutfitDialog dialog = new OutfitDialog(body, model, outfit, () -> {
+                showOutfits();
+                showDescription(model);
+            });
+            dialog.create();
+            dialog.open();
+        } catch (Exception e) {
+            UIUtils.internalServerError(loc, e);
+        }
+    }
+
+    /** She is told of what is new: the body, its outfits (one event, added to a waiting one). */
+    private void announce() {
+        try {
+            if (body != null) {
+                bodyService.announce(body);
+            }
+        } catch (Exception e) {
+            UIUtils.internalServerError(loc, e);
+        }
     }
 
     /** A choice of the state for each part of the model described apart. */
@@ -443,6 +566,7 @@ public class BodyDialog extends Dialog {
             bodyService.switchPart(body, part.id(), stateId);
             body = bodyService.find(body.getId());
             showDescription(model);
+            showOutfits();
             showState();
         } catch (Exception e) {
             UIUtils.internalServerError(loc, e);

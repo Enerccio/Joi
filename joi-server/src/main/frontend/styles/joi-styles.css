@@ -162,6 +162,47 @@
     width: 100%;
 }
 
+.body-outfits {
+    width: 100%;
+    min-width: 0;
+}
+
+.body-outfit {
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    gap: var(--lumo-space-s);
+    width: 100%;
+    padding: var(--lumo-space-xs) 0;
+    border-bottom: 1px solid var(--lumo-contrast-10pct);
+}
+
+.body-outfit-text {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+}
+
+.body-outfit-text > span:first-child {
+    font-weight: 600;
+}
+
+.body-outfit-description {
+    display: block;
+    color: var(--lumo-secondary-text-color);
+    font-size: var(--lumo-font-size-s);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.outfit-toggles {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(14rem, 1fr));
+    gap: 0 var(--lumo-space-m);
+    width: 100%;
+}
+
 .editor-split {
     overflow: hidden;
 }
