@@ -215,4 +215,37 @@ class BodyDialogTest extends PlatformTestBase {
         assertThat(bodyService.switchPart(bodyService.find(street.getId()), "key:Headgear/Hide Halo", "shown")).isEmpty();
         assertThat(queuedEventService.findWaiting(joi)).hasSize(2);
     }
+
+    @Test
+    void hidingAPartTakesItsPartsWithItInOneEvent() throws Exception {
+        Model ryuu = vrm("Ryuu");
+        ryuu = modelService.find(ryuu.getId());
+        // the halo is a shape key of the headgear, so it is part of it
+        ryuu.getCapabilityNames().put("mesh:Headgear", "hat");
+        ryuu.getCapabilityNames().put("key:Headgear/Hide Halo", "golden halo");
+        ryuu.setDescribeToggles(List.of("mesh:Headgear", "key:Headgear/Hide Halo"));
+        ryuu.setDescribeTogglesChosen(true);
+        ryuu.getPartShown().put("mesh:Headgear", "A hat sits on your head.");
+        ryuu.getPartHidden().put("mesh:Headgear", "Your head is bare.");
+        ryuu = modelService.save(ryuu);
+        Body street = bodyService.create(joi, "Street");
+        street.setModel(ryuu);
+        street = bodyService.save(street);
+        chatted();
+
+        assertThat(bodyService.switchPart(bodyService.find(street.getId()), "mesh:Headgear", "hidden")).hasSize(1);
+        // the halo went with the hat: one event, the hat and what is gone with it
+        assertThat(queuedEventService.findWaiting(joi)).extracting(QueuedEvent::getText).containsExactly(
+                "A part of you was switched: hat, now hidden. Your head is bare. With it, golden halo is gone from sight too.");
+
+        // the halo switched under the hidden hat: it is not seen, and she is told so
+        bodyService.switchPart(bodyService.find(street.getId()), "key:Headgear/Hide Halo", "hidden");
+        assertThat(queuedEventService.findWaiting(joi)).extracting(QueuedEvent::getText).last().isEqualTo(
+                "A part of you was switched: golden halo, now hidden. It is not seen while hat is hidden.");
+
+        // the hat back: the halo comes back as it was (hidden), so nothing else is said
+        bodyService.switchPart(bodyService.find(street.getId()), "mesh:Headgear", "shown");
+        assertThat(queuedEventService.findWaiting(joi)).extracting(QueuedEvent::getText).last().isEqualTo(
+                "A part of you was switched: hat, now shown. A hat sits on your head.");
+    }
 }

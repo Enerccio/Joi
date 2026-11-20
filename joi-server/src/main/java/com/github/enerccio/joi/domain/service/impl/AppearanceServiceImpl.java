@@ -189,10 +189,11 @@ public class AppearanceServiceImpl implements AppearanceService, DisposableBean 
             int total = 1 + described.size();
             progress(id, 0, total);
 
+            Map<String, Boolean> bare = model.bareShown(capabilities);
             List<String> lines = new ArrayList<>();
             for (ModelCapabilities.Toggle toggle : toggles) {
                 // numbered: a small model repeats a number more reliably than an id like "key:Body/Hide Blade L"
-                lines.add((lines.size() + 1) + " | " + source(toggle) + " | " + name(model, toggle) + " | " + (model.shownByDefault(toggle) ? "shown" : "hidden"));
+                lines.add((lines.size() + 1) + " | " + source(toggle) + " | " + name(model, toggle) + " | " + (bare.getOrDefault(toggle.id(), model.shownByDefault(toggle)) ? "shown" : "hidden"));
             }
             LLMChatMessage request = LLMChatMessage.of(LLMRole.USER, null);
             List<String> shots = new ArrayList<>();
@@ -241,7 +242,7 @@ public class AppearanceServiceImpl implements AppearanceService, DisposableBean 
                 List<String> states = new ArrayList<>();
                 for (DescribedPart.State state : describedPart.states()) {
                     closeUps.add(modelService.imageFile(model, model.getSnapshots().get(describedPart.shot(state.id()))));
-                    states.add((states.size() + 1) + " | " + describedPart.stateLine(model, state) + (describedPart.isDefault(state) ? " (default)" : ""));
+                    states.add((states.size() + 1) + " | " + describedPart.stateLine(model, state) + (state.equals(describedPart.stateIn(bare)) ? " (default)" : ""));
                 }
                 if (closeUps.contains(null)) {
                     log.info("The appearance of model {}: no close-ups of {}", id, describedPart.id());

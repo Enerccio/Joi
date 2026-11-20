@@ -3,6 +3,7 @@ package com.github.enerccio.joi.api;
 import com.github.enerccio.joi.domain.animations.AnimationRoles;
 import com.github.enerccio.joi.domain.bodies.BodyState;
 import com.github.enerccio.joi.domain.bodies.DescribedPart;
+import com.github.enerccio.joi.domain.bodies.ToggleTree;
 import com.github.enerccio.joi.domain.bodies.ModelCapabilities;
 import com.github.enerccio.joi.domain.bodies.joim.JoimMetadata;
 import com.github.enerccio.joi.domain.chat.ChatService;
@@ -296,12 +297,13 @@ public class JoiApi implements DisposableBean {
         ModelCapabilities capabilities = model == null ? null : ModelCapabilities.fromJson(model.getCapabilities());
         if (capabilities != null) {
             Map<String, String> states = body.partStateMap();
+            ToggleTree tree = ToggleTree.of(model, capabilities);
             for (DescribedPart part : DescribedPart.of(model, capabilities)) {
                 DescribedPart.State in = BodyState.stateOf(model, part, states);
                 List<BodyPartState> partStates = new ArrayList<>();
                 for (DescribedPart.State state : part.states()) {
                     List<BodyToggle> set = part.toggles().stream().map(toggle -> new BodyToggle(toggle.mesh(), toggle.key(), toggle.hides(),
-                            state.shown().getOrDefault(toggle.id(), model.shownByDefault(toggle)))).toList();
+                            state.shown().getOrDefault(toggle.id(), model.shownByDefault(toggle)), tree.parent(toggle.id()))).toList();
                     partStates.add(new BodyPartState(state.id(), part.group() ? state.name()
                             : DescribedPart.SHOWN.equals(state.id()) ? "shown" : "hidden", part.isDefault(state), set));
                 }
@@ -311,7 +313,8 @@ public class JoiApi implements DisposableBean {
             // every toggle as the body has it: the parts as they are switched, the rest as by default
             Map<String, Boolean> shown = BodyState.toggles(model, states);
             for (ModelCapabilities.Toggle toggle : capabilities.toggles()) {
-                toggles.add(new BodyToggle(toggle.mesh(), toggle.key(), toggle.hides(), shown.getOrDefault(toggle.id(), model.shownByDefault(toggle))));
+                toggles.add(new BodyToggle(toggle.mesh(), toggle.key(), toggle.hides(), shown.getOrDefault(toggle.id(), model.shownByDefault(toggle)),
+                        tree.parent(toggle.id())));
             }
         }
         List<BodyAnimation> animations = new ArrayList<>();

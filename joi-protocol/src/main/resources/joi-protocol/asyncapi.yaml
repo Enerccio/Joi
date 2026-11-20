@@ -41,6 +41,12 @@ info:
          next start and on every node (`GET .../body` has the parts with their states and the toggles as the body has
          them), and starts her turn about it (`turn` with the cause `part_switched`), told with the description of the
          state, so she can react. A part or a state the body does not have is answered by `error` (`bad_message`).
+         A `part` with an `id` is answered, once the server kept it on the body, by `part_kept` (its `ref` the id, its
+         data the part and the state as kept); a failed one by `error` with that `ref`. A node that shows the change
+         only when it is kept, and holds its controls until then, sends `part` with an id. A node that asks for several
+         parts in a row (the user changed more of them within a few seconds) sends one `part` for each part, one after
+         another: the server **gathers** what it has not told her yet (for about a second after the last, and for as
+         long as a turn runs) and starts one turn about all of them, in the order they happened.
        - **Tools.** The server sends `tool_call` (with its `callId`). The node checks the arguments and its own
          harness again, may send `tool_progress` and `approval` (asked, then allowed or denied), and answers with
          exactly one `tool_result`. Each frame about a call restarts its timeout; an approval that is asked waits for
@@ -91,6 +97,7 @@ channels:
       stop: { $ref: "#/components/messages/stop" }
       display: { $ref: "#/components/messages/display" }
       part: { $ref: "#/components/messages/part" }
+      part_kept: { $ref: "#/components/messages/part_kept" }
       reasoning: { $ref: "#/components/messages/reasoning" }
       text: { $ref: "#/components/messages/text" }
       tool: { $ref: "#/components/messages/tool" }
@@ -130,6 +137,7 @@ operations:
     messages:
       - { $ref: "#/channels/node/messages/welcome" }
       - { $ref: "#/channels/node/messages/turn" }
+      - { $ref: "#/channels/node/messages/part_kept" }
       - { $ref: "#/channels/node/messages/reasoning" }
       - { $ref: "#/channels/node/messages/text" }
       - { $ref: "#/channels/node/messages/tool" }
@@ -177,6 +185,10 @@ components:
       name: part
       summary: The user put a part of her body in another state (since 1.5)
       payload: { $ref: "#/components/schemas/partFrame" }
+    part_kept:
+      name: part_kept
+      summary: The server kept a part in the state the node asked for (since 1.5)
+      payload: { $ref: "#/components/schemas/partKeptFrame" }
     reasoning:
       name: reasoning
       summary: A piece of the thinking of the model (only when asked for); ref is the turn
@@ -276,8 +288,13 @@ components:
     partFrame:
       allOf:
         - $ref: "schemas/Frame.schema.json"
-        - properties: { type: { const: part }, data: { $ref: "schemas/PartSwitch.schema.json" } }
+        - properties: { type: { const: part }, id: { type: string }, data: { $ref: "schemas/PartSwitch.schema.json" } }
           required: [ data ]
+    partKeptFrame:
+      allOf:
+        - $ref: "schemas/Frame.schema.json"
+        - properties: { type: { const: part_kept }, ref: { type: string }, data: { $ref: "schemas/PartSwitch.schema.json" } }
+          required: [ ref, data ]
     textDeltaFrame:
       allOf:
         - $ref: "schemas/Frame.schema.json"

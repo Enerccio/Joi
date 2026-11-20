@@ -23,6 +23,8 @@ public enum NodeMessage {
     DISPLAY("display", Direction.TO_SERVER, Display.class),
     /** {@link PartSwitch}: the user switched a part of her body (since 1.5); the server keeps it and starts her turn about it. */
     PART("part", Direction.TO_SERVER, PartSwitch.class),
+    /** {@link PartSwitch}: the server kept a part in the state asked for by a {@code part} with an id (since 1.5); {@code ref} is that id. */
+    PART_KEPT("part_kept", Direction.TO_NODE, PartSwitch.class),
     /** {@link TurnStart}: a turn the server started (first boot, the user is back); answered like a say. */
     TURN("turn", Direction.TO_NODE, TurnStart.class),
     /** {@link TextDelta} of the thinking (only when asked for). */

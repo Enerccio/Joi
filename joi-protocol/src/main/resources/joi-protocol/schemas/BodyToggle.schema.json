@@ -22,13 +22,21 @@
     },
     "shown": {
       "type": "boolean",
-      "description": "Whether the part is shown."
+      "description": "Whether the part is shown: its own state, it is seen only while the toggle it is part of is shown."
+    },
+    "parent": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "The id of the toggle this one is part of, mesh:<mesh> or key:<mesh>/<key> (as in BodyPart.id), null for none. A shape key toggle is part of the toggle of its mesh unless the user said otherwise: the bodysuit hidden hides its panties, whatever state they are in, and shows them as they were when it is shown again. The renderer applies it; the server keeps each toggle's own state."
     }
   },
   "required": [
     "mesh",
     "key",
     "hides",
-    "shown"
+    "shown",
+    "parent"
   ]
 }

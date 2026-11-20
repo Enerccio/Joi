@@ -6,8 +6,8 @@
 // Methods (the dialog tries what the model can do): setExpression(name, weight), setMeshVisible(name, visible),
 // setMorph(mesh, key, weight), setToggles(json), setSway(on) (turns her from side to side, to see the spring bones move);
 // they act on the model shown, nothing happens before it is.
-// takeSnapshots(request) renders the snapshots of a model (the whole model in its default state, and a close-up of
-// each part described apart in each of its states) for the "snapshot-target" URL.
+// takeSnapshots(request) renders the snapshots of a model (a close-up of each part described apart in each of its
+// states from the default state, then the whole model bare: the layers of her look off) for the "snapshot-target" URL.
 // playSequence(json) plays an animation, steps of VRMA clips at the "animation-src-N" URLs, on the model (now, or once it
 // is shown: a new model plays it again): each step loops or plays once, at its speed, in place or not (the hips keep
 // their spot on the floor, they only go up and down), forwards or backwards, turned by a quaternion around the hips
@@ -687,20 +687,49 @@ class JoiModelViewer extends HTMLElement {
     });
   }
 
-  /** Sets toggles of the model shown: a JSON array of {mesh, key (null for the mesh itself), hides, shown}. */
+  /**
+   * Sets toggles of the model shown: a JSON array of {mesh, key (null for the mesh itself), hides, shown, parent (the id
+   * of the toggle it is part of, "mesh:Bodysuit" / "key:Bodysuit/Hide Panties"; null for none)}. A toggle's own state is
+   * what it is set to; it is seen only while the toggles it is part of are shown (a bodysuit hidden hides its panties).
+   */
   setToggles(togglesJson) {
-    for (const toggle of togglesJson ? JSON.parse(togglesJson) : []) {
-      this._setToggle(toggle, toggle.shown);
+    this._applyToggles(togglesJson ? JSON.parse(togglesJson) : []);
+  }
+
+  /** The id of a toggle as the server has it. */
+  _toggleId(toggle) {
+    return toggle.key ? 'key:' + toggle.mesh + '/' + toggle.key : 'mesh:' + toggle.mesh;
+  }
+
+  /** Shows what the toggles say: each seen only while every toggle it is part of (among them) is shown. */
+  _applyToggles(toggles) {
+    const byId = new Map(toggles.map(toggle => [this._toggleId(toggle), toggle]));
+    for (const toggle of toggles) {
+      let seen = toggle.shown;
+      const visited = new Set([this._toggleId(toggle)]);
+      let at = toggle;
+      while (seen) {
+        const above = at.parent ? byId.get(at.parent) : null;
+        if (!above || visited.has(this._toggleId(above))) {
+          break;
+        }
+        visited.add(this._toggleId(above));
+        seen = above.shown;
+        at = above;
+      }
+      this._setToggle(toggle, seen);
     }
   }
 
   /**
    * Renders the snapshots of the model and POSTs each to the URL of the "snapshot-target" attribute, named after its
-   * shot: the model put in its default state, the shots of SHOTS (768 × 1024 JPEGs on a plain background), then for
-   * each part a close-up per state (768 × 768, "part-<index>-<state index>"). The toggles are put back as they were.
+   * shot: for each part a close-up per state (768 × 768, "part-<index>-<state index>") from the default state, then the
+   * model in its bare state (the layers of her look off), the shots of SHOTS (768 × 1024 JPEGs on a plain background).
+   * The toggles are put back as they were.
    * Fires "snapshots-taken" ({count}) when the server has them, "snapshots-error" ({message}) when not.
    *
-   * @param requestJson {base: [{mesh, key, hides, shown}] (the default state of every toggle), parts: [{index,
+   * @param requestJson {base: [{mesh, key, hides, shown}] (the default state of every toggle), bare: (the same with the
+   *                    layers of her look off, for the full shots; base when absent), parts: [{index,
    *                    toggles: [{mesh, key, hides}], states: [[shown of each toggle]]}]}
    */
   async takeSnapshots(requestJson) {
@@ -710,15 +739,18 @@ class JoiModelViewer extends HTMLElement {
       }
       const request = requestJson ? JSON.parse(requestJson) : {};
       const base = request.base || [];
+      const bare = request.bare || base;
       const parts = request.parts || [];
       const saved = this._saveToggles(base.concat(...parts.map(part => part.toggles)));
       // the snapshots show her at rest, even while she sways
       this._swayPose(0);
       let images;
       try {
-        base.forEach(toggle => this._setToggle(toggle, toggle.shown));
-        images = this._snapshotSetup(768, 1024, camera => this._renderShots(camera));
-        images.push(...this._snapshotSetup(768, 768, camera => this._renderParts(camera, parts, base)));
+        // the close-ups start from the default state; then the layers of her look go off for the shots of the whole model
+        this._applyToggles(base);
+        images = this._snapshotSetup(768, 768, camera => this._renderParts(camera, parts, base));
+        this._applyToggles(bare);
+        images.push(...this._snapshotSetup(768, 1024, camera => this._renderShots(camera)));
       } finally {
         this._restoreToggles(saved);
       }
@@ -807,7 +839,7 @@ class JoiModelViewer extends HTMLElement {
     const height = box.getSize(new THREE.Vector3()).y;
     const center = box.getCenter(new THREE.Vector3());
     const fov = THREE.MathUtils.degToRad(camera.fov / 2);
-    const byDefault = new Map(base.map(toggle => [toggle.mesh + '/' + (toggle.key || ''), toggle.shown]));
+    const byId = new Map(base.map(toggle => [this._toggleId(toggle), toggle]));
     const images = [];
     for (const part of parts) {
       const partBox = new THREE.Box3();
@@ -828,16 +860,39 @@ class JoiModelViewer extends HTMLElement {
       const dz = target.z - center.z;
       // the side the part is on: in front unless it is clearly behind or beside the body (a tail, a blade)
       const angle = Math.hypot(dx, dz) > height * 0.06 ? THREE.MathUtils.radToDeg(Math.atan2(dx, dz)) : 0;
+      // a close-up shows what the part is part of and what is part of it switched on: the panties are seen only while the
+      // bodysuit is shown, and the bodysuit is taken with all its options on, not with those the default switched off
+      // (only the part's own toggles are set by the shot, the rest stays as by default)
+      const own = new Set(part.toggles.map(toggle => this._toggleId(toggle)));
+      const related = new Set();
+      for (const toggle of base) {
+        const id = this._toggleId(toggle);
+        const chain = [];
+        for (let at = toggle; at && !chain.includes(at); at = at.parent ? byId.get(at.parent) : null) {
+          chain.push(at);
+        }
+        const ids = chain.map(at => this._toggleId(at));
+        if (ids.slice(1).some(up => own.has(up))) {
+          related.add(id); // below the part
+        }
+        if (own.has(id)) {
+          ids.slice(1).forEach(up => related.add(up)); // above the part
+        }
+      }
       try {
         part.states.forEach((state, index) => {
-          part.toggles.forEach((toggle, i) => this._setToggle(toggle, state[i]));
+          const states = new Map(part.toggles.map((toggle, i) => [this._toggleId(toggle), state[i]]));
+          this._applyToggles(base.map(toggle => {
+            const id = this._toggleId(toggle);
+            if (states.has(id)) {
+              return {...toggle, shown: states.get(id)};
+            }
+            return related.has(id) && !own.has(id) ? {...toggle, shown: true} : toggle;
+          }));
           images.push(this._shoot(camera, 'part-' + part.index + '-' + index, target, distance, angle));
         });
       } finally {
-        part.toggles.forEach(toggle => {
-          const shown = byDefault.get(toggle.mesh + '/' + (toggle.key || ''));
-          this._setToggle(toggle, shown === undefined ? true : shown);
-        });
+        this._applyToggles(base);
       }
     }
     return images;

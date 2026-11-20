@@ -103,6 +103,8 @@ public class NodeServiceImpl implements NodeService, InitializingBean, Disposabl
     private Registration tools;
     /** Whether the server greets a node that connected (off in tests that drive the turns themselves). */
     private volatile boolean greeting = true;
+    /** How long after the last event for her the server waits for more before it tells her (the ones that come together are told together). */
+    private volatile long gatherMillis = 1500;
 
     @Override
     public void afterPropertiesSet() {
@@ -146,6 +148,11 @@ public class NodeServiceImpl implements NodeService, InitializingBean, Disposabl
     /** Whether a connected node is greeted (a turn of hers); tests turn it off. */
     public void setGreeting(boolean greeting) {
         this.greeting = greeting;
+    }
+
+    /** How long the server gathers events for her before it tells her, in milliseconds; tests make it short. */
+    public void setGatherMillis(long gatherMillis) {
+        this.gatherMillis = gatherMillis;
     }
 
     // ----------------------------------------------------------------------------------------------------------------
@@ -437,15 +444,17 @@ public class NodeServiceImpl implements NodeService, InitializingBean, Disposabl
 
     /**
      * The user put a part of her body in another state on the node: kept on the body (the same at the next start and
-     * on every node), and when she is told (she has chatted and the part changed) her turn about it, so she can react.
+     * on every node), answered by {@code part_kept} when the frame has an id, and, when she is told (she has chatted
+     * and the part changed), the event waits for her turn about it ({@link #pend}), so what comes together is told
+     * together.
      */
     private void partSwitch(NodeSession session, Frame frame) throws Exception {
         PartSwitch change = data(frame, PartSwitch.class);
         require(StringUtils.isNotBlank(change.part()) && StringUtils.isNotBlank(change.state()), "part and state are what was switched");
-        Joi joi;
-        QueuedEvent event;
+        require(frame.id() == null || ID.matcher(frame.id()).matches(), "The id of a part is up to 64 letters, digits and ._:-");
+        String text = null;
         try (InRequestScope _ = new InRequestScope(session.attributes())) {
-            joi = joiService.find(session.joiId());
+            Joi joi = joiService.find(session.joiId());
             Body body = joi == null ? null : bodyService.active(joi);
             require(body != null, "She is in no body");
             List<QueuedEvent> events;
@@ -454,18 +463,46 @@ public class NodeServiceImpl implements NodeService, InitializingBean, Disposabl
             } catch (IllegalArgumentException e) {
                 throw new IllegalArgumentException("Her body has no part " + change.part() + " in the state " + change.state());
             }
-            event = events.isEmpty() ? null : events.getFirst();
+            QueuedEvent event = events.isEmpty() ? null : events.getFirst();
             if (event != null) {
-                // told here, in the turn that follows: it does not wait for another delivery
+                // told in the turn that follows: it does not wait for another delivery
                 queuedEventService.markDelivered(event, null);
-            }
-            if (event == null || chatService.chatModel(joi) == null) {
-                return;
+                if (chatService.chatModel(joi) != null) {
+                    text = event.getText();
+                }
             }
         }
-        String turn = "s-" + UUID.randomUUID().toString().substring(0, 12);
-        session.send(NodeMessage.TURN, null, null, new TurnStart(turn, PART_SWITCHED));
-        startTurn(session, turn, joi, new TurnInput(event.getText(), session.name(), session.speaks(), true, "node." + PART_SWITCHED), false);
+        if (frame.id() != null) {
+            session.send(NodeMessage.PART_KEPT, null, frame.id(), new PartSwitch(change.part(), change.state()));
+        }
+        if (text != null) {
+            pend(session, text);
+        }
+    }
+
+    /** She is to be told: with what else is waiting, once nothing more comes for a moment and no turn of hers runs. */
+    private void pend(NodeSession session, String text) {
+        session.pend(text, () -> ticks.schedule(() -> tell(session), gatherMillis, TimeUnit.MILLISECONDS));
+    }
+
+    /** Her turn about what waits for her: one turn for all of it, in the order it happened. */
+    private void tell(NodeSession session) {
+        List<String> texts = session.takePending();
+        if (texts.isEmpty()) {
+            return;
+        }
+        try {
+            Joi joi;
+            try (InRequestScope _ = new InRequestScope(session.attributes())) {
+                joi = joiService.find(session.joiId());
+            }
+            String turn = "s-" + UUID.randomUUID().toString().substring(0, 12);
+            session.send(NodeMessage.TURN, null, null, new TurnStart(turn, PART_SWITCHED));
+            startTurn(session, turn, joi, new TurnInput(String.join("\n", texts), session.name(), session.speaks(), true,
+                    "node." + PART_SWITCHED), false);
+        } catch (Exception e) {
+            log.warn("Node {}: telling her what happened failed", session.name(), e);
+        }
     }
 
     /** How long ago, in words she can say. */
@@ -534,25 +571,32 @@ public class NodeServiceImpl implements NodeService, InitializingBean, Disposabl
         }
         session.turnStarted(turn, result);
         result.whenComplete((done, error) -> {
-            session.turnEnded(turn);
-            // a call of the turn still open is no longer wanted
-            for (Map.Entry<String, PendingCall> call : List.copyOf(session.calls().entrySet())) {
-                if (turn.equals(call.getValue().turn())) {
-                    session.cancel(call.getKey(), "The turn was stopped");
+            try {
+                session.turnEnded(turn);
+                // a call of the turn still open is no longer wanted
+                for (Map.Entry<String, PendingCall> call : List.copyOf(session.calls().entrySet())) {
+                    if (turn.equals(call.getValue().turn())) {
+                        session.cancel(call.getKey(), "The turn was stopped");
+                    }
                 }
-            }
-            if (error == null) {
-                session.send(NodeMessage.DONE, null, turn, new Done(done.message().getUuid(), done.speechError()));
-                return;
-            }
-            Throwable cause = error instanceof CompletionException && error.getCause() != null ? error.getCause() : error;
-            if (cause instanceof CancellationException) {
-                session.error(turn, "stopped", "The turn was stopped");
-            } else {
-                log.warn("Node {}: the turn {} failed", session.name(), turn, cause);
-                Throwable root = ExceptionUtils.getRootCause(cause);
-                Throwable shown = root == null ? cause : root;
-                session.error(turn, "model_failed", StringUtils.defaultIfBlank(shown.getMessage(), shown.getClass().getSimpleName()));
+                if (error == null) {
+                    session.send(NodeMessage.DONE, null, turn, new Done(done.message().getUuid(), done.speechError()));
+                    return;
+                }
+                Throwable cause = error instanceof CompletionException && error.getCause() != null ? error.getCause() : error;
+                if (cause instanceof CancellationException) {
+                    session.error(turn, "stopped", "The turn was stopped");
+                } else {
+                    log.warn("Node {}: the turn {} failed", session.name(), turn, cause);
+                    Throwable root = ExceptionUtils.getRootCause(cause);
+                    Throwable shown = root == null ? cause : root;
+                    session.error(turn, "model_failed", StringUtils.defaultIfBlank(shown.getMessage(), shown.getClass().getSimpleName()));
+                }
+            } finally {
+                // what happened while it ran is told now, all together
+                if (session.hasPending()) {
+                    ticks.schedule(() -> tell(session), 0, TimeUnit.MILLISECONDS);
+                }
             }
         });
     }

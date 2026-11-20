@@ -45,11 +45,16 @@ public class JoiNodeApp extends Application {
 
     /** How many of her latest exchanges the chat starts with. */
     private static final int HISTORY = 50;
+    /** How long the user has to leave her parts alone before what they changed goes to the server, in one batch. */
+    private static final long PART_QUIET_MILLIS = 4000;
+    /** How long the server has to answer a batch before the controls are freed and show what is kept. */
+    private static final long PART_ANSWER_MILLIS = 15000;
 
     private final NodeSettings settings = NodeSettings.standard();
     private Stage stage;
     private ServerClient client;
     private NodeSocket socket;
+    private java.util.concurrent.ScheduledExecutorService stagingTimer;
     private RendererServer renderer;
     private LookingGlassWindow lookingGlass;
 
@@ -75,6 +80,9 @@ public class JoiNodeApp extends Application {
 
     @Override
     public void stop() {
+        if (stagingTimer != null) {
+            stagingTimer.shutdownNow();
+        }
         if (socket != null) {
             socket.close();
         }
@@ -382,7 +390,44 @@ public class JoiNodeApp extends Application {
         // the controls wait for the server: a change they make is told to it, which keeps it
         ControlsPane controls = new ControlsPane();
         controls.parts(loaded.body() == null ? null : loaded.body().parts());
-        controls.setOnSwitch((part, state) -> switchPart(toggles, part, state));
+        // what the user changes is held back for a few seconds and sent together; her body shows what the server kept
+        Map<String, BodyPart> parts = new HashMap<>();
+        Map<String, String> kept = new HashMap<>();
+        for (BodyPart part : loaded.body() == null || loaded.body().parts() == null ? List.<BodyPart>of() : loaded.body().parts()) {
+            parts.put(part.id(), part);
+            kept.put(part.id(), part.state());
+        }
+        stagingTimer = java.util.concurrent.Executors.newSingleThreadScheduledExecutor(r -> {
+            Thread thread = new Thread(r, "Joi parts");
+            thread.setDaemon(true);
+            return thread;
+        });
+        PartStaging staging = new PartStaging(PART_QUIET_MILLIS, PART_ANSWER_MILLIS, stagingTimer,
+                (id, part, state) -> socket.part(id, part, state),
+                locked -> Platform.runLater(() -> controls.lockParts(locked)),
+                (done, notKept) -> Platform.runLater(() -> {
+                    for (com.github.enerccio.joi.protocol.node.PartSwitch change : done) {
+                        BodyPart part = parts.get(change.part());
+                        BodyPartState state = part == null ? null : part.states().stream()
+                                .filter(candidate -> candidate.id().equals(change.state())).findFirst().orElse(null);
+                        if (state != null) {
+                            kept.put(part.id(), state.id());
+                            showState(toggles, state);
+                        }
+                    }
+                    for (com.github.enerccio.joi.protocol.node.PartSwitch change : notKept) {
+                        controls.showPart(change.part(), kept.get(change.part()));
+                    }
+                    if (!notKept.isEmpty()) {
+                        chat.note("The server did not keep " + notKept.size() + (notKept.size() == 1 ? " change" : " changes")
+                                + " of her parts.");
+                    }
+                }));
+        controls.setOnSwitch((part, state) -> {
+            if (!staging.change(part.id(), state.id())) {
+                controls.showPart(part.id(), kept.get(part.id()));
+            }
+        });
         controls.setDisable(true);
 
         // with a voice her words wait for it
@@ -414,7 +459,15 @@ public class JoiNodeApp extends Application {
             }
 
             @Override
+            public void partKept(String id, com.github.enerccio.joi.protocol.node.PartSwitch changed) {
+                staging.kept(id);
+            }
+
+            @Override
             public void failed(String ref, ApiError error) {
+                if (staging.failed(ref)) {
+                    return;
+                }
                 Platform.runLater(() -> director.failed(ref, error));
             }
 
@@ -424,6 +477,7 @@ public class JoiNodeApp extends Application {
                     chat.note("Disconnected: " + reason + " (" + code + "). Connecting again…");
                     director.disconnected();
                     controls.setDisable(true);
+                    staging.cancel();
                 });
             }
 
@@ -440,6 +494,7 @@ public class JoiNodeApp extends Application {
                 Platform.runLater(() -> {
                     chat.note("Disconnected: " + reason + " (" + code + ")");
                     controls.setDisable(true);
+                    staging.cancel();
                 });
             }
         });
@@ -498,12 +553,11 @@ public class JoiNodeApp extends Application {
     }
 
     /**
-     * The user put a part of her body in another state: shown on her body here and on the Looking Glass, and told to the
-     * server, which keeps it on the body (so it is the same at the next start) and lets her react to it.
+     * A part of her body was put in a state, and the server kept it: shown on her body here and on the Looking Glass.
      *
-     * @param toggles every toggle of her model as it is now; the part's are set as the state says
+     * @param toggles every toggle of her model as it is now; the state's are set
      */
-    private void switchPart(List<BodyToggle> toggles, BodyPart part, BodyPartState state) {
+    private void showState(List<BodyToggle> toggles, BodyPartState state) {
         for (BodyToggle set : state.toggles()) {
             for (int i = 0; i < toggles.size(); i++) {
                 BodyToggle toggle = toggles.get(i);
@@ -513,7 +567,6 @@ public class JoiNodeApp extends Application {
             }
         }
         renderer.toggles(List.copyOf(toggles));
-        socket.part(part.id(), state.id());
     }
 
     // ----------------------------------------------------------------------------------------------------------------

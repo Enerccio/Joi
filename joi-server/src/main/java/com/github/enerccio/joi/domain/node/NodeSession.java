@@ -18,11 +18,13 @@ import com.google.gson.GsonBuilder;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ScheduledFuture;
 
 /**
  * One connection of a node (see {@code DESIGN.md} → The node protocol): who it is ({@link Hello}), for which assistant,
@@ -54,6 +56,10 @@ public class NodeSession {
     /** The turn this node started that runs now: the id of its say (or of the server's turn) and its result. */
     private volatile String turnId;
     private volatile CompletableFuture<?> turn;
+
+    /** What happened to her that she was not told yet (the texts of events, in order), and the timer that will tell her. */
+    private final List<String> pendingEvents = new ArrayList<>();
+    private ScheduledFuture<?> gather;
 
     private final Map<String, PendingCall> calls = new ConcurrentHashMap<>();
 
@@ -185,6 +191,37 @@ public class NodeSession {
         }
     }
 
+    /**
+     * Adds an event she is to be told about to the ones waiting; the timer that tells her is replaced by {@code next}
+     * (the earlier one is cancelled), so what comes in a burst is told together.
+     */
+    public synchronized void pend(String text, java.util.function.Supplier<ScheduledFuture<?>> next) {
+        pendingEvents.add(text);
+        if (gather != null) {
+            gather.cancel(false);
+        }
+        gather = next.get();
+    }
+
+    /**
+     * Takes the events waiting, none while a turn of hers runs (they wait for it: {@link #turnEnded} is followed by
+     * another try), or when the connection is closed.
+     */
+    public synchronized List<String> takePending() {
+        if (turn != null || closed || pendingEvents.isEmpty()) {
+            return List.of();
+        }
+        List<String> taken = List.copyOf(pendingEvents);
+        pendingEvents.clear();
+        gather = null;
+        return taken;
+    }
+
+    /** Whether events wait to be told to her. */
+    public synchronized boolean hasPending() {
+        return !pendingEvents.isEmpty();
+    }
+
     public Map<String, PendingCall> calls() {
         return calls;
     }
@@ -210,8 +247,13 @@ public class NodeSession {
         return closed;
     }
 
-    public void markClosed() {
+    public synchronized void markClosed() {
         closed = true;
+        pendingEvents.clear();
+        if (gather != null) {
+            gather.cancel(false);
+            gather = null;
+        }
     }
 
     /** Sends a frame; data null for none. */

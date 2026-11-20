@@ -3,6 +3,7 @@ package com.github.enerccio.joi.ui.dialogs;
 import com.flowingcode.vaadin.addons.fontawesome.FontAwesome.Solid;
 import com.github.enerccio.joi.domain.bodies.ConversionReport;
 import com.github.enerccio.joi.domain.bodies.ModelCapabilities;
+import com.github.enerccio.joi.domain.bodies.ToggleTree;
 import com.github.enerccio.joi.domain.bodies.ModelFiles;
 import com.github.enerccio.joi.domain.collections.ConversionStatus;
 import com.github.enerccio.joi.domain.collections.ModelFormat;
@@ -361,6 +362,9 @@ public class ModelDialog extends Dialog {
         for (com.github.enerccio.joi.domain.bodies.ToggleGroup group : model.toggleGroups()) {
             group.toggles().forEach(id -> groupOf.putIfAbsent(id, StringUtils.defaultIfBlank(group.name(), "?")));
         }
+        ToggleTree tree = ToggleTree.of(model, read);
+        java.util.Map<String, String> names = new java.util.HashMap<>();
+        read.toggles().forEach(toggle -> names.put(toggle.id(), model.toggleName(toggle)));
         for (ModelCapabilities.Toggle toggle : read.toggles()) {
             // shown by default: the preview, the snapshots and a new body are so
             com.vaadin.flow.component.checkbox.Checkbox shown = new com.vaadin.flow.component.checkbox.Checkbox(model.shownByDefault(toggle));
@@ -375,7 +379,9 @@ public class ModelDialog extends Dialog {
             name.addThemeVariants(com.vaadin.flow.component.textfield.TextFieldVariant.LUMO_SMALL);
             name.setWidthFull();
             name.setValue(model.getCapabilityNames().getOrDefault(toggle.id(), toggle.defaultName()));
-            name.setHelperText(toggle.key() == null ? toggle.mesh() : toggle.mesh() + " / " + toggle.key());
+            // the title is what the toggle is in the model; the box renames it for her
+            name.setLabel(toggle.key() == null ? toggle.mesh() : toggle.mesh() + " / " + toggle.key());
+            name.setHelperText(loc.getValue(J_L.MSG_TOGGLE_NAME_HINT));
             name.addValueChangeListener(e -> rename(toggle.id(), e.getValue(), toggle.defaultName()));
             String group = groupOf.get(toggle.id());
             com.vaadin.flow.component.checkbox.Checkbox describe = new com.vaadin.flow.component.checkbox.Checkbox(
@@ -388,7 +394,38 @@ public class ModelDialog extends Dialog {
                     describe(read, toggle.id(), e.getValue());
                 }
             });
-            HorizontalLayout row = new HorizontalLayout(shown, name, describe);
+            // a layer of her look: the shots of the whole model are taken with it off
+            com.vaadin.flow.component.checkbox.Checkbox auto = new com.vaadin.flow.component.checkbox.Checkbox(
+                    loc.getValue(J_L.LABEL_AUTO_DESCRIBE_TOGGLE), model.autoDescribedToggles(read).contains(toggle.id()));
+            auto.setTooltipText(loc.getValue(J_L.MSG_AUTO_DESCRIBE_TOGGLE_HINT));
+            auto.setEnabled(group == null && describe.getValue());
+            auto.addValueChangeListener(e -> {
+                if (e.isFromClient()) {
+                    autoDescribe(toggle.id(), e.getValue());
+                }
+            });
+            describe.addValueChangeListener(e -> auto.setEnabled(group == null && e.getValue()));
+            // the tree of toggles: what the toggle is part of (it is seen only while that is shown)
+            com.vaadin.flow.component.select.Select<String> partOf = new com.vaadin.flow.component.select.Select<>();
+            partOf.setLabel(loc.getValue(J_L.LABEL_TOGGLE_PART_OF));
+            partOf.setTooltipText(loc.getValue(J_L.MSG_TOGGLE_PART_OF_HINT));
+            List<String> candidates = new java.util.ArrayList<>(List.of(""));
+            read.toggles().stream().map(ModelCapabilities.Toggle::id)
+                    .filter(id -> !id.equals(toggle.id()) && !tree.isAbove(toggle.id(), id)).forEach(candidates::add);
+            partOf.setItems(candidates);
+            partOf.setItemLabelGenerator(id -> id.isEmpty() ? loc.getValue(J_L.LABEL_TOGGLE_PART_OF_NONE)
+                    : names.getOrDefault(id, id));
+            partOf.setValue(StringUtils.defaultString(tree.parent(toggle.id())));
+            partOf.addValueChangeListener(e -> {
+                if (e.isFromClient()) {
+                    setParent(toggle, e.getValue());
+                }
+            });
+            HorizontalLayout row = new HorizontalLayout(shown, name, describe, auto, partOf);
+            row.addClassName(JoiCssStyles.TOGGLE_ROW);
+            if (tree.depth(toggle.id()) > 0) {
+                row.addClassName(JoiCssStyles.TOGGLE_DEPTH + Math.min(3, tree.depth(toggle.id())));
+            }
             row.setWidthFull();
             row.setAlignItems(com.vaadin.flow.component.orderedlayout.FlexComponent.Alignment.BASELINE);
             row.setFlexGrow(1, name);
@@ -400,12 +437,28 @@ public class ModelDialog extends Dialog {
 
     /** Shows or hides a toggle's part on the preview. */
     private void showToggle(ModelCapabilities.Toggle toggle, boolean shown) {
-        if (toggle.key() == null) {
-            viewer.setMeshVisible(toggle.mesh(), shown);
+        // the model as it is by default with this one set: the parts of a hidden toggle go with it
+        viewer.setToggles(AppearancePanel.toggles(model, java.util.Map.of(toggle.id(), shown)));
+    }
+
+    /** What the toggle is part of was chosen: stored (as the tree infers it is not), the rows and the preview shown anew. */
+    private void setParent(ModelCapabilities.Toggle toggle, String parent) {
+        java.util.Map<String, String> parents = model.toggleParentMap();
+        String inferred = StringUtils.defaultString(ToggleTree.inferred(toggle));
+        if (parent.equals(inferred)) {
+            parents.remove(toggle.id());
         } else {
-            // a "Hide X" key at full weight hides the part
-            viewer.setMorph(toggle.mesh(), toggle.key(), shown == toggle.hides() ? 0 : 1);
+            parents.put(toggle.id(), parent);
         }
+        model.setToggleParentMap(parents);
+        store();
+        try {
+            showCapabilities();
+        } catch (Exception e) {
+            UIUtils.internalServerError(loc, e);
+        }
+        viewer.setToggles(AppearancePanel.defaultToggles(model));
+        appearancePanel.show();
     }
 
     /** Stores whether the toggle is shown by default (as the model comes is not stored). */
@@ -453,6 +506,9 @@ public class ModelDialog extends Dialog {
             boolean inGroup = grouped.contains(toggle.id());
             describe.setEnabled(!inGroup);
             describe.setValue(inGroup || model.describedToggles(read).contains(toggle.id()));
+            com.vaadin.flow.component.checkbox.Checkbox auto = (com.vaadin.flow.component.checkbox.Checkbox) row.getComponentAt(3);
+            auto.setEnabled(!inGroup && describe.getValue());
+            auto.setValue(model.autoDescribedToggles(read).contains(toggle.id()));
         }
     }
 
@@ -491,6 +547,18 @@ public class ModelDialog extends Dialog {
         }
         model.setDescribeToggles(ids);
         model.setDescribeTogglesChosen(true);
+        store();
+        appearancePanel.show();
+    }
+
+    /** Marks a toggle as a layer of her look (or not): the snapshots of the whole model are taken with the layers off. */
+    private void autoDescribe(String id, boolean auto) {
+        List<String> ids = new java.util.ArrayList<>(model.getAutoDescribe());
+        ids.remove(id);
+        if (auto) {
+            ids.add(id);
+        }
+        model.setAutoDescribe(ids);
         store();
         appearancePanel.show();
     }
@@ -554,8 +622,10 @@ public class ModelDialog extends Dialog {
                 stored.setCapabilityNames(model.getCapabilityNames());
                 stored.setDescribeToggles(model.getDescribeToggles());
                 stored.setDescribeTogglesChosen(model.getDescribeTogglesChosen());
+                stored.setAutoDescribe(model.getAutoDescribe());
                 stored.setDefaultState(model.getDefaultState());
                 stored.setToggleGroups(model.getToggleGroups());
+                stored.setToggleParents(model.getToggleParents());
                 if (model.getCapabilities() != null) {
                     stored.setCapabilities(model.getCapabilities());
                 }

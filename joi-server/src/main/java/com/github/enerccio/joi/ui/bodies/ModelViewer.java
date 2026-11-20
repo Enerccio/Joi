@@ -64,9 +64,14 @@ public class ModelViewer extends Component implements HasSize, HasStyle {
      * A toggle of the model.
      *
      * @param hides whether its shape key at full weight hides the part
-     * @param shown whether to show it (where a state is set)
+     * @param shown whether to show it (where a state is set); its own state, it is seen only while its parent is
+     * @param parent the id of the toggle it is part of ({@code ModelCapabilities.Toggle.id}), null for none
      */
-    public record Toggle(String mesh, String key, boolean hides, Boolean shown) {
+    public record Toggle(String mesh, String key, boolean hides, Boolean shown, String parent) {
+
+        public Toggle(String mesh, String key, boolean hides, Boolean shown) {
+            this(mesh, key, hides, shown, null);
+        }
     }
 
     /**
@@ -77,8 +82,8 @@ public class ModelViewer extends Component implements HasSize, HasStyle {
     public record Part(int index, List<Toggle> toggles, List<List<Boolean>> states) {
     }
 
-    /** What the snapshots are taken in: the default state of every toggle, and the parts' states. */
-    private record SnapshotRequest(List<Toggle> base, List<Part> parts) {
+    /** What the snapshots are taken in: the default state of every toggle, the bare state, and the parts' states. */
+    private record SnapshotRequest(List<Toggle> base, List<Toggle> bare, List<Part> parts) {
     }
 
     /** Sways the model from side to side (or stops), so its spring bones are seen moving. */
@@ -92,17 +97,18 @@ public class ModelViewer extends Component implements HasSize, HasStyle {
     }
 
     /**
-     * Takes the snapshots of the model shown, put in its default state (front, three-quarter, profile and back of the
-     * full body, the face from the front and three-quarter, then a close-up of each part in each of its states) and sends
-     * them to the handler, one file per shot named after it ({@code full-front.jpg}, {@code part-3-1.jpg}). The preview
+     * Takes the snapshots of the model shown: a close-up of each part in each of its states, from the default state with
+     * only that part switched, then the model in its bare state (front, three-quarter, profile and back of the full body,
+     * the face from the front and three-quarter), and sends them to the handler, one file per shot named after it ({@code full-front.jpg}, {@code part-3-1.jpg}). The preview
      * is put back as it was. A {@link SnapshotsEvent} follows once the server has them all, a {@link SnapshotsErrorEvent}
      * when not.
      *
      * @param base the default state of every toggle
+     * @param bare the state of the full shots: the default with the layers of her look off
      */
-    public void takeSnapshots(UploadHandler handler, List<Toggle> base, List<Part> parts) {
+    public void takeSnapshots(UploadHandler handler, List<Toggle> base, List<Toggle> bare, List<Part> parts) {
         getElement().setAttribute("snapshot-target", handler);
-        getElement().callJsFunction("takeSnapshots", new Gson().toJson(new SnapshotRequest(base, parts)));
+        getElement().callJsFunction("takeSnapshots", new Gson().toJson(new SnapshotRequest(base, bare, parts)));
     }
 
     /**

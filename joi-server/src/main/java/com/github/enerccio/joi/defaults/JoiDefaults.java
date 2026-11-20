@@ -186,13 +186,13 @@ Improve it; keep what is right.
 {{.}}{{/currentDescription}}
 {{#toggles}}
 ===== THE TOGGLES =====
-number | mesh / key | name now | by default
+number | mesh / key | name now | in the full renders
 {{.}}{{/toggles}}
 
 Answer with one JSON object and nothing else:
 {"description": "...", "toggles": {"<toggle number>": "<name>", ...}}
 
-description: how she looks, in the second person ("You have long silver hair..."), in plain sentences, 80 to 200 words. Cover the build and height impression, the face, eyes and hair, the clothes and shoes, the accessories and anything unusual (ears, tail, horns, wings, markings). Describe what the images show; use the notes for what they can't show. Say nothing about the rendering itself (background, lighting, pose) and don't guess names or brands. Describe the avatar as the renders show it, which is how she is by default.{{#parts}} These parts can be switched and their other states are described apart, so describe them only as the renders show them: {{.}}.{{/parts}}
+description: how she looks, in the second person ("You have long silver hair..."), in plain sentences, 80 to 200 words. Cover the build and height impression, the face, eyes and hair, the clothes and shoes, the accessories and anything unusual (ears, tail, horns, wings, markings). Describe what the images show; use the notes for what they can't show. Say nothing about the rendering itself (background, lighting, pose) and don't guess names or brands. Describe the avatar as the full renders show it, which is her base state: the layers of her look (clothes, accessories) that can be switched are off in them.{{#parts}} These parts can be switched and their other states are described apart, so describe them only as the renders show them: {{.}}.{{/parts}}
 
 toggles: for each toggle listed (by its number), a short name (one to three lowercase words) for the part it shows or hides, as she would call it ("halo", "left blade", "jacket"). Use the images and the names of the mesh and the key. Leave out a toggle you can't tell; keep a name {{user}} gave unless it is clearly wrong.
 """;
@@ -213,7 +213,7 @@ You look at close-ups of the same spot of a 3D avatar, "{{modelName}}", worn by 
 Answer with one JSON object and nothing else, a sentence for each state by its number:
 {"1": "...", "2": "..."}
 
-The state marked "default" is how she is by default; her description above already has it. For it, one or two short sentences, in the second person, of how she looks there ("Your eyes are pale grey, with long lashes."). For each other state, what is different from the default, as news: what covers it or shows now ("A black visor with red markings covers your eyes."), or what is gone and what shows instead. When no state is marked, describe each as it is. Describe only what the images show; say nothing about the rendering itself.
+The state marked "default" is her base state, how she is in the full renders; her description above already has it. For it, one or two short sentences, in the second person, of how she looks there ("Your eyes are pale grey, with long lashes."). For each other state, what is different from the default, as news: what covers it or shows now ("A black visor with red markings covers your eyes."), or what is gone and what shows instead. When no state is marked, describe each as it is. Describe only what the images show; say nothing about the rendering itself.
 """;
     }
 
@@ -228,10 +228,36 @@ The state marked "default" is how she is by default; her description above alrea
      * not described).
      */
     public String eventPartSwitched(String part, String state, boolean group, String sentence) {
+        return eventPartSwitched(part, state, group, sentence, List.of(), List.of(), null);
+    }
+
+    /**
+     * The same, with what the switch took with it: the parts under this one that are gone from sight too (the panties
+     * with the bodysuit) or are back in it, and, when the part is not seen because another it is under is hidden, what
+     * hides it.
+     *
+     * @param gone     what she calls the parts that went with it
+     * @param back     what she calls the parts that came back with it
+     * @param hiddenBy what she calls the hidden part this one is under, null for none
+     */
+    public String eventPartSwitched(String part, String state, boolean group, String sentence, List<String> gone, List<String> back,
+                                    String hiddenBy) {
         // "a part of you: eyes" reads for one part and for several ("your eyes was" would not)
-        String text = group ? "A part of you was switched: %s, now \"%s\".".formatted(part, state)
-                : "A part of you was switched: %s, now %s.".formatted(part, state);
-        return sentence == null || sentence.isBlank() ? text : text + " " + sentence.strip();
+        StringBuilder text = new StringBuilder(group ? "A part of you was switched: %s, now \"%s\".".formatted(part, state)
+                : "A part of you was switched: %s, now %s.".formatted(part, state));
+        if (sentence != null && !sentence.isBlank()) {
+            text.append(' ').append(sentence.strip());
+        }
+        if (!gone.isEmpty()) {
+            text.append(" With it, ").append(String.join(", ", gone)).append(gone.size() == 1 ? " is" : " are").append(" gone from sight too.");
+        }
+        if (!back.isEmpty()) {
+            text.append(' ').append(String.join(", ", back)).append(back.size() == 1 ? " is" : " are").append(" in sight again.");
+        }
+        if (hiddenBy != null) {
+            text.append(" It is not seen while ").append(hiddenBy).append(" is hidden.");
+        }
+        return text.toString();
     }
 
     /** The section of her system prompt about the body she is in ({@code BodyTemplateData}, the master's {@code {{#body}}}). */

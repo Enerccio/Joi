@@ -144,7 +144,27 @@ one; the server treats every node the same.
     the node. The server keeps it on the body (`BodyService.switchPart`, so it is the same at the next start and on every
     node) and starts her turn about it (`turn` with the cause `part_switched`) with the text of the `body.part_switched`
     event (the state's sentence), stored as `node.part_switched`; a part or a state the body does not have is a
-    `bad_message`. `GET .../body` has, for each part, its states with the toggles each sets (`BodyPartState`), and
+    `bad_message`. **Staged on both sides.** The node holds the user's changes back (`PartStaging`: the last state of a
+    part counts, nothing goes until the user left the parts alone for 4 s), then sends one `part` with an `id` for each
+    changed part and **locks the controls** until the server answered each (`part_kept`, or `error`, both with the id;
+    15 s without an answer frees them). Only what the server kept is shown on her body; what it did not keep is shown
+    as it is kept again. The lock lasts only until the answer, not through her reaction. The server **gathers** what it
+    has not told her yet (`NodeSession.pend`): after the last event it waits 1.5 s, and while a turn of hers runs it
+    waits for the turn to end, then starts **one** turn (cause `part_switched`) whose input has the text of every
+    event, one per line, in the order they happened.
+    **Next (decided, not built): how the change reaches her body.** The node gets a switch, `partsShown`: `kept`
+    (default: shown once the server answered `part_kept`) or `reaction` (shown with her reaction: the first `text` or
+    `audio` of the `part_switched` turn, or its `done` / `error`, or after about 30 s, so the lock never hangs). For
+    that `part_kept` says whether a turn follows (`told`); when none does (she has not chatted, no chat model), the node
+    shows the change at once. The server keeps writing the state when the `part` frame arrives, as her prompt (her look
+    and her parts) must follow it in the reaction turn, and other nodes must see it. On a timeout the node does not
+    give up blindly: it reads `GET .../body`, and takes a batch as kept when the server has the states it asked for,
+    and as not kept when it has not; when that call fails too, the server is gone and the controls are freed.
+    **Consent (idea, per assistant):** a setting *she may refuse* (off by default, only with `reaction`) makes a change
+    a **request**: the server keeps the old state, the event says the user *wants* the part switched, and she answers
+    with a tool (`allow` / `refuse` with a reason she says). On allow the server stores it and answers `part_kept`; on
+    refuse `part_refused` (her reason), and the node reverts the control. When no turn follows, or her turn ends without
+    an answer, or fails, the change is allowed: the body is the user's, a failed call is no refusal. `GET .../body` has, for each part, its states with the toggles each sets (`BodyPartState`), and
     every toggle of the model as the body has it (`BodyInfo.toggles`), so a node can show the state without reading
     the `.joim`'s metadata.
   - **Tools:** `tool_call` (call id, tool, arguments, the turn when it is this node's, a timeout) → the node checks
@@ -639,17 +659,24 @@ UI — nothing is deleted):
     front, three-quarter, profile and back, the face front and three-quarter; 768 × 1024 JPEGs on a plain grey
     background, framed by the model's size and the VRM's head bone), in the model's default state, and for each
     part **described apart** a close-up per state (768 × 768, framed on the part: its meshes, or the vertices its shape
-    keys move, seen from the side it is on). Each goes to the server like an upload; they are image resources of the user linked to
+    keys move, seen from the side it is on; a shape key toggle's mesh is shown for its close-ups even when the mesh is
+    off by default, or both states would show nothing). Each goes to the server like an upload; they are image resources of the user linked to
     the model, with the hash of its VRM, and a new set replaces the old one. Which toggles are described apart is a
-    box (*Describe*) on each toggle row; until the user picks, the shape key toggles ("Hide Halo") are. The user adds
+    box (*Describe*) on each toggle row; until the user picks, the shape key toggles ("Hide Halo") are. A second box,
+    *Auto description*, marks the described toggles that are **layers of her look** (the bodysuit, the scarf, the
+    halo; not the NSFW parts, which change the model in many places, nor her eyes). The close-ups start from the
+    default state and switch only the part (with what it is part of and what is part of it on); then the layers go
+    off, and the shots of the whole model are of that **bare state** (`Model.bareShown`: the default with the layers
+    off; the default itself when none is marked). Her description is of the bare model, and each layer worn adds its
+    sentence (`Appearance`), so it is built from the most bare to the most dressed. The user adds
     **their images** (PNG, JPEG, WebP: store pages, photos) and **notes** (what a toggle is, what the images can't
     show).
     - *Propose a description* (`AppearanceService`, in the background, one at a time; images larger than 1568 px
       scaled down) goes to the user's deep reasoning model when it takes images, else their chat model. First the
       whole model (the shots, the user's images, the notes, the toggles numbered: the appearance prompt): the
-      description of the model **by default** (the described parts as the renders show them), and names for the toggles, by number
+      description of the model **bare** (the described parts as the renders show them), and names for the toggles, by number
       (small models garble ids; an id or a "mesh / key" is matched too). Then **each described toggle** with its two
-      close-ups (the part prompt, `PartImageTemplateData`): a sentence per state, the default one as it is ("A black
+      close-ups (the part prompt, `PartImageTemplateData`): a sentence per state, the base one (marked default) as it is ("A black
       visor with red markings covers your eyes.") and the others as what changed ("The visor is gone: your eyes are
       pale grey."). The dialog shows the progress. Both
       prompts are templates on the chain. Proposing uses the snapshots there are; only *Take snapshots* renders new
@@ -680,6 +707,23 @@ UI — nothing is deleted):
       description that has it). Until one is marked the shots take the toggles' own defaults and every state's
       sentence is added. The part prompt
       gets the states numbered in the order of the images, the default marked, and answers a sentence per number.
+    - **The tree of toggles (built):** a toggle can be **part of** another (`ToggleTree`): a shape key is part of the
+      toggle of its mesh unless the user says otherwise (the panties under the bodysuit: a shape key's mesh is in the
+      VRM, so it is known with no extra data). In the model dialog each toggle row has *Part of* (rows are indented
+      under their parent); what is changed from the inferred is stored on the model (`toggleParents`, the toggle's id →
+      its parent's id, "" for none; in the `.joim`'s metadata). A toggle's **own state** is never changed by its parent:
+      what is seen is its **effective** state, shown only while every toggle above it is shown, so a parent put back
+      shows its parts as they were. The renderer applies it (`BodyToggle.parent` in the API, 1.5; the server keeps
+      each toggle's own state), the snapshots too: a part's close-ups have what it is part of shown (the panties in
+      the bodysuit, though that is hidden by default) and what is part of it (the bodysuit with all its options), unless
+      the part sets it itself, as a group does. The rest of the body is in the default state, so the default state
+      should have everything on that she can wear. Her look
+      leaves out the sentence of a part under a hidden one (the hidden one's sentence covers it). Switching a part
+      is **one event**: the part, its state's sentence, and what went with it: "With it, golden halo is gone from
+      sight too." (the parts under it now out of sight), "... is in sight again.", or, for a part switched while what
+      it is under is hidden, "It is not seen while hat is hidden." Not built: reading the tree from the original
+      (the prefab's hierarchy, the toggle clips and menus of a VRChat package, which also give groups and default
+      states).
     - **The default is the baseline.** The shots show the model by default, so the description of what never
       changes has each part in its default state (the blindfold on, if that is the default). A part's other states
       are **news**, what changed ("The blindfold is gone: your eyes are vibrant red."). Her look is the description
@@ -720,7 +764,7 @@ UI — nothing is deleted):
     comes for now. The node shows the state (the renderer page sets the toggles, on the pane and on the Looking Glass)
     and switches it: its **controls panel** (`fx/ControlsPane`, between the chat and her body, a panel for the node's
     controls in general, in sections; the first is *Her parts*: a box for a part that is shown or hidden, a choice
-    for a group's states) sends `part` (1.5), disabled while the node is not connected. A switch made in the server's
+    for a group's states) sends `part` (1.5) staged as above, disabled while the node is not connected, and locked while a batch waits. A switch made in the server's
     UI does not reach a node that is already running yet (it shows it at its next start). Next: her tools. Toggles come from the model's capabilities (its meshes and
   "hide X" shape keys, kept by the converter), but **only the described parts can be toggled** (the *Describe* box
   in the model's dialog): she can't change what she has no words for, and every toggle changes her look. The rest

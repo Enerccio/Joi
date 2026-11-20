@@ -149,12 +149,14 @@ class NodeServiceTest extends PlatformTestBase {
         joi = joiService.save(joi);
         token = accessTokenService.create("node", null).text();
         ((NodeServiceImpl) nodeService).setGreeting(false);
+        ((NodeServiceImpl) nodeService).setGatherMillis(300);
     }
 
     @AfterEach
     void tearDown() {
         nodes.forEach(node -> nodeService.closed(node.session));
         ((NodeServiceImpl) nodeService).setGreeting(true);
+        ((NodeServiceImpl) nodeService).setGatherMillis(1500);
     }
 
     @Test
@@ -329,8 +331,8 @@ class NodeServiceTest extends PlatformTestBase {
         assertThat(node.next("error").getAsJsonObject("data").get("code").getAsString()).isEqualTo("bad_message");
     }
 
-    @Test
-    void aPartSwitchedOnTheNodeIsKeptOnTheBodyAndSheReacts() throws Exception {
+    /** A body whose model has a halo (a shape key of the headgear) described, and the headgear itself. */
+    private Body haloBody() throws Exception {
         Path dir = Files.createTempDirectory("vrm");
         File source = UnityFixtures.glb(dir.resolve("m.vrm").toFile(), """
                 {"nodes": [{"name": "Headgear", "mesh": 0}],
@@ -348,7 +350,12 @@ class NodeServiceTest extends PlatformTestBase {
         Body body = bodyService.create(joi, "Street");
         body.setModel(ryuu);
         body = bodyService.save(body);
+        return body;
+    }
 
+    @Test
+    void aPartSwitchedOnTheNodeIsKeptOnTheBodyAndSheReacts() throws Exception {
+        Body body = haloBody();
         llm.enqueue(MockLLMResponse.text("Hello."), MockLLMResponse.text("My halo!"));
         Node node = connect("Bearer " + token);
         node.hello("n1", "desk", joi.getUuid(), "1.5");
@@ -374,6 +381,75 @@ class NodeServiceTest extends PlatformTestBase {
         // a part or a state the body does not have
         node.frame("part", null, "{\"part\": \"key:Headgear/Nope\", \"state\": \"hidden\"}");
         assertThat(node.next("error").getAsJsonObject("data").get("code").getAsString()).isEqualTo("bad_message");
+    }
+
+    @Test
+    void partsSwitchedTogetherAreKeptAtOnceAndToldInOneTurn() throws Exception {
+        Body body = haloBody();
+        llm.enqueue(MockLLMResponse.text("Hello."), MockLLMResponse.text("Everything is off!"));
+        Node node = connect("Bearer " + token);
+        node.hello("n1", "desk", joi.getUuid(), "1.5");
+        node.next("welcome");
+        node.manifest(1);
+        node.frame("say", "t1", "{\"text\": \"Hi\", \"speak\": false}");
+        node.next("done");
+
+        // a part with an id is answered when it is kept, whatever she is told
+        node.frame("part", "p1", "{\"part\": \"key:Headgear/Hide Halo\", \"state\": \"hidden\"}");
+        node.frame("part", "p2", "{\"part\": \"key:Headgear/Hide Halo\", \"state\": \"shown\"}");
+        JsonObject first = node.next("part_kept");
+        assertThat(first.get("ref").getAsString()).isEqualTo("p1");
+        assertThat(first.getAsJsonObject("data").get("state").getAsString()).isEqualTo("hidden");
+        assertThat(node.next("part_kept").get("ref").getAsString()).isEqualTo("p2");
+        // hidden, then shown again: back in the default state, kept
+        assertThat(bodyService.find(body.getId()).partStateMap()).doesNotContainKey("key:Headgear/Hide Halo");
+
+        // one turn for both
+        assertThat(node.next("turn").getAsJsonObject("data").get("cause").getAsString()).isEqualTo("part_switched");
+        node.next("done");
+        ChatMessage told = chatMessageService.findLatest(joi, 1).getFirst();
+        assertThat(told.getEventKind()).isEqualTo("node.part_switched");
+        assertThat(told.getInput().lines().filter(line -> line.startsWith("A part of you was switched")).count()).isEqualTo(2);
+        assertThat(told.getInput()).contains("Nothing floats above you now.").contains("A golden halo floats above you.");
+        assertThat(node.frames.poll(800, TimeUnit.MILLISECONDS)).as("no second turn").isNull();
+
+        // a part the body does not have: an error that refers to the frame, no part_kept
+        node.frame("part", "p3", "{\"part\": \"key:Headgear/Nope\", \"state\": \"hidden\"}");
+        JsonObject error = node.next("error");
+        assertThat(error.get("ref").getAsString()).isEqualTo("p3");
+        assertThat(error.getAsJsonObject("data").get("code").getAsString()).isEqualTo("bad_message");
+    }
+
+    @Test
+    void partsSwitchedWhileATurnRunsAreToldTogetherWhenItEnds() throws Exception {
+        haloBody();
+        llm.enqueue(MockLLMResponse.text("Hello."), MockLLMResponse.toolCall("desk__note", "{\"text\":\"milk\"}"),
+                MockLLMResponse.text("Noted."), MockLLMResponse.text("My halo!"));
+        Node node = connect("Bearer " + token);
+        node.hello("n1", "desk", joi.getUuid(), "1.5");
+        node.next("welcome");
+        node.manifest(1);
+        node.frame("say", "t1", "{\"text\": \"Hi\", \"speak\": false}");
+        node.next("done");
+
+        // her turn waits for the node's tool; the parts are switched meanwhile
+        node.frame("say", "t2", "{\"text\": \"Note the milk\", \"speak\": false}");
+        String callId = node.next("tool_call").getAsJsonObject("data").get("callId").getAsString();
+        node.frame("part", "p1", "{\"part\": \"key:Headgear/Hide Halo\", \"state\": \"hidden\"}");
+        assertThat(node.next("part_kept").get("ref").getAsString()).isEqualTo("p1");
+        Thread.sleep(800);
+        node.frame("part", "p2", "{\"part\": \"key:Headgear/Hide Halo\", \"state\": \"shown\"}");
+        assertThat(node.next("part_kept").get("ref").getAsString()).isEqualTo("p2");
+        assertThat(node.frames.stream().map(frame -> frame.get("type").getAsString())).doesNotContain("turn");
+
+        node.frame("tool_result", null, "{\"callId\": \"" + callId + "\", \"ok\": true, \"content\": \"noted\"}");
+        assertThat(node.next("done").get("ref").getAsString()).isEqualTo("t2");
+        // the turn about both follows its end
+        assertThat(node.next("turn").getAsJsonObject("data").get("cause").getAsString()).isEqualTo("part_switched");
+        node.next("done");
+        assertThat(chatMessageService.findLatest(joi, 1).getFirst().getInput().lines()
+                .filter(line -> line.startsWith("A part of you was switched")).count()).isEqualTo(2);
+        assertThat(node.frames.poll(800, TimeUnit.MILLISECONDS)).as("no second turn").isNull();
     }
 
     @Test

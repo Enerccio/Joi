@@ -44,11 +44,13 @@ caches by, so a new description doesn't send the VRM again.
     "partShown": {"key:Headgear/Hide Halo": "…"},
     "partHidden": {"key:Headgear/Hide Halo": "…"},
     "describeToggles": ["key:Headgear/Hide Halo"],
+    "autoDescribe": ["mesh:Bodysuit"],
     "describeTogglesChosen": true,
     "describedHash": "<SHA-256 of the VRM the description was made from>",
     "capabilityNames": {"mesh:Scarf": "scarf"},
     "defaultState": {"mesh:Scarf": true},
     "toggleGroups": [],
+    "toggleParents": {"key:Bodysuit/Hide Panties": "mesh:Bodysuit"},
     "groupSentences": {"<group id>:<state id>": "…"},
     "springChains": [{"root": "Hair Root", "preset": "HAIR", "enabled": true}],
     "appliedSpringChains": [],
@@ -68,6 +70,12 @@ caches by, so a new description doesn't send the VRM again.
   "exportedAt": "2026-11-19T12:00:00Z"
 }
 ```
+
+`autoDescribe` lists the described toggles that are layers of her look (clothes, accessories): her description is of the
+model with them off, and each one on adds its sentence.
+
+`toggleParents` is what the user changed in the tree of toggles (a toggle's id → the id of the toggle it is part of,
+`""` for none); a toggle not in it is part of the toggle of its mesh, if it is a shape key.
 
 Every key may be missing; a reader keeps what it has for a missing one. The toggle ids (`mesh:<mesh>`,
 `key:<mesh>/<shape key>`) and the bone names are the VRM's. There are no images: the snapshots and the user's reference

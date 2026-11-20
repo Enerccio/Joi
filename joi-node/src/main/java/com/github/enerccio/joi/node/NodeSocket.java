@@ -63,6 +63,10 @@ public class NodeSocket {
         default void event(ServerEvent event) {
         }
 
+        /** The server kept a part in the state asked for by {@link #part(String, String, String)} (the id is the frame's). */
+        default void partKept(String id, PartSwitch kept) {
+        }
+
         /** The connection was lost: it connects again until it is back ({@link #reconnected}) or over ({@link #closed}). */
         default void disconnected(int code, String reason) {
         }
@@ -287,13 +291,18 @@ public class NodeSocket {
     }
 
     /**
-     * Tells the server the user put a part of her body in another state (since 1.5): it keeps it on the body, and she
-     * reacts in a turn it starts. Not sent (nor kept) while the node is not connected.
+     * Tells the server a part of her body is to be put in another state (since 1.5): it keeps it on the body and tells
+     * her. The server answers {@link Listener#partKept} once it is kept, or {@link Listener#failed} (both with the
+     * id). Not sent (nor kept) while the node is not connected.
+     *
+     * @return whether it was sent
      */
-    public void part(String part, String state) {
-        if (connected()) {
-            send(NodeMessage.PART, null, null, new PartSwitch(part, state));
+    public boolean part(String id, String part, String state) {
+        if (!connected()) {
+            return false;
         }
+        send(NodeMessage.PART, id, null, new PartSwitch(part, state));
+        return true;
     }
 
     /** Sends a newer manifest (its version higher than the last); it is the one sent when connecting again. */
@@ -458,6 +467,7 @@ public class NodeSocket {
             case AUDIO -> listener.audio(ref, data(frame, AudioChunk.class));
             case DONE -> listener.done(ref, data(frame, Done.class));
             case ERROR -> listener.failed(ref, data(frame, ApiError.class));
+            case PART_KEPT -> listener.partKept(ref, data(frame, PartSwitch.class));
             case EVENT -> listener.event(data(frame, ServerEvent.class));
             case TOOL_CALL -> call(data(frame, ToolCall.class));
             case TOOL_CANCEL -> {

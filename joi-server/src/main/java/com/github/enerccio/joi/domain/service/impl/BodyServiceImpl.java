@@ -5,6 +5,7 @@ import com.github.enerccio.joi.domain.bodies.Appearance;
 import com.github.enerccio.joi.domain.bodies.BodyState;
 import com.github.enerccio.joi.domain.bodies.DescribedPart;
 import com.github.enerccio.joi.domain.bodies.ModelCapabilities;
+import com.github.enerccio.joi.domain.bodies.ToggleTree;
 import com.github.enerccio.joi.domain.events.JoiEvents;
 import com.github.enerccio.joi.domain.model.impl.AnimationPack;
 import com.github.enerccio.joi.domain.model.impl.Body;
@@ -28,6 +29,7 @@ import com.github.enerccio.marginalia.domain.service.impl.ExtendableServiceImpl;
 import com.github.enerccio.marginalia.domain.traits.CommonTx;
 import com.github.enerccio.marginalia.domain.traits.CommonTxReadOnly;
 import com.github.enerccio.marginalia.utils.AppClock;
+import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -199,6 +201,8 @@ public class BodyServiceImpl extends ExtendableServiceImpl<Body, BodyRepository>
         }
         Map<String, String> states = stored.partStateMap();
         DescribedPart.State before = BodyState.stateOf(model, part, states);
+        ToggleTree tree = ToggleTree.of(model, capabilities);
+        Map<String, Boolean> seenBefore = tree.effective(BodyState.toggles(model, states));
         if (part.isDefault(state)) {
             states.remove(part.id());
         } else {
@@ -215,8 +219,39 @@ public class BodyServiceImpl extends ExtendableServiceImpl<Body, BodyRepository>
             payload.addProperty("toState", state.id());
             payload.addProperty("by", "user");
             String stateName = part.group() ? state.name() : DescribedPart.SHOWN.equals(state.id()) ? "shown" : "hidden";
+            // one event for the switch and what it took with it: the parts under this one, now out of sight or back in it
+            Map<String, Boolean> seenAfter = tree.effective(BodyState.toggles(model, states));
+            List<String> gone = new ArrayList<>();
+            List<String> back = new ArrayList<>();
+            for (DescribedPart other : DescribedPart.of(model, capabilities)) {
+                if (!other.id().equals(part.id())) {
+                    boolean wasSeen = other.toggles().stream().anyMatch(toggle -> seenBefore.getOrDefault(toggle.id(), true));
+                    boolean isSeen = other.toggles().stream().anyMatch(toggle -> seenAfter.getOrDefault(toggle.id(), true));
+                    if (wasSeen && !isSeen) {
+                        gone.add(other.name());
+                    } else if (!wasSeen && isSeen) {
+                        back.add(other.name());
+                    }
+                }
+            }
+            String hiddenBy = null;
+            Map<String, Boolean> own = BodyState.toggles(model, states);
+            // under a hidden part the switch is not seen, whatever state it was switched to
+            if (part.toggles().stream().noneMatch(toggle -> seenAfter.getOrDefault(toggle.id(), true))) {
+                for (ModelCapabilities.Toggle toggle : part.toggles()) {
+                    for (String above : tree.ancestors(toggle.id())) {
+                        if (hiddenBy == null && !own.getOrDefault(above, true)) {
+                            hiddenBy = capabilities.toggles().stream().filter(candidate -> candidate.id().equals(above))
+                                    .map(model::toggleName).findFirst().orElse(null);
+                        }
+                    }
+                }
+            }
+            payload.add("gone", names(gone));
+            payload.add("back", names(back));
             events.add(queue(stored.getJoi(), JoiEvents.PART_SWITCHED,
-                    personaService.defaults().eventPartSwitched(part.name(), stateName, part.group(), part.sentence(model, state.id())), payload));
+                    personaService.defaults().eventPartSwitched(part.name(), stateName, part.group(), part.sentence(model, state.id()),
+                            gone, back, hiddenBy), payload));
         }
         return events;
     }
@@ -275,6 +310,12 @@ public class BodyServiceImpl extends ExtendableServiceImpl<Body, BodyRepository>
         data.setParts(parts.isEmpty() ? null : String.join(", ", parts));
         data.setOtherBodies(others.isEmpty() ? null : String.join(", ", others));
         return personaService.render(joiService.find(joi.getId()), JoiPromptField.BODY_PROMPT, data).strip();
+    }
+
+    private static JsonArray names(List<String> names) {
+        JsonArray array = new JsonArray();
+        names.forEach(array::add);
+        return array;
     }
 
     private String name(Body body) {

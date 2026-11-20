@@ -229,6 +229,40 @@
     right: 0;
 }
 
+.toggle-row {
+    flex-wrap: wrap;
+    /* one toggle's controls end with its Part of, so the next toggle is clearly apart from it */
+    padding-bottom: var(--lumo-space-s);
+    margin-bottom: var(--lumo-space-s);
+    border-bottom: 1px solid var(--lumo-contrast-10pct);
+}
+
+.toggle-row vaadin-checkbox {
+    flex-shrink: 0;
+    white-space: nowrap;
+}
+
+.toggle-row vaadin-text-field {
+    flex: 1 1 0;
+    min-width: 6rem;
+}
+
+.toggle-row vaadin-select {
+    flex: 1 0 100%;
+}
+
+.toggle-depth-1 {
+    padding-left: var(--lumo-space-l);
+}
+
+.toggle-depth-2 {
+    padding-left: calc(var(--lumo-space-l) * 2);
+}
+
+.toggle-depth-3 {
+    padding-left: calc(var(--lumo-space-l) * 3);
+}
+
 .toggle-group {
     border: 1px solid var(--lumo-contrast-10pct);
     border-radius: var(--lumo-border-radius-m);

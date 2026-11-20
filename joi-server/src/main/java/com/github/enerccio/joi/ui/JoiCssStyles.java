@@ -61,6 +61,10 @@ public final class JoiCssStyles {
     public static final String MODEL_VIEWER = "model-viewer";
     /** The thumbnails of a body's snapshots and images. */
     public static final String BODY_THUMBNAILS = "body-thumbnails";
+    /** A row of the toggles in the model dialog: the box, the name, Describe, and, on a line of its own, what it is part of. */
+    public static final String TOGGLE_ROW = "toggle-row";
+    /** A toggle row under others in the tree of toggles, followed by how many (1 to 3). */
+    public static final String TOGGLE_DEPTH = "toggle-depth-";
     public static final String TOGGLE_GROUP = "toggle-group";
     public static final String TOGGLE_GROUP_STATES = "toggle-group-states";
     public static final String TOGGLE_GROUP_STATE = "toggle-group-state";

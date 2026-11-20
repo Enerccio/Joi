@@ -60,8 +60,17 @@ public final class BodyState {
     }
 
     /**
+     * What is seen in this state of the parts: each toggle's own state ({@link #toggles}), shown only while the toggles
+     * above it are ({@link ToggleTree}).
+     */
+    public static Map<String, Boolean> effective(Model model, Map<String, String> states) {
+        ModelCapabilities capabilities = ModelCapabilities.fromJson(model.getCapabilities());
+        return ToggleTree.of(model, capabilities).effective(toggles(model, states));
+    }
+
+    /**
      * Whether each toggle of the model is shown in this state of its parts: as by default, then each switched part's
-     * toggles as its state says.
+     * toggles as its state says. A toggle's own state: see {@link #effective} for what is seen.
      */
     public static Map<String, Boolean> toggles(Model model, Map<String, String> states) {
         ModelCapabilities capabilities = ModelCapabilities.fromJson(model.getCapabilities());

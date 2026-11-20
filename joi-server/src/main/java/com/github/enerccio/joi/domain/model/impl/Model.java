@@ -205,6 +205,15 @@ public class Model extends ExtendableEntity {
     @Transient
     private Boolean describeTogglesChosen;
 
+    /**
+     * The described toggles that are layers of her look (clothes, accessories): the full shots are taken with them off,
+     * so the description of her is of the bare model and each layer on adds its sentence. A described toggle that is
+     * not one (the NSFW parts, which change the model in many places, her eyes) stays as by default in those shots.
+     */
+    @ExtendedAttribute(inject = true, injectPrefix = "autoDescribe")
+    @Transient
+    private List<String> autoDescribe = new ArrayList<>();
+
     /** The hash of the VRM the description was made from, null when it was not proposed from snapshots. */
     @ExtendedAttribute
     @Transient
@@ -240,6 +249,14 @@ public class Model extends ExtendableEntity {
     @ExtendedAttribute
     @Transient
     private String toggleGroups;
+
+    /**
+     * What the user changed in the tree of toggles (JSON: the toggle's id → the id of the toggle it is part of, "" for
+     * none); a toggle not in it has the parent the tree infers ({@code ToggleTree}).
+     */
+    @ExtendedAttribute
+    @Transient
+    private String toggleParents;
 
     /** The chains of bones that swing (JSON: {@code SpringChain}s); null until guessed at a conversion or set. */
     @ExtendedAttribute
@@ -550,6 +567,14 @@ public class Model extends ExtendableEntity {
         this.describeToggles = describeToggles;
     }
 
+    public List<String> getAutoDescribe() {
+        return autoDescribe;
+    }
+
+    public void setAutoDescribe(List<String> autoDescribe) {
+        this.autoDescribe = autoDescribe;
+    }
+
     public Boolean getDescribeTogglesChosen() {
         return describeTogglesChosen;
     }
@@ -628,6 +653,32 @@ public class Model extends ExtendableEntity {
 
     public void setToggleGroups(String toggleGroups) {
         this.toggleGroups = toggleGroups;
+    }
+
+    public String getToggleParents() {
+        return toggleParents;
+    }
+
+    public void setToggleParents(String toggleParents) {
+        this.toggleParents = toggleParents;
+    }
+
+    /** What the user changed in the tree of toggles: the toggle's id → its parent's id, "" for none. */
+    public Map<String, String> toggleParentMap() {
+        if (toggleParents == null || toggleParents.isBlank()) {
+            return new LinkedHashMap<>();
+        }
+        try {
+            Map<String, String> read = new Gson().fromJson(toggleParents, new TypeToken<LinkedHashMap<String, String>>() {
+            }.getType());
+            return read == null ? new LinkedHashMap<>() : read;
+        } catch (JsonParseException e) {
+            return new LinkedHashMap<>();
+        }
+    }
+
+    public void setToggleParentMap(Map<String, String> parents) {
+        this.toggleParents = parents == null || parents.isEmpty() ? null : new Gson().toJson(parents);
     }
 
     public Boolean getUploadRemoved() {
@@ -752,5 +803,21 @@ public class Model extends ExtendableEntity {
             return ids.stream().filter(describeToggles::contains).toList();
         }
         return capabilities.toggles().stream().filter(toggle -> toggle.key() != null).map(ModelCapabilities.Toggle::id).toList();
+    }
+
+    /** The described toggles that are layers of her look: marked, described apart, and not in a group. */
+    public List<String> autoDescribedToggles(ModelCapabilities capabilities) {
+        List<String> grouped = toggleGroups().stream().flatMap(group -> group.toggles().stream()).toList();
+        return describedToggles(capabilities).stream().filter(id -> autoDescribe.contains(id) && !grouped.contains(id)).toList();
+    }
+
+    /**
+     * The state her description is of: the default state with every layer ({@link #autoDescribe}) off, the bare model.
+     * It is the default state itself when no toggle is a layer.
+     */
+    public Map<String, Boolean> bareShown(ModelCapabilities capabilities) {
+        Map<String, Boolean> state = defaultShown(capabilities);
+        autoDescribedToggles(capabilities).forEach(id -> state.put(id, false));
+        return state;
     }
 }

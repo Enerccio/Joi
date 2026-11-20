@@ -255,6 +255,12 @@ class ModelAppearanceTest extends PlatformTestBase {
         // the description is of the model by default (the halo shown); a part off its default adds what changed
         assertThat(Appearance.of(used)).isEqualTo("You have long silver hair and a black leather jacket.");
         assertThat(Appearance.of(used, Map.of(HALO, false))).isEqualTo("You have long silver hair and a black leather jacket. Nothing floats above your head.");
+        // a layer of her look (Auto description): the description is of the bare model, the halo on adds its sentence
+        used.setAutoDescribe(List.of(HALO));
+        assertThat(used.bareShown(ModelCapabilities.fromJson(used.getCapabilities()))).containsEntry(HALO, false);
+        assertThat(Appearance.of(used)).isEqualTo("You have long silver hair and a black leather jacket. A golden halo glows above your head.");
+        assertThat(Appearance.of(used, Map.of(HALO, false))).isEqualTo("You have long silver hair and a black leather jacket.");
+        used.setAutoDescribe(List.of());
         List<QueuedEvent> events = queuedEventService.findWaiting(joi);
         assertThat(events).extracting(QueuedEvent::getKind).contains(JoiEvents.BODY_DESCRIBED);
         assertThat(bodyService.prompt(joi)).contains("golden halo (shown)").doesNotContain("A golden halo glows above your head.");

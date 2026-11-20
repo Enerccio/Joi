@@ -20,8 +20,8 @@ import java.util.Map;
  * snapshots and the user's images (transient, the importer makes their own), the model's files and resources, and
  * what a request or a conversion is doing now.
  * <pre>
- * { "model": { "name", "notes", "appearance", "partShown", "partHidden", "describeToggles", "describeTogglesChosen",
- *              "describedHash", "capabilityNames", "defaultState", "toggleGroups", "groupSentences",
+ * { "model": { "name", "notes", "appearance", "partShown", "partHidden", "describeToggles", "autoDescribe", "describeTogglesChosen",
+ *              "describedHash", "capabilityNames", "defaultState", "toggleGroups", "toggleParents", "groupSentences",
  *              "springChains", "appliedSpringChains", "capabilities", "proposal" },
  *   "conversion": { "sourceFile", "fbx", "removeMeshes", "dropShapeKeys", "bakeShapeKeys", "maxTextureSize", "report" },
  *   "vrm": { "format", "size" },
@@ -49,6 +49,7 @@ public final class JoimMetadata {
         data.add("partShown", map(model.getPartShown()));
         data.add("partHidden", map(model.getPartHidden()));
         data.add("describeToggles", list(model.getDescribeToggles()));
+        data.add("autoDescribe", list(model.getAutoDescribe()));
         if (model.getDescribeTogglesChosen() != null) {
             data.addProperty("describeTogglesChosen", model.getDescribeTogglesChosen());
         }
@@ -56,6 +57,7 @@ public final class JoimMetadata {
         data.add("capabilityNames", map(model.getCapabilityNames()));
         json(data, "defaultState", model.getDefaultState());
         json(data, "toggleGroups", model.getToggleGroups());
+        json(data, "toggleParents", model.getToggleParents());
         data.add("groupSentences", map(model.getGroupSentences()));
         json(data, "springChains", model.getSpringChains());
         json(data, "appliedSpringChains", model.getAppliedSpringChains());
@@ -100,12 +102,14 @@ public final class JoimMetadata {
         model.setPartShown(map(data, "partShown"));
         model.setPartHidden(map(data, "partHidden"));
         model.setDescribeToggles(list(data, "describeToggles"));
+        model.setAutoDescribe(list(data, "autoDescribe"));
         JsonElement chosen = data.get("describeTogglesChosen");
         model.setDescribeTogglesChosen(chosen == null || chosen.isJsonNull() ? null : chosen.getAsBoolean());
         model.setDescribedHash(text(data, "describedHash"));
         model.setCapabilityNames(map(data, "capabilityNames"));
         model.setDefaultState(json(data, "defaultState"));
         model.setToggleGroups(json(data, "toggleGroups"));
+        model.setToggleParents(json(data, "toggleParents"));
         model.setGroupSentences(map(data, "groupSentences"));
         model.setSpringChains(json(data, "springChains"));
         model.setAppliedSpringChains(json(data, "appliedSpringChains"));

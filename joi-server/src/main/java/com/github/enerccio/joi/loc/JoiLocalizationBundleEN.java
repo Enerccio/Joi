@@ -150,6 +150,11 @@ public class JoiLocalizationBundleEN extends TextBundleBase<J_L> {
         setValue(J_L.LABEL_PART_SHOWN, "shown");
         setValue(J_L.LABEL_PART_HIDDEN, "hidden");
         setValue(J_L.LABEL_DESCRIBE_TOGGLE, "Describe");
+        setValue(J_L.LABEL_AUTO_DESCRIBE_TOGGLE, "Auto description");
+        setValue(J_L.MSG_TOGGLE_NAME_HINT, "What she calls it");
+        setValue(J_L.LABEL_TOGGLE_PART_OF, "Part of");
+        setValue(J_L.LABEL_TOGGLE_PART_OF_NONE, "nothing");
+        setValue(J_L.MSG_TOGGLE_PART_OF_HINT, "Seen only while the part it is part of is shown: the bodysuit hidden hides its panties, and shows them as they were when it is shown again. A shape key is part of its mesh unless you say otherwise.");
         setValue(J_L.MSG_DESCRIBED_WITH_GROUP, "Described with the group %s.");
         setValue(J_L.MSG_SHOWN_BY_DEFAULT_HINT, "Shown by default: the preview and the snapshots show the model so, and a new body comes so.");
         setValue(J_L.LABEL_TOGGLE_GROUPS, "Groups");
@@ -163,6 +168,7 @@ public class JoiLocalizationBundleEN extends TextBundleBase<J_L> {
         setValue(J_L.LABEL_DEFAULT_STATE, "default");
         setValue(J_L.MSG_NO_DEFAULT_STATE, "Mark the state she is in by default (the least covered reads best: blindfold off, so the blindfold is what changes). Until then the shots take the toggles' own defaults and every state's sentence is added to her look.");
         setValue(J_L.MSG_DEFAULT_STATE_HINT, "She is in this state by default: the shots show it and her description has it; the other states are described as what changes.");
+        setValue(J_L.MSG_AUTO_DESCRIBE_TOGGLE_HINT, "A layer of her look (clothes, accessories): the shots of the whole model are taken with it off, so her description is of the bare model and each layer worn adds its sentence. Leave it off for what changes the model in many places (NSFW parts) or has nothing to do with the layers.");
         setValue(J_L.MSG_DESCRIBE_TOGGLE_HINT, "Described apart, shown and hidden, from close-ups: her description follows the part when it is switched.");
         setValue(J_L.LABEL_BODY_PARTS, "Her parts");
         setValue(J_L.MSG_BODY_PARTS_HINT, "The parts described apart in the model's dialog. Switching one changes how she looks; when she is in this body, she is told.");

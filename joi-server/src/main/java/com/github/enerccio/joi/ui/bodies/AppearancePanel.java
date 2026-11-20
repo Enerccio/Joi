@@ -5,6 +5,7 @@ import com.github.enerccio.joi.domain.bodies.AppearanceProposal;
 import com.github.enerccio.joi.domain.bodies.DescribedPart;
 import com.github.enerccio.joi.domain.bodies.ModelCapabilities;
 import com.github.enerccio.joi.domain.bodies.ModelFiles;
+import com.github.enerccio.joi.domain.bodies.ToggleTree;
 import com.github.enerccio.joi.domain.collections.ProposalStatus;
 import com.github.enerccio.joi.domain.model.impl.Model;
 import com.github.enerccio.joi.domain.service.AppearanceService;
@@ -435,6 +436,12 @@ public class AppearancePanel {
         return parts;
     }
 
+    /** The bare state for the viewer: the default with the layers of her look (the auto description ones) off. */
+    public static List<ModelViewer.Toggle> bareToggles(Model model) {
+        ModelCapabilities capabilities = ModelCapabilities.fromJson(model.getCapabilities());
+        return toggles(model, capabilities == null ? Map.of() : model.bareShown(capabilities));
+    }
+
     /** Every toggle in its default state, for the viewer. */
     public static List<ModelViewer.Toggle> defaultToggles(Model model) {
         return toggles(model, Map.of());
@@ -447,9 +454,10 @@ public class AppearancePanel {
      */
     public static List<ModelViewer.Toggle> toggles(Model model, Map<String, Boolean> shown) {
         ModelCapabilities capabilities = ModelCapabilities.fromJson(model.getCapabilities());
+        ToggleTree tree = ToggleTree.of(model, capabilities);
         return capabilities == null ? List.of() : capabilities.toggles().stream()
                 .map(toggle -> new ModelViewer.Toggle(toggle.mesh(), toggle.key(), toggle.hides(),
-                        shown.getOrDefault(toggle.id(), model.shownByDefault(toggle)))).toList();
+                        shown.getOrDefault(toggle.id(), model.shownByDefault(toggle)), tree.parent(toggle.id()))).toList();
     }
 
     private void takeSnapshots() {
@@ -457,7 +465,7 @@ public class AppearancePanel {
         pendingShots.clear();
         snapshotButton.setEnabled(false);
         viewer.takeSnapshots(UploadHandler.inMemory((metadata, bytes) ->
-                pendingShots.put(StringUtils.removeEndIgnoreCase(metadata.fileName(), ".jpg"), bytes)), defaultToggles(model), parts());
+                pendingShots.put(StringUtils.removeEndIgnoreCase(metadata.fileName(), ".jpg"), bytes)), defaultToggles(model), bareToggles(model), parts());
     }
 
     private void snapshotsTaken() {
