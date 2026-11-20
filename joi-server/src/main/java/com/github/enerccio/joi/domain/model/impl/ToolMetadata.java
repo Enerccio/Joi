@@ -23,6 +23,8 @@ public class ToolMetadata extends ExtendableEntity {
     public static final String PERMISSION = "permission";
     public static final String CONFIG = "config";
     public static final String SECRETS = "secrets";
+    /** The user approved every use of the tool for the assistant ahead of time (its own place only). */
+    public static final String AUTO_APPROVE = "autoApprove";
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 8)
@@ -73,6 +75,29 @@ public class ToolMetadata extends ExtendableEntity {
             attributes().remove(PERMISSION);
         } else {
             attributes().addProperty(PERMISSION, permission.name().toLowerCase());
+        }
+    }
+
+    /** Whether the user approved every use of the tool ahead of time: a task that asks is approved at once. */
+    public boolean isAutoApprove() {
+        JsonElement value = attributes().get(AUTO_APPROVE);
+        return value != null && value.isJsonObject();
+    }
+
+    /** The standing approval as it is kept: {@code {"name": ..., "description": ...}}, what a client keeps too; null for none. */
+    public JsonObject autoApprove() {
+        return isAutoApprove() ? attributes().getAsJsonObject(AUTO_APPROVE) : null;
+    }
+
+    /** Approves the tool ahead of time, noting its name and description, or (null) takes it back. */
+    public void setAutoApprove(String name, String description) {
+        if (name == null) {
+            attributes().remove(AUTO_APPROVE);
+        } else {
+            JsonObject approval = new JsonObject();
+            approval.addProperty("name", name);
+            approval.addProperty("description", description);
+            attributes().add(AUTO_APPROVE, approval);
         }
     }
 

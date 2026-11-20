@@ -45,7 +45,7 @@ public class PayloadStep extends TurnStepBase {
         List<LLMChatMessage> payload = new ArrayList<>();
         payload.add(LLMChatMessage.of(LLMRole.SYSTEM, system));
         // one more than the prompt holds: the message before the first one decides whether that one gets a time line
-        List<ChatMessage> window = chatMessageService.findLatest(joi, ChatService.HISTORY + 1);
+        List<ChatMessage> window = chatMessageService.findLatestExchanges(joi, ChatService.HISTORY + 1);
         Date previous = null;
         if (window.size() > ChatService.HISTORY) {
             previous = window.getFirst().getSentAt();

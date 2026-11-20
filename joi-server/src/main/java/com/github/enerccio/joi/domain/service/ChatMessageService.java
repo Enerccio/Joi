@@ -14,11 +14,14 @@ import java.util.Map;
 /** The exchanges of a conversation. */
 public interface ChatMessageService extends ExtendableService<ChatMessage, ChatMessageRepository> {
 
-    /** The messages sent in {@code [from, to)}, oldest first. */
+    /** The exchanges (no notes of the system) sent in {@code [from, to)}, oldest first. */
     List<ChatMessage> findBetween(Joi joi, Date from, Date to) throws Exception;
 
-    /** The last {@code limit} messages, oldest first. */
+    /** The last {@code limit} messages, notes of the system ({@code LOG}) too: the transcript. Oldest first. */
     List<ChatMessage> findLatest(Joi joi, int limit) throws Exception;
+
+    /** The last {@code limit} exchanges, without the notes of the system: what the model is given. Oldest first. */
+    List<ChatMessage> findLatestExchanges(Joi joi, int limit) throws Exception;
 
     /**
      * The {@code limit} messages before the message (sent earlier, or at the same time and stored earlier), oldest
@@ -29,7 +32,7 @@ public interface ChatMessageService extends ExtendableService<ChatMessage, ChatM
     /** When each of the assistants was last talked to, by her id; one that never was is not in the map. */
     Map<Long, Date> findLastSentAt(Collection<Joi> jois) throws Exception;
 
-    /** Whether the assistant has any message. */
+    /** Whether the assistant has any exchange (a note of the system is none). */
     boolean hasAny(Joi joi) throws Exception;
 
     /** A new file in the user's folder of resources for a clip being written (a part file, {@link #attachClip} names it). */

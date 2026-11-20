@@ -20,6 +20,13 @@
       ],
       "description": "The function that started it (web_search, fetch_page)."
     },
+    "toolDescription": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "What the tool does, in a line: a client that keeps a standing approval of the tool writes the tool and this down, so it can show what it approved."
+    },
     "status": {
       "type": "string",
       "enum": [

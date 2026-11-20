@@ -13,7 +13,12 @@ import com.github.enerccio.joi.domain.web.SearchSource;
 import com.github.enerccio.joi.domain.web.WebSearchConfig;
 import com.github.enerccio.marginalia.domain.traits.CommonTx;
 import com.github.enerccio.marginalia.domain.traits.CommonTxReadOnly;
+import com.github.enerccio.joi.domain.web.PageFetcher;
+import com.github.enerccio.joi.domain.web.SearchResult;
+import com.github.enerccio.joi.domain.web.WebException;
+import com.github.enerccio.joi.domain.web.WebSearchClient;
 import com.google.gson.JsonObject;
+import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 
 import java.util.HashSet;
@@ -34,30 +39,51 @@ public class WebToolSettingsServiceImpl implements WebToolSettingsService {
     @CommonTxReadOnly
     public Search search(Joi joi) throws Exception {
         Config found = permissionService.config(joi, ServerTool.WEB_SEARCH);
-        if (found.metadata() == null) {
+        return search(found.metadata(), found.from());
+    }
+
+    @Override
+    @CommonTxReadOnly
+    public Search searchIn(ToolScope scope, Joi joi) throws Exception {
+        ToolMetadata metadata = metadataService.find(scope, joi, ServerTool.WEB_SEARCH);
+        return search(metadata != null && metadata.hasConfig() ? metadata : null, scope);
+    }
+
+    private Search search(ToolMetadata metadata, ToolScope from) {
+        if (metadata == null) {
             return new Search(WebSearchConfig.from(null), null, Map.of(), null);
         }
-        WebSearchConfig config = WebSearchConfig.from(found.metadata().config());
+        WebSearchConfig config = WebSearchConfig.from(metadata.config());
         Map<String, String> keys = new LinkedHashMap<>();
         for (SearchSource source : config.sources()) {
-            String key = metadataService.secret(found.metadata(), WebSearchConfig.keyName(source));
+            String key = metadataService.secret(metadata, WebSearchConfig.keyName(source));
             if (key != null) {
                 keys.put(WebSearchConfig.keyName(source), key);
             }
         }
-        return new Search(config, found.from(), keys, metadataService.secret(found.metadata(), WebSearchConfig.PROXY_SECRET));
+        return new Search(config, from, keys, metadataService.secret(metadata, WebSearchConfig.PROXY_SECRET));
     }
 
     @Override
     @CommonTxReadOnly
     public Pages pages(Joi joi) throws Exception {
         Config found = permissionService.config(joi, ServerTool.FETCH_PAGE);
-        if (found.metadata() == null) {
+        return pages(found.metadata(), found.from());
+    }
+
+    @Override
+    @CommonTxReadOnly
+    public Pages pagesIn(ToolScope scope, Joi joi) throws Exception {
+        ToolMetadata metadata = metadataService.find(scope, joi, ServerTool.FETCH_PAGE);
+        return pages(metadata != null && metadata.hasConfig() ? metadata : null, scope);
+    }
+
+    private Pages pages(ToolMetadata metadata, ToolScope from) {
+        if (metadata == null) {
             return new Pages(PageConfig.from(null), null, null, null);
         }
-        return new Pages(PageConfig.from(found.metadata().config()), found.from(),
-                metadataService.secret(found.metadata(), PageConfig.TOKEN_SECRET),
-                metadataService.secret(found.metadata(), WebSearchConfig.PROXY_SECRET));
+        return new Pages(PageConfig.from(metadata.config()), from, metadataService.secret(metadata, PageConfig.TOKEN_SECRET),
+                metadataService.secret(metadata, WebSearchConfig.PROXY_SECRET));
     }
 
     @Override
@@ -73,6 +99,44 @@ public class WebToolSettingsServiceImpl implements WebToolSettingsService {
     @CommonTx
     public void savePages(ToolScope scope, Joi joi, PageConfig config, Map<String, String> secrets) throws Exception {
         save(scope, joi, ServerTool.FETCH_PAGE, config.toJson(), Set.of(PageConfig.TOKEN_SECRET, WebSearchConfig.PROXY_SECRET), secrets);
+    }
+
+    @Override
+    @CommonTx
+    public void clearSearch(ToolScope scope, Joi joi) throws Exception {
+        clear(scope, joi, ServerTool.WEB_SEARCH);
+    }
+
+    @Override
+    @CommonTx
+    public void clearPages(ToolScope scope, Joi joi) throws Exception {
+        clear(scope, joi, ServerTool.FETCH_PAGE);
+    }
+
+    private void clear(ToolScope scope, Joi joi, ServerTool tool) throws Exception {
+        ToolMetadata metadata = metadataService.find(scope, joi, tool);
+        if (metadata != null) {
+            metadata.getAttributes().remove(ToolMetadata.CONFIG);
+            metadata.getAttributes().remove(ToolMetadata.SECRETS);
+            metadataService.save(metadata);
+        }
+    }
+
+    @Override
+    public SearchResult testSearch(ToolScope scope, Joi joi, WebSearchConfig config, SearchSource source, String typedKey,
+                                   String typedProxyAuth, String query) throws Exception, WebException {
+        Search saved = searchIn(scope, joi);
+        String key = StringUtils.defaultIfBlank(typedKey, saved.keys().get(WebSearchConfig.keyName(source)));
+        return new WebSearchClient(config).search(source, key, StringUtils.defaultIfBlank(typedProxyAuth, saved.proxyAuth()), query);
+    }
+
+    @Override
+    public String testPage(ToolScope scope, Joi joi, PageConfig config, String typedToken, String typedProxyAuth, String url)
+            throws Exception, WebException {
+        Pages saved = pagesIn(scope, joi);
+        Search search = searchIn(scope, joi);
+        return new PageFetcher(config, StringUtils.defaultIfBlank(typedToken, saved.token()),
+                StringUtils.defaultIfBlank(typedProxyAuth, saved.proxyAuth()), search.config().userAgent()).fetch(url);
     }
 
     private void save(ToolScope scope, Joi joi, ServerTool tool, JsonObject config, Set<String> known, Map<String, String> secrets) throws Exception {

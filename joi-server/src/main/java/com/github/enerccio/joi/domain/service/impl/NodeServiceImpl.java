@@ -39,6 +39,7 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParseException;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.exception.ExceptionUtils;
+import com.github.enerccio.joi.protocol.http.ChatLog;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.DisposableBean;
@@ -114,6 +115,7 @@ public class NodeServiceImpl implements NodeService, InitializingBean, Disposabl
     private final Map<String, NodeSession> registered = new ConcurrentHashMap<>();
     private ScheduledExecutorService ticks;
     private Registration tools;
+    private Registration logs;
     /** Whether the server greets a node that connected (off in tests that drive the turns themselves). */
     private volatile boolean greeting = true;
     /** How long after the last event for her the server waits for more before it tells her (the ones that come together are told together). */
@@ -127,6 +129,7 @@ public class NodeServiceImpl implements NodeService, InitializingBean, Disposabl
             return thread;
         });
         ticks.scheduleAtFixedRate(this::tick, 1, 1, TimeUnit.SECONDS);
+        logs = chatService.watchLogs(this::sendLog);
         tools = chatService.addEventListener(TurnEvents.COLLECT_TOOLS, (event, chain) -> {
             List<FunctionDefinition> functions = new ArrayList<>();
             for (NodeSession session : sessions(event.getJoi().getId())) {
@@ -154,6 +157,9 @@ public class NodeServiceImpl implements NodeService, InitializingBean, Disposabl
     public void destroy() {
         if (tools != null) {
             tools.unregister();
+        }
+        if (logs != null) {
+            logs.unregister();
         }
         if (ticks != null) {
             ticks.shutdownNow();
@@ -243,6 +249,15 @@ public class NodeServiceImpl implements NodeService, InitializingBean, Disposabl
     public void notify(Joi joi, String event) {
         for (NodeSession session : sessions(joi)) {
             session.send(NodeMessage.EVENT, null, null, new ServerEvent(event, Instant.now().toString()));
+        }
+    }
+
+    /** A note was written into the conversation of an assistant: her nodes are sent it. */
+    private void sendLog(ChatMessage message) {
+        ChatLog data = new ChatLog(message.getUuid(), message.getSentAt().toInstant().toString(), StringUtils.defaultString(message.getEventKind()),
+                StringUtils.defaultString(message.getInput()));
+        for (NodeSession session : sessions(message.getJoi().getId())) {
+            session.send(NodeMessage.LOG, null, null, data);
         }
     }
 

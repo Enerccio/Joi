@@ -9,6 +9,8 @@ import java.util.List;
  * @param id       the task's stable id
  * @param title    a short name
  * @param tool     the function that started it ({@code web_search}, {@code fetch_page})
+ * @param toolDescription what the tool does, in a line: a client that keeps a standing approval of the tool writes the
+ *                 {@code tool} and this down (as {@code {"name": ..., "description": ...}}), so it can show what it approved
  * @param status   {@code queued}, {@code running}, {@code waiting} (for the user's answer), {@code done}, {@code failed} or
  *                 {@code cancelled} (also what the user denied)
  * @param question what she asked for
@@ -20,6 +22,6 @@ import java.util.List;
  * @param finished when it ended, null before
  * @param steps    its transcript, oldest first; only in the answer for one task, null in the list
  */
-public record TaskInfo(String id, String title, String tool, String status, String question, String url, String result,
+public record TaskInfo(String id, String title, String tool, String toolDescription, String status, String question, String url, String result,
                        String error, String created, String started, String finished, List<TaskStep> steps) {
 }

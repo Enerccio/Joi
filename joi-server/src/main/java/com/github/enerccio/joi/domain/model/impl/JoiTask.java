@@ -69,6 +69,11 @@ public class JoiTask extends ExtendableEntity {
     @Transient
     private String url;
 
+    /** Whether the user's standing approval of the tool approved it (it still went through approval, as the API does it). */
+    @ExtendedAttribute
+    @Transient
+    private Boolean autoApproved;
+
     /** The id of the tool call that started the task, to answer it. */
     @ExtendedAttribute
     @Transient
@@ -161,6 +166,14 @@ public class JoiTask extends ExtendableEntity {
 
     public void setUrl(String url) {
         this.url = url;
+    }
+
+    public boolean isAutoApproved() {
+        return Boolean.TRUE.equals(autoApproved);
+    }
+
+    public void setAutoApproved(boolean autoApproved) {
+        this.autoApproved = autoApproved ? Boolean.TRUE : null;
     }
 
     public String getToolCallId() {

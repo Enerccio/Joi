@@ -109,6 +109,11 @@ public final class JoiNodeCli {
             }
 
             @Override
+            public void log(com.github.enerccio.joi.protocol.http.ChatLog note) {
+                System.out.println("[note] " + note.text());
+            }
+
+            @Override
             public void animation(com.github.enerccio.joi.protocol.node.PlayAnimation play) {
                 synchronized (lock) {
                     director.gesture(play.animation(), play.loops());

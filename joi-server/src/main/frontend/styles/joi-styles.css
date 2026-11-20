@@ -56,6 +56,14 @@
     font-size: var(--lumo-font-size-s);
 }
 
+.chat-input-log {
+    align-self: center;
+    background: transparent;
+    border: 1px dashed var(--lumo-contrast-20pct);
+    color: var(--lumo-secondary-text-color);
+    font-size: var(--lumo-font-size-s);
+}
+
 .chat-event-kind {
     display: block;
     font-weight: 600;
@@ -365,4 +373,35 @@
 
 .spring-chain vaadin-select {
     width: 7rem;
+}
+
+.tools-panel {
+    overflow: auto;
+}
+
+.tool-permissions vaadin-select {
+    flex: 0 0 auto;
+}
+
+.test-result {
+    overflow-wrap: anywhere;
+}
+
+.task-details {
+    overflow: auto;
+    flex: 1 1 40%;
+    min-height: 8rem;
+}
+
+.task-details pre,
+.task-step {
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    margin: 0;
+}
+
+.task-step {
+    border-left: 3px solid var(--lumo-contrast-20pct);
+    padding-left: var(--lumo-space-s);
+    margin-bottom: var(--lumo-space-xs);
 }

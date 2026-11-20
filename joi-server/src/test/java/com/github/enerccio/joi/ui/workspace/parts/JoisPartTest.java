@@ -115,12 +115,13 @@ class JoisPartTest extends PlatformTestBase {
         JoiDialog dialog = dialog(joiService.create("Kairo"));
 
         assertThat(dialog.getHeaderTitle()).isEqualTo("Kairo");
-        // About, Bodies, Animations, Templates, Memories, Summaries, Chats
-        assertThat(dialog.getTabs().getTabCount()).isEqualTo(7);
+        // About, Bodies, Animations, Templates, Memories, Summaries, Chats, Tasks
+        assertThat(dialog.getTabs().getTabCount()).isEqualTo(8);
         assertThat(dialog.getTabs().getTabAt(0).getLabel()).isEqualTo(loc.getValue(J_L.LABEL_ABOUT));
         assertThat(dialog.getTabs().getTabAt(1).getLabel()).isEqualTo(loc.getValue(J_L.LABEL_BODIES));
         assertThat(dialog.getTabs().getTabAt(3).getLabel()).isEqualTo(loc.getValue(J_L.LABEL_TEMPLATES));
         assertThat(dialog.getTabs().getTabAt(6).getLabel()).isEqualTo(loc.getValue(J_L.LABEL_CHATS));
+        assertThat(dialog.getTabs().getTabAt(7).getLabel()).isEqualTo(loc.getValue(J_L.LABEL_TASKS));
         JoiAboutPart about = dialog.getAboutPart();
         assertThat(about.getNameField().getValue()).isEqualTo("Kairo");
         assertThat(about.getUserNameField().getValue()).isEmpty();

@@ -1,6 +1,6 @@
 # Tool permissions and `web_search` (plan)
 
-Status: **stages 1 (permissions), 2 (search clients, page readers, settings), 3 (the task, `web_search`, `fetch_page`, the event) and 4 (the API) are built and tested; 5 and 6 are plan.** Nothing here is in `DESIGN.md` yet; when it is
+Status: **stages 1 (permissions), 2 (search clients, page readers, settings), 3 (the task, `web_search`, `fetch_page`, the event) 4 (the API) and 5 (the UI) are built and tested; 6 (move into `DESIGN.md`) is plan.** Nothing here is in `DESIGN.md` yet; when it is
 built it moves into `DESIGN.md` (Tools, Web, Tasks after the reply) and this file goes away.
 
 ## What is asked
@@ -139,19 +139,31 @@ toolCalls), `TaskList`, `TaskDenial` (`reason`, the body of a denial, may be lef
 - Left out: the plan had a `permission` field ("why it waits"); the task does not store it and the permission chain
   answers it (`ToolPermissionService.chain`), so the UI shows it from there.
 
-## The UI (stage 5)
+## The UI (stage 5, built)
 
-- `ToolPermissionsPanel` (`ui/bodies`-style shared component): a row per `ServerTool`; a select (*Inherit*, *Allow*, *Ask*,
-  *Deny*) and a line with what is in force and where from. Used in **Administration** (new tab *Tools*), **User
-  Settings** (a section), and the **Joi dialog**.
-- `WebSearchPanel`: the sources (a grid, add, edit, test), the proxy and the other options, the pages source, a *Test
-  search* button; in Administration (the default) and in User Settings (empty = use the administrator's).
-- Joi dialog: a **Tasks** tab (`JoiTasksPart`): grid (title, status, started), buttons Approve / Deny / Cancel, the
-  result and the transcript below; follows the tasks live as the Chats tab follows chats. The tool permissions of
-  the assistant sit above it, or in its About tab (to decide when building it).
-- Texts in `J_L` + `JoiLocalizationBundleEN`, classes in `JoiCssStyles` + `joi-styles.css`. `JoisPartTest` and
-  `PersonaAndSettingsTest` change with the tabs.
-- Verified in the browser on the cloned data (`joi-test-instance`), as the outfits were.
+- `ui/tools`: `ToolPermissionsPanel` (a row per `ServerTool`: Inherit / Allow / Ask / Deny stored at once, and "In force:
+  Ask (from the administrator)", with the ceiling noted), `WebSearchPanel` (sources grid in the order they are tried,
+  options, page reader, *Test a page*, one Save; a secret is never shown, a saved one is only said to be there),
+  `WebSourceDialog` (a source, with *Test* searching with it as typed), `ToolsPanel` (both). Used in **Administration →
+  Tools** (the administrator's) and **User Settings → Tools** (the user's own, which replaces the administrator's as a
+  whole; *Use the administrator's* takes it back).
+- Joi dialog, **Tasks** tab (`JoiTasksPart`): the assistant's own permissions (folded), Approve, **Approve all of this
+  tool**, Deny (with a reason), Cancel, **Auto-approved** (`AutoApprovedDialog`), the grid following the tasks live
+  (`WebTaskService.watch`), and under it what was asked, the result or error and the transcript.
+- **Standing approval** (the user's addition): "Approve all of this tool" keeps `autoApprove` = `{"name", "description"}` in the
+  assistant's own `ToolMetadata` (JSON, so a client can keep the same). A task of that tool that asks is still made
+  `WAITING` and put through `approve` (the same path as the user's answer and the API's), so it is approved at once; it
+  is marked `autoApproved` (the grid says so) and a **note** in the conversation says so at once (`ChatMessage` of the type
+  `LOG`, see `DESIGN.md` → Notes in the conversation): not given to the model, shown in the transcript, sent to the nodes
+  (`log` frame) and in the API's history. The same notes tell of an approval, a denial, a cancel and a standing approval
+  set or taken back. A deny of any level still wins. `TaskInfo` carries `tool` and `toolDescription` so a client that
+  approves automatically on its own can write the approval down.
+- Texts in `J_L` + `JoiLocalizationBundleEN`, classes in `JoiCssStyles` + `joi-styles.css`.
+- Tested: `ToolsUiTest`, `JoisPartTest` (eight tabs); verified in the browser on cloned data with DuckDuckGo and the real
+  model: a real search and page test, the question she asked became a waiting task, approved in the tab, done with sources,
+  then *Approve all* ran the next one at once.
+- Seen: DuckDuckGo sometimes answers a search with no results page (rate limit or captcha); the task sees the failure and tries
+  again or reads pages instead. A second source (SearXNG, Brave...) is the cure.
 
 ## Order and what each stage leaves working
 

@@ -18,16 +18,17 @@
       "type": "string",
       "enum": [
         "user",
-        "event"
+        "event",
+        "log"
       ],
-      "description": "user: the user's words are text; event: something happened, its kind is event."
+      "description": "user: the user's words are text; event: something happened, its kind is event; log (since 1.6): a note of the server (text, its kind in event), not an exchange and never given to the model."
     },
     "text": {
       "type": [
         "string",
         "null"
       ],
-      "description": "The user's words, null for an event."
+      "description": "The user's words, or the text of a log; null for an event."
     },
     "event": {
       "type": [

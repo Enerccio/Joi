@@ -29,6 +29,8 @@ public enum NodeMessage {
     PART_REFUSED("part_refused", Direction.TO_NODE, PartRefused.class),
     /** {@link PlayAnimation}: she plays an animation now (since 1.5), a function of hers. */
     ANIMATION("animation", Direction.TO_NODE, PlayAnimation.class),
+    /** {@link ChatLog}: a note in her conversation, not given to the model (since 1.6). */
+    LOG("log", Direction.TO_NODE, ChatLog.class),
     /** {@link TurnStart}: a turn the server started (first boot, the user is back); answered like a say. */
     TURN("turn", Direction.TO_NODE, TurnStart.class),
     /** {@link TextDelta} of the thinking (only when asked for). */

@@ -11,6 +11,9 @@ import com.github.enerccio.joi.domain.model.impl.Joi;
 import com.github.enerccio.joi.domain.model.impl.JoiTask;
 import com.github.enerccio.joi.domain.model.impl.JoiTaskMessage;
 import com.github.enerccio.joi.domain.model.impl.QueuedEvent;
+import com.github.enerccio.joi.domain.model.impl.ToolMetadata;
+import com.github.enerccio.joi.domain.service.ToolMetadataService;
+import com.github.enerccio.joi.domain.tools.ToolScope;
 import com.github.enerccio.joi.domain.persona.JoiPromptField;
 import com.github.enerccio.joi.domain.service.JoiService;
 import com.github.enerccio.joi.domain.service.JoiTaskMessageService;
@@ -72,6 +75,8 @@ public class WebTaskServiceImpl implements WebTaskService, InitializingBean, Dis
     @Autowired
     private ToolPermissionService permissionService;
     @Autowired
+    private ToolMetadataService metadataService;
+    @Autowired
     private WebToolSettingsService settingsService;
     @Autowired
     private ChatService chatService;
@@ -101,6 +106,8 @@ public class WebTaskServiceImpl implements WebTaskService, InitializingBean, Dis
     /** The tasks that run now, and those that are asked to stop. */
     private final Set<Long> active = ConcurrentHashMap.newKeySet();
     private final Set<Long> stopping = ConcurrentHashMap.newKeySet();
+    /** Who watches the tasks of an assistant (the Tasks tab), by the id of the assistant. */
+    private final java.util.Map<Long, List<Runnable>> watchers = new ConcurrentHashMap<>();
     private Registration registration;
 
     @Override
@@ -144,7 +151,13 @@ public class WebTaskServiceImpl implements WebTaskService, InitializingBean, Dis
         task.setUrl(StringUtils.defaultIfBlank(url, null));
         task.setToolCallId(toolCallId);
         task.setStatus(permission == ToolPermission.ALLOW ? JoiTaskStatus.QUEUED : JoiTaskStatus.WAITING);
-        JoiTask saved = taskService.save(task);
+        boolean standing = permission == ToolPermission.ASK && autoApproves(joi, tool);
+        task.setAutoApproved(standing);
+        JoiTask saved = saveTask(task);
+        if (standing) {
+            // the answer the user would give, given by what they allowed ahead of time
+            return approve(saved);
+        }
         if (permission == ToolPermission.ALLOW) {
             drain(joi);
         }
@@ -152,11 +165,54 @@ public class WebTaskServiceImpl implements WebTaskService, InitializingBean, Dis
     }
 
     @Override
+    public boolean autoApproves(Joi joi, ServerTool tool) throws Exception {
+        ToolMetadata metadata = metadataService.find(ToolScope.JOI, joi, tool);
+        return metadata != null && metadata.isAutoApprove();
+    }
+
+    @Override
+    public void autoApprove(Joi joi, ServerTool tool, boolean on) throws Exception {
+        requireOwn(joi);
+        ToolMetadata metadata = metadataService.edit(ToolScope.JOI, joi, tool);
+        if (!on && metadata.getId() == null) {
+            return;
+        }
+        metadata.setAutoApprove(on ? tool.function() : null, tool.description());
+        metadataService.save(metadata);
+        note(joi, on ? "task.standing_approval" : "task.standing_approval_removed", on
+                ? "The user approved " + tool.function() + " ahead of time: its tasks are approved without asking"
+                : "The user takes back the approval of " + tool.function() + ": its tasks ask again");
+        if (on) {
+            for (JoiTask waiting : taskService.findByStatus(joi, List.of(JoiTaskStatus.WAITING))) {
+                if (tool.function().equals(waiting.getTool())) {
+                    waiting.setAutoApproved(true);
+                    approve(saveTask(waiting));
+                }
+            }
+        }
+    }
+
+    @Override
+    public List<ServerTool> autoApproved(Joi joi) throws Exception {
+        requireOwn(joi);
+        List<ServerTool> tools = new ArrayList<>();
+        for (ServerTool tool : ServerTool.values()) {
+            if (autoApproves(joi, tool)) {
+                tools.add(tool);
+            }
+        }
+        return tools;
+    }
+
+    @Override
     public JoiTask approve(JoiTask task) throws Exception {
         JoiTask own = own(task);
         require(own, JoiTaskStatus.WAITING, "waits for an answer");
         own.setStatus(JoiTaskStatus.QUEUED);
-        JoiTask saved = taskService.save(own);
+        JoiTask saved = saveTask(own);
+        note(joi(own), own.isAutoApproved() ? "task.auto_approved" : "task.approved", (own.isAutoApproved()
+                ? "Approved automatically (the standing approval of " + own.getTool() + "): " : "Approved by the user: " + own.getTool() + " ")
+                + quoted(own));
         drain(joi(own));
         return saved;
     }
@@ -168,7 +224,9 @@ public class WebTaskServiceImpl implements WebTaskService, InitializingBean, Dis
         own.setStatus(JoiTaskStatus.CANCELLED);
         own.setError(StringUtils.defaultIfBlank(StringUtils.strip(reason), null));
         own.setFinishedAt(AppClock.now());
-        JoiTask saved = taskService.save(own);
+        JoiTask saved = saveTask(own);
+        note(joi(own), "task.denied", "Denied by the user: " + own.getTool() + " " + quoted(own)
+                + (own.getError() == null ? "" : " (" + own.getError() + ")"));
         report(joi(own), saved, "not allowed by the user", null, StringUtils.defaultIfBlank(StringUtils.strip(reason), null), "denied");
         return saved;
     }
@@ -186,7 +244,8 @@ public class WebTaskServiceImpl implements WebTaskService, InitializingBean, Dis
         }
         own.setStatus(JoiTaskStatus.CANCELLED);
         own.setFinishedAt(AppClock.now());
-        JoiTask saved = taskService.save(own);
+        JoiTask saved = saveTask(own);
+        note(joi(own), "task.cancelled", "Cancelled by the user: " + own.getTool() + " " + quoted(own));
         report(joi(own), saved, "cancelled", null, null, "cancelled");
         return saved;
     }
@@ -197,6 +256,47 @@ public class WebTaskServiceImpl implements WebTaskService, InitializingBean, Dis
         List<JoiTask> all = new ArrayList<>(taskService.findByStatus(joi, EnumSet.allOf(JoiTaskStatus.class)));
         Collections.reverse(all);
         return all;
+    }
+
+    @Override
+    public Registration watch(Joi joi, Runnable onChange) throws Exception {
+        requireOwn(joi);
+        List<Runnable> list = watchers.computeIfAbsent(joi.getId(), id -> new java.util.concurrent.CopyOnWriteArrayList<>());
+        list.add(onChange);
+        return () -> list.remove(onChange);
+    }
+
+    private static String quoted(JoiTask task) {
+        return "\"" + StringUtils.defaultString(task.getTitle()) + "\"";
+    }
+
+    /** Writes what happened into her conversation, not for the model ({@link ChatService#log}); a note that fails is not a failure of the task. */
+    private void note(Joi joi, String kind, String text) {
+        try {
+            chatService.log(joi, kind, text);
+        } catch (Exception e) {
+            log.warn("The note {} was not written: {}", kind, e.getMessage());
+        }
+    }
+
+    private JoiTask saveTask(JoiTask task) throws Exception {
+        JoiTask saved = taskService.save(task);
+        changed(saved);
+        return saved;
+    }
+
+    /** Tells the watchers of the task's assistant that one of its tasks changed. */
+    private void changed(JoiTask task) {
+        List<Runnable> list = watchers.get(task.getJoi().getId());
+        if (list != null) {
+            for (Runnable watcher : list) {
+                try {
+                    watcher.run();
+                } catch (RuntimeException e) {
+                    log.warn("A watcher of the tasks failed: {}", e.getMessage());
+                }
+            }
+        }
     }
 
     @Override
@@ -275,7 +375,7 @@ public class WebTaskServiceImpl implements WebTaskService, InitializingBean, Dis
                     stale.setStatus(JoiTaskStatus.FAILED);
                     stale.setError("The server stopped while it ran");
                     stale.setFinishedAt(AppClock.now());
-                    report(joi, taskService.save(stale), "failed", null, stale.getError(), "failed");
+                    report(joi, saveTask(stale), "failed", null, stale.getError(), "failed");
                 }
             }
             for (JoiTask task = first(joi); task != null; task = first(joi)) {
@@ -303,7 +403,7 @@ public class WebTaskServiceImpl implements WebTaskService, InitializingBean, Dis
             task.setStatus(JoiTaskStatus.RUNNING);
             task.setStartedAt(AppClock.now());
             task.setError(null);
-            taskService.save(task);
+            saveTask(task);
 
             AI ai = model(joi);
             if (ai == null) {
@@ -345,6 +445,7 @@ public class WebTaskServiceImpl implements WebTaskService, InitializingBean, Dis
                         message.setTokenCount(usage.completionTokens());
                     }
                     messageService.append(task, message);
+                    changed(task);
                 } catch (Exception e) {
                     log.warn("The transcript of the task {} lost a step: {}", id, e.getMessage());
                 }
@@ -370,7 +471,11 @@ public class WebTaskServiceImpl implements WebTaskService, InitializingBean, Dis
             stored.setResult(result);
             stored.setError(error);
             stored.setFinishedAt(AppClock.now());
-            report(joi, taskService.save(stored), status, result, error, status.equals("finished") ? "done" : status);
+            JoiTask ended = saveTask(stored);
+            if ("cancelled".equals(status)) {
+                note(joi, "task.cancelled", "Cancelled by the user: " + ended.getTool() + " " + quoted(ended));
+            }
+            report(joi, ended, status, result, error, status.equals("finished") ? "done" : status);
         } catch (Exception e) {
             log.error("The end of the task {} was not kept", id, e);
         }

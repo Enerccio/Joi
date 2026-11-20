@@ -63,6 +63,10 @@ public class NodeSocket {
         default void event(ServerEvent event) {
         }
 
+        /** A note in her conversation (the user approved a task, say): not an exchange, not for the model. */
+        default void log(com.github.enerccio.joi.protocol.http.ChatLog log) {
+        }
+
         /** She plays an animation of her own choice (her {@code play_animation}): see {@link AvatarDirector#gesture}. */
         default void animation(PlayAnimation animation) {
         }
@@ -524,6 +528,7 @@ public class NodeSocket {
             case PART_REFUSED -> listener.partRefused(ref, data(frame, PartRefused.class));
             case EVENT -> listener.event(data(frame, ServerEvent.class));
             case ANIMATION -> listener.animation(data(frame, PlayAnimation.class));
+            case LOG -> listener.log(data(frame, com.github.enerccio.joi.protocol.http.ChatLog.class));
             case TOOL_CALL -> call(data(frame, ToolCall.class));
             case TOOL_CANCEL -> {
                 // the tools of this node finish quickly; a long one would stop here (data(frame, ToolCancel.class))

@@ -1,6 +1,8 @@
 package com.github.enerccio.joi.ui.workspace.parts;
 
+import com.github.enerccio.joi.domain.tools.ToolScope;
 import com.github.enerccio.joi.ui.access.ApiAccessPanel;
+import com.github.enerccio.joi.ui.tools.ToolsPanel;
 import com.flowingcode.vaadin.addons.fontawesome.FontAwesome.Solid;
 import com.github.enerccio.joi.loc.J_L;
 import com.github.enerccio.joi.ui.workspace.WorkspacePart;
@@ -52,6 +54,7 @@ public class AdminPart implements WorkspacePart {
 
     private final GpuPanel gpuPanel = new GpuPanel();
     private final ApiAccessPanel apiAccessPanel = new ApiAccessPanel();
+    private final ToolsPanel toolsPanel = new ToolsPanel(ToolScope.APP);
     // the platform's panels, as in Marginalia's administration: backups of the database, the cleanup of what users
     // deleted (the trash of all of them, deleted for good), and the sweep of the files nothing points to
     private final DatabaseBackupPanel databaseBackupPanel = new DatabaseBackupPanel();
@@ -68,6 +71,7 @@ public class AdminPart implements WorkspacePart {
         tabs.add(loc.getValue(J_L.LABEL_USERS), createUsers());
         tabs.add(loc.getValue(L.LABEL_GPUS), gpuPanel.create());
         tabs.add(loc.getValue(J_L.LABEL_API_ACCESS), apiAccessPanel.create());
+        tabs.add(loc.getValue(J_L.LABEL_TOOLS), toolsPanel.create());
         tabs.add(loc.getValue(J_L.LABEL_DATABASE_BACKUPS), databaseBackupPanel.create());
         tabs.add(loc.getValue(J_L.LABEL_CLEANUP), cleanupPanel.create());
         tabs.add(loc.getValue(J_L.LABEL_RESOURCE_FILES), resourceGarbagePanel.create());
@@ -169,6 +173,7 @@ public class AdminPart implements WorkspacePart {
         users.sort(Comparator.comparing(User::getLogin, String.CASE_INSENSITIVE_ORDER));
         usersGrid.setItems(users);
         gpuPanel.refresh();
+        toolsPanel.refresh();
         databaseBackupPanel.refresh();
         cleanupPanel.refresh();
         resourceGarbagePanel.refresh();

@@ -54,6 +54,8 @@ class NodeServiceTest extends PlatformTestBase {
     @Autowired
     private NodeService nodeService;
     @Autowired
+    private com.github.enerccio.joi.domain.chat.ChatService chatService;
+    @Autowired
     private JoiService joiService;
     @Autowired
     private AccessTokenService accessTokenService;
@@ -547,6 +549,38 @@ class NodeServiceTest extends PlatformTestBase {
         node.frame("say", "t3", "{\"text\": \"Moonwalk!\", \"speak\": false}");
         node.next("done");
         assertThat(llm.getCompletionRequests().get(4).getLastMessage().content()).contains("no such animation").contains("Wave");
+    }
+
+    @Test
+    void aNoteInHerConversationReachesTheNodeAndIsNeverGivenToTheModel() throws Exception {
+        llm.enqueue(MockLLMResponse.text("Hello."), MockLLMResponse.text("Fine."));
+        Node node = connect("Bearer " + token);
+        node.hello("n1", "desk", joi.getUuid(), "1.6");
+        node.next("welcome");
+        node.manifest(1);
+        // only a note so far: she has not been talked to
+        chatService.log(joi, "task.approved", "Approved by the user: web_search \"secret note\"");
+        JsonObject note = node.next("log");
+        assertThat(note.getAsJsonObject("data").get("kind").getAsString()).isEqualTo("task.approved");
+        assertThat(note.getAsJsonObject("data").get("text").getAsString()).contains("secret note");
+        assertThat(chatMessageService.hasAny(joi)).isFalse();
+        assertThat(chatMessageService.findLastSentAt(List.of(joi))).isEmpty();
+        assertThat(chatMessageService.findLatest(joi, 10)).hasSize(1);
+        assertThat(chatMessageService.findLatestExchanges(joi, 10)).isEmpty();
+
+        node.frame("say", "t1", "{\"text\": \"Hi\", \"speak\": false}");
+        node.next("done");
+        chatService.log(joi, "task.denied", "Denied by the user: fetch_page \"another note\"");
+        node.next("log");
+        node.frame("say", "t2", "{\"text\": \"And now?\", \"speak\": false}");
+        node.next("done");
+        for (var request : llm.getCompletionRequests()) {
+            assertThat(request.getRawBody()).doesNotContain("secret note").doesNotContain("another note");
+        }
+        // the transcript has them in their place, and they are not exchanges
+        List<ChatMessage> transcript = chatMessageService.findLatest(joi, 20);
+        assertThat(transcript).extracting(ChatMessage::getType).contains(ChatMessageType.LOG);
+        assertThat(chatMessageService.findLatestExchanges(joi, 20)).extracting(ChatMessage::getType).doesNotContain(ChatMessageType.LOG);
     }
 
     @Test

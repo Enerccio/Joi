@@ -24,6 +24,8 @@ class JoiChatsPartTest extends PlatformTestBase {
     private JoiService joiService;
     @Autowired
     private ChatMessageService chatMessageService;
+    @Autowired
+    private com.github.enerccio.joi.domain.chat.ChatService chatService;
 
     private UI ui;
 
@@ -83,6 +85,19 @@ class JoiChatsPartTest extends PlatformTestBase {
                 .containsExactlyElementsOf(java.util.stream.IntStream.range(0, total).mapToObj(n -> "question " + n).toList());
         part.scrolledToTop();
         assertThat(part.getShown()).hasSize(total);
+    }
+
+    @Test
+    void aNoteOfTheSystemIsShownAsANoteAmongTheExchanges() throws Exception {
+        Joi joi = joiService.create("Mira");
+        chat(joi, 1, 1_000_000L);
+        ChatMessage note = chatService.log(joi, "task.approved", "Approved by the user: web_search \"x\"");
+
+        JoiChatsPart part = chats(joi);
+        assertThat(part.getShown()).extracting(ChatMessage::getType).containsExactly(ChatMessageType.USER, ChatMessageType.LOG);
+        com.vaadin.flow.component.Component card = part.card(note);
+        assertThat(card.getElement().getOuterHTML()).contains("chat-input-log").contains("Approved by the user");
+        assertThat(card.getElement().getOuterHTML()).doesNotContain("chat-reply");
     }
 
     @Test

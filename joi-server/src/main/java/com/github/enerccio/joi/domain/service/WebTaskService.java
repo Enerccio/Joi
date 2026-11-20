@@ -4,6 +4,8 @@ import com.github.enerccio.joi.domain.model.impl.Joi;
 import com.github.enerccio.joi.domain.model.impl.JoiTask;
 import com.github.enerccio.joi.domain.tools.ServerTool;
 
+import com.github.enerccio.joi.domain.chat.turn.TurnControllerEvent.Registration;
+
 import java.util.List;
 
 /**
@@ -41,8 +43,27 @@ public interface WebTaskService {
     /** Stops a task: at once when it has not started, between its steps when it runs. She is told. */
     JoiTask cancel(JoiTask task) throws Exception;
 
+    /** Whether the user approved every use of the tool for the assistant ahead of time. */
+    boolean autoApproves(Joi joi, ServerTool tool) throws Exception;
+
+    /**
+     * Approves the tool for the assistant ahead of time, or takes that back. A task of it that asks is then made, put through
+     * the approval as the user's answer would, and approved at once; she is told so when it ends, which is also how it is
+     * logged in the chat. A tool that is denied stays denied. Turning it on approves the tasks of the tool that wait now.
+     */
+    void autoApprove(Joi joi, ServerTool tool, boolean on) throws Exception;
+
+    /** The tools the user approved ahead of time for the assistant. */
+    List<ServerTool> autoApproved(Joi joi) throws Exception;
+
     /** The tasks of the assistant, the newest first. */
     List<JoiTask> tasks(Joi joi) throws Exception;
+
+    /**
+     * Calls {@code onChange} (on whatever thread made the change) when a task of the assistant changes: made, answered,
+     * started, a step of its transcript, ended. Unregister when the Tasks tab goes away.
+     */
+    Registration watch(Joi joi, Runnable onChange) throws Exception;
 
     /** The task of the uuid when it is the user's, else null. */
     JoiTask find(String uuid) throws Exception;

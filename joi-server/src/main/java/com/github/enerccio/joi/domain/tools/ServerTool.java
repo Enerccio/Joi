@@ -10,16 +10,23 @@ import java.util.Locale;
 public enum ServerTool {
 
     /** She searches the web and reads the pages it finds: a task of the stronger model. */
-    WEB_SEARCH("web_search", ToolPermission.ASK),
+    WEB_SEARCH("web_search", ToolPermission.ASK, "Search the web and read the pages found, with the stronger model"),
     /** She reads a page the user gave her: a task of the stronger model. */
-    FETCH_PAGE("fetch_page", ToolPermission.ASK);
+    FETCH_PAGE("fetch_page", ToolPermission.ASK, "Read one page the user named and answer from it, with the stronger model");
 
     private final String function;
     private final ToolPermission fallback;
+    private final String description;
 
-    ServerTool(String function, ToolPermission fallback) {
+    ServerTool(String function, ToolPermission fallback, String description) {
         this.function = function;
         this.fallback = fallback;
+        this.description = description;
+    }
+
+    /** What the tool does, in a line: sent with a task, so a client can keep a standing approval as {name, description}. */
+    public String description() {
+        return description;
     }
 
     /** The name of the function she calls. */

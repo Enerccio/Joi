@@ -1,7 +1,9 @@
 package com.github.enerccio.joi.ui.workspace.parts;
 
 import com.github.enerccio.joi.ui.JoiCssStyles;
+import com.github.enerccio.joi.domain.tools.ToolScope;
 import com.github.enerccio.joi.ui.access.AccessPanel;
+import com.github.enerccio.joi.ui.tools.ToolsPanel;
 import com.flowingcode.vaadin.addons.fontawesome.FontAwesome.Solid;
 import com.github.enerccio.joi.defaults.JoiDefaults;
 import com.github.enerccio.joi.domain.collections.TextLLMType;
@@ -118,6 +120,7 @@ public class UserSettingsPart implements WorkspacePart {
     private Span unsavedSpan;
     private TabSheet tabs;
     private final AccessPanel accessPanel = new AccessPanel();
+    private final ToolsPanel toolsPanel = new ToolsPanel(ToolScope.USER);
     /** True while {@link #refresh()} fills the fields: their changes are not the user's. */
     private boolean loading;
     private boolean changed;
@@ -153,10 +156,18 @@ public class UserSettingsPart implements WorkspacePart {
         tabs.add(loc.getValue(J_L.LABEL_PERSONALITIES), createPersonalities());
         tabs.add(loc.getValue(J_L.LABEL_MOODS), createMoods());
         Tab accessTab = tabs.add(loc.getValue(L.LABEL_ACCESS), accessPanel.create());
+        Tab toolsTab = tabs.add(loc.getValue(J_L.LABEL_TOOLS), toolsPanel.create());
         // the grids store at once, the buttons are for the forms (and stay while their changes are unsaved)
         tabs.addSelectedChangeListener(e -> {
             updateButtons();
             // devices are approved elsewhere (the link a device shows), tokens used by the API: show them as they are now
+            if (e.getSelectedTab() == toolsTab) {
+                try {
+                    toolsPanel.refresh();
+                } catch (Exception ex) {
+                    UIUtils.internalServerError(loc, ex);
+                }
+            }
             if (e.getSelectedTab() == accessTab) {
                 try {
                     accessPanel.refresh();

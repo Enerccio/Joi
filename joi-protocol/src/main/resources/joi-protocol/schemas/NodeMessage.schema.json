@@ -15,6 +15,7 @@
     "part_kept",
     "part_refused",
     "animation",
+    "log",
     "turn",
     "reasoning",
     "text",

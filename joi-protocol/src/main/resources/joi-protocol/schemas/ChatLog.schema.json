@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Enerccio/joi/protocol/v1/ChatLog.schema.json",
+  "title": "ChatLog",
+  "description": "log (since 1.6): a note of the server in her conversation, such as the user's approval of a task. Not an exchange: never given to the model, not counted as her being talked to. In the history it is a ChatEntry of the type log.",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string",
+      "description": "The message's stable id."
+    },
+    "sentAt": {
+      "type": "string",
+      "description": "When it happened (ISO 8601 date and time).",
+      "format": "date-time"
+    },
+    "kind": {
+      "type": "string",
+      "description": "What kind of note (task.approved, task.auto_approved...); a client shows the text of a kind it does not know."
+    },
+    "text": {
+      "type": "string",
+      "description": "The note, for the user."
+    }
+  },
+  "required": [
+    "id",
+    "sentAt",
+    "kind",
+    "text"
+  ]
+}

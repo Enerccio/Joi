@@ -58,6 +58,10 @@ info:
          chooses an animation to play (her `play_animation` function, which she is asked to use often): outside any
          turn's frames, while her turn runs. The node plays it once on top of what she is doing (waiting, talking) and
          goes back to that when it is over; it ignores one it does not have in the body's `.joia`.
+       - **Notes in her conversation** (since 1.6). The server sends `log` (id, time, kind, text) when something should be
+         seen in the transcript without being said to her: the user's approval of a task of hers, for one. It is not an
+         exchange: it is never given to the model and does not count as her being talked to. A node shows it or ignores
+         it; the history of the HTTP API has the same notes (`ChatEntry` of the type `log`).
        - **Tools.** The server sends `tool_call` (with its `callId`). The node checks the arguments and its own
          harness again, may send `tool_progress` and `approval` (asked, then allowed or denied), and answers with
          exactly one `tool_result`. Each frame about a call restarts its timeout; an approval that is asked waits for
@@ -124,6 +128,7 @@ channels:
       part_kept: { $ref: "#/components/messages/part_kept" }
       part_refused: { $ref: "#/components/messages/part_refused" }
       animation: { $ref: "#/components/messages/animation" }
+      log: { $ref: "#/components/messages/log" }
       reasoning: { $ref: "#/components/messages/reasoning" }
       text: { $ref: "#/components/messages/text" }
       tool: { $ref: "#/components/messages/tool" }
@@ -166,6 +171,7 @@ operations:
       - { $ref: "#/channels/node/messages/part_kept" }
       - { $ref: "#/channels/node/messages/part_refused" }
       - { $ref: "#/channels/node/messages/animation" }
+      - { $ref: "#/channels/node/messages/log" }
       - { $ref: "#/channels/node/messages/reasoning" }
       - { $ref: "#/channels/node/messages/text" }
       - { $ref: "#/channels/node/messages/tool" }
@@ -225,6 +231,10 @@ components:
       name: animation
       summary: She plays an animation now, her own choice (since 1.5)
       payload: { $ref: "#/components/schemas/animationFrame" }
+    log:
+      name: log
+      summary: A note in her conversation, not given to the model (since 1.6)
+      payload: { $ref: "#/components/schemas/logFrame" }
     reasoning:
       name: reasoning
       summary: A piece of the thinking of the model (only when asked for); ref is the turn
@@ -340,6 +350,11 @@ components:
       allOf:
         - $ref: "schemas/Frame.schema.json"
         - properties: { type: { const: animation }, data: { $ref: "schemas/PlayAnimation.schema.json" } }
+          required: [ data ]
+    logFrame:
+      allOf:
+        - $ref: "schemas/Frame.schema.json"
+        - properties: { type: { const: log }, data: { $ref: "schemas/ChatLog.schema.json" } }
           required: [ data ]
     textDeltaFrame:
       allOf:

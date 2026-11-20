@@ -13,6 +13,7 @@ import com.github.enerccio.joi.domain.collections.ChatMessageType;
 import com.github.enerccio.joi.domain.collections.JoiTaskStatus;
 import com.github.enerccio.joi.domain.model.impl.*;
 import com.github.enerccio.joi.domain.service.*;
+import com.github.enerccio.joi.domain.tools.ServerTool;
 import com.github.enerccio.joi.domain.service.AccessTokenService.Principal;
 import com.github.enerccio.joi.protocol.JoiProtocol;
 import com.github.enerccio.joi.protocol.http.*;
@@ -282,8 +283,9 @@ public class JoiApi implements DisposableBean {
         List<ChatEntry> entries = new ArrayList<>();
         for (ChatMessage message : more ? messages.subList(1, messages.size()) : messages) {
             boolean event = message.getType() == ChatMessageType.EVENT;
-            entries.add(new ChatEntry(message.getUuid(), iso(message.getSentAt()), event ? "event" : "user",
-                    event ? null : message.getInput(), event ? message.getEventKind() : null,
+            boolean note = message.getType() == ChatMessageType.LOG;
+            entries.add(new ChatEntry(message.getUuid(), iso(message.getSentAt()), note ? "log" : event ? "event" : "user",
+                    event ? null : message.getInput(), event || note ? message.getEventKind() : null,
                     StringUtils.defaultIfBlank(message.getNode(), null), StringUtils.defaultIfBlank(message.getResponse(), null)));
         }
         return new ChatHistory(entries, more);
@@ -344,6 +346,7 @@ public class JoiApi implements DisposableBean {
             }
         }
         return new TaskInfo(task.getUuid(), StringUtils.defaultString(task.getTitle()), task.getTool(),
+                ServerTool.of(task.getTool()) == null ? null : ServerTool.of(task.getTool()).description(),
                 task.getStatus().name().toLowerCase(Locale.ROOT), task.getInstructions(), task.getUrl(), task.getResult(),
                 task.getError(), iso(task.getCreation()), iso(task.getStartedAt()), iso(task.getFinishedAt()), transcript);
     }

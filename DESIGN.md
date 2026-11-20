@@ -536,7 +536,7 @@ user).
 | Entity | Table | What it is |
 |---|---|---|
 | `Joi` | `assistants` | An assistant. Her **template attributes** (`PersonaAttributes`: her name, what she calls the user, the prompts, the personality, the moods, the models of the roles, the voice, the day boundary, the pause), the wake word and today's mood are all extended content. They are the first link of the chain of a setting: a blank one falls back to the user's setting, then to `JoiDefaults` (`JoiPromptField.resolve(joi, setting, defaults)`). |
-| `ChatMessage` | `chat_messages` | One exchange, like a part of Marginalia: the input, of type **User** (what you said or typed) or **Event** (what happened), and her response with its **reasoning**, the tool calls, the model, the tokens and the timings. Columns: `sentAt` (what summaries cover), `pinned`, `privateMode`. |
+| `ChatMessage` | `chat_messages` | One exchange, like a part of Marginalia: the input, of type **User** (what you said or typed) or **Event** (what happened), and her response with its **reasoning**, the tool calls, the model, the tokens and the timings. Columns: `sentAt` (what summaries cover), `pinned`, `privateMode`. A third type, **Log**, is a **note of the system** (see Notes in the conversation). |
 | `MessagePrompt` | `message_prompts` | The prompt sent for a message, deflated, at most one per message (as in Marginalia), with the memories and summaries that were in it. |
 | `Summary` | `summaries` | A summary of a time, see Memory. |
 | `Memory` | `memories` | A fact, with its importance: `IMPORTANT` (always recalled when it matches), `MEDIUM`, `TRIVIAL` (recalled last, the first to go). Keywords, the message it came from, approved or not, private or not. |
@@ -1070,6 +1070,20 @@ UI — nothing is deleted):
   container with the node's profile (see UI → Bodies → Export).
 - Users bring their own avatars, from wherever they get them.
 
+### Notes in the conversation
+
+A `ChatMessage` of the type `LOG` is a note of the system for the user, such as "approved automatically": what should be
+seen in the transcript but is not an exchange. `ChatService.log(joi, kind, text)` writes it (the input is the text,
+`eventKind` the kind, e.g. `task.approved`, `task.auto_approved`, `task.denied`, `task.cancelled`,
+`task.standing_approval`) and tells the clients: the watchers of the conversation (the Chats tab, a note card, live) and
+the nodes (`log` frame, `ChatLog`, protocol 1.6); the history of the API has it as a `ChatEntry` of the type `log`, so a
+client that missed the frame gets it by reading the history again.
+- **Never given to the model:** the prompt reads `findLatestExchanges`, which leaves notes out. What she must know is an
+  event, not a note.
+- **Not an exchange:** `hasAny`, `findLastSentAt` (last chatted) and `findBetween` (summaries) leave them out, so a note
+  does not make her "talked to", move the last-chatted time or end up in a summary.
+- The user can delete a note like any message.
+
 ### Events (what happens around Joi)
 
 Everything that changes around her reaches her as an **event**, through one event system — not as edits hidden in a
@@ -1148,6 +1162,7 @@ ASK card, trigger a canned prompt or tool, toggle outfit parts. The node reports
 count, dials); bindings live on the server (editable in the Vaadin UI, per node) and the node renders key images from
 state (current body / mood thumbnails, a lit "approve" key while a card is pending). Approvals from the deck count as
 local, physical approvals — useful for the harness.
+
 
 ## Node
 

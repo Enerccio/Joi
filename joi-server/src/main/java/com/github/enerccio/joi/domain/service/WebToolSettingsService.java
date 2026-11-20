@@ -6,6 +6,9 @@ import com.github.enerccio.joi.domain.web.PageConfig;
 import com.github.enerccio.joi.domain.web.SearchSource;
 import com.github.enerccio.joi.domain.web.WebSearchConfig;
 
+import com.github.enerccio.joi.domain.web.SearchResult;
+import com.github.enerccio.joi.domain.web.WebException;
+
 import java.util.Map;
 
 /**
@@ -41,6 +44,12 @@ public interface WebToolSettingsService {
 
     Search search(Joi joi) throws Exception;
 
+    /** The search options kept in this place only ({@code joi} only for {@link ToolScope#JOI}); the defaults, with {@code from} null, when it has none. */
+    Search searchIn(ToolScope scope, Joi joi) throws Exception;
+
+    /** As {@link #searchIn}, for the page options. */
+    Pages pagesIn(ToolScope scope, Joi joi) throws Exception;
+
     Pages pages(Joi joi) throws Exception;
 
     /**
@@ -52,4 +61,23 @@ public interface WebToolSettingsService {
 
     /** As {@link #saveSearch}, for the page options. */
     void savePages(ToolScope scope, Joi joi, PageConfig config, Map<String, String> secrets) throws Exception;
+
+    /** Takes the search options (and their secrets) out of the place, so the next place of the chain gives them; its permission stays. */
+    void clearSearch(ToolScope scope, Joi joi) throws Exception;
+
+    /** As {@link #clearSearch}, for the page options. */
+    void clearPages(ToolScope scope, Joi joi) throws Exception;
+
+    /**
+     * Searches once with a source as it is being set up (not saved yet), for the settings page's test. A blank key or proxy
+     * login is the one saved in the place for it.
+     *
+     * @throws WebException when the search fails: the message is for the user
+     */
+    SearchResult testSearch(ToolScope scope, Joi joi, WebSearchConfig config, SearchSource source, String typedKey,
+                            String typedProxyAuth, String query) throws Exception, WebException;
+
+    /** Reads one page with the page options as they are being set up; the text it gives. A blank token or proxy login is the saved one. */
+    String testPage(ToolScope scope, Joi joi, PageConfig config, String typedToken, String typedProxyAuth, String url)
+            throws Exception, WebException;
 }

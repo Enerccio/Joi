@@ -21,6 +21,8 @@ import com.github.enerccio.marginalia.domain.service.InferenceService.RoundUsage
 import com.github.enerccio.marginalia.domain.service.function.FunctionSet;
 import com.github.enerccio.marginalia.domain.service.impl.generation.dto.LLMChatMessage;
 import com.github.enerccio.marginalia.ui.components.ThreadCopyRequestAttributes.InRequestScope;
+import com.github.enerccio.joi.domain.collections.ChatMessageType;
+import com.github.enerccio.joi.domain.service.ChatMessageService;
 import com.github.enerccio.marginalia.utils.AppClock;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
@@ -56,6 +58,9 @@ public class ChatServiceImpl implements ChatService, InitializingBean, Disposabl
     private PersonaService personaService;
 
     @Autowired
+    private ChatMessageService chatMessageService;
+
+    @Autowired
     private AIService aiService;
 
     @Autowired
@@ -68,6 +73,7 @@ public class ChatServiceImpl implements ChatService, InitializingBean, Disposabl
     /** The end of the last turn of each assistant: the next one starts after it. */
     private final Map<Long, CompletableFuture<Void>> lastTurns = new HashMap<>();
     private final Map<Long, List<Feed>> feeds = new ConcurrentHashMap<>();
+    private final List<java.util.function.Consumer<ChatMessage>> logWatchers = new CopyOnWriteArrayList<>();
     private final Random random = new Random();
     private ExecutorService executor;
 
@@ -110,6 +116,32 @@ public class ChatServiceImpl implements ChatService, InitializingBean, Disposabl
         List<Feed> list = feeds.computeIfAbsent(joi.getId(), _ -> new CopyOnWriteArrayList<>());
         list.add(feed);
         return () -> list.remove(feed);
+    }
+
+    @Override
+    public ChatMessage log(Joi joi, String kind, String text) throws Exception {
+        ChatMessage message = new ChatMessage();
+        message.setJoi(joi);
+        message.setType(ChatMessageType.LOG);
+        message.setSentAt(AppClock.now());
+        message.setEventKind(kind);
+        message.setInput(text);
+        ChatMessage saved = chatMessageService.save(message);
+        tell(joi.getId(), feed -> feed.logged(saved));
+        for (java.util.function.Consumer<ChatMessage> watcher : logWatchers) {
+            try {
+                watcher.accept(saved);
+            } catch (Exception e) {
+                log.debug("A watcher of the notes failed", e);
+            }
+        }
+        return saved;
+    }
+
+    @Override
+    public Registration watchLogs(java.util.function.Consumer<ChatMessage> watcher) {
+        logWatchers.add(watcher);
+        return () -> logWatchers.remove(watcher);
     }
 
     @Override

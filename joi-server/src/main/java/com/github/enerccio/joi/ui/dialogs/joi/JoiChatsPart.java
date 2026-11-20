@@ -179,6 +179,11 @@ public class JoiChatsPart implements JoiDialogPart {
             public void voiced(ChatMessage message) {
                 ui.access(() -> refresh(message));
             }
+
+            @Override
+            public void logged(ChatMessage message) {
+                ui.access(() -> answered(null, message));
+            }
         });
     }
 
@@ -203,7 +208,7 @@ public class JoiChatsPart implements JoiDialogPart {
 
     /** The turn ended: its waiting card goes, and the message it stored (none when it was stopped) takes its place. */
     private void answered(String turn, ChatMessage message) {
-        Waiting done = waiting.remove(turn);
+        Waiting done = turn == null ? null : waiting.remove(turn);
         if (done != null) {
             panel.remove(done.card());
         }
@@ -463,11 +468,12 @@ public class JoiChatsPart implements JoiDialogPart {
         card.addClassName(JoiCssStyles.CHAT_MESSAGE);
 
         boolean event = message.getType() == com.github.enerccio.joi.domain.collections.ChatMessageType.EVENT;
+        boolean note = message.getType() == com.github.enerccio.joi.domain.collections.ChatMessageType.LOG;
         if (StringUtils.isNotBlank(message.getInput()) || event) {
             Div input = new Div();
-            input.addClassNames(JoiCssStyles.CHAT_INPUT, event ? JoiCssStyles.CHAT_INPUT_EVENT : JoiCssStyles.CHAT_INPUT_USER);
-            if (event) {
-                Span kind = new Span(loc.getValue(J_L.LABEL_EVENT)
+            input.addClassNames(JoiCssStyles.CHAT_INPUT, note ? JoiCssStyles.CHAT_INPUT_LOG : event ? JoiCssStyles.CHAT_INPUT_EVENT : JoiCssStyles.CHAT_INPUT_USER);
+            if (event || note) {
+                Span kind = new Span(loc.getValue(note ? J_L.LABEL_CHAT_NOTE : J_L.LABEL_EVENT)
                         + (StringUtils.isBlank(message.getEventKind()) ? "" : " · " + message.getEventKind()));
                 kind.addClassName(JoiCssStyles.CHAT_EVENT_KIND);
                 input.add(kind);

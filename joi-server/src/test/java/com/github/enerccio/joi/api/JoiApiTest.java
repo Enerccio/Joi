@@ -64,6 +64,8 @@ class JoiApiTest extends PlatformTestBase {
     private TtsService ttsService;
     @Autowired
     private WebTaskService webTaskService;
+    @Autowired
+    private com.github.enerccio.joi.domain.chat.ChatService chatService;
 
     private final JsonSchemaFactory schemas = JsonSchemaFactory.getInstance(SpecVersion.VersionFlag.V202012,
             builder -> builder.schemaMappers(m -> m.mapPrefix(BASE, "classpath:joi-protocol/schemas/")));
@@ -526,6 +528,22 @@ class JoiApiTest extends PlatformTestBase {
         assertThat(queuedEventService.findWaiting(joi)).hasSize(1);
     }
 
+    @Test
+    void aNoteIsInTheHistoryAsALogEntry() throws Exception {
+        useModel();
+        llm.reply("Hi.");
+        call("POST", "/api/v1/jois/" + joi.getUuid() + "/chat", "Bearer " + token, "{\"text\": \"Hi\"}");
+        chatService.log(joi, "task.approved", "Approved by the user: web_search \"x\"");
+        Answer history = get("/api/v1/jois/" + joi.getUuid() + "/chat");
+        valid("ChatHistory", history.body);
+        JsonArray messages = history.json().getAsJsonArray("messages");
+        JsonObject note = messages.get(messages.size() - 1).getAsJsonObject();
+        assertThat(note.get("type").getAsString()).isEqualTo("log");
+        assertThat(note.get("event").getAsString()).isEqualTo("task.approved");
+        assertThat(note.get("text").getAsString()).contains("Approved by the user");
+        assertThat(note.get("reply").isJsonNull()).isTrue();
+    }
+
     // ----------------------------------------------------------------------------------------------------------------
     // her tasks
     // ----------------------------------------------------------------------------------------------------------------
@@ -553,6 +571,7 @@ class JoiApiTest extends PlatformTestBase {
         assertThat(first.get("id").getAsString()).isEqualTo(task.getUuid());
         assertThat(first.get("status").getAsString()).isEqualTo("waiting");
         assertThat(first.get("tool").getAsString()).isEqualTo("fetch_page");
+        assertThat(first.get("toolDescription").getAsString()).isEqualTo(ServerTool.FETCH_PAGE.description());
         assertThat(first.get("url").getAsString()).isEqualTo("http://127.0.0.1:1/page");
         assertThat(first.get("steps").isJsonNull()).isTrue();
 

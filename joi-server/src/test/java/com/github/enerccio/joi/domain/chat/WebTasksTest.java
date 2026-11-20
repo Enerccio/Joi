@@ -8,6 +8,9 @@ import com.github.enerccio.joi.domain.model.impl.Joi;
 import com.github.enerccio.joi.domain.model.impl.JoiTask;
 import com.github.enerccio.joi.domain.model.impl.QueuedEvent;
 import com.github.enerccio.joi.domain.model.impl.ToolMetadata;
+import com.github.enerccio.joi.domain.collections.ChatMessageType;
+import com.github.enerccio.joi.domain.model.impl.ChatMessage;
+import com.github.enerccio.joi.domain.service.ChatMessageService;
 import com.github.enerccio.joi.domain.service.JoiService;
 import com.github.enerccio.joi.domain.service.JoiTaskMessageService;
 import com.github.enerccio.joi.domain.service.QueuedEventService;
@@ -26,6 +29,7 @@ import com.github.enerccio.joi.domain.web.WebSearchConfig;
 import com.github.enerccio.marginalia.domain.security.model.User;
 import com.github.enerccio.marginalia.test.PlatformTestBase;
 import com.github.enerccio.marginalia.test.llm.MockLLMResponse;
+import com.google.gson.JsonObject;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -64,6 +68,8 @@ class WebTasksTest extends PlatformTestBase {
     private JoiTaskMessageService transcripts;
     @Autowired
     private QueuedEventService queuedEvents;
+    @Autowired
+    private ChatMessageService chatMessages;
 
     private Joi joi;
     private User me;
@@ -218,6 +224,49 @@ class WebTasksTest extends PlatformTestBase {
             assertThat(await(() -> waiting().isEmpty() ? null : waiting(), "the event")).hasSize(1);
             // and an answered task is not answered twice
             assertThatThrownBy(() -> tasks.approve(done)).isInstanceOf(IllegalStateException.class);
+        }
+    }
+
+    @Test
+    void aStandingApprovalApprovesWhatAsksAndIsToldToHerInTheEvent() throws Exception {
+        try (FakeWebSupport.Web web = FakeWebSupport.start(FakeWebSupport.json(RESULTS))) {
+            searchIn(config(0, searxng("home", web.url())));
+            // one that waits now is approved with it; the tool's own approval is kept as its name and description
+            llm.enqueue(MockLLMResponse.toolCall("web_search", "{\"question\":\"" + QUESTION + "\"}"), MockLLMResponse.text("Asked."));
+            chat("Look it up");
+            JoiTask waiting = newest();
+            assertThat(waiting.getStatus()).isEqualTo(JoiTaskStatus.WAITING);
+            assertThat(tasks.autoApproved(joi)).isEmpty();
+
+            llm.enqueue(MockLLMResponse.text("Canberra."));
+            tasks.autoApprove(joi, ServerTool.WEB_SEARCH, true);
+            assertThat(tasks.autoApproved(joi)).containsExactly(ServerTool.WEB_SEARCH);
+            JsonObject kept = metadataService.find(ToolScope.JOI, joi, ServerTool.WEB_SEARCH).autoApprove();
+            assertThat(kept.get("name").getAsString()).isEqualTo("web_search");
+            assertThat(kept.get("description").getAsString()).isEqualTo(ServerTool.WEB_SEARCH.description());
+            assertThat(await(JoiTaskStatus.DONE).isAutoApproved()).isTrue();
+            // the approval is a note in the conversation, for the user: she is not told it, and the model never sees it
+            assertThat(await(() -> waiting().isEmpty() ? null : waiting(), "the event").getFirst().getText()).doesNotContain("Approved automatically");
+            List<ChatMessage> notes = chatMessages.findLatest(joi, 50).stream().filter(m -> m.getType() == ChatMessageType.LOG).toList();
+            assertThat(notes).extracting(ChatMessage::getEventKind).contains("task.standing_approval", "task.auto_approved");
+            assertThat(notes).extracting(ChatMessage::getInput).anyMatch(text -> text.contains("Approved automatically") && text.contains(QUESTION));
+
+            // a new one goes through the approval too, and runs without asking; the other tool still asks
+            llm.enqueue(MockLLMResponse.toolCall("web_search", "{\"question\":\"second\"}"), MockLLMResponse.text("On it."), MockLLMResponse.text("Again."));
+            chat("And another");
+            assertThat(llm.getCompletionRequests().stream().map(r -> String.valueOf(r.getLastMessage().content())))
+                    .anyMatch(text -> text.startsWith("Started"));
+            assertThat(tasks.submit(joi, ServerTool.FETCH_PAGE, "x", "http://127.0.0.1:1/x", null).getStatus()).isEqualTo(JoiTaskStatus.WAITING);
+
+            // taken back: asks again; and a deny of the user's or administrator's still wins over it
+            tasks.autoApprove(joi, ServerTool.WEB_SEARCH, false);
+            assertThat(tasks.autoApproved(joi)).isEmpty();
+            for (var request : llm.getCompletionRequests()) {
+                assertThat(request.getRawBody()).doesNotContain("Approved automatically").doesNotContain("standing_approval");
+            }
+            tasks.autoApprove(joi, ServerTool.WEB_SEARCH, true);
+            permission(ServerTool.WEB_SEARCH, ToolPermission.DENY);
+            assertThatThrownBy(() -> tasks.submit(joi, ServerTool.WEB_SEARCH, "third", null, null)).isInstanceOf(WebTaskService.NotAllowedException.class);
         }
     }
 

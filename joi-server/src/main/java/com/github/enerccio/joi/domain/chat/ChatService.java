@@ -109,10 +109,27 @@ public interface ChatService {
         default void finished(String turn, ChatMessage message) {
         }
 
+        /** A note of the system was written into the conversation ({@link #log}); it is not an exchange. */
+        default void logged(ChatMessage message) {
+        }
+
         /** The message got its clip: her reply spoken, see {@code ChatMessage.clipResourceId}. */
         default void voiced(ChatMessage message) {
         }
     }
+
+    /**
+     * Writes a note into the assistant's conversation: stored as a message of the type {@code LOG}, shown by the
+     * transcript, sent to the clients (the watchers of the conversation, a node as the {@code log} frame), and never given
+     * to the model. For what the user should see happened, such as an approval; not for what she must know (that is an
+     * event).
+     *
+     * @param kind a short name of the kind of note ({@code task.approved}...)
+     */
+    ChatMessage log(Joi joi, String kind, String text) throws Exception;
+
+    /** Calls the watcher with every note written for any assistant ({@link #log}); the nodes use it. */
+    Registration watchLogs(java.util.function.Consumer<ChatMessage> watcher);
 
     /** Tells the watchers of the assistant's conversation that the message got its clip. */
     void voiced(ChatMessage message);

@@ -25,6 +25,8 @@ public final class JoiCssStyles {
     public static final String CHAT_INPUT = "chat-input";
     public static final String CHAT_INPUT_USER = "chat-input-user";
     public static final String CHAT_INPUT_EVENT = "chat-input-event";
+    /** A note of the system in the transcript: not an exchange, not for the model. */
+    public static final String CHAT_INPUT_LOG = "chat-input-log";
     /** An exchange asked for, her reply still to come. */
     public static final String CHAT_WAITING = "chat-waiting";
     /** The kind of an event, above its text. */
@@ -91,4 +93,17 @@ public final class JoiCssStyles {
     public static final String ANIMATION_STEP = "animation-step";
     /** On the step of the strip playing now. */
     public static final String ANIMATION_STEP_PLAYING = "playing";
+
+    /** Administration and User Settings → Tools: the column of the permissions and the web options (scrolls). */
+    public static final String TOOLS_PANEL = "tools-panel";
+    /** The rows of the permissions of the tools. */
+    public static final String TOOL_PERMISSIONS = "tool-permissions";
+    /** The grid of the search sources. */
+    public static final String WEB_SOURCES = "web-sources";
+    /** What a test of a source or a page found, or why it failed. */
+    public static final String TEST_RESULT = "test-result";
+    /** The Tasks tab: what the selected task asked, found and did, under the grid. */
+    public static final String TASK_DETAILS = "task-details";
+    /** A message of a task's transcript. */
+    public static final String TASK_STEP = "task-step";
 }
