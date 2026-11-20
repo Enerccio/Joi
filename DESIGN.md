@@ -936,6 +936,50 @@ local, physical approvals — useful for the harness.
 
 ## Node
 
+### The first node (JavaFX)
+
+The first real node is a desktop app in JavaFX (`joi-node`). What it does, in order:
+
+1. **Login** to the server: a token, or OAuth (the device grant: a code the user approves in the server's UI), or
+   none on a development server. Its id, name, the server and the assistant chosen last are kept in
+   `~/.joi-client/node.json`, the credentials in `credentials.json` (readable by the user alone).
+2. **Her pick:** the list of the user's assistants, unless the one chosen last still exists; then she is loaded.
+3. **A loading screen** while her body's `.joim` and `.joia` download (cached by SHA-256 in `~/.joi-client/cache`,
+   checked before they are kept).
+4. **Connected**, the server looks at whether she has ever talked (any chat message; summaries only come from
+   messages):
+   - **Never: her first waking up.** The node shows her **sleeping** (the animation chosen in her dialog, Animations
+     tab), and the server starts her first turn at once: the synthetic event `first_boot`, from its own template
+     (`FIRST_BOOT_EVENT`), where she reacts to being woken for the first time, tells the user what she can do and
+     says what she thinks of her body. Her words (which can be long) and her voice are rendered while she sleeps and
+     held back; when the turn is done she plays **waking up**, and then speaks. Holding back the words until an
+     animation is over should work for every animation. Then she waits for the user (text for now).
+   - **Before: the user is back.** The synthetic event `connected`, its own template (`CONNECTED_EVENT`: a greeting
+     that fits how long they were away).
+5. **The chat** beside her body: text chat with her voice played back (no microphone yet). Her body is a 3D view next
+   to the chat that **pops out** into a window of its own and goes **fullscreen** onto the Looking Glass.
+
+While she waits she plays one of her **idle** animations (another each time), while she speaks one of her **talking**
+ones; falling asleep and asleep come from her dialog too (`AvatarDirector`).
+
+**Built (stub):** `joi-node` holds the server client (`ServerClient`: login, device grant, her, her body, the
+downloads), the node WebSocket (`NodeSocket`), what her body plays in each state (`AvatarDirector`, tested), the
+settings (`NodeSettings`), and `JoiNodeCli`, the node in a terminal (text chat, the animations printed). The JavaFX
+app (`node/fx`: `JoiNodeApp` with the screens above, `AvatarPane`, `SpeechPlayer`) builds only with `-Pfx`, which
+downloads OpenJFX; its avatar pane shows her state and the animation she would play, no renderer yet.
+
+**Open:**
+- **The renderer's host.** JavaFX's WebView has no WebGL, so three.js can't run in it. The choices: JCEF (Chromium in
+  the app, a large dependency), or the node serving the renderer page on localhost and showing it in a browser window
+  of its own (Chrome, which is also what drives the Looking Glass through WebXR; the page talks to the node over a
+  local WebSocket, as for the mobile companion).
+- **Text on the Looking Glass Go without blur:** to find out (text drawn on a plane at the focal depth, or kept off
+  the hologram).
+- **Two modes for an animation she plays from a tool call:** *staggered* (the animation first, then her voice) or
+  *immediate* (her voice with the animation).
+- **Talking animations that match her voice:** ideally lip sync and gestures that follow the speech (visemes from the
+  audio).
+
 ### Capability manifest
 
 Sent on connect: OS and architecture, microphone (and permission), screen capture, accessibility, HUD available,
@@ -958,7 +1002,7 @@ enforces its harness again.
 
 ### Harness (Claude Code style)
 
-- A local policy file (e.g. `~/.joi/policy.json`) the server cannot change.
+- A local policy file (e.g. `~/.joi-client/policy.json`) the server cannot change.
 - Paths resolved with `toRealPath()` before checking against allowed roots and denied paths (`~/.ssh`, `~/.aws`,
   browser profiles…) — no `../` or symlink escapes.
 - **ALLOW** (silent: reads inside allowed roots, the active window title, a screenshot you asked for), **ASK** (a card
@@ -1246,6 +1290,9 @@ with avatars whose shaders match the installed Poiyomi.
 5. Deeper OS actions, long-term memory, MCP, proactive events.
 
 ## Open decisions
+
+- **Where the node's renderer runs:** JavaFX's WebView has no WebGL; JCEF in the app, or a browser window of
+  its own fed by the node over a local WebSocket (see Node → The first node).
 
 - **Which binary JSON** for the export container's JSONB sections (CBOR, BSON, Smile...): one with a streaming
   reader and writer in Java and in the renderer's language.

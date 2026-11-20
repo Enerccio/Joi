@@ -22,8 +22,8 @@ The node protocol): `api/` (`JoiApiServlet`, `JoiApi`), `domain/chat/ChatService
 
 ## Build
 
-Maven reactor at the root (`joi-parent`): `marginalia/marginalia/platform` (from the submodule), `joi-protocol` and
-`joi-server`.
+Maven reactor at the root (`joi-parent`): `marginalia/marginalia/platform` (from the submodule), `joi-protocol`,
+`joi-server` and `joi-node`.
 JDK 25+, Maven 3.9. Clone with `git clone --recurse-submodules` (or `git submodule update --init`).
 
 ```bash
@@ -32,6 +32,8 @@ mvn -N install && mvn install -DskipTests -pl joi-protocol   # the parent POM an
 mvn test -pl joi-server -Dtest=JoiContextTest                 # joi-server's tests (the classes you touched)
 mvn jetty:run -pl joi-server                                  # dev mode on http://localhost:8080, data in ~/.joi (JOI_DATA)
 mvn package -pl joi-server -Pproduction                       # the WAR with the production frontend bundle
+mvn test -pl joi-node                                         # the node's core and its terminal client (JoiNodeCli)
+mvn -Pfx javafx:run -pl joi-node                              # the JavaFX node (downloads OpenJFX: ask first)
 ```
 
 `-pl joi-server -am` also builds the platform first (its tests are skipped by `-Dtest=...` with
@@ -94,6 +96,10 @@ with the code.
   SillyTavern macro (`personality`, `persona`, `description`, `scenario`...): the platform swallows it. Text areas for
   prompts expand (`ui/widgets/PromptAreas`, the platform's `ResizableTextArea`). UI texts in `loc/J_L` + `JoiLocalizationBundle*`, styles in `frontend/styles/joi-styles.css` + `JoiCssStyles`. Tests
   extend the platform's `PlatformTestBase` and start `src/test/resources/META-INF/spring/test-application-config.xml`.
+- `joi-node/` — the reference node (`com.github.enerccio.joi.node`): `ServerClient` (HTTP API, device grant, her
+  body's files cached by hash), `NodeSocket` (the node WebSocket), `AvatarDirector` (what her body plays: idle,
+  talking, asleep through her first turn, waking up), `NodeSettings` (`~/.joi-client`, `JOI_CLIENT`), `JoiNodeCli`
+  (the node in a terminal). The JavaFX app is `node/fx`, compiled only with `-Pfx` (OpenJFX is not downloaded).
 - `tools/upgrade_dev_db.py` — upgrades a dev database to the current V1 without losing its data (see above).
 - `MARGINALIA.md` — what Joi uses from Marginalia's platform and what it provides itself.
 - `DESIGN.md` — the design (architecture, server, node, avatar, spikes and their results, roadmap, open decisions).

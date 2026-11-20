@@ -1,0 +1,101 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <!-- The reference node (see DESIGN.md → Node): the server client (login, OAuth device grant, the assistants, her
+       body's files cached by hash), the node WebSocket, what her body plays in each state, and a terminal client.
+       The JavaFX app (package fx) builds only with -Pfx: it needs OpenJFX, which is not downloaded yet. -->
+  <parent>
+    <groupId>io.github.enerccio</groupId>
+    <artifactId>joi-parent</artifactId>
+    <version>0.1.0-SNAPSHOT</version>
+  </parent>
+
+  <artifactId>joi-node</artifactId>
+  <packaging>jar</packaging>
+  <name>joi-node</name>
+
+  <properties>
+    <javafx.version>25</javafx.version>
+    <fx.excludes>com/github/enerccio/joi/node/fx/**</fx.excludes>
+  </properties>
+
+  <dependencies>
+    <dependency>
+      <groupId>io.github.enerccio</groupId>
+      <artifactId>joi-protocol</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+
+    <dependency>
+      <groupId>org.junit.jupiter</groupId>
+      <artifactId>junit-jupiter</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.assertj</groupId>
+      <artifactId>assertj-core</artifactId>
+      <version>3.27.3</version>
+      <scope>test</scope>
+    </dependency>
+  </dependencies>
+
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-compiler-plugin</artifactId>
+        <version>3.15.0</version>
+        <configuration>
+          <release>${java.version}</release>
+          <encoding>UTF-8</encoding>
+          <parameters>true</parameters>
+          <excludes>
+            <exclude>${fx.excludes}</exclude>
+          </excludes>
+        </configuration>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-surefire-plugin</artifactId>
+        <version>3.5.4</version>
+      </plugin>
+    </plugins>
+  </build>
+
+  <profiles>
+    <!-- The JavaFX app: mvn -Pfx javafx:run -pl joi-node (downloads OpenJFX the first time) -->
+    <profile>
+      <id>fx</id>
+      <properties>
+        <fx.excludes>none</fx.excludes>
+      </properties>
+      <dependencies>
+        <dependency>
+          <groupId>org.openjfx</groupId>
+          <artifactId>javafx-controls</artifactId>
+          <version>${javafx.version}</version>
+        </dependency>
+        <dependency>
+          <groupId>org.openjfx</groupId>
+          <artifactId>javafx-media</artifactId>
+          <version>${javafx.version}</version>
+        </dependency>
+      </dependencies>
+      <build>
+        <plugins>
+          <plugin>
+            <groupId>org.openjfx</groupId>
+            <artifactId>javafx-maven-plugin</artifactId>
+            <version>0.0.8</version>
+            <configuration>
+              <mainClass>com.github.enerccio.joi.node.fx.JoiNodeApp</mainClass>
+            </configuration>
+          </plugin>
+        </plugins>
+      </build>
+    </profile>
+  </profiles>
+</project>
