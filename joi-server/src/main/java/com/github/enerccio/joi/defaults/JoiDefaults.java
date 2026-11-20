@@ -168,6 +168,36 @@ A fact is worth remembering when it will still be true and useful in a week: who
         return description == null || description.isBlank() ? text : text + " How you look now: " + description.strip();
     }
 
+    /** A new body of hers: its name and what it is (blank for nothing known). */
+    public String eventBodyAdded(String body, String description) {
+        String text = "A new body is yours now: %s.".formatted(body);
+        return description == null || description.isBlank() ? text : text + " " + description.strip();
+    }
+
+    /** New outfits of one of her bodies: the body's name and each outfit's name and description (blank for none). */
+    public String eventOutfitsAdded(String body, boolean active, List<String> names, List<String> descriptions) {
+        StringBuilder text = new StringBuilder(names.size() == 1 ? "A new outfit for your body %s: ".formatted(body)
+                : "New outfits for your body %s: ".formatted(body));
+        for (int i = 0; i < names.size(); i++) {
+            text.append(i == 0 ? "" : "; ").append('"').append(names.get(i)).append('"');
+            String description = descriptions.get(i);
+            if (description != null && !description.isBlank()) {
+                text.append(" (").append(description.strip()).append(')');
+            }
+        }
+        text.append('.');
+        if (active) {
+            text.append(" You can put it on with set_outfit.");
+        }
+        return text.toString();
+    }
+
+    /** The user put an outfit on her: its name, and how she looks now (blank for not described). */
+    public String eventOutfitChanged(String outfit, String description) {
+        String text = "You were put into the outfit \"%s\".".formatted(outfit);
+        return description == null || description.isBlank() ? text : text + " How you look now: " + description.strip();
+    }
+
     // ----------------------------------------------------------------------------------------------------------------
     // the self-image of a body: a multimodal model describes it from snapshots ({@code BodySelfImageService})
     // ----------------------------------------------------------------------------------------------------------------
@@ -266,9 +296,10 @@ The state marked "default" is her base state, how she is in the full renders; he
     /** The section of her system prompt about the body she is in ({@code BodyTemplateData}, the master's {@code {{#body}}}). */
     public String bodyPrompt() {
         return """
-You are in your body "{{bodyName}}".{{#if appearance}}
+You are in your body "{{bodyName}}".{{#outfit}} You wear the outfit "{{.}}".{{/outfit}}{{#if appearance}}
 {{appearance}}{{else}} Nobody has described how you look in it yet.{{/if}}{{#expressions}}
-Expressions your face can show: {{.}}.{{/expressions}}{{#parts}}
+Expressions your face can show: {{.}}.{{/expressions}}{{#if outfits}}
+{{#if outfit}}Your other outfits{{else}}Your outfits{{/if}}: {{outfits}}.{{/if}}{{#parts}}
 Parts you can switch: {{.}}.{{/parts}}{{#otherBodies}}
 Your other bodies: {{.}}.{{/otherBodies}}
 """;

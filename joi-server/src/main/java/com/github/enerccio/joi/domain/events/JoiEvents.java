@@ -30,6 +30,15 @@ public final class JoiEvents {
      */
     public static final String PART_SWITCHED = "body.part_switched";
 
+    /**
+     * A new body or new outfits became hers (payload: {@code bodies}, the uuids of the new bodies; {@code outfits}, the
+     * ids of the new outfits). Told once, when the user is done editing; what is new while one waits is added to it.
+     */
+    public static final String BODY_ADDED = "body.added";
+
+    /** The user put an outfit on her (payload: {@code to}, the uuid of the body; {@code outfit}, the outfit's id; null for none). */
+    public static final String OUTFIT_CHANGED = "body.outfit_changed";
+
     private JoiEvents() {
     }
 }

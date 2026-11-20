@@ -5,6 +5,7 @@ import com.github.enerccio.joi.domain.bodies.Appearance;
 import com.github.enerccio.joi.domain.bodies.BodyState;
 import com.github.enerccio.joi.domain.bodies.DescribedPart;
 import com.github.enerccio.joi.domain.bodies.ModelCapabilities;
+import com.github.enerccio.joi.domain.bodies.Outfit;
 import com.github.enerccio.joi.domain.bodies.ToggleTree;
 import com.github.enerccio.joi.domain.events.JoiEvents;
 import com.github.enerccio.joi.domain.model.impl.AnimationPack;
@@ -42,6 +43,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 
 public class BodyServiceImpl extends ExtendableServiceImpl<Body, BodyRepository> implements BodyService {
 
@@ -170,8 +172,19 @@ public class BodyServiceImpl extends ExtendableServiceImpl<Body, BodyRepository>
     @Override
     @CommonTxReadOnly
     public String appearance(Body body) throws Exception {
-        Model model = body.getModel() == null ? null : modelService.find(body.getModel().getId());
-        return model == null || model.isDeleted() ? null : Appearance.of(model, BodyState.toggles(model, body.partStateMap()));
+        // the outfits and the state are the stored ones, whatever the caller holds
+        Body stored = body.getId() == null ? body : find(body.getId());
+        Model model = stored.getModel() == null ? null : modelService.find(stored.getModel().getId());
+        if (model == null || model.isDeleted()) {
+            return null;
+        }
+        Outfit outfit = currentOutfit(stored, model);
+        if (outfit != null && StringUtils.isNotBlank(outfit.description())) {
+            // an outfit is described as a whole: the model's description, what never changes, and what she wears
+            return StringUtils.isBlank(model.getAppearance()) ? outfit.description().strip()
+                    : model.getAppearance().strip() + " " + outfit.description().strip();
+        }
+        return Appearance.of(model, BodyState.toggles(model, stored.partStateMap()));
     }
 
     /** The body's full model, null for none or a deleted one. */
@@ -269,6 +282,8 @@ public class BodyServiceImpl extends ExtendableServiceImpl<Body, BodyRepository>
         DescribedPart.State before = BodyState.stateOf(model, part, states);
         ToggleTree tree = ToggleTree.of(model, capabilities);
         Map<String, Boolean> seenBefore = tree.effective(BodyState.toggles(model, states));
+        // what an outfit set for it is what it is switched to now
+        part.toggles().forEach(toggle -> states.remove(BodyState.OUTFIT + toggle.id()));
         if (part.isDefault(state)) {
             states.remove(part.id());
         } else {
@@ -384,7 +399,12 @@ public class BodyServiceImpl extends ExtendableServiceImpl<Body, BodyRepository>
             }
         }
         List<String> others = bodies.stream().filter(body -> !body.isActive()).map(this::name).sorted(String.CASE_INSENSITIVE_ORDER).toList();
+        Outfit wearing = model == null ? null : currentOutfit(active, model);
+        List<String> outfits = active.outfitList().stream().filter(outfit -> wearing == null || !outfit.id().equals(wearing.id()))
+                .map(Outfit::name).toList();
         BodyTemplateData data = new BodyTemplateData();
+        data.setOutfit(wearing == null ? null : wearing.name());
+        data.setOutfits(outfits.isEmpty() ? null : String.join(", ", outfits));
         data.setBodyName(name(active));
         data.setAppearance(StringUtils.defaultIfBlank(StringUtils.strip(appearance(active)), null));
         data.setExpressions(expressions.isEmpty() ? null : String.join(", ", expressions));
@@ -401,6 +421,257 @@ public class BodyServiceImpl extends ExtendableServiceImpl<Body, BodyRepository>
 
     private String name(Body body) {
         return StringUtils.defaultIfBlank(body.getName(), "unnamed");
+    }
+
+    // ----------------------------------------------------------------------------------------------------------------
+    // outfits
+    // ----------------------------------------------------------------------------------------------------------------
+
+    @Override
+    @CommonTxReadOnly
+    public List<Outfit> outfits(Body body) throws Exception {
+        return find(body.getId()).outfitList();
+    }
+
+    @Override
+    @CommonTxReadOnly
+    public Outfit currentOutfit(Body body) throws Exception {
+        Body stored = find(body.getId());
+        Model model = model(stored);
+        return model == null ? null : currentOutfit(stored, model);
+    }
+
+    /** The outfit the toggles of the body's model are in the state of, null for none. */
+    private Outfit currentOutfit(Body body, Model model) {
+        ModelCapabilities capabilities = ModelCapabilities.fromJson(model.getCapabilities());
+        Map<String, Boolean> state = BodyState.toggles(model, body.partStateMap());
+        return body.outfitList().stream().filter(outfit -> outfit.matches(model, capabilities, state)).findFirst().orElse(null);
+    }
+
+    private static Outfit outfitByName(List<Outfit> outfits, String name) {
+        return outfits.stream().filter(outfit -> outfit.name().equalsIgnoreCase(StringUtils.strip(name))).findFirst().orElse(null);
+    }
+
+    @Override
+    @CommonTx
+    public Outfit addOutfit(Body body, String name, String description, Map<String, Boolean> toggles) throws Exception {
+        Body stored = find(body.getId());
+        String named = StringUtils.strip(name);
+        if (StringUtils.isBlank(named)) {
+            throw new IllegalArgumentException("An outfit needs a name");
+        }
+        List<Outfit> outfits = stored.outfitList();
+        if (outfitByName(outfits, named) != null) {
+            throw new IllegalArgumentException("The body has an outfit called " + named + " already");
+        }
+        Model model = model(stored);
+        Outfit outfit = Outfit.create(named, description, toggles != null ? toggles
+                : model == null ? Map.of() : BodyState.shownNow(model, stored.partStateMap()));
+        outfits.add(outfit);
+        stored.setOutfitList(outfits);
+        save(stored);
+        return outfit;
+    }
+
+    @Override
+    @CommonTx
+    public Outfit saveOutfit(Body body, Outfit outfit) throws Exception {
+        Body stored = find(body.getId());
+        List<Outfit> outfits = stored.outfitList();
+        int at = -1;
+        for (int i = 0; i < outfits.size(); i++) {
+            if (outfits.get(i).id().equals(outfit.id())) {
+                at = i;
+            }
+        }
+        if (at < 0) {
+            throw new IllegalArgumentException("The body has no such outfit");
+        }
+        String named = StringUtils.strip(outfit.name());
+        Outfit same = StringUtils.isBlank(named) ? null : outfitByName(outfits, named);
+        if (StringUtils.isBlank(named) || same != null && !same.id().equals(outfit.id())) {
+            throw new IllegalArgumentException(StringUtils.isBlank(named) ? "An outfit needs a name"
+                    : "The body has an outfit called " + named + " already");
+        }
+        Outfit saved = outfit.named(named).described(outfit.description());
+        outfits.set(at, saved);
+        stored.setOutfitList(outfits);
+        save(stored);
+        return saved;
+    }
+
+    @Override
+    @CommonTx
+    public void deleteOutfit(Body body, String outfitId) throws Exception {
+        Body stored = find(body.getId());
+        List<Outfit> outfits = stored.outfitList();
+        if (outfits.removeIf(outfit -> outfit.id().equals(outfitId))) {
+            stored.setOutfitList(outfits);
+            save(stored);
+        }
+    }
+
+    @Override
+    @CommonTx
+    public List<QueuedEvent> wear(Body body, String outfitId) throws Exception {
+        Body stored = find(body.getId());
+        Outfit outfit = stored.outfitList().stream().filter(candidate -> candidate.id().equals(outfitId)).findFirst().orElse(null);
+        if (outfit == null) {
+            throw new IllegalArgumentException("The body has no such outfit");
+        }
+        Outfit before = currentOutfit(stored);
+        stored.setPartStateMap(BodyState.wearing(outfit));
+        stored = save(stored);
+        List<QueuedEvent> events = new ArrayList<>();
+        if (stored.isActive() && (before == null || !before.id().equals(outfit.id())) && chatMessageService.hasAny(stored.getJoi())) {
+            JsonObject payload = new JsonObject();
+            payload.addProperty("to", stored.getUuid());
+            payload.addProperty("outfit", outfit.id());
+            payload.addProperty("by", "user");
+            events.add(queue(stored.getJoi(), JoiEvents.OUTFIT_CHANGED,
+                    personaService.defaults().eventOutfitChanged(outfit.name(), appearance(stored)), payload));
+        }
+        return events;
+    }
+
+    @Override
+    @CommonTx
+    public String wearOutfit(Body body, String outfitName) throws Exception {
+        Body stored = find(body.getId());
+        List<Outfit> outfits = stored.outfitList();
+        Outfit outfit = outfitByName(outfits, outfitName);
+        if (outfit == null) {
+            throw new IllegalArgumentException(outfits.isEmpty() ? "This body has no outfits."
+                    : "You have no outfit called \"" + outfitName + "\". Your outfits: " + String.join(", ", outfits.stream().map(Outfit::name).toList()));
+        }
+        Outfit before = currentOutfit(stored);
+        if (before != null && before.id().equals(outfit.id())) {
+            return "You wear " + outfit.name() + " already.";
+        }
+        stored.setPartStateMap(BodyState.wearing(outfit));
+        stored = save(stored);
+        // she did it herself: she is told how she looks, not again as an event
+        String look = appearance(stored);
+        return "You put on " + outfit.name() + "." + (StringUtils.isBlank(look) ? "" : " How you look now: " + look.strip());
+    }
+
+    @Override
+    @CommonTxReadOnly
+    public String description(Body body) throws Exception {
+        Body stored = find(body.getId());
+        if (StringUtils.isNotBlank(stored.getDescription())) {
+            return stored.getDescription().strip();
+        }
+        Model model = model(stored);
+        return model == null || StringUtils.isBlank(model.getAppearance()) ? null : model.getAppearance().strip();
+    }
+
+    @Override
+    @CommonTx
+    public List<QueuedEvent> announce(Body body) throws Exception {
+        Body stored = find(body.getId());
+        Joi joi = stored.getJoi();
+        Set<String> told = new java.util.HashSet<>(java.util.Arrays.asList(
+                StringUtils.defaultString(stored.getAnnounced()).isBlank() ? new String[0] : stored.getAnnounced().split(",")));
+        boolean model = model(stored) != null;
+        boolean newBody = model && !told.contains("body");
+        List<Outfit> fresh = stored.outfitList().stream().filter(outfit -> !told.contains(outfit.id())).toList();
+        if (!newBody && fresh.isEmpty()) {
+            return List.of();
+        }
+        if (newBody) {
+            told.add("body");
+        }
+        fresh.forEach(outfit -> told.add(outfit.id()));
+        stored.setAnnounced(String.join(",", told));
+        save(stored);
+        if (!chatMessageService.hasAny(joi)) {
+            return List.of();
+        }
+        JoiDefaults defaults = personaService.defaults();
+        List<String> lines = new ArrayList<>();
+        JsonObject payload = new JsonObject();
+        JsonArray bodies = new JsonArray();
+        JsonArray outfitIds = new JsonArray();
+        // the body she is in was told with her switch: this is for one she may move into
+        if (newBody && !stored.isActive()) {
+            lines.add(defaults.eventBodyAdded(name(stored), description(stored)));
+            bodies.add(stored.getUuid());
+        }
+        if (!fresh.isEmpty()) {
+            lines.add(defaults.eventOutfitsAdded(name(stored), stored.isActive(), fresh.stream().map(Outfit::name).toList(),
+                    fresh.stream().map(outfit -> outfit.description() == null ? "" : outfit.description()).toList()));
+            fresh.forEach(outfit -> outfitIds.add(outfit.id()));
+        }
+        if (lines.isEmpty()) {
+            return List.of();
+        }
+        payload.add("bodies", bodies);
+        payload.add("outfits", outfitIds);
+        return List.of(appendOrQueue(joi, JoiEvents.BODY_ADDED, String.join(" ", lines), payload));
+    }
+
+    /** The event of the kind that waits for the assistant gets the text added to it (and its payload's lists), else a new one is queued. */
+    private QueuedEvent appendOrQueue(Joi joi, String kind, String text, JsonObject payload) throws Exception {
+        QueuedEvent waiting = queuedEventService.findWaiting(joi).stream().filter(event -> kind.equals(event.getKind()))
+                .reduce((first, second) -> second).orElse(null);
+        if (waiting == null) {
+            return queue(joi, kind, text, payload);
+        }
+        waiting.setText(waiting.getText() + "\n" + text);
+        JsonObject merged = waiting.getPayload() == null ? new JsonObject()
+                : com.google.gson.JsonParser.parseString(waiting.getPayload()).getAsJsonObject();
+        for (Map.Entry<String, com.google.gson.JsonElement> entry : payload.entrySet()) {
+            if (entry.getValue().isJsonArray() && merged.has(entry.getKey()) && merged.get(entry.getKey()).isJsonArray()) {
+                merged.getAsJsonArray(entry.getKey()).addAll(entry.getValue().getAsJsonArray());
+            } else {
+                merged.add(entry.getKey(), entry.getValue());
+            }
+        }
+        waiting.setPayload(merged.toString());
+        return queuedEventService.save(waiting);
+    }
+
+    @Override
+    @CommonTxReadOnly
+    public List<BodyInfo> bodyInfos(Joi joi) throws Exception {
+        List<BodyInfo> infos = new ArrayList<>();
+        for (Body body : findForJoi(joi)) {
+            Outfit wearing = body.isActive() ? currentOutfit(body) : null;
+            List<OutfitInfo> outfits = body.outfitList().stream()
+                    .map(outfit -> new OutfitInfo(outfit.name(), outfit.description(), wearing != null && wearing.id().equals(outfit.id()))).toList();
+            infos.add(new BodyInfo(name(body), description(body), body.isActive(), outfits));
+        }
+        return infos;
+    }
+
+    @Override
+    @CommonTx
+    public String switchBody(Joi joi, String bodyName) throws Exception {
+        List<Body> bodies = findForJoi(joi);
+        Body target = bodies.stream().filter(body -> name(body).equalsIgnoreCase(StringUtils.strip(bodyName))).findFirst().orElse(null);
+        if (target == null) {
+            throw new IllegalArgumentException("You have no body called \"" + bodyName + "\". Your bodies: "
+                    + String.join(", ", bodies.stream().map(this::name).toList()));
+        }
+        if (target.isActive()) {
+            return "You are in " + name(target) + " already.";
+        }
+        // she did it herself: no event, she is told what she looks like now
+        for (Body other : getRepository().findByJoi(joi)) {
+            boolean active = other.getId().equals(target.getId());
+            if (other.isActive() != active) {
+                other.setActive(active);
+                save(other);
+            }
+        }
+        Body now = find(target.getId());
+        String look = appearance(now);
+        Outfit wearing = currentOutfit(now);
+        List<Outfit> outfits = now.outfitList();
+        return "You moved into " + name(now) + "." + (StringUtils.isBlank(look) ? "" : " How you look now: " + look.strip())
+                + (outfits.isEmpty() ? "" : " Its outfits: " + String.join(", ", outfits.stream()
+                .map(outfit -> outfit.name() + (wearing != null && wearing.id().equals(outfit.id()) ? " (worn now)" : "")).toList()) + ".");
     }
 
     @Override

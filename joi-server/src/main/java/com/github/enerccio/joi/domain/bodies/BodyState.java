@@ -13,10 +13,17 @@ import java.util.Map;
  * The state of a body's parts: for each part described apart ({@link DescribedPart}) that was switched, the state it
  * is in. A part not in it, or whose state is gone from the model, is in its default state; the toggles in no part stay
  * as by default. Stored on the body as JSON ({@code part id → state id}), so it survives a renamed state or group.
+ * <p>
+ * An outfit sets toggles, parts or not: they are kept in the same map under {@code @<the toggle's id>} ({@link #OUTFIT})
+ * with the state {@link DescribedPart#SHOWN} or {@link DescribedPart#HIDDEN}. They come under the parts: a part
+ * switched after the outfit was put on is what it was switched to.
  */
 public final class BodyState {
 
     private static final Gson GSON = new GsonBuilder().disableHtmlEscaping().create();
+
+    /** The prefix of the key of a toggle an outfit set: {@code @<the toggle's id>}. */
+    public static final String OUTFIT = "@";
 
     private BodyState() {
     }
@@ -45,6 +52,10 @@ public final class BodyState {
         DescribedPart.State stored = state(part, states.get(part.id()));
         if (stored != null) {
             return stored;
+        }
+        // an outfit set its toggles: the state is the nearest to them
+        if (part.toggles().stream().anyMatch(toggle -> states.containsKey(OUTFIT + toggle.id()))) {
+            return part.stateIn(toggles(model, states));
         }
         DescribedPart.State byDefault = state(part, part.defaultStateId());
         if (byDefault != null) {
@@ -78,6 +89,11 @@ public final class BodyState {
             return new LinkedHashMap<>();
         }
         Map<String, Boolean> shown = model.defaultShown(capabilities);
+        states.forEach((key, state) -> {
+            if (key.startsWith(OUTFIT)) {
+                shown.put(key.substring(OUTFIT.length()), DescribedPart.SHOWN.equals(state));
+            }
+        });
         for (DescribedPart part : DescribedPart.of(model, capabilities)) {
             DescribedPart.State state = state(part, states.get(part.id()));
             if (state != null) {
@@ -85,5 +101,21 @@ public final class BodyState {
             }
         }
         return shown;
+    }
+
+    /**
+     * The state with the outfit put on: the toggles the outfit sets, no part switched (the parts show the outfit).
+     *
+     * @return the new state of the parts, for {@code Body.setPartStateMap}
+     */
+    public static Map<String, String> wearing(Outfit outfit) {
+        Map<String, String> states = new LinkedHashMap<>();
+        outfit.toggles().forEach((id, shown) -> states.put(OUTFIT + id, shown ? DescribedPart.SHOWN : DescribedPart.HIDDEN));
+        return states;
+    }
+
+    /** The state of every toggle of the model as it is (to make an outfit of): its own state, not what is seen. */
+    public static Map<String, Boolean> shownNow(Model model, Map<String, String> states) {
+        return toggles(model, states);
     }
 }

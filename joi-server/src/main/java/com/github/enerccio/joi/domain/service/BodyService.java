@@ -1,5 +1,6 @@
 package com.github.enerccio.joi.domain.service;
 
+import com.github.enerccio.joi.domain.bodies.Outfit;
 import com.github.enerccio.joi.domain.model.impl.AnimationPack;
 import com.github.enerccio.joi.domain.model.impl.Body;
 import com.github.enerccio.joi.domain.model.impl.Joi;
@@ -139,4 +140,87 @@ public interface BodyService extends ExtendableService<Body, BodyRepository> {
      * @return the saved body
      */
     Body linkAnimations(Body body, File joia, String fingerprint, String hash) throws Exception;
+
+    // ----------------------------------------------------------------------------------------------------------------
+    // outfits: presets of the body's toggles, with a description
+    // ----------------------------------------------------------------------------------------------------------------
+
+    /** The body's outfits, in the order they were made. */
+    List<Outfit> outfits(Body body) throws Exception;
+
+    /** The outfit the body's toggles are in the state of now, null when they are in the state of none. */
+    Outfit currentOutfit(Body body) throws Exception;
+
+    /**
+     * Adds an outfit to the body.
+     *
+     * @param toggles the toggle's id → whether it is shown; null for the state the body is in now
+     * @return the outfit as stored
+     * @throws IllegalArgumentException when the name is blank or the body has an outfit of that name (case aside)
+     */
+    Outfit addOutfit(Body body, String name, String description, java.util.Map<String, Boolean> toggles) throws Exception;
+
+    /**
+     * Stores an outfit changed (by its id): its name, description and toggles.
+     *
+     * @throws IllegalArgumentException when the body has no such outfit, or another has the new name
+     */
+    Outfit saveOutfit(Body body, Outfit outfit) throws Exception;
+
+    /** Removes the outfit (by its id) from the body; what she wears stays as it is. */
+    void deleteOutfit(Body body, String outfitId) throws Exception;
+
+    /**
+     * The user puts the outfit on the body: its toggles are set. When she is in the body, has chatted and it changed,
+     * she is told (an event with how she looks now).
+     *
+     * @return the events queued, empty when none
+     * @throws IllegalArgumentException when the body has no such outfit
+     */
+    List<QueuedEvent> wear(Body body, String outfitId) throws Exception;
+
+    /**
+     * She puts an outfit on herself (the function she is offered), by its name (case aside). It is kept like the
+     * user's change, but she is not told of it as an event: what is returned is what she is told in the answer.
+     *
+     * @throws IllegalArgumentException with words for her when the body has no such outfit
+     */
+    String wearOutfit(Body body, String outfitName) throws Exception;
+
+    /**
+     * What this body is, in the words of her list: the user's description, else the model's (null when neither).
+     */
+    String description(Body body) throws Exception;
+
+    /**
+     * She is told what became hers since the user last edited: a new body (not the one she is in), and new outfits.
+     * Called when the user is done editing. All of it in one event, and what is new while one waits is added to that
+     * one; nothing is queued before she has chatted.
+     *
+     * @return the events queued or added to, empty when nothing is new
+     */
+    List<QueuedEvent> announce(Body body) throws Exception;
+
+    // ----------------------------------------------------------------------------------------------------------------
+    // her list of bodies and what she does with it
+    // ----------------------------------------------------------------------------------------------------------------
+
+    /** A body in her list: what she reads of it. */
+    record BodyInfo(String name, String description, boolean active, List<OutfitInfo> outfits) {
+    }
+
+    /** An outfit in her list; {@code worn} when the body she is in has its toggles in that state. */
+    record OutfitInfo(String name, String description, boolean worn) {
+    }
+
+    /** Her bodies by name, each with its description and outfits. */
+    List<BodyInfo> bodyInfos(Joi joi) throws Exception;
+
+    /**
+     * She moves into another of her bodies (the function she is offered), by its name (case aside). It is kept like the
+     * user's switch, but she is not told of it as an event: what is returned is what she is told in the answer.
+     *
+     * @throws IllegalArgumentException with words for her when she has no such body
+     */
+    String switchBody(Joi joi, String bodyName) throws Exception;
 }

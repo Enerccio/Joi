@@ -494,6 +494,10 @@ public class JoiLocalizationBundleEN extends TextBundleBase<J_L> {
         setValue(J_L.DESC_TEMPLATE_APPEARANCE, "How she looks; empty when nobody has described it.");
         setValue(J_L.DESC_TEMPLATE_EXPRESSIONS, "The expressions her face can show (moods and custom ones); empty when none.");
         setValue(J_L.DESC_TEMPLATE_PARTS, "The parts she can switch (only the ones described apart): a toggle with (shown) or (hidden), a group with its state and the others (\"eyes: bare (or blindfold)\"); empty when none.");
+        setValue(J_L.DESC_TEMPLATE_OUTFIT, "The outfit she wears now; empty when her body is not in the state of any of its outfits.");
+        setValue(J_L.DESC_TEMPLATE_OUTFITS, "The names of her other outfits in this body; empty when none.");
+        setValue(J_L.DESC_TEMPLATE_OUTFIT_NAME, "The outfit's name.");
+        setValue(J_L.DESC_TEMPLATE_OUTFIT_SHOWN, "The meshes of the model shown in the outfit; empty when not known.");
         setValue(J_L.DESC_TEMPLATE_OTHER_BODIES, "The names of her other bodies; empty when none.");
         setValue(J_L.DESC_TEMPLATE_SNAPSHOTS, "The snapshots, in the order of the images; empty when there are none.");
         setValue(J_L.DESC_TEMPLATE_REFERENCES, "How many images of the user follow the snapshots; empty when none.");

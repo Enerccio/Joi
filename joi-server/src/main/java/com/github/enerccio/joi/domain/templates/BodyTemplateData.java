@@ -24,6 +24,14 @@ public class BodyTemplateData extends JoiTemplateData {
     @JoiTemplateDescription(loc = J_L.DESC_TEMPLATE_PARTS)
     private String parts;
 
+    /** The outfit she wears now (the one the body's toggles are in the state of); empty when none. */
+    @JoiTemplateDescription(loc = J_L.DESC_TEMPLATE_OUTFIT)
+    private String outfit;
+
+    /** The names of her outfits in this body, except the one she wears, comma separated; empty when none. */
+    @JoiTemplateDescription(loc = J_L.DESC_TEMPLATE_OUTFITS)
+    private String outfits;
+
     /** The names of her other bodies, comma separated; empty when none. */
     @JoiTemplateDescription(loc = J_L.DESC_TEMPLATE_OTHER_BODIES)
     private String otherBodies;
@@ -58,6 +66,22 @@ public class BodyTemplateData extends JoiTemplateData {
 
     public void setParts(String parts) {
         this.parts = parts;
+    }
+
+    public String getOutfit() {
+        return outfit;
+    }
+
+    public void setOutfit(String outfit) {
+        this.outfit = outfit;
+    }
+
+    public String getOutfits() {
+        return outfits;
+    }
+
+    public void setOutfits(String outfits) {
+        this.outfits = outfits;
     }
 
     public String getOtherBodies() {

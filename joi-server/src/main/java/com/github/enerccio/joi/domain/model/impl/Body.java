@@ -1,6 +1,7 @@
 package com.github.enerccio.joi.domain.model.impl;
 
 import com.github.enerccio.joi.domain.bodies.BodyAnimations;
+import com.github.enerccio.joi.domain.bodies.Outfit;
 import com.github.enerccio.marginalia.domain.model.ExtendableEntity;
 import com.github.enerccio.marginalia.domain.model.impl.Resource;
 import com.github.enerccio.marginalia.domain.traits.CleanupReference;
@@ -59,6 +60,27 @@ public class Body extends ExtendableEntity {
     @ExtendedAttribute
     @Transient
     private String partStates;
+
+    /**
+     * What this body is, in a sentence or two: what she reads in her list of bodies. The user's; blank for the model's
+     * description.
+     */
+    @ExtendedAttribute
+    @Transient
+    private String description;
+
+    /** Its outfits, JSON ({@code Outfit}); null for none. */
+    @ExtendedAttribute
+    @Transient
+    private String outfits;
+
+    /**
+     * What she was told about already: the body itself ({@code body}) and the ids of its outfits, JSON; null for
+     * nothing yet. What is not in it is new, and is told once, when the user is done editing ({@code BodyService.announce}).
+     */
+    @ExtendedAttribute
+    @Transient
+    private String announced;
 
     /** The uuids of the animations it plays, JSON ({@code BodyAnimations}); null for all of the user's. */
     @ExtendedAttribute
@@ -135,6 +157,39 @@ public class Body extends ExtendableEntity {
 
     public void setPartStateMap(java.util.Map<String, String> states) {
         this.partStates = com.github.enerccio.joi.domain.bodies.BodyState.toJson(states);
+    }
+
+    public String getDescription() {
+        return description;
+    }
+
+    public void setDescription(String description) {
+        this.description = description;
+    }
+
+    public String getOutfits() {
+        return outfits;
+    }
+
+    public void setOutfits(String outfits) {
+        this.outfits = outfits;
+    }
+
+    /** Its outfits, in the order they were made. */
+    public List<Outfit> outfitList() {
+        return Outfit.fromJson(outfits);
+    }
+
+    public void setOutfitList(List<Outfit> list) {
+        this.outfits = Outfit.toJson(list);
+    }
+
+    public String getAnnounced() {
+        return announced;
+    }
+
+    public void setAnnounced(String announced) {
+        this.announced = announced;
     }
 
     public String getAnimations() {
