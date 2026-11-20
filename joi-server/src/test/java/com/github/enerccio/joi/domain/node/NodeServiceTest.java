@@ -741,6 +741,117 @@ class NodeServiceTest extends PlatformTestBase {
         assertThat(node.frames.poll(800, TimeUnit.MILLISECONDS)).as("no turn").isNull();
     }
 
+    /** Her body Cherie, made of three pieces with two outfits, and a spare body. */
+    private Body wardrobeBody() throws Exception {
+        Path dir = Files.createTempDirectory("vrm");
+        File source = UnityFixtures.glb(dir.resolve("m.vrm").toFile(), """
+                {"nodes": [{"name": "Hoodie", "mesh": 0}, {"name": "Skirt", "mesh": 1}, {"name": "Hat", "mesh": 2}],
+                 "meshes": [{"primitives": [{}]}, {"primitives": [{}]}, {"primitives": [{}]}],
+                 "extensions": {"VRMC_vrm": {"humanoid": {"humanBones": {"hips": {}}},
+                   "expressions": {"preset": {"happy": {"morphTargetBinds": [{}]}}}}}}
+                """);
+        File file = ModelFiles.uploadFile(modelService.uploadFolder(), "Cherie.vrm");
+        Files.copy(source.toPath(), file.toPath());
+        Model model = modelService.find(modelService.attach(new Model(), file, "Cherie.vrm").getId());
+        model.setAppearance("Pink hair, green eyes.");
+        model.setDefaultStateMap(java.util.Map.of("mesh:Skirt", false, "mesh:Hat", false));
+        model = modelService.save(model);
+        Body cherie = bodyService.create(joi, "Cherie");
+        cherie.setModel(model);
+        cherie = bodyService.save(cherie);
+        bodyService.addOutfit(cherie, "Casual", "A pink hoodie.", null);
+        bodyService.addOutfit(cherie, "Sailor", "A sailor top, a skirt and a white hat.",
+                java.util.Map.of("mesh:Hoodie", false, "mesh:Skirt", true, "mesh:Hat", true));
+        Body spare = bodyService.create(joi, "Spare");
+        spare.setDescription("A plain spare body.");
+        bodyService.save(spare);
+        return cherie;
+    }
+
+    @Test
+    void sheListsAndChangesHerOutfitsAndBodiesWithFunctions() throws Exception {
+        Body cherie = wardrobeBody();
+        llm.enqueue(MockLLMResponse.text("Hello."),
+                MockLLMResponse.toolCall("list_outfits", "{}"), MockLLMResponse.text("I have two."),
+                MockLLMResponse.toolCall("set_outfit", "{\"outfit\":\"Sailor\"}"), MockLLMResponse.text("Sailor it is."),
+                MockLLMResponse.toolCall("set_outfit", "{\"outfit\":\"Armor\"}"), MockLLMResponse.text("No armor."),
+                MockLLMResponse.toolCall("list_bodies", "{}"), MockLLMResponse.text("Two bodies."),
+                MockLLMResponse.toolCall("switch_body", "{\"body\":\"Spare\"}"), MockLLMResponse.text("Moved."));
+        Node node = connect("Bearer " + token);
+        node.hello("n1", "desk", joi.getUuid(), "1.5");
+        node.next("welcome");
+        node.manifest(1);
+        node.frame("say", "t1", "{\"text\": \"Hi\", \"speak\": false}");
+        node.next("done");
+        // the functions are offered with the names of her outfits and her other bodies, and her prompt says so
+        assertThat(llm.getCompletionRequests().getFirst().getRawBody()).contains("list_outfits").contains("set_outfit")
+                .contains("list_bodies").contains("switch_body").contains("Sailor").contains("Spare");
+        assertThat(llm.getCompletionRequests().getFirst().getPromptText())
+                .contains("You wear the outfit \"Casual\".").contains("Your other outfits: Sailor.").contains("Your other bodies: Spare.")
+                .contains("set_outfit puts on an outfit");
+
+        node.frame("say", "t2", "{\"text\": \"What can you wear?\", \"speak\": false}");
+        node.next("done");
+        assertThat(llm.getCompletionRequests().get(2).getLastMessage().content()).isEqualTo("""
+                Your outfits:
+                - Casual (you wear it now): A pink hoodie.
+                - Sailor: A sailor top, a skirt and a white hat.""");
+
+        node.frame("say", "t3", "{\"text\": \"Wear the sailor one.\", \"speak\": false}");
+        // the node reads her body again
+        assertThat(node.next("event").getAsJsonObject("data").get("name").getAsString()).isEqualTo("body");
+        node.next("done");
+        assertThat(llm.getCompletionRequests().get(4).getLastMessage().content())
+                .isEqualTo("You put on Sailor. How you look now: Pink hair, green eyes. A sailor top, a skirt and a white hat.");
+        assertThat(bodyService.currentOutfit(bodyService.find(cherie.getId())).name()).isEqualTo("Sailor");
+        assertThat(bodyService.toggles(bodyService.find(cherie.getId()))).containsEntry("mesh:Hoodie", false).containsEntry("mesh:Skirt", true);
+
+        node.frame("say", "t4", "{\"text\": \"Armor!\", \"speak\": false}");
+        node.next("done");
+        assertThat(llm.getCompletionRequests().get(6).getLastMessage().content())
+                .isEqualTo("Function set_outfit failed: You have no outfit called \"Armor\". Your outfits: Casual, Sailor");
+
+        node.frame("say", "t5", "{\"text\": \"What bodies do you have?\", \"speak\": false}");
+        node.next("done");
+        assertThat(llm.getCompletionRequests().get(8).getLastMessage().content()).isEqualTo("""
+                Your bodies:
+                - Cherie (you are in it now): Pink hair, green eyes.
+                  Outfits: Casual, Sailor (worn now).
+                - Spare: A plain spare body.""");
+
+        node.frame("say", "t6", "{\"text\": \"Try the spare.\", \"speak\": false}");
+        assertThat(node.next("event").getAsJsonObject("data").get("name").getAsString()).isEqualTo("body");
+        node.next("done");
+        assertThat(llm.getCompletionRequests().get(10).getLastMessage().content()).isEqualTo("You moved into Spare.");
+        assertThat(bodyService.active(joi).getName()).isEqualTo("Spare");
+    }
+
+    @Test
+    void afterMovingIntoAnotherBodyHerOutfitsAreThoseOfTheNewBodyInTheSameTurn() throws Exception {
+        wardrobeBody();
+        Body spare = bodyService.findForJoi(joi).stream().filter(body -> "Spare".equals(body.getName())).findFirst().orElseThrow();
+        bodyService.addOutfit(spare, "Gala", "A black dress.", java.util.Map.of());
+        llm.enqueue(MockLLMResponse.text("Hello."),
+                MockLLMResponse.toolCall("switch_body", "{\"body\":\"Spare\"}"),
+                MockLLMResponse.toolCall("list_outfits", "{}"),
+                MockLLMResponse.toolCall("set_outfit", "{\"outfit\":\"Gala\"}"),
+                MockLLMResponse.text("Done."));
+        Node node = connect("Bearer " + token);
+        node.hello("n1", "desk", joi.getUuid(), "1.5");
+        node.next("welcome");
+        node.manifest(1);
+        node.frame("say", "t1", "{\"text\": \"Hi\", \"speak\": false}");
+        node.next("done");
+
+        node.frame("say", "t2", "{\"text\": \"Dress up in the spare body.\", \"speak\": false}");
+        node.next("done");
+        // the functions follow her body as it is when she calls them, not as it was when the turn began
+        assertThat(llm.getCompletionRequests().get(2).getLastMessage().content()).isEqualTo("You moved into Spare. Its outfits: Gala.");
+        assertThat(llm.getCompletionRequests().get(3).getLastMessage().content()).isEqualTo("Your outfits:\n- Gala: A black dress.\nYou wear none of them now.");
+        assertThat(llm.getCompletionRequests().get(4).getLastMessage().content()).isEqualTo("You put on Gala.");
+        assertThat(bodyService.active(joi).getName()).isEqualTo("Spare");
+    }
+
     @Test
     void aTurnIsStopped() throws Exception {
         Node node = connect("Bearer " + token);
