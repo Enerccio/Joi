@@ -380,8 +380,8 @@ public class JoiNodeApp extends Application {
             director.speechEnded();
         });
 
-        SplitPane split = new SplitPane(avatarPane, chat);
-        split.setDividerPositions(0.55);
+        SplitPane split = new SplitPane(chat, avatarPane);
+        split.setDividerPositions(0.45);
         BorderPane root = new BorderPane(split);
         show(root);
         stage.setTitle("Joi: " + loaded.summary().name());
