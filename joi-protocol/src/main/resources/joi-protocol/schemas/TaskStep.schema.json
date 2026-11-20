@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Enerccio/joi/protocol/v1/TaskStep.schema.json",
+  "title": "TaskStep",
+  "description": "One message of a task's transcript (since 1.6).",
+  "type": "object",
+  "properties": {
+    "role": {
+      "type": "string",
+      "enum": [
+        "system",
+        "user",
+        "assistant",
+        "tool"
+      ]
+    },
+    "text": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "What it says, null when an assistant message only calls functions."
+    },
+    "toolCalls": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "The functions an assistant message calls (JSON as the model wrote it), null for none."
+    }
+  },
+  "required": [
+    "role"
+  ]
+}

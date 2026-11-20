@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Joi API
-  version: "1.5"
+  version: "1.6"
   description: |
     The HTTP API of a Joi server for nodes and other clients: the assistants of the user, chat with one of them,
     answered in text and speech, and the body she is in with the files to show it (`.joim`, `.joia`). The message shapes are the JSON Schemas in `schemas/` (the source of truth); the Java
@@ -165,6 +165,96 @@ paths:
           content:
             application/json:
               schema: { $ref: "schemas/ApiError.schema.json" }
+  /api/v1/jois/{id}/tasks:
+    get:
+      summary: Her tasks, the newest first (since 1.6)
+      description: |
+        The tasks she started with the tools of the server (`web_search`, `fetch_page`): they run after her reply with the
+        stronger model, or wait (`waiting`) until the user approves them, as the tool's permission says (the assistant's,
+        else the user's, else the administrator's; set in the server's UI). The transcript is not in the list.
+      parameters:
+        - { $ref: "#/components/parameters/JoiId" }
+        - name: status
+          in: query
+          required: false
+          description: Only the tasks in this status (`queued`, `running`, `waiting`, `done`, `failed`, `cancelled`)
+          schema: { type: string }
+      responses:
+        "200":
+          description: The list
+          content:
+            application/json:
+              schema: { $ref: "schemas/TaskList.schema.json" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /api/v1/jois/{id}/tasks/{task}:
+    get:
+      summary: A task with its transcript (since 1.6)
+      parameters:
+        - { $ref: "#/components/parameters/JoiId" }
+        - { $ref: "#/components/parameters/TaskId" }
+      responses:
+        "200":
+          description: The task
+          content:
+            application/json:
+              schema: { $ref: "schemas/TaskInfo.schema.json" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /api/v1/jois/{id}/tasks/{task}/approve:
+    post:
+      summary: Allow a task that waits (since 1.6)
+      description: It is queued and runs when her turns are done.
+      parameters:
+        - { $ref: "#/components/parameters/JoiId" }
+        - { $ref: "#/components/parameters/TaskId" }
+      responses:
+        "200":
+          description: The task as it is now
+          content:
+            application/json:
+              schema: { $ref: "schemas/TaskInfo.schema.json" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+  /api/v1/jois/{id}/tasks/{task}/deny:
+    post:
+      summary: Do not allow a task that waits (since 1.6)
+      description: The task is `cancelled` with the reason as its `error`, and she is told.
+      parameters:
+        - { $ref: "#/components/parameters/JoiId" }
+        - { $ref: "#/components/parameters/TaskId" }
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { $ref: "schemas/TaskDenial.schema.json" }
+      responses:
+        "200":
+          description: The task as it is now
+          content:
+            application/json:
+              schema: { $ref: "schemas/TaskInfo.schema.json" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+  /api/v1/jois/{id}/tasks/{task}/cancel:
+    post:
+      summary: Stop a task that has not ended (since 1.6)
+      description: At once when it has not started, between its steps when it runs. She is told.
+      parameters:
+        - { $ref: "#/components/parameters/JoiId" }
+        - { $ref: "#/components/parameters/TaskId" }
+      responses:
+        "200":
+          description: The task as it is now
+          content:
+            application/json:
+              schema: { $ref: "schemas/TaskInfo.schema.json" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
   /api/v1/models/{id}/joim:
     get:
       summary: The .joim of a model of the user (since 1.1)
@@ -278,6 +368,12 @@ components:
       required: true
       description: The id of the assistant (JoiSummary.id)
       schema: { type: string }
+    TaskId:
+      name: task
+      in: path
+      required: true
+      description: The id of the task (TaskInfo.id)
+      schema: { type: string }
     IfNoneMatch:
       name: If-None-Match
       in: header
@@ -304,6 +400,11 @@ components:
           schema: { $ref: "schemas/ApiError.schema.json" }
     NotFound:
       description: "`not_found`"
+      content:
+        application/json:
+          schema: { $ref: "schemas/ApiError.schema.json" }
+    Conflict:
+      description: "`conflict`: the task is not in a status the call is for (approve and deny: only a task that waits; cancel: not one that ended)"
       content:
         application/json:
           schema: { $ref: "schemas/ApiError.schema.json" }

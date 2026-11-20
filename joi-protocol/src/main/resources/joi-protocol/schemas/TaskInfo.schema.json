@@ -1,0 +1,101 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Enerccio/joi/protocol/v1/TaskInfo.schema.json",
+  "title": "TaskInfo",
+  "description": "A task she started with a tool of the server (web_search, fetch_page), since 1.6. It runs after her reply, or waits until the user approves it.",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string",
+      "description": "The task's stable id."
+    },
+    "title": {
+      "type": "string",
+      "description": "A short name."
+    },
+    "tool": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "The function that started it (web_search, fetch_page)."
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "queued",
+        "running",
+        "waiting",
+        "done",
+        "failed",
+        "cancelled"
+      ],
+      "description": "waiting: for the user's answer (approve or deny). cancelled is also what the user denied."
+    },
+    "question": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "What she asked for."
+    },
+    "url": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "The page to read, null for a search."
+    },
+    "result": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "What the task found, null until it is done."
+    },
+    "error": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Why it failed, was cancelled or denied, null otherwise."
+    },
+    "created": {
+      "type": "string",
+      "description": "When she asked (ISO 8601 date and time).",
+      "format": "date-time"
+    },
+    "started": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "When it started running, null before.",
+      "format": "date-time"
+    },
+    "finished": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "When it ended, null before.",
+      "format": "date-time"
+    },
+    "steps": {
+      "type": [
+        "array",
+        "null"
+      ],
+      "items": {
+        "$ref": "TaskStep.schema.json"
+      },
+      "description": "Its transcript, oldest first; only in the answer for one task, null in the list."
+    }
+  },
+  "required": [
+    "id",
+    "title",
+    "status",
+    "created"
+  ]
+}

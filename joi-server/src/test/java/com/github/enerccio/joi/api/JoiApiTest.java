@@ -4,7 +4,9 @@ import com.github.enerccio.joi.domain.events.JoiEvents;
 import com.github.enerccio.joi.domain.model.impl.ChatMessage;
 import com.github.enerccio.joi.domain.model.impl.Joi;
 import com.github.enerccio.joi.domain.model.impl.QueuedEvent;
+import com.github.enerccio.joi.domain.model.impl.JoiTask;
 import com.github.enerccio.joi.domain.service.*;
+import com.github.enerccio.joi.domain.tools.ServerTool;
 import com.github.enerccio.joi.protocol.JoiProtocol;
 import com.github.enerccio.joi.tts.model.Actor;
 import com.github.enerccio.marginalia.domain.model.impl.OpenAICompatible;
@@ -60,6 +62,8 @@ class JoiApiTest extends PlatformTestBase {
     private QueuedEventService queuedEventService;
     @Autowired
     private TtsService ttsService;
+    @Autowired
+    private WebTaskService webTaskService;
 
     private final JsonSchemaFactory schemas = JsonSchemaFactory.getInstance(SpecVersion.VersionFlag.V202012,
             builder -> builder.schemaMappers(m -> m.mapPrefix(BASE, "classpath:joi-protocol/schemas/")));
@@ -520,5 +524,119 @@ class JoiApiTest extends PlatformTestBase {
         assertThat(events).extracting(QueuedEvent::getKind).containsExactly(JoiEvents.VOICE_CHANGED);
         assertThat(events.getFirst().getText()).contains("Hectus").contains("low and warm, a little husky");
         assertThat(queuedEventService.findWaiting(joi)).hasSize(1);
+    }
+
+    // ----------------------------------------------------------------------------------------------------------------
+    // her tasks
+    // ----------------------------------------------------------------------------------------------------------------
+
+    /** A page task of hers that waits for the user's answer (nothing is set, so the tool asks); the address is refused, no network. */
+    private JoiTask waitingTask(Joi of) throws Exception {
+        return webTaskService.submit(of, ServerTool.FETCH_PAGE, "What does it say?", "http://127.0.0.1:1/page", "call-1");
+    }
+
+    private String tasks(Joi of) {
+        return "/api/v1/jois/" + of.getUuid() + "/tasks";
+    }
+
+    private Answer post(String path, String body) throws IOException {
+        return call("POST", path, "Bearer " + token, body);
+    }
+
+    @Test
+    void herTasksAreListedWithTheirStatusAndOneWithItsTranscript() throws Exception {
+        JoiTask task = waitingTask(joi);
+        Answer list = get(tasks(joi));
+        assertThat(list.status).isEqualTo(200);
+        valid("TaskList", list.body);
+        JsonObject first = list.json().getAsJsonArray("tasks").get(0).getAsJsonObject();
+        assertThat(first.get("id").getAsString()).isEqualTo(task.getUuid());
+        assertThat(first.get("status").getAsString()).isEqualTo("waiting");
+        assertThat(first.get("tool").getAsString()).isEqualTo("fetch_page");
+        assertThat(first.get("url").getAsString()).isEqualTo("http://127.0.0.1:1/page");
+        assertThat(first.get("steps").isJsonNull()).isTrue();
+
+        assertThat(get(tasks(joi) + "?status=waiting").json().getAsJsonArray("tasks")).hasSize(1);
+        assertThat(get(tasks(joi) + "?status=done").json().getAsJsonArray("tasks")).isEmpty();
+        Answer bad = get(tasks(joi) + "?status=sleeping");
+        assertThat(bad.status).isEqualTo(400);
+        valid("ApiError", bad.body);
+
+        Answer one = get(tasks(joi) + "/" + task.getUuid());
+        assertThat(one.status).isEqualTo(200);
+        valid("TaskInfo", one.body);
+        assertThat(one.json().getAsJsonArray("steps")).isEmpty();
+    }
+
+    @Test
+    void aTaskOfAnotherAssistantOrUserIsNotFound() throws Exception {
+        JoiTask task = waitingTask(joi);
+        Joi second = joiService.create("Other");
+        assertThat(get(tasks(second) + "/" + task.getUuid()).status).isEqualTo(404);
+        assertThat(post(tasks(second) + "/" + task.getUuid() + "/cancel", null).status).isEqualTo(404);
+        assertThat(get(tasks(joi) + "/nope").status).isEqualTo(404);
+
+        User other = createUser();
+        loginAs(other);
+        String otherToken = accessTokenService.create("other", null).text();
+        for (String path : List.of(tasks(joi) + "/" + task.getUuid(), tasks(joi))) {
+            assertThat(call("GET", path, "Bearer " + otherToken, null).status).isEqualTo(404);
+        }
+        assertThat(call("POST", tasks(joi) + "/" + task.getUuid() + "/approve", "Bearer " + otherToken, null).status).isEqualTo(404);
+        loginAs(user);
+        assertThat(get(tasks(joi) + "/" + task.getUuid()).json().get("status").getAsString()).isEqualTo("waiting");
+    }
+
+    @Test
+    void theUserDeniesATaskThatWaitsWithAReasonAndItCannotBeAnsweredTwice() throws Exception {
+        JoiTask task = waitingTask(joi);
+        Answer denied = post(tasks(joi) + "/" + task.getUuid() + "/deny", "{\"reason\": \"Not now, please\"}");
+        assertThat(denied.status).isEqualTo(200);
+        valid("TaskInfo", denied.body);
+        assertThat(denied.json().get("status").getAsString()).isEqualTo("cancelled");
+        assertThat(denied.json().get("error").getAsString()).isEqualTo("Not now, please");
+        assertThat(denied.json().get("finished").isJsonNull()).isFalse();
+
+        for (String action : List.of("deny", "approve", "cancel")) {
+            Answer again = post(tasks(joi) + "/" + task.getUuid() + "/" + action, null);
+            assertThat(again.status).as(action).isEqualTo(409);
+            valid("ApiError", again.body);
+            assertThat(again.json().get("code").getAsString()).isEqualTo("conflict");
+        }
+        assertThat(post(tasks(joi) + "/" + task.getUuid() + "/explode", null).status).isEqualTo(404);
+    }
+
+    @Test
+    void aDenialWithoutABodyHasNoReasonAndATaskThatWaitsCanBeCancelled() throws Exception {
+        JoiTask first = waitingTask(joi);
+        Answer denied = post(tasks(joi) + "/" + first.getUuid() + "/deny", null);
+        assertThat(denied.status).isEqualTo(200);
+        assertThat(denied.json().get("error").isJsonNull()).isTrue();
+
+        JoiTask second = webTaskService.submit(joi, ServerTool.FETCH_PAGE, "Again", "http://127.0.0.1:1/other", "call-2");
+        Answer cancelled = post(tasks(joi) + "/" + second.getUuid() + "/cancel", null);
+        assertThat(cancelled.status).isEqualTo(200);
+        valid("TaskInfo", cancelled.body);
+        assertThat(cancelled.json().get("status").getAsString()).isEqualTo("cancelled");
+    }
+
+    @Test
+    void anApprovedTaskRunsAndItsTranscriptIsThere() throws Exception {
+        useModel();
+        JoiTask task = waitingTask(joi);
+        Answer approved = post(tasks(joi) + "/" + task.getUuid() + "/approve", null);
+        assertThat(approved.status).isEqualTo(200);
+        valid("TaskInfo", approved.body);
+        assertThat(approved.json().get("status").getAsString()).isNotEqualTo("waiting");
+
+        long until = System.currentTimeMillis() + 30_000;
+        Answer one;
+        do {
+            Thread.sleep(50);
+            one = get(tasks(joi) + "/" + task.getUuid());
+        } while (!List.of("done", "failed", "cancelled").contains(one.json().get("status").getAsString()) && System.currentTimeMillis() < until);
+        valid("TaskInfo", one.body);
+        assertThat(one.json().get("status").getAsString()).isIn("done", "failed");
+        assertThat(one.json().get("finished").isJsonNull()).isFalse();
     }
 }

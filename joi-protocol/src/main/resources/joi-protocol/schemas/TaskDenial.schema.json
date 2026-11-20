@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Enerccio/joi/protocol/v1/TaskDenial.schema.json",
+  "title": "TaskDenial",
+  "description": "The body of POST /api/v1/jois/{id}/tasks/{task}/deny (since 1.6), may be left out.",
+  "type": "object",
+  "properties": {
+    "reason": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Why the user does not allow it, told to her; null for none."
+    }
+  },
+  "required": []
+}

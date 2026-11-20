@@ -10,6 +10,7 @@ import com.github.enerccio.joi.domain.chat.ChatService;
 import com.github.enerccio.joi.domain.chat.ChatService.NoModelException;
 import com.github.enerccio.joi.domain.chat.turn.TurnInput;
 import com.github.enerccio.joi.domain.collections.ChatMessageType;
+import com.github.enerccio.joi.domain.collections.JoiTaskStatus;
 import com.github.enerccio.joi.domain.model.impl.*;
 import com.github.enerccio.joi.domain.service.*;
 import com.github.enerccio.joi.domain.service.AccessTokenService.Principal;
@@ -88,6 +89,12 @@ public class JoiApi implements DisposableBean {
 
     @Autowired
     private ChatService chatService;
+
+    @Autowired
+    private WebTaskService webTaskService;
+
+    @Autowired
+    private JoiTaskMessageService joiTaskMessageService;
 
     @Autowired
     private BodyService bodyService;
@@ -177,6 +184,8 @@ public class JoiApi implements DisposableBean {
                 error(sink, e.status, e.code, e.getMessage());
             } catch (NoModelException e) {
                 error(sink, 409, "no_model", e.getMessage());
+            } catch (IllegalStateException e) {
+                error(sink, 409, "conflict", StringUtils.defaultIfBlank(e.getMessage(), "Conflict"));
             } catch (IllegalArgumentException | JsonParseException e) {
                 error(sink, 400, "bad_request", StringUtils.defaultIfBlank(e.getMessage(), "Bad request"));
             } catch (SecurityException e) {
@@ -201,6 +210,12 @@ public class JoiApi implements DisposableBean {
             chat(call, joi(path.get(1)), sink);
         } else if (get && path.size() == 3 && path.getFirst().equals("jois") && path.get(2).equals("body")) {
             json(sink, 200, bodyInfo(call, joi(path.get(1))));
+        } else if (get && path.size() == 3 && path.getFirst().equals("jois") && path.get(2).equals("tasks")) {
+            json(sink, 200, tasks(call, joi(path.get(1))));
+        } else if (get && path.size() == 4 && path.getFirst().equals("jois") && path.get(2).equals("tasks")) {
+            json(sink, 200, taskInfo(task(joi(path.get(1)), path.get(3)), true));
+        } else if (post && path.size() == 5 && path.getFirst().equals("jois") && path.get(2).equals("tasks")) {
+            json(sink, 200, taskCall(call, task(joi(path.get(1)), path.get(3)), path.get(4)));
         } else if (get && path.size() == 3 && path.getFirst().equals("models") && path.get(2).equals("joim")) {
             joim(call, path.get(1), sink);
         } else if (get && path.size() == 3 && path.getFirst().equals("bodies") && path.get(2).equals("joia")) {
@@ -272,6 +287,65 @@ public class JoiApi implements DisposableBean {
                     StringUtils.defaultIfBlank(message.getNode(), null), StringUtils.defaultIfBlank(message.getResponse(), null)));
         }
         return new ChatHistory(entries, more);
+    }
+
+    // ----------------------------------------------------------------------------------------------------------------
+    // tasks
+    // ----------------------------------------------------------------------------------------------------------------
+
+    private TaskList tasks(ApiCall call, Joi joi) throws Exception {
+        String asked = call.query().get("status");
+        JoiTaskStatus status = null;
+        if (StringUtils.isNotBlank(asked)) {
+            try {
+                status = JoiTaskStatus.valueOf(asked.strip().toUpperCase(Locale.ROOT));
+            } catch (IllegalArgumentException e) {
+                throw new IllegalArgumentException("status is not one of queued, running, waiting, done, failed, cancelled: " + asked);
+            }
+        }
+        List<TaskInfo> list = new ArrayList<>();
+        for (JoiTask task : webTaskService.tasks(joi)) {
+            if (status == null || task.getStatus() == status) {
+                list.add(taskInfo(task, false));
+            }
+        }
+        return new TaskList(list);
+    }
+
+    /** The task of the assistant; a task of another assistant or user is not found. */
+    private JoiTask task(Joi joi, String uuid) throws Exception {
+        JoiTask task = webTaskService.find(uuid);
+        if (task == null || !task.getJoi().getId().equals(joi.getId())) {
+            throw new ApiException(404, "not_found", "No task " + uuid);
+        }
+        return task;
+    }
+
+    private TaskInfo taskCall(ApiCall call, JoiTask task, String action) throws Exception {
+        JoiTask done = switch (action) {
+            case "approve" -> webTaskService.approve(task);
+            case "deny" -> {
+                TaskDenial denial = call.body().length == 0 ? null : gson.fromJson(call.text(), TaskDenial.class);
+                yield webTaskService.deny(task, denial == null ? null : StringUtils.trimToNull(denial.reason()));
+            }
+            case "cancel" -> webTaskService.cancel(task);
+            default -> throw new ApiException(404, "not_found", "Not found: " + call.method() + " " + call.path());
+        };
+        return taskInfo(done, false);
+    }
+
+    private TaskInfo taskInfo(JoiTask task, boolean steps) throws Exception {
+        List<TaskStep> transcript = null;
+        if (steps) {
+            transcript = new ArrayList<>();
+            for (JoiTaskMessage message : joiTaskMessageService.findByTask(task)) {
+                transcript.add(new TaskStep(message.getRole().name().toLowerCase(Locale.ROOT),
+                        StringUtils.defaultIfEmpty(message.getContent(), null), StringUtils.defaultIfEmpty(message.getToolCalls(), null)));
+            }
+        }
+        return new TaskInfo(task.getUuid(), StringUtils.defaultString(task.getTitle()), task.getTool(),
+                task.getStatus().name().toLowerCase(Locale.ROOT), task.getInstructions(), task.getUrl(), task.getResult(),
+                task.getError(), iso(task.getCreation()), iso(task.getStartedAt()), iso(task.getFinishedAt()), transcript);
     }
 
     /** The animations she plays in her states, the ones still in the user's library. */

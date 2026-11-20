@@ -1,6 +1,6 @@
 # Tool permissions and `web_search` (plan)
 
-Status: **stages 1 (permissions), 2 (search clients, page readers, settings) and 3 (the task, `web_search`, `fetch_page`, the event) are built and tested; 4 to 6 are plan.** Nothing here is in `DESIGN.md` yet; when it is
+Status: **stages 1 (permissions), 2 (search clients, page readers, settings), 3 (the task, `web_search`, `fetch_page`, the event) and 4 (the API) are built and tested; 5 and 6 are plan.** Nothing here is in `DESIGN.md` yet; when it is
 built it moves into `DESIGN.md` (Tools, Web, Tasks after the reply) and this file goes away.
 
 ## What is asked
@@ -120,16 +120,24 @@ the panel; nothing is guessed from the URL) run; the others are refused with a m
   and a forced call is refused; a task whose model fails ends `FAILED` with an event; the chain (user `ALLOW` under an
   administrator `ASK` still waits).
 
-## The API (stage 4)
+## The API (stage 4, built, protocol 1.6)
 
-`joi-protocol` first (`CLAUDE.md`: schema, record, `DESIGN.md` together): `TaskInfo` (id, title, status, question, result,
-error, created, finished, `permission`: why it waits), `TaskList`, `openapi.yaml` paths:
+`joi-protocol` first (`CLAUDE.md`: schema, record, `DESIGN.md` together): `TaskInfo` (id, title, tool, status, question,
+url, result, error, created, started, finished, `steps` only in the answer for one task), `TaskStep` (role, text,
+toolCalls), `TaskList`, `TaskDenial` (`reason`, the body of a denial, may be left out). Statuses are lower case:
+`queued`, `running`, `waiting`, `done`, `failed`, `cancelled` (a denied task is `cancelled` with the reason as its
+`error`). `openapi.yaml` paths (served by `JoiApi`):
 
-- `GET /api/v1/jois/{id}/tasks` (filter `status`), `GET .../tasks/{task}` (with its transcript),
-- `POST .../tasks/{task}/approve`, `POST .../tasks/{task}/deny` (`{reason}`), `POST .../tasks/{task}/cancel`.
-- The `joi` event of the node WebSocket gets nothing new; a node reads the list again on the existing event.
-- `SchemaContractTest` covers the records; `JoiApiTest` the endpoints (a task of another user is 404).
-- Protocol version: 1.4 (new paths only, no break).
+- `GET /api/v1/jois/{id}/tasks` (filter `status`, a wrong one is 400; the newest first, no transcript),
+  `GET .../tasks/{task}` (with its transcript),
+- `POST .../tasks/{task}/approve`, `.../deny` (`{reason}`), `.../cancel`: the task as it is now; 409 `conflict` when
+  its status is not one the call is for (approve and deny: only `waiting`; cancel: not one that ended).
+- A task of another assistant or another user is 404. Version 1.6 changes only the version and adds these paths.
+- The node WebSocket gets nothing new; a node reads the list again on the existing event (`task_ended`).
+- **Test:** `SchemaContractTest` (records and samples), `JoiApiTest` (list, filter, one with transcript, 404s for other
+  assistant and user, deny with and without a reason, no answering twice, cancel, approve runs it).
+- Left out: the plan had a `permission` field ("why it waits"); the task does not store it and the permission chain
+  answers it (`ToolPermissionService.chain`), so the UI shows it from there.
 
 ## The UI (stage 5)
 

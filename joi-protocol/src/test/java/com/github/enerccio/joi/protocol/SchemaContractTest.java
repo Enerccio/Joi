@@ -34,7 +34,8 @@ class SchemaContractTest {
             BodyToggle.class, BodyPartState.class, PartSwitch.class, PartKept.class, PartRefused.class, PlayAnimation.class,
             BodyAnimation.class, BodyAnimations.class, BodyInfo.class, JoiAnimations.class, Frame.class, Hello.class, Resume.class, Welcome.class, Manifest.class,
             ToolDefinition.class, Say.class, Stop.class, Display.class, ToolUse.class, ToolCall.class, ToolProgress.class, ToolResult.class,
-            ToolCancel.class, Approval.class, ServerEvent.class, TurnStart.class, ChatEntry.class, ChatHistory.class);
+            ToolCancel.class, Approval.class, ServerEvent.class, TurnStart.class, ChatEntry.class, ChatHistory.class,
+            TaskStep.class, TaskInfo.class, TaskList.class, TaskDenial.class);
 
     /** The enums with a schema of their own: the values are the schema's enum. */
     static final List<Class<? extends Enum<?>>> ENUMS = List.of(AuthMethod.class, NodePart.class, ToolTier.class,
@@ -125,6 +126,14 @@ class SchemaContractTest {
         valid(new Me("peter", "Peter", AuthMethod.NONE));
         valid(new ChatHistory(List.of(new ChatEntry("m1", "2026-11-18T19:00:00Z", "event", null, "node.first_boot", "desk", "I'm awake."),
                 new ChatEntry("m2", "2026-11-18T19:01:00Z", "user", "Hi", null, null, null)), true));
+        valid(new TaskList(List.of(new TaskInfo("t1", "Weather in Prague", "web_search", "waiting", "What is the weather in Prague?", null,
+                null, null, "2026-11-20T10:00:00Z", null, null, null))));
+        valid(new TaskInfo("t2", "Read the page", "fetch_page", "done", "What does it say?", "https://example.com/", "It says hello.", null,
+                "2026-11-20T10:00:00Z", "2026-11-20T10:01:00Z", "2026-11-20T10:02:00Z",
+                List.of(new TaskStep("system", "Find it.", null), new TaskStep("assistant", null, "[{\"name\":\"read_page\"}]"),
+                        new TaskStep("tool", "Hello", null))));
+        valid(new TaskDenial(null));
+        valid(new TaskDenial("Not now"));
         valid(new JoiList(List.of(new JoiSummary("2f0c", "Joi", "2026-11-18T19:00:00Z"), new JoiSummary("88aa", "Kairo", null))));
         valid(new JoiInfo("2f0c", "Joi", "Peter", new Personality("warm", "Warm"), null, "Hey Joi", null, "Gemma", new Voice("Higgs", "C", "low and warm"),
                 new JoiAnimations("p1", null, "p2", List.of("p3", "p4"), List.of())));
