@@ -3,6 +3,7 @@
 // sequence: {steps: [{src, ...}], loop}} plays an animation (src the index of its clip in clips); {type: "stop"} puts
 // her at rest. The page posts {type: "ended", id} to "ended" when an animation that does not loop is over, and
 // {type: "error", id, message} when it could not play.
+// {type: "offline", offline: true|false}: the server is gone (or back): she is frozen and shown in gray (body.offline).
 // {type: "toggles", toggles: [{mesh, key, hides, shown}]} shows and hides the parts of her model (set again once it loads).
 // With ?looking-glass the page renders her for the Looking Glass whose calibration the node serves (looking-glass.js);
 // {type: "tuning", tuning} changes how (the node's tuning panel).
@@ -73,6 +74,10 @@ events.onmessage = event => {
     case 'toggles':
       toggles = message.toggles || [];
       viewer.setToggles(JSON.stringify(toggles));
+      break;
+    case 'offline':
+      document.body.classList.toggle('offline', !!message.offline);
+      viewer.setFrozen(!!message.offline);
       break;
     case 'tuning':
       tuning = message.tuning;

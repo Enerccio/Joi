@@ -83,6 +83,7 @@ public class JoiLocalizationBundleEN extends TextBundleBase<J_L> {
         setValue(J_L.LABEL_FIRST_BOOT_EVENT, "First waking up (the event when she first wakes up on a node)");
         setValue(J_L.LABEL_CONNECTED_EVENT, "User is back (the event when the user comes back to her on a node)");
         setValue(J_L.LABEL_LOOKING_GLASS_ENTERED_EVENT, "On the Looking Glass (the event when the user moves her onto a Looking Glass)");
+        setValue(J_L.LABEL_SERVER_RESTARTED_EVENT, "Server was down (the event when the server was down and a node connected to it again)");
         setValue(J_L.LABEL_PART_REQUEST_EVENT, "Asked to change a part (the event when her personality lets her decide on it)");
         setValue(J_L.LABEL_LOOKING_GLASS_EXITED_EVENT, "Off the Looking Glass (the event when the user moves her back into the window)");
         setValue(J_L.LABEL_BODY_PROMPT, "Body section (the body she is in, put into {{#body}})");
@@ -474,6 +475,8 @@ public class JoiLocalizationBundleEN extends TextBundleBase<J_L> {
         setValue(J_L.DESC_TEMPLATE_KNOWN_MEMORIES, "The facts already remembered.");
         setValue(J_L.DESC_TEMPLATE_BODY_NAME, "The body's name.");
         setValue(J_L.DESC_TEMPLATE_NODE_KIND, "What the node is (desktop, phone...); empty when it did not say.");
+        setValue(J_L.DESC_TEMPLATE_HOW_LOST, "What happened to the server, in words (was shut down, went down); empty when not known.");
+        setValue(J_L.DESC_TEMPLATE_DOWN_FOR, "How long the server was gone, in words (3 minutes); empty when not known.");
         setValue(J_L.DESC_TEMPLATE_LAST_CHATTED, "When she last talked with the user, in words (3 hours ago); empty for never.");
         setValue(J_L.DESC_TEMPLATE_MODEL_NAME, "The model's name.");
         setValue(J_L.DESC_TEMPLATE_PART_NAME, "What the part is called: the toggle's name, or the group's.");

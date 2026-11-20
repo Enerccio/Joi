@@ -12,7 +12,13 @@ import com.github.enerccio.joi.protocol.http.JoiSummary;
  * @param joi              the assistant
  * @param heartbeatSeconds send a frame (a ping when nothing else) at least this often; a connection silent for twice
  *                         this is closed
+ * @param serverStartedAt  when this run of the server started (ISO 8601, since 1.5); a node keeps it and gives it back in
+ *                         {@link Resume} when it connects again, which is how the server knows it was down
  */
 public record Welcome(String protocol, String server, String version, String session, JoiSummary joi,
-                      int heartbeatSeconds) {
+                      int heartbeatSeconds, String serverStartedAt) {
+
+    public Welcome(String protocol, String server, String version, String session, JoiSummary joi, int heartbeatSeconds) {
+        this(protocol, server, version, session, joi, heartbeatSeconds, null);
+    }
 }

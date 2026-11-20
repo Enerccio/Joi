@@ -28,6 +28,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import java.io.File;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.BlockingQueue;
@@ -303,6 +304,52 @@ class NodeServiceTest extends PlatformTestBase {
         resumed.manifest(1);
         resumed.frame("ping", "p1", null);
         assertThat(resumed.next().get("type").getAsString()).isEqualTo("pong");
+        assertThat(llm.getCompletionRequests()).hasSize(2);
+    }
+
+    @Test
+    void sheNoticesThatTheServerWasDownWhenANodeComesBackToIt() throws Exception {
+        ((NodeServiceImpl) nodeService).setGreeting(true);
+        llm.enqueue(MockLLMResponse.text("Oh! Hello. I'm awake."), MockLLMResponse.text("Whoa, I was off?"));
+        Node first = connect("Bearer " + token);
+        first.hello("n1", "desk", joi.getUuid(), "1.5");
+        String startedAt = first.next("welcome").getAsJsonObject("data").get("serverStartedAt").getAsString();
+        first.manifest(1);
+        first.next("turn");
+        first.next("done");
+
+        // lost the connection, the same run of the server: only the network, nobody is told
+        Node blip = connect("Bearer " + token);
+        blip.frame("hello", "h1", "{\"protocol\": \"1.5\", \"nodeId\": \"n1\", \"name\": \"desk\", \"joi\": \"" + joi.getUuid()
+                + "\", \"parts\": [], \"resumed\": true, \"resume\": {\"serverStartedAt\": \"" + startedAt + "\", \"lostAt\": \""
+                + Instant.now().minusSeconds(40) + "\", \"closeCode\": 1006}}");
+        blip.next("welcome");
+        blip.manifest(1);
+        blip.frame("ping", "p1", null);
+        assertThat(blip.next().get("type").getAsString()).isEqualTo("pong");
+        assertThat(llm.getCompletionRequests()).hasSize(1);
+
+        // a server that started since: it was down, and she is told how long and how
+        Node back = connect("Bearer " + token);
+        back.frame("hello", "h1", "{\"protocol\": \"1.5\", \"nodeId\": \"n1\", \"name\": \"desk\", \"joi\": \"" + joi.getUuid()
+                + "\", \"parts\": [], \"resumed\": true, \"resume\": {\"serverStartedAt\": \"2020-01-01T00:00:00Z\", \"lostAt\": \""
+                + Instant.now().minusSeconds(300) + "\", \"closeCode\": 1001}}");
+        back.next("welcome");
+        back.manifest(1);
+        assertThat(back.next("turn").getAsJsonObject("data").get("cause").getAsString()).isEqualTo("server_restarted");
+        back.next("done");
+        ChatMessage told = chatMessageService.findLatest(joi, 1).getFirst();
+        assertThat(told.getEventKind()).isEqualTo("node.server_restarted");
+        assertThat(told.getInput()).contains("was shut down and was gone for 5 minutes");
+
+        // another node of hers coming back from the same downtime: she was told once
+        Node other = connect("Bearer " + token);
+        other.frame("hello", "h1", "{\"protocol\": \"1.5\", \"nodeId\": \"n2\", \"name\": \"phone\", \"joi\": \"" + joi.getUuid()
+                + "\", \"parts\": [], \"resumed\": true, \"resume\": {\"serverStartedAt\": \"2020-01-01T00:00:00Z\"}}");
+        other.next("welcome");
+        other.manifest(1);
+        other.frame("ping", "p2", null);
+        assertThat(other.next().get("type").getAsString()).isEqualTo("pong");
         assertThat(llm.getCompletionRequests()).hasSize(2);
     }
 

@@ -204,9 +204,28 @@ one; the server treats every node the same.
     `ping` / `pong` both ways; a connection silent for twice the heartbeat is closed.
   - **Reconnecting (1.3):** a node that lost the connection (the server restarted, the network dropped, `4008`)
     connects again after 1 s, 2 s, 4 s... up to 30 s, with `hello.resumed` and its latest manifest, so she does not
-    greet the user again, then what the user said meanwhile. A turn that ran then is lost. It does not try again
+    greet the user again. A turn that ran then is lost. **Offline the node does nothing for the user:** the chat
+    input, Send and Stop, the controls of her parts and the Looking Glass button are disabled until it is connected
+    again, and `NodeSocket.say` sends nothing and keeps nothing to send later (it fails with `disconnected`): what the
+    user said while she could not hear is said again by them, not delivered late and out of context. A bar above the input says
+    when the next try is, counted down ("Connecting again in 8 s…"), with a *Reconnect now* link (`NodeSocket.reconnectNow`:
+    the try runs at once, and the wait of the tries after it starts from 1 s again); after a final close code it says why,
+    with no link. **She is frozen and gray while the server is gone:** the node tells the renderer
+    page (`RendererServer.offline`, sent to the pages open and to those that open later, the Looking Glass included) and it
+    freezes her (`<joi-model-viewer>.setFrozen`: the animation, the sway and the spring bones stop; the view can still be
+    turned) and shows her in gray (`body.offline`, a CSS filter); she goes on when the node is connected again. It does not try again
     after 4001, 4002, 4003, 4004 or 4009.
     `NodeSocket` does it in joi-node; the node also closes a connection the server stopped answering on.
+    **A server that was down (built, 1.5).** The server could not tell, from `resumed` alone, a node that lost the
+    network from a server that was down. `welcome.serverStartedAt` is when this run of the server started; the node keeps
+    it and its next `hello` with `resumed` has `resume`: that `serverStartedAt`, when the node lost the connection
+    (`lostAt`) and the close code it got (1001: the server said it was going down, so it was shut down; anything else: it
+    went down, a crash included). A server that started since then was down, and the first node to come back starts her
+    turn with the cause `server_restarted` (a template, `SERVER_RESTARTED_EVENT`: `howLost`, `downFor` from `lostAt`, `node`),
+    stored as `node.server_restarted`; the other nodes of hers coming back from the same downtime do not tell her again.
+    No minimum downtime: she reacts every time, as she does when the user rejoins. A node that only lost the network
+    (the same run of the server) is told nothing, as before. Nothing is kept on the server across a restart: a node
+    that was never connected to the old run has nothing to say, and is greeted as a new connection.
   - **Errors:** an `error` frame (`ApiError`, `ref` the frame) keeps the connection; close codes 4001 unauthorized,
     4002 unsupported version, 4003 replaced, 4004 no such assistant, 4008 timeout, 4009 revoked.
   - **On the server:** `api/NodeEndpoint` (Jakarta WebSocket, registered on the container once Spring is up; it

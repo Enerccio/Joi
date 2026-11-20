@@ -58,6 +58,17 @@
         "null"
       ],
       "description": "True when the node connects again after it lost the connection (since 1.3): she does not greet the user for it. Null or false for a new start."
+    },
+    "resume": {
+      "oneOf": [
+        {
+          "$ref": "Resume.schema.json"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "With resumed: what the node knows of the connection it lost (since 1.5), so the server can tell that it was down itself."
     }
   },
   "required": [

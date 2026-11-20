@@ -92,6 +92,11 @@ public class JoiUserSetting extends BaseUserSetting implements PersonaAttributes
     @Transient
     private String lookingGlassExitedEvent;
 
+    /** What she is told when the server was down and is back ({@code NodeEventTemplateData}). */
+    @ExtendedAttribute
+    @Transient
+    private String serverRestartedEvent;
+
     /** What she is told when the user asks to change parts of her body and her personality lets her decide ({@code PartRequestTemplateData}). */
     @ExtendedAttribute
     @Transient
@@ -355,6 +360,14 @@ public class JoiUserSetting extends BaseUserSetting implements PersonaAttributes
     }
 
     @Override
+    public String getServerRestartedEvent() {
+        return serverRestartedEvent;
+    }
+
+    public void setServerRestartedEvent(String serverRestartedEvent) {
+        this.serverRestartedEvent = serverRestartedEvent;
+    }
+
     public String getPartRequestEvent() {
         return partRequestEvent;
     }

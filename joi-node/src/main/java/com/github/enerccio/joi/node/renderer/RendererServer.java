@@ -62,6 +62,8 @@ public class RendererServer implements AutoCloseable {
     private String tuningMessage;
     /** The last toggles message (which parts of her are shown), sent again to a page that opens later. */
     private String togglesMessage;
+    /** Whether the server is gone: the pages show her frozen and in gray (sent to those that open later too). */
+    private String offlineMessage;
     private BiConsumer<Long, String> onEnded = (id, problem) -> {
     };
 
@@ -106,6 +108,14 @@ public class RendererServer implements AutoCloseable {
         JsonObject message = message("toggles");
         message.add("toggles", GSON.toJsonTree(toggles == null ? List.of() : toggles));
         togglesMessage = GSON.toJson(message);
+        broadcast(message);
+    }
+
+    /** The server is gone ({@code true}) or back: the pages freeze her and show her in gray, or let her go on. */
+    public synchronized void offline(boolean offline) {
+        JsonObject message = message("offline");
+        message.addProperty("offline", offline);
+        offlineMessage = GSON.toJson(message);
         broadcast(message);
     }
 
@@ -229,6 +239,9 @@ public class RendererServer implements AutoCloseable {
             }
             if (playMessage != null) {
                 queue.add(playMessage);
+            }
+            if (offlineMessage != null) {
+                queue.add(offlineMessage);
             }
             if (tuningMessage != null) {
                 queue.add(tuningMessage);

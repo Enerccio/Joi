@@ -29,6 +29,13 @@
       "type": "integer",
       "description": "Send a frame (a ping when nothing else) at least this often; the server closes a silent connection after twice this.",
       "minimum": 1
+    },
+    "serverStartedAt": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "When this run of the server started (ISO 8601, since 1.5); a node keeps it and gives it back in hello.resume when it connects again, which is how the server knows it was down."
     }
   },
   "required": [

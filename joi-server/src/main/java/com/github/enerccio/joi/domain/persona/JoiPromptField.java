@@ -45,6 +45,8 @@ public enum JoiPromptField {
             PersonaAttributes::setLookingGlassEnteredEvent, JoiDefaults::lookingGlassEnteredEvent),
     LOOKING_GLASS_EXITED_EVENT("lookingGlassExitedEvent", NodeEventTemplateData.class, PersonaAttributes::getLookingGlassExitedEvent,
             PersonaAttributes::setLookingGlassExitedEvent, JoiDefaults::lookingGlassExitedEvent),
+    SERVER_RESTARTED_EVENT("serverRestartedEvent", NodeEventTemplateData.class, PersonaAttributes::getServerRestartedEvent,
+            PersonaAttributes::setServerRestartedEvent, JoiDefaults::serverRestartedEvent),
     PART_REQUEST_EVENT("partRequestEvent", PartRequestTemplateData.class, PersonaAttributes::getPartRequestEvent,
             PersonaAttributes::setPartRequestEvent, JoiDefaults::partRequestEvent);
 

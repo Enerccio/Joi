@@ -14,6 +14,9 @@
     }
     html, body { margin: 0; height: 100%; background: #111114; overflow: hidden; }
     joi-model-viewer { width: 100vw; height: 100vh; }
+    /* the server is gone: she is frozen (main.js) and gray */
+    joi-model-viewer { transition: filter 0.6s; }
+    body.offline joi-model-viewer { filter: grayscale(1) brightness(0.7); }
     /* on the Looking Glass: black around her, as the views are */
     body.looking-glass { background: #000; }
   </style>

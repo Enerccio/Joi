@@ -32,7 +32,7 @@ class SchemaContractTest {
             ChatReply.class, TextDelta.class, AudioChunk.class, Done.class, ApiError.class, DeviceAuthorization.class,
             TokenResponse.class, OAuthError.class, OAuthMetadata.class, Download.class, BodyModel.class, BodyPart.class,
             BodyToggle.class, BodyPartState.class, PartSwitch.class, PartKept.class, PartRefused.class,
-            BodyAnimation.class, BodyAnimations.class, BodyInfo.class, JoiAnimations.class, Frame.class, Hello.class, Welcome.class, Manifest.class,
+            BodyAnimation.class, BodyAnimations.class, BodyInfo.class, JoiAnimations.class, Frame.class, Hello.class, Resume.class, Welcome.class, Manifest.class,
             ToolDefinition.class, Say.class, Stop.class, Display.class, ToolUse.class, ToolCall.class, ToolProgress.class, ToolResult.class,
             ToolCancel.class, Approval.class, ServerEvent.class, TurnStart.class, ChatEntry.class, ChatHistory.class);
 
@@ -169,6 +169,10 @@ class SchemaContractTest {
         valid(hello);
         valid(new Hello("1.3", "n1", "kitchen-pi", null, null, "2f0c", List.of(), "joi_x", true));
         valid(new Welcome("1.2", "joi-server", "0.1.0", "s1", new JoiSummary("2f0c", "Joi", null), 30));
+        valid(new Welcome("1.5", "joi-server", "0.1.0", "s1", new JoiSummary("2f0c", "Joi", null), 30, "2026-11-20T10:00:00Z"));
+        valid(new Hello("1.5", "n1", "desk", "desktop", null, "2f0c", List.of(), null, true,
+                new Resume("2026-11-20T10:00:00Z", "2026-11-20T10:05:00Z", 1006)));
+        valid(new Resume(null, null, null));
         JsonObject capabilities = new JsonObject();
         capabilities.addProperty("microphone", true);
         Manifest manifest = new Manifest(3, "macos 26.1", "aarch64", capabilities,

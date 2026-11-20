@@ -15,7 +15,8 @@
 // last step. setRotationTool(index) shows rings to turn a step (-1 hides them); "step-rotated" ({index, x, y, z, w})
 // fires when the mouse lets go of them.
 // finishAnimation() lets a looping step end its round and the rest play once; stopAnimation() puts her back at rest;
-// setAnimationPaused(paused) pauses. It fires "animation-started" ({duration} of one round), "animation-step"
+// setAnimationPaused(paused) pauses; setFrozen(frozen) freezes her altogether (the animation, the sway, the spring bones:
+// the node's page does it while the server is gone). It fires "animation-started" ({duration} of one round), "animation-step"
 // ({index, repeats}) as a step starts or repeats, "animation-finished" (the animation ended) and "animation-error"
 // ({message}).
 // renderFrame, when set, is called each frame instead of rendering the scene to the canvas: renderFrame(renderer,
@@ -127,6 +128,13 @@ class JoiModelViewer extends HTMLElement {
 
   _frame() {
     const delta = this._clock.getDelta();
+    if (this._frozen) {
+      // she stands as she is: only the view goes on (the user can still turn it)
+      this._controls.update();
+      this._aimLight(this._camera, this._controls.target);
+      this._renderScene();
+      return;
+    }
     if (this._mixer && !this._animationPaused) {
       this._mixer.update(delta);
     }
@@ -139,6 +147,10 @@ class JoiModelViewer extends HTMLElement {
     }
     this._controls.update();
     this._aimLight(this._camera, this._controls.target);
+    this._renderScene();
+  }
+
+  _renderScene() {
     if (this.renderFrame) {
       this.renderFrame(this._renderer, this._scene, this._camera, this._controls.target);
     } else {
@@ -345,6 +357,13 @@ class JoiModelViewer extends HTMLElement {
 
   setAnimationPaused(paused) {
     this._animationPaused = !!paused;
+  }
+
+  /** Freezes her where she is, or lets her go on: nothing of her moves while frozen. */
+  setFrozen(frozen) {
+    this._frozen = !!frozen;
+    // the clock does not count the time she stood still
+    this._clock.getDelta();
   }
 
   async _startAnimation() {

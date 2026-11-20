@@ -40,6 +40,11 @@ class AvatarPane extends BorderPane {
     private Consumer<Boolean> onLookingGlass = on -> {
     };
 
+    /** Offline the user can't move her onto the Looking Glass: the server could not be told, and she could not react. */
+    void setOnline(boolean online) {
+        lookingGlass.setDisable(!online || chromium == null);
+    }
+
     /**
      * @param chromium the client to show the page with, null for none
      */

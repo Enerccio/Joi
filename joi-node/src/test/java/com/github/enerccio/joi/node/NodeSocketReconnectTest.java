@@ -73,32 +73,72 @@ class NodeSocketReconnectTest {
                 // the server goes away without a word
             }
             waitFor(() -> seen.contains("disconnected"));
-            // said while it is not connected: sent once it is again
-            String turn = socket.say("Are you there?", true, false);
+            // said while it is not connected: nothing is sent, nor kept to be sent later
+            socket.say("Are you there?", true, false);
+            assertThat(seen).contains("failed disconnected");
 
             try (Peer again = Peer.accept(server)) {
                 JsonObject said = again.frame();
                 assertThat(said.get("type").getAsString()).isEqualTo("hello");
                 assertThat(said.getAsJsonObject("data").get("resumed").getAsBoolean()).isTrue();
+                // what it knows of the connection it lost: which run of the server it was with, when and how it ended
+                JsonObject resume = said.getAsJsonObject("data").getAsJsonObject("resume");
+                assertThat(resume.get("serverStartedAt").getAsString()).isEqualTo("2026-11-20T10:00:00Z");
+                assertThat(resume.get("lostAt").getAsString()).isNotBlank();
+                assertThat(resume.get("closeCode").getAsInt()).isEqualTo(1006);
                 again.welcome("s2");
                 JsonObject manifest = again.frame();
                 assertThat(manifest.get("type").getAsString()).isEqualTo("manifest");
                 assertThat(manifest.getAsJsonObject("data").get("version").getAsLong()).isEqualTo(2);
-                JsonObject queued = again.frame();
-                assertThat(queued.get("type").getAsString()).isEqualTo("say");
-                assertThat(queued.get("id").getAsString()).isEqualTo(turn);
-                assertThat(queued.getAsJsonObject("data").get("text").getAsString()).isEqualTo("Are you there?");
                 waitFor(() -> seen.contains("reconnected s2"));
                 assertThat(socket.connected()).isTrue();
                 again.close(4003, "The node connected again");
                 waitFor(() -> seen.contains("closed 4003"));
             }
             socket.say("Hello?", true, false);
-            assertThat(seen).containsExactly("disconnected", "reconnected s2", "closed 4003", "failed disconnected");
+            assertThat(seen).containsExactly("disconnected", "failed disconnected", "reconnected s2", "closed 4003", "failed disconnected");
             server.setSoTimeout(3_000);
             assertThatThrownBy(server::accept).isInstanceOf(SocketTimeoutException.class);
             socket.close();
         }
+    }
+
+    @Test
+    void aTryNowDoesNotWaitForTheNextOne() throws Exception {
+        List<String> seen = new CopyOnWriteArrayList<>();
+        ServerSocket server = new ServerSocket(0);
+        NodeSocket socket = new NodeSocket(new NodeSocket.Listener() {
+            @Override
+            public void retrying(long waitSeconds) {
+                seen.add("retrying " + waitSeconds);
+            }
+
+            @Override
+            public void connecting() {
+                seen.add("connecting");
+            }
+        });
+        Hello hello = new Hello(JoiProtocol.NODE_VERSION, "n1", "desk", "desktop", "test", "j1", List.of(), null, null);
+        URI uri = URI.create("ws://127.0.0.1:" + server.getLocalPort() + JoiProtocol.NODE);
+        var welcomed = socket.connect(uri, null, hello, new Manifest(1, "macos", "aarch64", null, List.of()));
+        server.setSoTimeout(10_000);
+        try (Peer first = Peer.accept(server)) {
+            first.frame();
+            first.welcome("s1");
+            welcomed.get(10, TimeUnit.SECONDS);
+            first.frame();
+        }
+        // nobody listens any more: the tries fail, and the wait grows (1 s, then 2 s)
+        server.close();
+        waitFor(() -> seen.contains("retrying 2"));
+        long connecting = seen.stream().filter("connecting"::equals).count();
+        long started = System.currentTimeMillis();
+        socket.reconnectNow();
+        waitFor(() -> seen.stream().filter("connecting"::equals).count() > connecting);
+        assertThat(System.currentTimeMillis() - started).as("it did not wait the 2 s").isLessThan(1500);
+        // the wait of the tries after it starts again from 1 s
+        waitFor(() -> seen.stream().filter("retrying 1"::equals).count() == 2);
+        socket.close();
     }
 
     private static void waitFor(java.util.function.BooleanSupplier condition) throws InterruptedException {
@@ -180,7 +220,8 @@ class NodeSocketReconnectTest {
 
         void welcome(String session) throws IOException {
             send(0x1, ("{\"type\":\"welcome\",\"ref\":\"hello\",\"data\":{\"protocol\":\"1.3\",\"server\":\"test\",\"version\":\"0\","
-                    + "\"session\":\"" + session + "\",\"joi\":{\"id\":\"j1\",\"name\":\"Joi\"},\"heartbeatSeconds\":30}}")
+                    + "\"session\":\"" + session + "\",\"joi\":{\"id\":\"j1\",\"name\":\"Joi\"},\"heartbeatSeconds\":30,"
+                    + "\"serverStartedAt\":\"2026-11-20T10:00:00Z\"}}")
                     .getBytes(StandardCharsets.UTF_8));
         }
 

@@ -6,7 +6,8 @@ package com.github.enerccio.joi.protocol.node;
  *
  * @param turn  the id of the turn
  * @param cause why: {@code first_boot} (she wakes up for the very first time: play her waking up before her words),
- *              {@code connected} (the user is back: she greets them); a cause the node does not know is played as a
+ *              {@code connected} (the user is back: she greets them), {@code server_restarted} (the server was down and is
+ *              back, since 1.5); a cause the node does not know is played as a
  *              plain turn
  */
 public record TurnStart(String turn, String cause) {

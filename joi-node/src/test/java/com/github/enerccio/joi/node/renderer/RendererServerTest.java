@@ -134,6 +134,21 @@ class RendererServerTest {
     }
 
     @Test
+    void thatTheServerIsGoneGoesToThePagesOpenAndToOnesOpenedLater() throws Exception {
+        BlockingQueue<JsonObject> open = events();
+        Thread.sleep(300);
+        server.offline(true);
+        JsonObject now = open.poll(5, TimeUnit.SECONDS);
+        assertThat(now.get("type").getAsString()).isEqualTo("offline");
+        assertThat(now.get("offline").getAsBoolean()).isTrue();
+
+        // a page that opens later (the Looking Glass) is frozen and gray at once, until the server is back
+        assertThat(events().poll(5, TimeUnit.SECONDS).get("offline").getAsBoolean()).isTrue();
+        server.offline(false);
+        assertThat(events().poll(5, TimeUnit.SECONDS).get("offline").getAsBoolean()).isFalse();
+    }
+
+    @Test
     void onlyUnderItsSecretPath() throws Exception {
         URI url = server.url();
         URI root = URI.create("http://127.0.0.1:" + url.getPort() + "/events");

@@ -589,7 +589,17 @@ public class JoiNodeApp extends Application {
                 controls.showPart(part.id(), kept.get(part.id()));
             }
         });
-        controls.setDisable(true);
+        // offline nothing can be done: the controls of her parts, the chat and the Looking Glass wait for the connection
+        java.util.function.Consumer<Boolean> online = on -> {
+            controls.setDisable(!on);
+            chat.setOnline(on);
+            avatarPane.setOnline(on);
+            // she stands still and gray while the server is gone, here and on the Looking Glass
+            if (renderer != null) {
+                renderer.offline(!on);
+            }
+        };
+        online.accept(false);
 
         // with a voice her words wait for it
         boolean voiced = loaded.joi().voice() != null;
@@ -668,24 +678,36 @@ public class JoiNodeApp extends Application {
                 Platform.runLater(() -> {
                     chat.note("Disconnected: " + reason + " (" + code + "). Connecting again…");
                     director.disconnected();
-                    controls.setDisable(true);
+                    online.accept(false);
                     staging.cancel();
                 });
             }
 
             @Override
+            public void retrying(long waitSeconds) {
+                Platform.runLater(() -> chat.waitingToReconnect(waitSeconds, () -> socket.reconnectNow()));
+            }
+
+            @Override
+            public void connecting() {
+                Platform.runLater(chat::reconnecting);
+            }
+
+            @Override
             public void reconnected(Welcome welcome) {
                 Platform.runLater(() -> {
+                    chat.connectedAgain();
                     chat.note("Connected again.");
-                    controls.setDisable(false);
+                    online.accept(true);
                 });
             }
 
             @Override
             public void closed(int code, String reason) {
                 Platform.runLater(() -> {
+                    chat.gone(reason + " (" + code + ")");
                     chat.note("Disconnected: " + reason + " (" + code + ")");
-                    controls.setDisable(true);
+                    online.accept(false);
                     staging.cancel();
                 });
             }
@@ -738,7 +760,7 @@ public class JoiNodeApp extends Application {
                 socket.connect(client.nodeSocket(), client.authorization(), hello, manifest).get();
                 Platform.runLater(() -> {
                     director.start();
-                    controls.setDisable(false);
+                    online.accept(true);
                 });
                 return null;
             }
@@ -858,6 +880,14 @@ public class JoiNodeApp extends Application {
         private final VBox lines = new VBox(8);
         private final ScrollPane scroll = new ScrollPane(lines);
         private final TextField input = new TextField();
+        /** Shown while offline: when the next try is, and a link to make it now. */
+        private final Label offlineState = new Label();
+        private final Hyperlink reconnect = new Hyperlink("Reconnect now");
+        private final HBox offline = new HBox(8, offlineState, reconnect);
+        private javafx.animation.Timeline countdown;
+        private int left;
+        private final Button send = new Button("Send");
+        private final Button stop = new Button("Stop");
         private final String name;
         private final Map<String, Label> streaming = new HashMap<>();
         private java.util.function.Consumer<String> onSay = text -> {
@@ -874,15 +904,81 @@ public class JoiNodeApp extends Application {
             lines.heightProperty().addListener((o, a, b) -> scroll.setVvalue(1));
             input.setPromptText("Talk to " + name);
             input.setOnAction(e -> send());
-            Button send = new Button("Send");
             send.setOnAction(e -> send());
-            Button stop = new Button("Stop");
             stop.setOnAction(e -> onStop.run());
             HBox bottom = new HBox(8, input, send, stop);
             HBox.setHgrow(input, Priority.ALWAYS);
             bottom.setPadding(new Insets(8));
+            offline.setPadding(new Insets(6, 8, 0, 8));
+            offline.setAlignment(Pos.CENTER_LEFT);
+            offline.setVisible(false);
+            offline.setManaged(false);
             setCenter(scroll);
-            setBottom(bottom);
+            setBottom(new VBox(offline, bottom));
+        }
+
+        /** Offline she can't be talked to (nor stopped): what is typed stays where it is until the connection is back. */
+        void setOnline(boolean online) {
+            input.setDisable(!online);
+            send.setDisable(!online);
+            stop.setDisable(!online);
+            input.setPromptText(online ? "Talk to " + name : "Not connected…");
+        }
+
+        /** The next try to connect is in {@code seconds}: counted down, with a link to try now. */
+        void waitingToReconnect(long seconds, Runnable now) {
+            stopCountdown();
+            left = (int) seconds;
+            reconnect.setVisible(true);
+            reconnect.setOnAction(e -> now.run());
+            showOffline(offlineText());
+            countdown = new javafx.animation.Timeline(new javafx.animation.KeyFrame(javafx.util.Duration.seconds(1), e -> {
+                if (--left > 0) {
+                    offlineState.setText(offlineText());
+                } else {
+                    offlineState.setText("Connecting…");
+                }
+            }));
+            countdown.setCycleCount((int) Math.max(1, seconds));
+            countdown.play();
+        }
+
+        private String offlineText() {
+            return "Not connected. Connecting again in " + left + " s…";
+        }
+
+        /** A try to connect is running. */
+        void reconnecting() {
+            stopCountdown();
+            reconnect.setVisible(false);
+            showOffline("Connecting…");
+        }
+
+        /** Connected: nothing to say about it. */
+        void connectedAgain() {
+            stopCountdown();
+            offline.setVisible(false);
+            offline.setManaged(false);
+        }
+
+        /** It will not connect again by itself (the server said so): why, with no link. */
+        void gone(String reason) {
+            stopCountdown();
+            reconnect.setVisible(false);
+            showOffline("Disconnected: " + reason);
+        }
+
+        private void showOffline(String text) {
+            offlineState.setText(text);
+            offline.setVisible(true);
+            offline.setManaged(true);
+        }
+
+        private void stopCountdown() {
+            if (countdown != null) {
+                countdown.stop();
+                countdown = null;
+            }
         }
 
         void setOnSay(java.util.function.Consumer<String> onSay) {

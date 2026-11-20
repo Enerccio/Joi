@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Enerccio/joi/protocol/v1/Resume.schema.json",
+  "title": "Resume",
+  "description": "What a node that connects again says of the connection it lost (since 1.5): it lets the server tell a server that was down from a node that only lost the network.",
+  "type": "object",
+  "properties": {
+    "serverStartedAt": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "The welcome.serverStartedAt of the connection that was lost: a server that started since then was down, whatever the reason."
+    },
+    "lostAt": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "When the node lost the connection (ISO 8601)."
+    },
+    "closeCode": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "description": "The close code the node got (1001: the server said it was going down; 1006: the connection broke); null when it got none."
+    }
+  },
+  "required": []
+}

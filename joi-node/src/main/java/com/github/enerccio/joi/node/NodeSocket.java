@@ -75,6 +75,14 @@ public class NodeSocket {
         default void disconnected(int code, String reason) {
         }
 
+        /** The next try to connect again is in this many seconds ({@link #reconnectNow} makes it now). */
+        default void retrying(long waitSeconds) {
+        }
+
+        /** A try to connect again begins. */
+        default void connecting() {
+        }
+
         /** It is connected again (said {@code hello} with {@code resumed}); a turn that ran when it was lost is lost. */
         default void reconnected(Welcome welcome) {
         }
@@ -120,10 +128,15 @@ public class NodeSocket {
     private volatile boolean closing;
     /** Over for good: closed, or a close code after which it does not try again. */
     private volatile boolean over;
-    /** What the user said while it was not connected: sent once it is (welcomed, the manifest sent). */
-    private final List<Map.Entry<String, Say>> queued = new ArrayList<>();
     private volatile long lastHeard;
     private int tries;
+    /** What the node knows of the connection it lost, said in the next hello: when this run of the server started, when and how it was lost. */
+    private volatile String serverStartedAt;
+    private volatile String lostAt;
+    private volatile Integer lostCode;
+    /** The try to connect again that waits, and whether one runs now. */
+    private ScheduledFuture<?> retry;
+    private boolean attempting;
 
     public NodeSocket(Listener listener) {
         this.listener = listener;
@@ -218,13 +231,7 @@ public class NodeSocket {
                 heartbeat = ticks.scheduleAtFixedRate(() -> beat(gen, silent), every, every, TimeUnit.SECONDS);
             }
             tries = 0;
-            synchronized (queued) {
-                for (Map.Entry<String, Say> say : queued) {
-                    send(NodeMessage.SAY, say.getKey(), null, say.getValue());
-                }
-                queued.clear();
-                connected = true;
-            }
+            connected = true;
             return w;
         });
     }
@@ -243,8 +250,9 @@ public class NodeSocket {
     }
 
     /**
-     * The user said something: returns the id of the turn her answer will refer to. While it is not connected, it
-     * waits and is sent once it is; it fails when the connection is over for good.
+     * The user said something: returns the id of the turn her answer will refer to. While it is not connected nothing is
+     * sent, and nothing is kept to be sent later: it fails ({@link Listener#failed}, {@code disconnected}) and the user says
+     * it again when she is back.
      */
     public String say(String text, boolean speak, boolean reasoning) {
         return say(text, speak, reasoning, false);
@@ -257,38 +265,26 @@ public class NodeSocket {
     public String say(String text, boolean speak, boolean reasoning, boolean withEvents) {
         String turn = "t-" + ids.incrementAndGet();
         Say say = new Say(text, speak, reasoning, withEvents ? true : null);
-        listener.turnStarted(turn, SAY);
-        if (!testing) {
-            synchronized (queued) {
-                if (over) {
-                    listener.failed(turn, new ApiError("disconnected", "Not connected to the server"));
-                    return turn;
-                }
-                if (!connected) {
-                    queued.add(Map.entry(turn, say));
-                    return turn;
-                }
-            }
+        if (!testing && !connected()) {
+            // offline nothing is said: it is not kept to be sent later, the user says it again once she is there
+            listener.failed(turn, new ApiError("disconnected", "Not connected to the server: nothing was sent"));
+            return turn;
         }
+        listener.turnStarted(turn, SAY);
         send(NodeMessage.SAY, turn, null, say);
         return turn;
     }
 
-    /** Over for good: what waited to be said fails. */
+    /** Over for good. */
     private void over() {
-        List<Map.Entry<String, Say>> failed;
-        synchronized (queued) {
-            over = true;
-            failed = List.copyOf(queued);
-            queued.clear();
-        }
-        for (Map.Entry<String, Say> say : failed) {
-            listener.failed(say.getKey(), new ApiError("disconnected", "Not connected to the server"));
-        }
+        over = true;
     }
 
     /** Stops her turn ({@code null} for the one running now): she was talked over. */
     public void stop(String turn) {
+        if (!connected()) {
+            return;
+        }
         send(NodeMessage.STOP, null, null, new Stop(turn));
     }
 
@@ -367,6 +363,8 @@ public class NodeSocket {
             listener.closed(code, reason);
             return;
         }
+        lostAt = java.time.Instant.now().toString();
+        lostCode = code;
         listener.disconnected(code, reason);
         reconnect();
     }
@@ -379,30 +377,67 @@ public class NodeSocket {
         long wait = Math.min(MAX_WAIT_SECONDS, 1L << Math.min(tries, 5));
         tries++;
         try {
-            ticks.schedule(() -> {
-                if (closing) {
-                    return;
-                }
-                Hello again = new Hello(hello.protocol(), hello.nodeId(), hello.name(), hello.kind(), hello.software(),
-                        hello.joi(), hello.parts(), hello.token(), true);
-                open(again).whenComplete((w, error) -> {
-                    if (error == null) {
-                        listener.reconnected(w);
-                        return;
-                    }
-                    Throwable cause = error instanceof java.util.concurrent.CompletionException && error.getCause() != null
-                            ? error.getCause() : error;
-                    if (cause instanceof Closed closed && FINAL.contains(closed.code)) {
-                        over();
-                        listener.closed(closed.code, closed.reason);
-                    } else {
-                        reconnect();
-                    }
-                });
-            }, wait, TimeUnit.SECONDS);
+            synchronized (this) {
+                retry = ticks.schedule(this::attempt, wait, TimeUnit.SECONDS);
+            }
+            listener.retrying(wait);
         } catch (java.util.concurrent.RejectedExecutionException e) {
             // closed meanwhile
         }
+    }
+
+    /**
+     * Tries to connect again now, without waiting for the next try (the user asked): nothing when it is connected, over,
+     * or a try is running already. The wait of the tries after it starts from 1 s again.
+     */
+    public void reconnectNow() {
+        synchronized (this) {
+            if (connected || closing || over || attempting || retry == null) {
+                return;
+            }
+            retry.cancel(false);
+            retry = null;
+            tries = 0;
+        }
+        try {
+            ticks.execute(this::attempt);
+        } catch (java.util.concurrent.RejectedExecutionException e) {
+            // closed meanwhile
+        }
+    }
+
+    /** A try to connect again: {@code hello} with what the node knows of the connection it lost. */
+    private void attempt() {
+        if (closing) {
+            return;
+        }
+        synchronized (this) {
+            if (attempting) {
+                return;
+            }
+            attempting = true;
+            retry = null;
+        }
+        listener.connecting();
+        Hello again = new Hello(hello.protocol(), hello.nodeId(), hello.name(), hello.kind(), hello.software(),
+                hello.joi(), hello.parts(), hello.token(), true, new Resume(serverStartedAt, lostAt, lostCode));
+        open(again).whenComplete((w, error) -> {
+            synchronized (this) {
+                attempting = false;
+            }
+            if (error == null) {
+                listener.reconnected(w);
+                return;
+            }
+            Throwable cause = error instanceof java.util.concurrent.CompletionException && error.getCause() != null
+                    ? error.getCause() : error;
+            if (cause instanceof Closed closed && FINAL.contains(closed.code)) {
+                over();
+                listener.closed(closed.code, closed.reason);
+            } else {
+                reconnect();
+            }
+        });
     }
 
     /** The server closed the connection (or it was lost). */
@@ -466,7 +501,9 @@ public class NodeSocket {
                 synchronized (this) {
                     welcomed = welcome;
                 }
-                welcomed.complete(data(frame, Welcome.class));
+                Welcome welcomedBy = data(frame, Welcome.class);
+                serverStartedAt = welcomedBy.serverStartedAt();
+                welcomed.complete(welcomedBy);
             }
             case TURN -> {
                 TurnStart start = data(frame, TurnStart.class);

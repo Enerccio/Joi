@@ -69,6 +69,8 @@ public class NodeServiceImpl implements NodeService, InitializingBean, Disposabl
     /** The causes of a turn the server starts. */
     public static final String FIRST_BOOT = "first_boot";
     public static final String CONNECTED = "connected";
+    /** The cause of the turn when the server was down and a node connected to it again. */
+    public static final String SERVER_RESTARTED = "server_restarted";
     /** The causes of her turns as the user moves her onto a Looking Glass and back ({@code display}). */
     public static final String LOOKING_GLASS_ENTERED = "looking_glass_entered";
     public static final String LOOKING_GLASS_EXITED = "looking_glass_exited";
@@ -99,6 +101,10 @@ public class NodeServiceImpl implements NodeService, InitializingBean, Disposabl
     private PersonaService personaService;
 
     private final ObjectMapper jackson = new ObjectMapper();
+    /** When this run of the server started: a node that lost the connection before it and is back found it down. */
+    private final Instant startedAt = Instant.now();
+    /** The assistants told that the server was down since it started (once for her, however many nodes come back). */
+    private final Set<Long> restartTold = ConcurrentHashMap.newKeySet();
     /** Every open connection, welcomed or not. */
     private final Set<NodeSession> open = ConcurrentHashMap.newKeySet();
     /** The welcomed ones by "user/assistant/node id": a node connecting again replaces its old connection. */
@@ -381,7 +387,7 @@ public class NodeServiceImpl implements NodeService, InitializingBean, Disposabl
         }
         session.send(NodeMessage.WELCOME, null, frame.id(), new Welcome(JoiProtocol.NODE_VERSION, "joi-server", JoiApi.version(),
                 session.id(), new JoiSummary(joi.getUuid(), name, last == null ? null : last.toInstant().toString()),
-                HEARTBEAT_SECONDS));
+                HEARTBEAT_SECONDS, startedAt.toString()));
         log.info("Node {} ({}) connected for {}", hello.name(), hello.software(), joi.getUuid());
     }
 
@@ -406,6 +412,7 @@ public class NodeServiceImpl implements NodeService, InitializingBean, Disposabl
     private void greet(NodeSession session) throws Exception {
         Joi joi;
         boolean first;
+        boolean restarted = false;
         String text;
         try (InRequestScope _ = new InRequestScope(session.attributes())) {
             joi = joiService.find(session.joiId());
@@ -415,19 +422,62 @@ public class NodeServiceImpl implements NodeService, InitializingBean, Disposabl
             }
             first = !chatMessageService.hasAny(joi);
             if (!first && Boolean.TRUE.equals(session.hello().resumed())) {
-                return;
+                // a node that only lost the connection is not greeted; one that found the server down is, once for her
+                restarted = wasDown(session.hello().resume()) && restartTold.add(joi.getId());
+                if (!restarted) {
+                    return;
+                }
             }
             NodeEventTemplateData data = new NodeEventTemplateData();
             data.setNode(session.name());
             data.setNodeKind(StringUtils.defaultIfBlank(session.hello().kind(), null));
             Date last = first ? null : chatMessageService.findLastSentAt(List.of(joi)).get(joi.getId());
             data.setLastChatted(last == null ? null : ago(last.toInstant(), Instant.now()));
-            text = personaService.render(joi, first ? JoiPromptField.FIRST_BOOT_EVENT : JoiPromptField.CONNECTED_EVENT, data).strip();
+            if (restarted) {
+                Resume resume = session.hello().resume();
+                data.setHowLost(Integer.valueOf(1001).equals(resume.closeCode()) ? "was shut down" : "went down");
+                data.setDownFor(downFor(resume.lostAt(), Instant.now()));
+            }
+            text = personaService.render(joi, first ? JoiPromptField.FIRST_BOOT_EVENT
+                    : restarted ? JoiPromptField.SERVER_RESTARTED_EVENT : JoiPromptField.CONNECTED_EVENT, data).strip();
         }
         String turn = "s-" + UUID.randomUUID().toString().substring(0, 12);
-        session.send(NodeMessage.TURN, null, null, new TurnStart(turn, first ? FIRST_BOOT : CONNECTED));
+        String cause = first ? FIRST_BOOT : restarted ? SERVER_RESTARTED : CONNECTED;
+        session.send(NodeMessage.TURN, null, null, new TurnStart(turn, cause));
         startTurn(session, turn, joi, new TurnInput(text, session.name(), session.speaks(), true,
-                first ? "node.first_boot" : "node.connected"), false);
+                "node." + cause), false);
+    }
+
+    /** Whether the server started since the connection the node lost: it was down, whatever the reason. */
+    private boolean wasDown(Resume resume) {
+        return resume != null && StringUtils.isNotBlank(resume.serverStartedAt()) && !resume.serverStartedAt().equals(startedAt.toString());
+    }
+
+    /** How long the server was gone, from when the node lost the connection, in words; null when the node could not say. */
+    static String downFor(String lostAt, Instant now) {
+        if (StringUtils.isBlank(lostAt)) {
+            return null;
+        }
+        Duration gone;
+        try {
+            gone = Duration.between(Instant.parse(lostAt), now);
+        } catch (java.time.format.DateTimeParseException e) {
+            return null;
+        }
+        if (gone.isNegative() || gone.toMinutes() < 1) {
+            return "less than a minute";
+        }
+        if (gone.toHours() < 1) {
+            return plural(gone.toMinutes(), "minute");
+        }
+        if (gone.toDays() < 1) {
+            return plural(gone.toHours(), "hour");
+        }
+        return plural(gone.toDays(), "day");
+    }
+
+    private static String plural(long n, String unit) {
+        return n + " " + unit + (n == 1 ? "" : "s");
     }
 
     /** She is shown on a Looking Glass now, or no longer: her turn about it, so she can react. */

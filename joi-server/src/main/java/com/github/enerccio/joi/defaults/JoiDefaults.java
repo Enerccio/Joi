@@ -306,6 +306,16 @@ React to it in a sentence.""";
     }
 
     /**
+     * The event of the server being down and back ({@code NodeEventTemplateData}: {@code howLost}, {@code downFor}): a node
+     * reconnected to a server that started since it lost the connection.
+     */
+    public String serverRestartedEvent() {
+        return """
+[Event: the server you run on {{howLost}}{{#if downFor}} and was gone for {{downFor}}{{/if}}. It is back now, and you are with {{user}} on {{node}} again.]
+React to it in a sentence or two, as you would to coming to after being switched off for a while.""";
+    }
+
+    /**
      * The event of the user asking to change parts of her body, when her personality lets her decide
      * ({@code PartRequestTemplateData}): the requests, what else happened, how she decides.
      */

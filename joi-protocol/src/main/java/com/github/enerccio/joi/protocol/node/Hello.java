@@ -17,7 +17,14 @@ import java.util.List;
  * @param token    the credentials, for a client that cannot send {@code Authorization} on the upgrade; null otherwise
  * @param resumed  true when the node connects again after it lost the connection (since 1.3): she does not greet the
  *                 user for it; null or false for a new start
+ * @param resume   with {@code resumed}: what the node knows of the connection it lost (since 1.5), so that the server can
+ *                 tell that it was down itself ({@link Resume}); null when not said
  */
 public record Hello(String protocol, String nodeId, String name, String kind, String software, String joi,
-                    List<NodePart> parts, String token, Boolean resumed) {
+                    List<NodePart> parts, String token, Boolean resumed, Resume resume) {
+
+    public Hello(String protocol, String nodeId, String name, String kind, String software, String joi,
+                 List<NodePart> parts, String token, Boolean resumed) {
+        this(protocol, nodeId, name, kind, software, joi, parts, token, resumed, null);
+    }
 }

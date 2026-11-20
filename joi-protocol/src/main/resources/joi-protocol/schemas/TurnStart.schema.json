@@ -12,7 +12,7 @@
     },
     "cause": {
       "type": "string",
-      "description": "Why: first_boot (she wakes up for the very first time), connected (the user is back), looking_glass_entered and looking_glass_exited (the node shows her on a Looking Glass now, or no longer: display, since 1.4). part_switched (the user switched a part of her body on the node: part, since 1.5). Unknown causes are played as a plain turn."
+      "description": "Why: first_boot (she wakes up for the very first time), connected (the user is back), looking_glass_entered and looking_glass_exited (the node shows her on a Looking Glass now, or no longer: display, since 1.4). part_switched (the user switched a part of her body on the node: part, since 1.5). server_restarted (the server was down and is back: she is told how long, since 1.5). Unknown causes are played as a plain turn."
     }
   },
   "required": [

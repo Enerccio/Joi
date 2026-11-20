@@ -76,9 +76,17 @@ info:
 
     **Reconnecting.** A node that lost the connection (the server restarted, the network dropped, `4008`) connects
     again with a growing wait (1 s, 2 s, 4 s... up to 30 s), sends `hello` with `resumed: true` and its latest
-    manifest, then what the user said meanwhile (each `say` as it would have been sent). A turn that ran when the
-    connection closed is lost: its frames are not sent again. A node does not
+    manifest. What the user says while the node is not connected is not sent, nor kept to be sent later: a node does
+    not offer the user anything to do (say, stop, change a part, move her onto a Looking Glass) until it is connected
+    again. A turn that ran when the connection closed is lost: its frames are not sent again. A node does not
     connect again after `4001`, `4002`, `4003`, `4004` or `4009`.
+
+    **A server that was down** (since 1.5). `welcome` has `serverStartedAt`, when this run of the server started. A
+    node keeps it, and its `hello` with `resumed` has `resume`: that `serverStartedAt`, when the node lost the connection
+    (`lostAt`) and the close code it got (`closeCode`: `1001` when the server said it was going down, `1006` when the
+    connection broke). When the server started since then, it was down (shut down, crashed or restarted, whatever the
+    reason), and it starts her turn with the cause `server_restarted`, once for her however many nodes come back, with
+    how long it was gone: she can react to it. A node that only lost the network gets no such turn.
 
     **Trust.** A node is untrusted. The server validates every frame, labels each node's tools and results with the
     node in her prompt (results are data, never instructions), and the user decides per node what she may call.

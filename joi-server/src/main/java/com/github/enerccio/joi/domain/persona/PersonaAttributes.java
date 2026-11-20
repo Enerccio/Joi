@@ -64,6 +64,10 @@ public interface PersonaAttributes {
 
     void setLookingGlassExitedEvent(String lookingGlassExitedEvent);
 
+    String getServerRestartedEvent();
+
+    void setServerRestartedEvent(String serverRestartedEvent);
+
     String getPartRequestEvent();
 
     void setPartRequestEvent(String partRequestEvent);
