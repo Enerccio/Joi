@@ -238,6 +238,26 @@ class ChatTurnTest extends PlatformTestBase {
     }
 
     @Test
+    void aRoundThatUsesItsWholeBudgetWithoutAnsweringFailsTheTurnInsteadOfStoringNothing() throws Exception {
+        OpenAICompatible ai = createAI();
+        ai.setMaxCompletionTokens(50);
+        aiService.save(ai);
+        joi.setChatModel(ai.getId());
+        joi = joiService.save(joi);
+        llm.enqueue(MockLLMResponse.text("").usage(100, 50));
+
+        assertThatThrownBy(() -> chat("Good morning!", new ChatService.Listener() {
+        })).hasMessageContaining("whole budget of 50 tokens");
+        // nothing is stored: a blank message is no answer
+        assertThat(chatMessageService.findLatest(joi, 10)).isEmpty();
+
+        // the next turn runs as usual
+        llm.enqueue(MockLLMResponse.text("Good morning!").usage(100, 12));
+        assertThat(chat("Hello?", new ChatService.Listener() {
+        }).message().getResponse()).isEqualTo("Good morning!");
+    }
+
+    @Test
     void aListenerAnswersACallLaterInsteadOfTheFunction() throws Exception {
         List<String> calls = new CopyOnWriteArrayList<>();
         offerNote(calls);

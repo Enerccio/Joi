@@ -137,6 +137,24 @@ public class InferenceStep extends TurnStepBase {
     private void answered(TurnController controller, boolean noCalls, String text, String reasoning, List<LLMToolCall> calls,
                           RoundUsage usage) {
         controller.addUsage(usage);
+        // a round that used its whole budget and gave neither words nor calls is a failure, not an empty answer to store: a model
+        // that starts thinking and never stops (the server may hold such output back, so nothing of it arrived) would leave
+        // her silent and the user with a blank message
+        Integer limit = controller.getAi().getMaxCompletionTokens();
+        if (limit != null && limit > 0 && usage != null && usage.completionTokens() >= limit * 0.98
+                && StringUtils.isBlank(text) && (calls == null || calls.isEmpty())) {
+            // what is known of the round goes with it: it is rare, and nothing else tells where the tokens went
+            InferenceService.RoundStats stats = usage.stats();
+            String known = stats == null ? "" : " [finish " + stats.finishReason() + ", reasoning tokens " + stats.reasoningTokens()
+                    + ", prompt " + usage.promptTokens() + " of which cached " + stats.cachedTokens() + ", first piece after "
+                    + stats.firstTokenMillis() + " ms, server wrote for " + stats.serverPredictedMillis() + " ms, thinking received "
+                    + StringUtils.length(reasoning) + " chars]";
+            log.warn("A round of the model used its whole budget of {} tokens and gave no answer{}", limit, known);
+            controller.fail(new IllegalStateException("The model used its whole budget of " + limit + " tokens without answering"
+                    + (StringUtils.isBlank(reasoning) ? "" : " (it only thought)") + known));
+            controller.wrapCallback(() -> controller.jumpTo(TurnStepType.CLEANUP)).run();
+            return;
+        }
         int rounds = rounds(controller) + 1;
         String roundText = StringUtils.strip(StringUtils.defaultString(text));
         controller.getProperties().put(TurnProperties.ROUNDS, rounds);
