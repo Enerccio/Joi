@@ -845,8 +845,8 @@ UI — nothing is deleted):
       plus the sentence of each part **not** in its default state: the state it is in, matching, else the nearest
       (the fewest toggles off). Changing a default moves the baseline, and calls for new snapshots and a new
       description.
-      Outfits are the same idea for the whole body, so the editor can serve both.
-    - Later: which expressions fit which mood, and outfits (sets of toggles) described as a whole.
+      Outfits are the same idea for the whole body (see *Outfits* below).
+    - Later: which expressions fit which mood.
   - **Her prompt** (`{{#body}}`, the body section: a template on the chain like every prompt, `BodyTemplateData`) says
     the body she is in, how she looks, the expressions she can show (moods and
     custom ones), the parts she can switch (only the parts described apart) with the names the user gave and the
@@ -884,12 +884,35 @@ UI — nothing is deleted):
   "hide X" shape keys, kept by the converter), but **only the described parts can be toggled** (the *Describe* box
   in the model's dialog): she can't change what she has no words for, and every toggle changes her look. The rest
   stay as the model comes, and are only tried on the preview. Her prompt and her tools list only the described parts.
-- **Outfits** follow the same rule. A body can have several outfits (named sets of toggles, e.g. "street", "armor",
-  "casual") and removable pieces (scarf, gloves, shoes, accessories); some models ship alternative clothing meshes or
-  "hide" keys for this. Outfits are defined per body (detected from the model where possible, named and edited in the
-  UI). You switch or take off a piece and Joi is told and reacts; Joi switches or changes pieces herself with tools
-  (`set_outfit`, `toggle_outfit`) — e.g. to fit the time of day, the weather, her mood or what you are doing — and
-  her appearance description follows the outfit she is wearing.
+- **Outfits (built).** An outfit is a **preset of a body's toggles** with a name and a description of how she looks in
+  it as a whole (`Outfit`, a JSON list on the body: id, name, description, the state of every toggle of the model).
+  They are the body's, not the model's, so one model can serve bodies with different wardrobes. An outfit sets toggles,
+  not only the parts described apart: a modular avatar (Cherie: a mesh for each top, bottom, hair style and
+  accessory) has dozens of pieces that need no words of their own, only the combinations do.
+  - **Putting one on** sets the body's toggles to its state (kept in the body's part states under `@<toggle id>`, so the
+    node and the API see them as the state of the toggles; a part switched later takes over from the outfit for its
+    toggles). The outfit she wears is the one **whose state the body's toggles are in** (computed, never stored: change
+    a part and she wears none until she puts one on again), and **her look** then is the model's description and the
+    outfit's: the description is of the model in its default state, the outfit's of what she wears. With no matching
+    outfit her look is the model's description and the sentences of the parts, as before.
+  - **The user** adds, edits and deletes them in the body dialog (*Outfits*: put it on, edit, delete, *Add outfit*; the
+    outfit dialog has the name, the description, a box per toggle and the 3D preview, and starts from what the body shows
+    now). When she is in the body and has chatted, an outfit the user puts on is an event (`body.outfit_changed`).
+  - **The photoshoot** (outfit dialog): the viewer renders the model in the outfit (the full shots and the faces of the
+    self-image, `takeSnapshots` with no parts) and the multimodal model of the self-image describes **what she wears as
+    a whole** (`AppearanceService.describeOutfit`, the *Outfit prompt* template: the renders, the meshes shown, the
+    model's description so as not to repeat it, the user's notes, the description it has). It fills the description
+    field; the user reviews and saves it. The description may also be written by hand.
+  - **Her tools** (offered whenever there is something to choose, like `change_body_part`; her choice, no consent, the
+    nodes read her body again, the answer says how she looks now and no event follows): `list_outfits` (each outfit with
+    its description and the one she wears), `set_outfit`, `list_bodies` (each body with its description, outfits and the
+    one she is in) and `switch_body`. A **body's description** is the user's (the body dialog), else its model's. Her
+    prompt's body section names the outfit she wears and her other outfits, and says she is free to use them.
+  - **What is new is told once.** A new body (not the one she is in: that was told with her switch) and new outfits are
+    announced when the user closes the body dialog (`BodyService.announce`, tracked on the body so nothing is told
+    twice): one `body.added` event with what each is, and what is new while that event still waits is **added to it**
+    instead of making another. Nothing is queued before she has chatted.
+  - Not built: outfits on the node's controls panel, outfits in the `.joim`, an outfit that holds accessories.
 - **Accessories** can also live **outside** the body: separate small models (glasses, hats, a scarf, a headset,
   earrings, a held mug or book, a pet on the shoulder) in an **accessory library** on the server, shared by all bodies,
   like animations.
