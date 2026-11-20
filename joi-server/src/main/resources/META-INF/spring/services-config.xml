@@ -308,5 +308,7 @@
     <bean class="com.github.enerccio.joi.api.JoiApi" />
     <!-- the nodes connected over the WebSocket (api/NodeEndpoint): their tools, turns and calls -->
     <bean class="com.github.enerccio.joi.domain.service.impl.NodeServiceImpl" />
+    <!-- the functions of her body: she changes a part of it herself -->
+    <bean class="com.github.enerccio.joi.domain.chat.BodyTools" />
 
 </beans>

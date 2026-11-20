@@ -424,6 +424,38 @@ class NodeServiceTest extends PlatformTestBase {
     }
 
     @Test
+    void sheChangesAPartOfHerOwnBodyWithAFunctionAndTheNodeReadsItAgain() throws Exception {
+        Body body = haloBody();
+        llm.enqueue(MockLLMResponse.text("Hello."),
+                MockLLMResponse.text("Fine.").andToolCall("change_body_part", "{\"part\":\"golden halo\",\"state\":\"hidden\"}"),
+                MockLLMResponse.text("There. It is gone."),
+                MockLLMResponse.toolCall("change_body_part", "{\"part\":\"golden halo\",\"state\":\"glowing\"}"),
+                MockLLMResponse.text("Hm, it can't."));
+        Node node = connect("Bearer " + token);
+        node.hello("n1", "desk", joi.getUuid(), "1.5");
+        node.next("welcome");
+        node.manifest(1);
+        node.frame("say", "t1", "{\"text\": \"Hi\", \"speak\": false}");
+        node.next("done");
+
+        node.frame("say", "t2", "{\"text\": \"Take the halo off.\", \"speak\": false}");
+        // the node is told to read her body again
+        JsonObject event = node.next("event");
+        assertThat(event.getAsJsonObject("data").get("name").getAsString()).isEqualTo("body");
+        node.next("done");
+        assertThat(bodyService.find(body.getId()).partStateMap()).containsEntry("key:Headgear/Hide Halo", "hidden");
+        // she knows what she did: the tool's answer, not an event of her own, and no turn about it
+        assertThat(llm.getCompletionRequests().get(2).getLastMessage().content()).contains("Nothing floats above you now.");
+        assertThat(node.frames.poll(2500, TimeUnit.MILLISECONDS)).as("no turn about her own change").isNull();
+
+        // a state the part does not have: she is told what it can be, nothing changes
+        node.frame("say", "t3", "{\"text\": \"Make it glow.\", \"speak\": false}");
+        node.next("done");
+        assertThat(llm.getCompletionRequests().get(4).getLastMessage().content()).contains("golden halo can be: shown, hidden");
+        assertThat(bodyService.find(body.getId()).partStateMap()).containsEntry("key:Headgear/Hide Halo", "hidden");
+    }
+
+    @Test
     void wordsSaidWithTheEventsTakeThemAlongInTheirOwnTurn() throws Exception {
         haloBody();
         llm.enqueue(MockLLMResponse.text("Hello."), MockLLMResponse.text("Yes, it is gone."));

@@ -190,6 +190,72 @@ public class BodyServiceImpl extends ExtendableServiceImpl<Body, BodyRepository>
     @Override
     @CommonTx
     public List<QueuedEvent> switchPart(Body body, String partId, String stateId) throws Exception {
+        Switched switched = doSwitch(body, partId, stateId);
+        List<QueuedEvent> events = new ArrayList<>();
+        if (switched.stored().isActive() && switched.changed() && chatMessageService.hasAny(switched.stored().getJoi())) {
+            switched.payload().addProperty("by", "user");
+            events.add(queue(switched.stored().getJoi(), JoiEvents.PART_SWITCHED, switched.text(), switched.payload()));
+        }
+        return events;
+    }
+
+    @Override
+    @CommonTx
+    public String changePart(Body body, String partName, String stateName) throws Exception {
+        Body stored = find(body.getId());
+        Model model = model(stored);
+        ModelCapabilities capabilities = model == null ? null : ModelCapabilities.fromJson(model.getCapabilities());
+        List<DescribedPart> parts = model == null ? List.of() : DescribedPart.of(model, capabilities);
+        DescribedPart part = parts.stream().filter(candidate -> candidate.name().equalsIgnoreCase(StringUtils.strip(partName)))
+                .findFirst().orElse(null);
+        if (part == null) {
+            throw new IllegalArgumentException("You have no part called \"" + partName + "\". Your parts: "
+                    + String.join(", ", parts.stream().map(DescribedPart::name).toList()));
+        }
+        DescribedPart.State state = part.states().stream().filter(candidate -> stateName(part, candidate).equalsIgnoreCase(StringUtils.strip(stateName)))
+                .findFirst().orElse(null);
+        if (state == null) {
+            throw new IllegalArgumentException(part.name() + " can be: " + String.join(", ", part.states().stream()
+                    .map(candidate -> stateName(part, candidate)).toList()));
+        }
+        DescribedPart.State before = BodyState.stateOf(model, part, stored.partStateMap());
+        if (before != null && before.id().equals(state.id())) {
+            return part.name() + " is already " + stateName(part, state) + ".";
+        }
+        // she did it herself: she is told what it looks like and what went with it, not again as an event
+        return doSwitch(stored, part.id(), state.id()).text();
+    }
+
+    @Override
+    @CommonTxReadOnly
+    public List<PartOption> partOptions(Body body) throws Exception {
+        Body stored = find(body.getId());
+        Model model = model(stored);
+        ModelCapabilities capabilities = model == null ? null : ModelCapabilities.fromJson(model.getCapabilities());
+        List<PartOption> options = new ArrayList<>();
+        if (model != null) {
+            for (DescribedPart part : DescribedPart.of(model, capabilities)) {
+                options.add(new PartOption(part.name(), part.states().stream().map(state -> stateName(part, state)).toList()));
+            }
+        }
+        return options;
+    }
+
+    /** What the state is called in the words she is told: its name for a group, "shown" or "hidden" for a toggle. */
+    private static String stateName(DescribedPart part, DescribedPart.State state) {
+        return part.group() ? state.name() : DescribedPart.SHOWN.equals(state.id()) ? "shown" : "hidden";
+    }
+
+    /**
+     * A part switched and stored.
+     *
+     * @param changed whether it was in another state before
+     * @param text    the event as she is told it: how it looks, what went with it
+     */
+    private record Switched(Body stored, boolean changed, String text, JsonObject payload) {
+    }
+
+    private Switched doSwitch(Body body, String partId, String stateId) throws Exception {
         Body stored = find(body.getId());
         Model model = model(stored);
         ModelCapabilities capabilities = model == null ? null : ModelCapabilities.fromJson(model.getCapabilities());
@@ -210,50 +276,45 @@ public class BodyServiceImpl extends ExtendableServiceImpl<Body, BodyRepository>
         }
         stored.setPartStateMap(states);
         stored = save(stored);
-        List<QueuedEvent> events = new ArrayList<>();
-        if (stored.isActive() && (before == null || !before.id().equals(state.id())) && chatMessageService.hasAny(stored.getJoi())) {
-            JsonObject payload = new JsonObject();
-            payload.addProperty("to", stored.getUuid());
-            payload.addProperty("part", part.id());
-            payload.addProperty("fromState", before == null ? null : before.id());
-            payload.addProperty("toState", state.id());
-            payload.addProperty("by", "user");
-            String stateName = part.group() ? state.name() : DescribedPart.SHOWN.equals(state.id()) ? "shown" : "hidden";
-            // one event for the switch and what it took with it: the parts under this one, now out of sight or back in it
-            Map<String, Boolean> seenAfter = tree.effective(BodyState.toggles(model, states));
-            List<String> gone = new ArrayList<>();
-            List<String> back = new ArrayList<>();
-            for (DescribedPart other : DescribedPart.of(model, capabilities)) {
-                if (!other.id().equals(part.id())) {
-                    boolean wasSeen = other.toggles().stream().anyMatch(toggle -> seenBefore.getOrDefault(toggle.id(), true));
-                    boolean isSeen = other.toggles().stream().anyMatch(toggle -> seenAfter.getOrDefault(toggle.id(), true));
-                    if (wasSeen && !isSeen) {
-                        gone.add(other.name());
-                    } else if (!wasSeen && isSeen) {
-                        back.add(other.name());
-                    }
+        JsonObject payload = new JsonObject();
+        payload.addProperty("to", stored.getUuid());
+        payload.addProperty("part", part.id());
+        payload.addProperty("fromState", before == null ? null : before.id());
+        payload.addProperty("toState", state.id());
+        String stateName = stateName(part, state);
+        // one event for the switch and what it took with it: the parts under this one, now out of sight or back in it
+        Map<String, Boolean> seenAfter = tree.effective(BodyState.toggles(model, states));
+        List<String> gone = new ArrayList<>();
+        List<String> back = new ArrayList<>();
+        for (DescribedPart other : DescribedPart.of(model, capabilities)) {
+            if (!other.id().equals(part.id())) {
+                boolean wasSeen = other.toggles().stream().anyMatch(toggle -> seenBefore.getOrDefault(toggle.id(), true));
+                boolean isSeen = other.toggles().stream().anyMatch(toggle -> seenAfter.getOrDefault(toggle.id(), true));
+                if (wasSeen && !isSeen) {
+                    gone.add(other.name());
+                } else if (!wasSeen && isSeen) {
+                    back.add(other.name());
                 }
             }
-            String hiddenBy = null;
-            Map<String, Boolean> own = BodyState.toggles(model, states);
-            // under a hidden part the switch is not seen, whatever state it was switched to
-            if (part.toggles().stream().noneMatch(toggle -> seenAfter.getOrDefault(toggle.id(), true))) {
-                for (ModelCapabilities.Toggle toggle : part.toggles()) {
-                    for (String above : tree.ancestors(toggle.id())) {
-                        if (hiddenBy == null && !own.getOrDefault(above, true)) {
-                            hiddenBy = capabilities.toggles().stream().filter(candidate -> candidate.id().equals(above))
-                                    .map(model::toggleName).findFirst().orElse(null);
-                        }
-                    }
-                }
-            }
-            payload.add("gone", names(gone));
-            payload.add("back", names(back));
-            events.add(queue(stored.getJoi(), JoiEvents.PART_SWITCHED,
-                    personaService.defaults().eventPartSwitched(part.name(), stateName, part.group(), part.sentence(model, state.id()),
-                            gone, back, hiddenBy), payload));
         }
-        return events;
+        String hiddenBy = null;
+        Map<String, Boolean> own = BodyState.toggles(model, states);
+        // under a hidden part the switch is not seen, whatever state it was switched to
+        if (part.toggles().stream().noneMatch(toggle -> seenAfter.getOrDefault(toggle.id(), true))) {
+            for (ModelCapabilities.Toggle toggle : part.toggles()) {
+                for (String above : tree.ancestors(toggle.id())) {
+                    if (hiddenBy == null && !own.getOrDefault(above, true)) {
+                        hiddenBy = capabilities.toggles().stream().filter(candidate -> candidate.id().equals(above))
+                                .map(model::toggleName).findFirst().orElse(null);
+                    }
+                }
+            }
+        }
+        payload.add("gone", names(gone));
+        payload.add("back", names(back));
+        String text = personaService.defaults().eventPartSwitched(part.name(), stateName, part.group(), part.sentence(model, state.id()),
+                gone, back, hiddenBy);
+        return new Switched(stored, before == null || !before.id().equals(state.id()), text, payload);
     }
 
     @Override

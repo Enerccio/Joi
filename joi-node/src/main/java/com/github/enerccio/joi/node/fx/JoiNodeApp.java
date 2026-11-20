@@ -185,22 +185,11 @@ public class JoiNodeApp extends Application {
         address.setEditable(true);
         address.setMaxWidth(Double.MAX_VALUE);
         address.setPromptText("http://host:8080");
+        address.getEditor().setText(server);
         TextField token = new TextField();
         Label status = new Label(problem == null ? "" : problem);
         Button connect = new Button("Connect");
         connect.setDefaultButton(true);
-        connect.setOnAction(e -> {
-            connect.setDisable(true);
-            status.setText("Connecting...");
-            login(NodeSettings.normalise(address.getEditor().getText()), token.getText().strip(), status, () -> connect.setDisable(false));
-        });
-        show(new StackPane(centered(new Label("Joi server"), address, token, new HBox(8, connect, forget), status)));
-        address.getEditor().setText(server);
-    }
-
-    private void login(String server, String token, Label status, Runnable failed) {
-        Task<ServerInfo> task = new Task<>() {
-            @Override
         Button forget = new Button("Forget this server");
         forget.setTooltip(new Tooltip("Removes the server from the list, with its token or pairing"));
         // a server known has its token or pairing kept: nothing to type
@@ -227,11 +216,22 @@ public class JoiNodeApp extends Application {
             status.setText("Forgot " + typed);
             shown.run();
         });
+        connect.setOnAction(e -> {
+            connect.setDisable(true);
+            status.setText("Connecting...");
+            login(NodeSettings.normalise(address.getEditor().getText()), token.getText().strip(), status, () -> connect.setDisable(false));
+        });
+        show(new StackPane(centered(new Label("Joi server"), address, token, new HBox(8, connect, forget), status)));
+    }
+
+    private void login(String server, String token, Label status, Runnable failed) {
+        Task<ServerInfo> task = new Task<>() {
+            @Override
             protected ServerInfo call() throws Exception {
                 NodeSettings.Node node = settings.node();
                 node.server = NodeSettings.normalise(server);
                 settings.saveNode();
-                client = new ServerClient(server, settings);
+                client = new ServerClient(node.server, settings);
                 if (!token.isEmpty()) {
                     settings.credentials().token = token;
                     settings.saveCredentials();
@@ -505,6 +505,10 @@ public class JoiNodeApp extends Application {
                 chat.note("The choice was not saved: " + e.getMessage());
             }
         });
+        // her body changed on the server (she changed a part herself): read it again, and show what is not shown yet
+        java.util.concurrent.atomic.AtomicReference<Runnable> resync = new java.util.concurrent.atomic.AtomicReference<>(() -> {
+        });
+        java.util.concurrent.atomic.AtomicBoolean resyncLater = new java.util.concurrent.atomic.AtomicBoolean();
         PartStaging staging = new PartStaging(PART_TIMING, stagingTimer,
                 (id, part, state) -> socket.part(id, part, state),
                 () -> {
@@ -519,6 +523,10 @@ public class JoiNodeApp extends Application {
                 withReaction::get,
                 locked -> Platform.runLater(() -> controls.lockParts(locked)),
                 (done, notKept, refused) -> Platform.runLater(() -> {
+                    // a change of hers that came while the user's batch waited is read now
+                    if (resyncLater.getAndSet(false)) {
+                        resync.get().run();
+                    }
                     for (com.github.enerccio.joi.protocol.node.PartSwitch change : done) {
                         keepPart(parts, kept, toggles, controls, change);
                     }
@@ -536,14 +544,6 @@ public class JoiNodeApp extends Application {
                                 + (refusal.reason() == null ? "" : " (" + refusal.reason() + ")"));
                     }
                 }));
-        controls.setOnSwitch((part, state) -> {
-            if (!staging.change(part.id(), state.id())) {
-                controls.showPart(part.id(), kept.get(part.id()));
-            }
-        });
-        controls.setDisable(true);
-
-        // with a voice her words wait for it
         // words typed in the chat go with the change when the user says so, asked as the batch is about to be sent: the
         // server tells her both in one turn
         staging.withWords(() -> {
@@ -559,6 +559,39 @@ public class JoiNodeApp extends Application {
                 Platform.runLater(chat::sayWithParts);
             }
         });
+        resync.set(() -> {
+            if (staging.locked() || staging.pending()) {
+                // the user's own change comes first: the body is read again when it is resolved
+                resyncLater.set(true);
+                return;
+            }
+            Thread.ofVirtual().name("Joi body").start(() -> {
+                try {
+                    BodyInfo info = client.body(loaded.summary().id());
+                    if (info == null || info.parts() == null) {
+                        return;
+                    }
+                    Platform.runLater(() -> {
+                        for (BodyPart part : info.parts()) {
+                            if (!java.util.Objects.equals(kept.get(part.id()), part.state())) {
+                                keepPart(parts, kept, toggles, controls,
+                                        new com.github.enerccio.joi.protocol.node.PartSwitch(part.id(), part.state()));
+                            }
+                        }
+                    });
+                } catch (Exception e) {
+                    Platform.runLater(() -> chat.note("Her body could not be read again: " + e.getMessage()));
+                }
+            });
+        });
+        controls.setOnSwitch((part, state) -> {
+            if (!staging.change(part.id(), state.id())) {
+                controls.showPart(part.id(), kept.get(part.id()));
+            }
+        });
+        controls.setDisable(true);
+
+        // with a voice her words wait for it
         boolean voiced = loaded.joi().voice() != null;
         socket = new NodeSocket(new NodeSocket.Listener() {
             @Override
@@ -574,6 +607,13 @@ public class JoiNodeApp extends Application {
                 if (turn != null && turn.equals(partsTurn)) {
                     partsTurn = null;
                     staging.reaction();
+                }
+            }
+
+            @Override
+            public void event(com.github.enerccio.joi.protocol.node.ServerEvent event) {
+                if ("body".equals(event.name())) {
+                    Platform.runLater(() -> resync.get().run());
                 }
             }
 
@@ -651,6 +691,7 @@ public class JoiNodeApp extends Application {
             }
         });
         chat.setOnSay(text -> socket.say(text, true, false));
+        chat.setOnSayWithParts(text -> socket.say(text, true, false, true));
         chat.setOnStop(() -> {
             // talked over: her words and her voice stop
             socket.stop(null);
@@ -691,7 +732,6 @@ public class JoiNodeApp extends Application {
             protected Void call() throws Exception {
                 NodeSettings.Node node = settings.node();
                 Hello hello = new Hello(JoiProtocol.NODE_VERSION, node.nodeId, node.name, node.kind == null ? "desktop" : node.kind,
-        chat.setOnSayWithParts(text -> socket.say(text, true, false, true));
                         "joi-node (JavaFX)", loaded.summary().id(), List.of(NodePart.AUDIO_OUT, NodePart.AVATAR), null, null);
                 Manifest manifest = new Manifest(1, System.getProperty("os.name") + " " + System.getProperty("os.version"),
                         System.getProperty("os.arch"), null, List.of());
@@ -822,6 +862,8 @@ public class JoiNodeApp extends Application {
         private final Map<String, Label> streaming = new HashMap<>();
         private java.util.function.Consumer<String> onSay = text -> {
         };
+        private java.util.function.Consumer<String> onSayWithParts = text -> {
+        };
         private Runnable onStop = () -> {
         };
 
@@ -847,6 +889,26 @@ public class JoiNodeApp extends Application {
             this.onSay = onSay;
         }
 
+        /** What is said when the typed words go with a change of her parts. */
+        void setOnSayWithParts(java.util.function.Consumer<String> onSayWithParts) {
+            this.onSayWithParts = onSayWithParts;
+        }
+
+        /** Whether words are typed and not sent. */
+        boolean hasTyped() {
+            return !input.getText().isBlank();
+        }
+
+        /** Sends the typed words as the part of one message with the change of her parts just sent (nothing when none are typed). */
+        void sayWithParts() {
+            String text = input.getText().strip();
+            if (!text.isEmpty()) {
+                input.clear();
+                add("You: " + text);
+                onSayWithParts.accept(text);
+            }
+        }
+
         void setOnStop(Runnable onStop) {
             this.onStop = onStop;
         }
@@ -862,8 +924,6 @@ public class JoiNodeApp extends Application {
 
         /** Her history from the server: the chat goes on where it was. */
         void history(List<ChatEntry> entries) {
-        private java.util.function.Consumer<String> onSayWithParts = text -> {
-        };
             for (ChatEntry entry : entries) {
                 if (entry.text() != null) {
                     add("You: " + entry.text());
@@ -889,26 +949,6 @@ public class JoiNodeApp extends Application {
         }
 
         void note(String text) {
-        /** What is said when the typed words go with a change of her parts. */
-        void setOnSayWithParts(java.util.function.Consumer<String> onSayWithParts) {
-            this.onSayWithParts = onSayWithParts;
-        }
-
-        /** Whether words are typed and not sent. */
-        boolean hasTyped() {
-            return !input.getText().isBlank();
-        }
-
-        /** Sends the typed words as the part of one message with the change of her parts just sent (nothing when none are typed). */
-        void sayWithParts() {
-            String text = input.getText().strip();
-            if (!text.isEmpty()) {
-                input.clear();
-                add("You: " + text);
-                onSayWithParts.accept(text);
-            }
-        }
-
             Label line = add(text);
             line.setStyle("-fx-opacity: 0.6;");
         }

@@ -163,6 +163,15 @@ one; the server treats every node the same.
     and the text stays). **Spoken (not built, same rule without asking):** when the user talks and changes a part in the
     same moment, the utterance is sent as one `say` with `withEvents` after the `part` frames: nobody is asked, since
     speaking and clicking are meant as one message.
+    **Her own changes (built).** Every turn of hers, on a node or not, is offered the function `change_body_part` (`part`,
+    `state`; `domain/chat/BodyTools`) when her body has parts described apart: she takes off or puts on a part herself
+    when she decides to or agrees to what the user asks. The part is one her prompt lists under "Parts you can
+    switch", by the name she knows; the state is its name for a group, `shown` or `hidden` for a toggle (case does not
+    matter); a wrong name is answered with what is valid. It is her choice, so no consent is asked (that is for the
+    user's requests); the body keeps it like the user's switch (`BodyService.changePart`), and she is told how it looks
+    and what went with it in the function's answer, not again as an event. Each node gets `event body` and reads her body
+    again (`GET .../body`), showing what differs on her body and in the controls; while the user's own change waits or is
+    sent, it is read when that is resolved.
     **When the change shows (built).** The node has a switch, `partsShown` (a checkbox in the controls panel, kept in
     `NodeSettings`): `kept` (default: shown once the server answered `part_kept`) or `reaction` (shown with her
     reaction: the first `text` or `audio` of the `part_switched` turn, or its `done` / `error`, or after 40 s, so the

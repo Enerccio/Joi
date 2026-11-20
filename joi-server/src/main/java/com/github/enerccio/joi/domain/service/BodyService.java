@@ -67,6 +67,28 @@ public interface BodyService extends ExtendableService<Body, BodyRepository> {
     List<QueuedEvent> switchPart(Body body, String partId, String stateId) throws Exception;
 
     /**
+     * She switches a part of her body herself (the function she is offered): by the names she knows (the part's, the
+     * state's: its name for a group, "shown" or "hidden" for a toggle; case does not matter). It is kept on the body like
+     * the user's switch, but she is not told of it as an event: what is returned is what she is told in the function's
+     * answer (how it looks, what went with it).
+     *
+     * @throws IllegalArgumentException with words for her when the body has no such part or state
+     */
+    String changePart(Body body, String partName, String stateName) throws Exception;
+
+    /** The parts she can switch in the body, each with the names of its states; empty for none. */
+    List<PartOption> partOptions(Body body) throws Exception;
+
+    /**
+     * A part she can switch.
+     *
+     * @param part   what she calls it
+     * @param states the names of its states, as {@link #changePart} takes them
+     */
+    record PartOption(String part, List<String> states) {
+    }
+
+    /**
      * What the user's request to put a part in a state is, as she is told (nothing is changed: she decides on it).
      *
      * @return null when the part is in that state already
