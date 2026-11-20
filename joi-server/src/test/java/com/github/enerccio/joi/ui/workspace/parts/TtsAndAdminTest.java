@@ -201,6 +201,8 @@ class TtsAndAdminTest extends PlatformTestBase {
         JoiWorkspace user = new JoiWorkspace();
         user.create();
         assertThat(user.getPart("admin")).isNull();
+        // everybody has the trash: what they deleted can be restored
+        assertThat(user.getPart("trash")).isInstanceOf(TrashPart.class);
 
         loginAdmin();
         // a real login does not copy the flag into the session's user: the workspace must ask the database
@@ -210,6 +212,9 @@ class TtsAndAdminTest extends PlatformTestBase {
         admin.refresh();
         assertThat(admin.getPart("admin")).isInstanceOf(AdminPart.class);
         assertThat(rows(((AdminPart) admin.getPart("admin")).getUsersGrid())).isNotEmpty();
+        // the platform's backups, cleanup and sweep of files are in the administration, with the GPUs
+        assertThat(admin.getPart("admin").getLLMChildren(false)).extracting(child -> child.getClass().getSimpleName())
+                .contains("GpuPanel", "DatabaseBackupPanel", "CleanupPanel", "ResourceGarbagePanel");
 
         // no tab of its own: the button under the tabs shows it, and the state remembers it
         assertThat(admin.getActivePart()).isNotInstanceOf(AdminPart.class);

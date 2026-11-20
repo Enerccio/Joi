@@ -29,6 +29,9 @@ public class JoiLocalizationBundleEN extends TextBundleBase<J_L> {
         setValue(J_L.LABEL_TEXT_MODELS, "Text Models");
         setValue(J_L.LABEL_USED_FOR, "Used for");
         setValue(J_L.LABEL_ADMIN, "Administration");
+        setValue(J_L.LABEL_DATABASE_BACKUPS, "Database Backups");
+        setValue(J_L.LABEL_CLEANUP, "Cleanup");
+        setValue(J_L.LABEL_RESOURCE_FILES, "Resource Files");
         setValue(J_L.LABEL_USERS, "Users");
         setValue(J_L.LABEL_ADD_USER, "Add user");
         setValue(J_L.LABEL_TTS_MODELS, "TTS Models");

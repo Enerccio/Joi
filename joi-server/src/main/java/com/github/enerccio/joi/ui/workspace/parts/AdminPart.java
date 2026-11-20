@@ -15,7 +15,10 @@ import com.github.enerccio.marginalia.ui.dialogs.ConfirmDialog;
 import com.github.enerccio.marginalia.ui.dialogs.UserDialog;
 import com.github.enerccio.marginalia.ui.dialogs.permissions.PermissionsDialog;
 import com.github.enerccio.marginalia.ui.widgets.Notification;
+import com.github.enerccio.marginalia.ui.workspace.parts.admin.CleanupPanel;
+import com.github.enerccio.marginalia.ui.workspace.parts.admin.DatabaseBackupPanel;
 import com.github.enerccio.marginalia.ui.workspace.parts.admin.GpuPanel;
+import com.github.enerccio.marginalia.ui.workspace.parts.admin.ResourceGarbagePanel;
 import com.github.enerccio.marginalia.utils.UIUtils;
 import com.vaadin.flow.component.Component;
 import com.vaadin.flow.component.button.Button;
@@ -49,6 +52,11 @@ public class AdminPart implements WorkspacePart {
 
     private final GpuPanel gpuPanel = new GpuPanel();
     private final ApiAccessPanel apiAccessPanel = new ApiAccessPanel();
+    // the platform's panels, as in Marginalia's administration: backups of the database, the cleanup of what users
+    // deleted (the trash of all of them, deleted for good), and the sweep of the files nothing points to
+    private final DatabaseBackupPanel databaseBackupPanel = new DatabaseBackupPanel();
+    private final CleanupPanel cleanupPanel = new CleanupPanel();
+    private final ResourceGarbagePanel resourceGarbagePanel = new ResourceGarbagePanel();
     private Grid<User> usersGrid;
     private Button addUserButton;
     private TabSheet tabs;
@@ -60,6 +68,9 @@ public class AdminPart implements WorkspacePart {
         tabs.add(loc.getValue(J_L.LABEL_USERS), createUsers());
         tabs.add(loc.getValue(L.LABEL_GPUS), gpuPanel.create());
         tabs.add(loc.getValue(J_L.LABEL_API_ACCESS), apiAccessPanel.create());
+        tabs.add(loc.getValue(J_L.LABEL_DATABASE_BACKUPS), databaseBackupPanel.create());
+        tabs.add(loc.getValue(J_L.LABEL_CLEANUP), cleanupPanel.create());
+        tabs.add(loc.getValue(J_L.LABEL_RESOURCE_FILES), resourceGarbagePanel.create());
         return tabs;
     }
 
@@ -158,6 +169,9 @@ public class AdminPart implements WorkspacePart {
         users.sort(Comparator.comparing(User::getLogin, String.CASE_INSENSITIVE_ORDER));
         usersGrid.setItems(users);
         gpuPanel.refresh();
+        databaseBackupPanel.refresh();
+        cleanupPanel.refresh();
+        resourceGarbagePanel.refresh();
     }
 
     private void refreshQuietly() {
@@ -177,7 +191,7 @@ public class AdminPart implements WorkspacePart {
 
     @Override
     public List<LLMInteract> getLLMChildren(boolean deep) {
-        return List.of(gpuPanel);
+        return List.of(gpuPanel, databaseBackupPanel, cleanupPanel, resourceGarbagePanel);
     }
 
     @Override

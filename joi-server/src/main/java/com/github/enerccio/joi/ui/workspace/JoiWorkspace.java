@@ -67,6 +67,7 @@ public class JoiWorkspace implements BaseWorkspace {
         partsByKey.put("animations", new AnimationsPart());
         partsByKey.put("animation-packs", new AnimationPacksPart());
         partsByKey.put("models", new AIPart());
+        partsByKey.put("trash", new TrashPart(this));
         partsByKey.put("settings", new UserSettingsPart(this));
     }
 
@@ -100,6 +101,7 @@ public class JoiWorkspace implements BaseWorkspace {
         addTab("animations", PartIcon.ANIMATIONS, J_L.LABEL_ANIMATIONS);
         addTab("animation-packs", PartIcon.ANIMATION_PACKS, J_L.LABEL_ANIMATION_PACKS);
         addTab("models", PartIcon.MODELS, J_L.LABEL_MODELS);
+        addTab("trash", PartIcon.TRASH, L.LABEL_TRASH);
         addTab("settings", PartIcon.SETTINGS, J_L.LABEL_USER_SETTINGS);
         if (adminGuard.isAdmin()) {
             adminPart = new AdminPart();

@@ -37,6 +37,9 @@ public enum PartIcon {
     SETTINGS("<path d='M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12'/><circle cx='16' cy='6' r='2'/>"
             + "<circle cx='10' cy='12' r='2'/><circle cx='18' cy='18' r='2'/>"),
 
+    /** A bin: the trash. */
+    TRASH("<path d='M4 7h16M10 11v6M14 11v6M5.5 7l1 13a1 1 0 0 0 1 1h9a1 1 0 0 0 1-1l1-13M9 7V4h6v3'/>"),
+
     /** A shield: the administration. */
     ADMIN("<path d='M12 3l7 3v5c0 4.5-3 8.5-7 10-4-1.5-7-5.5-7-10V6z'/><path d='M9 12l2 2 4-4'/>");
 
