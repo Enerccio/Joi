@@ -960,13 +960,6 @@ class NodeServiceTest extends PlatformTestBase {
         waiting.setOccurredAt(new java.util.Date());
         waiting.setText("[Event: your task \"capital of Australia\" is finished.]\nCanberra.");
         waiting = queuedEventService.save(waiting);
-        // the other kinds of waiting events are not delivered yet
-        QueuedEvent other = new QueuedEvent();
-        other.setJoi(joi);
-        other.setKind(JoiEvents.RENAMED);
-        other.setOccurredAt(new java.util.Date());
-        other.setText("Your name changed.");
-        other = queuedEventService.save(other);
 
         llm.enqueue(MockLLMResponse.text("Canberra, it seems."));
         Node node = connect("Bearer " + token);
@@ -978,9 +971,52 @@ class NodeServiceTest extends PlatformTestBase {
         ChatMessage told = chatMessageService.findLatest(joi, 1).getFirst();
         assertThat(told.getType()).isEqualTo(ChatMessageType.EVENT);
         assertThat(told.getEventKind()).isEqualTo("node.task_ended");
-        assertThat(told.getInput()).contains("capital of Australia").contains("Canberra.").doesNotContain("Your name changed");
+        assertThat(told.getInput()).contains("capital of Australia").contains("Canberra.");
         assertThat(told.getResponse()).isEqualTo("Canberra, it seems.");
-        assertThat(queuedEventService.findWaiting(joi)).extracting(QueuedEvent::getKind).containsExactly(JoiEvents.RENAMED);
+        assertThat(queuedEventService.findWaiting(joi)).isEmpty();
+    }
+
+    @Test
+    void whatHappenedWhileNoNodeWasConnectedIsToldMergedWhenOneConnects() throws Exception {
+        java.util.function.BiFunction<String, String, QueuedEvent> queue = (kind, text) -> {
+            QueuedEvent event = new QueuedEvent();
+            event.setJoi(joi);
+            event.setKind(kind);
+            event.setOccurredAt(new java.util.Date());
+            event.setText(text);
+            try {
+                return queuedEventService.save(event);
+            } catch (Exception e) {
+                throw new IllegalStateException(e);
+            }
+        };
+        // renamed twice: both steps are told, in order; her voice changed and changed back: nothing
+        QueuedEvent one = queue.apply(JoiEvents.RENAMED, "You are now called Mira.");
+        one.setPayload("{\"from\":\"Joi\",\"to\":\"Mira\"}");
+        queuedEventService.save(one);
+        QueuedEvent voice1 = queue.apply(JoiEvents.VOICE_CHANGED, "Your voice is low now.");
+        voice1.setPayload("{\"from\":\"a\",\"to\":\"b\"}");
+        queuedEventService.save(voice1);
+        QueuedEvent two = queue.apply(JoiEvents.RENAMED, "You are now called Kairo.");
+        two.setPayload("{\"from\":\"Mira\",\"to\":\"Kairo\"}");
+        queuedEventService.save(two);
+        QueuedEvent voice2 = queue.apply(JoiEvents.VOICE_CHANGED, "Your voice is high again.");
+        voice2.setPayload("{\"from\":\"b\",\"to\":\"a\"}");
+        queuedEventService.save(voice2);
+
+        llm.enqueue(MockLLMResponse.text("Kairo it is."));
+        Node node = connect("Bearer " + token);
+        node.hello("n1", "desk", joi.getUuid(), "1.7");
+        node.next("welcome");
+        node.manifest(1);
+        assertThat(node.next("turn").getAsJsonObject("data").get("cause").getAsString()).isEqualTo("events_waited");
+        node.next("done");
+        ChatMessage told = chatMessageService.findLatest(joi, 1).getFirst();
+        assertThat(told.getInput()).contains("You are now called Mira.").contains("You are now called Kairo.")
+                .doesNotContain("voice");
+        assertThat(told.getEventKind()).isEqualTo("node.events_waited");
+        // all of it is handled: told or nothing to tell
+        assertThat(queuedEventService.findWaiting(joi)).isEmpty();
     }
 
     @Test

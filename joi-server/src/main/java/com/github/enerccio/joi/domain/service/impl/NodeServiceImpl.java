@@ -17,6 +17,7 @@ import com.github.enerccio.joi.domain.collections.JoiTaskStatus;
 import com.github.enerccio.joi.domain.web.TaskInfos;
 import com.github.enerccio.joi.protocol.http.TaskInfo;
 import com.github.enerccio.joi.domain.events.JoiEvents;
+import com.github.enerccio.joi.domain.events.QueuedEventPlan;
 import com.github.enerccio.joi.domain.model.impl.QueuedEvent;
 import com.github.enerccio.joi.domain.node.NodeSession;
 import com.github.enerccio.joi.domain.node.NodeSession.PendingCall;
@@ -84,6 +85,8 @@ public class NodeServiceImpl implements NodeService, InitializingBean, Disposabl
     public static final String PART_SWITCHED = "part_switched";
     /** The cause of the turn about a task of hers that ended (a search, a page): the node plays it as a plain turn. */
     public static final String TASK_ENDED = "task_ended";
+    /** The cause of her turn about what happened while no node of hers was connected (since 1.7). */
+    public static final String EVENTS_WAITED = "events_waited";
     /** The tool she decides on the user's requests to change her parts with ({@code PART_REQUEST_EVENT}). */
     public static final String DECIDE_PART_CHANGE = "decide_part_change";
 
@@ -471,7 +474,7 @@ public class NodeServiceImpl implements NodeService, InitializingBean, Disposabl
         if (session.offer(manifest) && greeting) {
             greet(session);
         }
-        deliverWaitingTasks(session);
+        deliverWaiting(session);
         sendWaitingTasks(session);
     }
 
@@ -519,23 +522,39 @@ public class NodeServiceImpl implements NodeService, InitializingBean, Disposabl
     }
 
     /**
-     * What her tasks found while no node of hers was connected: told now, in the order they ended, in a turn after the
-     * greeting. (Other events that wait are not delivered yet: see {@code DESIGN.md} → Events.)
+     * What happened while no node of hers was connected (the events that waited, see {@code DESIGN.md} → Events): told now,
+     * in a turn after the greeting, <b>merged</b> ({@link QueuedEventPlan}: a part switched five times is one change, and one
+     * that ended where it began is nothing) and without what no longer matters. A task's result is told as it ended.
      */
-    private void deliverWaitingTasks(NodeSession session) {
+    private void deliverWaiting(NodeSession session) {
         try (InRequestScope _ = new InRequestScope(session.attributes())) {
             Joi joi = joiService.find(session.joiId());
             if (joi == null) {
                 return;
             }
-            for (QueuedEvent event : queuedEventService.findWaiting(joi)) {
-                if (JoiEvents.TASK_ENDED.equals(event.getKind())) {
-                    queuedEventService.markDelivered(event, null);
-                    pend(session, new NodeSession.Pending(event.getText(), null, TASK_ENDED));
+            List<QueuedEvent> waiting = queuedEventService.findWaiting(joi);
+            if (waiting.isEmpty()) {
+                return;
+            }
+            QueuedEventPlan.Result plan = QueuedEventPlan.of(waiting, Instant.now(), uuid -> {
+                try {
+                    Body body = bodyService.findForUser(uuid);
+                    return body != null && !body.isDeleted();
+                } catch (Exception e) {
+                    return true;
                 }
+            });
+            for (QueuedEvent event : plan.dropped()) {
+                queuedEventService.markDelivered(event, null);
+            }
+            for (QueuedEventPlan.Told told : plan.told()) {
+                for (QueuedEvent event : told.sources()) {
+                    queuedEventService.markDelivered(event, null);
+                }
+                pend(session, new NodeSession.Pending(told.text(), null, JoiEvents.TASK_ENDED.equals(told.kind()) ? TASK_ENDED : EVENTS_WAITED));
             }
         } catch (Exception e) {
-            log.warn("Node {}: what her tasks found was not told to her", session.name(), e);
+            log.warn("Node {}: what waited for her was not told to her", session.name(), e);
         }
     }
 
@@ -673,8 +692,9 @@ public class NodeServiceImpl implements NodeService, InitializingBean, Disposabl
                 joi = joiService.find(session.joiId());
                 input = told(joi, pending);
             }
-            // a turn that is only about tasks that ended has that cause; with anything else it is the usual one
-            String cause = pending.stream().allMatch(item -> TASK_ENDED.equals(item.cause())) ? TASK_ENDED : PART_SWITCHED;
+            // a turn that is only about tasks that ended has that cause; about what waited, that one; else it is the usual one
+            String cause = pending.stream().allMatch(item -> TASK_ENDED.equals(item.cause())) ? TASK_ENDED
+                    : pending.stream().allMatch(item -> item.cause() != null) ? EVENTS_WAITED : PART_SWITCHED;
             session.told(asked, turn);
             session.send(NodeMessage.TURN, null, null, new TurnStart(turn, cause));
             started = startTurn(session, turn, joi, new TurnInput(input, session.name(), session.speaks(), true,

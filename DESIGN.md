@@ -783,8 +783,8 @@ the terminal node (`/yes`, `/always`, `/no [reason]` answer the oldest question:
 dialog with Approve, Approve all of this tool, Deny, Later); the approval card in 3D on the Looking Glass comes with the
 other cards. A node without an answer leaves the task waiting, and the dialog still answers it.
 
-**Not built:** the result in the prompt once (`fetch_result`, see Model roles), a list of the standing approvals on a node (the server's Auto-approved dialog has it), a dispatcher for
-all waiting `QueuedEvent`s (only the events of tasks are delivered when a node connects).
+**Not built:** the result in the prompt once (`fetch_result`, see Model roles) and a list of the standing approvals on a node
+(the server's Auto-approved dialog has it).
 
 ### Privacy mode
 
@@ -1232,11 +1232,24 @@ Rapid user actions coalesce too (toggling the halo five times = one event with t
 rate-limited so she comments when it's interesting, not on every click. Events that arrive while nobody is talking wait
 for the next interaction (or are dropped, if transient and stale).
 
-**Queued events (built: `QueuedEvent`).** An event that happens while she can't take it (no node is connected: every
-node is shut down and you add a model in the UI) is stored with its kind, time, text and data and waits. When a node
-connects, the waiting events go to her in the order they happened as **Event** messages (`ChatMessage` of type `EVENT`,
-the event is marked delivered in it), so she can still react ("oh, a new model?"). One that no longer matters (a model
-added and removed again) is marked handled without a message.
+**Queued events (built: `QueuedEvent`, `QueuedEventPlan`).** An event that happens while she can't take it (no node is
+connected: every node is shut down and you add a model in the UI) is stored with its kind, time, text and data and waits.
+When a node connects, the waiting events go to her in the order they happened, in **one turn** after the greeting (cause
+`events_waited`, an **Event** message with the text of all of them; a turn of only a task's result keeps `task_ended`), so
+she can still react ("oh, a new model?"). They are **merged first** (`QueuedEventPlan`, pure, tested on its own), as the
+design says of rapid actions:
+- a part switched again and again is **one** event from the first state to the last (the last text, which says how it looks
+  now); one that ended in the state it began in is dropped;
+- a name, what she calls the user, her personality, her voice or her body changed again and again: the texts of the steps
+  in a row (they say what happened), nothing when the value is back where it began;
+- a body described again, an outfit put on again: the last one;
+- dropped, marked handled without a message: an event about a body that is gone, and any older than a week (`MAX_AGE`,
+  except a task's result, which she is always told);
+- the rest (a task's result, what is new) as it came.
+
+Every event that went in a merge is marked handled with the one that is told. **Not built:** telling her while a node *is*
+connected (the events the UI queues then wait for the next connection; today only the node's own part switches and the
+tasks are told at once); whether to tell her at the next `say` instead is open.
 
 ### Proactive events
 
