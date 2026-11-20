@@ -45,7 +45,9 @@ public final class SpeechText {
 
     /**
      * The text in pieces of whole sentences, each at most {@code max} characters when its sentences allow (a longer
-     * sentence is a piece of its own). The first piece is one sentence, so that it is spoken soon.
+     * sentence is a piece of its own). The first piece is one sentence, so that it is spoken soon, and each next one
+     * at most twice as long as the one before (up to {@code max}): it is rendered while the one before plays, so the
+     * pieces grow as the speech gets ahead and no gap opens after the first sentence.
      */
     public static List<String> pieces(String text, int max) {
         List<String> pieces = new ArrayList<>();
@@ -55,8 +57,8 @@ public final class SpeechText {
                 if (sentence.isBlank()) {
                     continue;
                 }
-                boolean first = pieces.isEmpty();
-                if (!piece.isEmpty() && (first || piece.length() + 1 + sentence.length() > max)) {
+                int limit = pieces.isEmpty() ? 0 : Math.min(max, 2 * pieces.getLast().length() + 1);
+                if (!piece.isEmpty() && piece.length() + 1 + sentence.length() > limit) {
                     pieces.add(piece.toString());
                     piece.setLength(0);
                 }

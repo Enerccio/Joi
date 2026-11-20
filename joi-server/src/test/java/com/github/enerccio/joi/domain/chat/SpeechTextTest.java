@@ -34,10 +34,19 @@ class SpeechTextTest {
     @Test
     void thePiecesAreWholeSentencesAndTheFirstIsOne() {
         List<String> pieces = SpeechText.pieces("Hi. How was your day? I fixed the lamp. It works now. Tea?", 40);
-        assertThat(pieces).containsExactly("Hi.", "How was your day? I fixed the lamp.", "It works now. Tea?");
+        assertThat(pieces).containsExactly("Hi.", "How was your day?", "I fixed the lamp. It works now.", "Tea?");
         assertThat(String.join(" ", pieces)).isEqualTo("Hi. How was your day? I fixed the lamp. It works now. Tea?");
         assertThat(SpeechText.pieces("One line\nanother line", 100)).containsExactly("One line", "another line");
         assertThat(SpeechText.pieces("", 100)).isEmpty();
+    }
+
+    @Test
+    void eachPieceIsAtMostTwiceTheOneBeforeUpToTheMax() {
+        String sentence = "This sentence is exactly forty long, ok.";
+        String text = String.join(" ", java.util.Collections.nCopies(12, sentence));
+        List<String> pieces = SpeechText.pieces(text, 170);
+        assertThat(pieces).extracting(String::length).containsExactly(40, 81, 163, 163, 40);
+        assertThat(String.join(" ", pieces)).isEqualTo(text);
     }
 
     @Test

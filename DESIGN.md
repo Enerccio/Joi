@@ -85,8 +85,9 @@ one; the server treats every node the same.
   - `POST /api/v1/jois/{id}/chat`: `{"text": ...}`; she answers in text and speech. Whole by default (`ChatReply`, the
     audio Base64), or **streamed** as server-sent events with `"stream": true` or `Accept: text/event-stream`: text
     pieces while the model writes, `reply` when the text is stored, `audio` pieces (a sentence or a few, each a whole
-    file, the first sentence alone so it plays soon), `done`; `error` ends a failed one; keep-alive comments every 15
-    s. Both are useful: a simple client takes the whole reply, a voice node the stream. The speech starts once the
+    file, the first sentence alone so it plays soon, each next one at most twice the one before up to the model's
+    chunk size, so it is rendered while the one before plays), `done`; `error` ends a failed one; keep-alive comments
+    every 15 s. Both are useful: a simple client takes the whole reply, a voice node the stream. The speech starts once the
     text is whole (speaking while the model still writes is roadmap step 3). The turn is stored as a `ChatMessage`
     with its prompt; turns of one assistant run one at a time.
   - `GET /api/v1/jois/{id}/body` (1.1): the body she is in (`404 no_body` for none): its models, the full one and
