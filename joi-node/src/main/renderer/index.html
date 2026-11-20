@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Joi</title>
+  <style>
+    :root {
+      --lumo-contrast-5pct: transparent;
+      --lumo-secondary-text-color: #9a9aa6;
+      --lumo-error-text-color: #ff6b6b;
+      --lumo-font-size-m: 16px;
+      --lumo-font-family: system-ui, sans-serif;
+    }
+    html, body { margin: 0; height: 100%; background: #111114; overflow: hidden; }
+    joi-model-viewer { width: 100vw; height: 100vh; }
+  </style>
+</head>
+<body>
+  <joi-model-viewer id="viewer" format="VRM"></joi-model-viewer>
+  <script type="module" src="./src/main.js"></script>
+</body>
+</html>

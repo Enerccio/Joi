@@ -966,13 +966,20 @@ ones; falling asleep and asleep come from her dialog too (`AvatarDirector`).
 downloads), the node WebSocket (`NodeSocket`), what her body plays in each state (`AvatarDirector`, tested), the
 settings (`NodeSettings`), and `JoiNodeCli`, the node in a terminal (text chat, the animations printed). The JavaFX
 app (`node/fx`: `JoiNodeApp` with the screens above, `AvatarPane`, `SpeechPlayer`) builds with `-Pfx` (OpenJFX 25)
-and starts; its avatar pane shows her state and the animation she would play, no renderer yet.
+and starts. Her body is the renderer page (`node/renderer`: `BodyFiles` unpacks her cached `.joim` / `.joia`,
+`RendererServer` serves them and the page, built from `src/main/renderer` by the `fx` profile with npm offline);
+Chromium (JCEF 152) shows the page in the pane, rendered off screen and copied into a JavaFX image each frame (the
+mouse doesn't reach it yet); her state and the animation are written over it, and Open in browser shows the same
+page in a browser.
+
+**The renderer's host (decided: JCEF).** JavaFX's WebView has no WebGL, so the renderer page runs in JCEF, as in
+[Renderers](#renderers): the same Chromium on every node, a borderless window of the node's own on the Looking Glass
+(no WebXR popup), her body in the app's pane. The page is the server's `joi-model-viewer.js` with a small node
+script, built with Vite into the node's resources. The node unpacks her cached `.joim` and `.joia` and serves the VRM,
+the clips and the page on `127.0.0.1` (a random port and a secret path); it tells the page what to play over
+server-sent events and the page posts back when an animation ends, so the same page also runs in a normal browser.
 
 **Open:**
-- **The renderer's host.** JavaFX's WebView has no WebGL, so three.js can't run in it. The choices: JCEF (Chromium in
-  the app, a large dependency), or the node serving the renderer page on localhost and showing it in a browser window
-  of its own (Chrome, which is also what drives the Looking Glass through WebXR; the page talks to the node over a
-  local WebSocket, as for the mobile companion).
 - **Text on the Looking Glass Go without blur:** to find out (text drawn on a plane at the focal depth, or kept off
   the hologram).
 - **Two modes for an animation she plays from a tool call:** *staggered* (the animation first, then her voice) or
@@ -1290,9 +1297,6 @@ with avatars whose shaders match the installed Poiyomi.
 5. Deeper OS actions, long-term memory, MCP, proactive events.
 
 ## Open decisions
-
-- **Where the node's renderer runs:** JavaFX's WebView has no WebGL; JCEF in the app, or a browser window of
-  its own fed by the node over a local WebSocket (see Node → The first node).
 
 - **Which binary JSON** for the export container's JSONB sections (CBOR, BSON, Smile...): one with a streaming
   reader and writer in Java and in the renderer's language.

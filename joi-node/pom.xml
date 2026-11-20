@@ -20,6 +20,7 @@
   <properties>
     <javafx.version>25</javafx.version>
     <fx.excludes>com/github/enerccio/joi/node/fx/**</fx.excludes>
+    <jcef.excludes>org/cef/**</jcef.excludes>
   </properties>
 
   <dependencies>
@@ -43,6 +44,16 @@
   </dependencies>
 
   <build>
+    <resources>
+      <resource>
+        <directory>src/main/resources</directory>
+      </resource>
+      <!-- the renderer page (src/main/renderer, npm run build; built by the fx profile) -->
+      <resource>
+        <directory>src/main/renderer/dist</directory>
+        <targetPath>joi-renderer</targetPath>
+      </resource>
+    </resources>
     <plugins>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
@@ -54,6 +65,7 @@
           <parameters>true</parameters>
           <excludes>
             <exclude>${fx.excludes}</exclude>
+            <exclude>${jcef.excludes}</exclude>
           </excludes>
         </configuration>
       </plugin>
@@ -66,11 +78,15 @@
   </build>
 
   <profiles>
-    <!-- The JavaFX app: mvn -Pfx javafx:run -pl joi-node (OpenJFX 25 is in ~/.m2 now: -o works) -->
+    <!-- The JavaFX app with Chromium: mvn -o -Pfx compile exec:exec@run -pl joi-node (OpenJFX 25 and JCEF are in ~/.m2) -->
     <profile>
       <id>fx</id>
       <properties>
         <fx.excludes>none</fx.excludes>
+        <jcef.excludes>none</jcef.excludes>
+        <node.args></node.args>
+        <jcef.version>152.0.6</jcef.version>
+        <jcef.natives.version>jcef-17e805a+cef-152.0.6+g708dc14+chromium-152.0.7977.83</jcef.natives.version>
       </properties>
       <dependencies>
         <dependency>
@@ -83,21 +99,83 @@
           <artifactId>javafx-media</artifactId>
           <version>${javafx.version}</version>
         </dependency>
+        <!-- the renderer page in the app: Chromium (JCEF), with its natives for this machine from the repository
+             instead of a download at run time -->
+        <dependency>
+          <groupId>me.friwi</groupId>
+          <artifactId>jcefmaven</artifactId>
+          <version>${jcef.version}</version>
+        </dependency>
+        <dependency>
+          <groupId>me.friwi</groupId>
+          <artifactId>jcef-natives-macosx-arm64</artifactId>
+          <version>${jcef.natives.version}</version>
+        </dependency>
       </dependencies>
       <build>
         <plugins>
+          <!-- the renderer page: npm from its cache (offline), then Vite, before the resources are copied -->
           <plugin>
-            <groupId>org.openjfx</groupId>
-            <artifactId>javafx-maven-plugin</artifactId>
-            <version>0.0.8</version>
-            <configuration>
-              <mainClass>com.github.enerccio.joi.node.fx.JoiNodeApp</mainClass>
-              <options>
-                <!-- JavaFX loads its native libraries: allowed, without the warning -->
-                <option>--enable-native-access=javafx.graphics,javafx.media</option>
-              </options>
-            </configuration>
+            <groupId>org.codehaus.mojo</groupId>
+            <artifactId>exec-maven-plugin</artifactId>
+            <version>3.5.0</version>
+            <executions>
+              <!-- runs the app: mvn -o -Pfx compile exec:exec@run -pl joi-node (-Dnode.args=preview for RendererPreviewApp).
+                 Not javafx:run: that plugin leaves JCEF's natives, JOGL and gluegen off the class path -->
+              <execution>
+                <id>run</id>
+                <configuration>
+                  <executable>java</executable>
+                  <workingDirectory>${project.basedir}</workingDirectory>
+                  <arguments>
+                    <!-- JavaFX and JCEF load their native libraries: allowed, without the warning -->
+                    <argument>--enable-native-access=ALL-UNNAMED</argument>
+                    <!-- JCEF on macOS reaches into AWT's internals -->
+                    <argument>--add-opens=java.desktop/sun.awt=ALL-UNNAMED</argument>
+                    <argument>--add-opens=java.desktop/sun.lwawt=ALL-UNNAMED</argument>
+                    <argument>--add-opens=java.desktop/sun.lwawt.macosx=ALL-UNNAMED</argument>
+                    <argument>-classpath</argument>
+                    <classpath/>
+                    <argument>com.github.enerccio.joi.node.fx.Launcher</argument>
+                    <argument>${node.args}</argument>
+                  </arguments>
+                </configuration>
+              </execution>
+              <execution>
+                <id>renderer-install</id>
+                <phase>generate-resources</phase>
+                <goals>
+                  <goal>exec</goal>
+                </goals>
+                <configuration>
+                  <executable>npm</executable>
+                  <workingDirectory>${project.basedir}/src/main/renderer</workingDirectory>
+                  <arguments>
+                    <argument>install</argument>
+                    <argument>--offline</argument>
+                    <argument>--no-audit</argument>
+                    <argument>--no-fund</argument>
+                  </arguments>
+                </configuration>
+              </execution>
+              <execution>
+                <id>renderer-build</id>
+                <phase>generate-resources</phase>
+                <goals>
+                  <goal>exec</goal>
+                </goals>
+                <configuration>
+                  <executable>npm</executable>
+                  <workingDirectory>${project.basedir}/src/main/renderer</workingDirectory>
+                  <arguments>
+                    <argument>run</argument>
+                    <argument>build</argument>
+                  </arguments>
+                </configuration>
+              </execution>
+            </executions>
           </plugin>
+
         </plugins>
       </build>
     </profile>

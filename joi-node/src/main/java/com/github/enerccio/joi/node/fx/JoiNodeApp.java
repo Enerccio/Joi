@@ -4,6 +4,8 @@ import com.github.enerccio.joi.node.AvatarDirector;
 import com.github.enerccio.joi.node.NodeSettings;
 import com.github.enerccio.joi.node.NodeSocket;
 import com.github.enerccio.joi.node.ServerClient;
+import com.github.enerccio.joi.node.renderer.BodyFiles;
+import com.github.enerccio.joi.node.renderer.RendererServer;
 import com.github.enerccio.joi.protocol.JoiProtocol;
 import com.github.enerccio.joi.protocol.http.ApiError;
 import com.github.enerccio.joi.protocol.http.AuthMethod;
@@ -42,6 +44,7 @@ import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
 
 import java.io.IOException;
+import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -53,8 +56,8 @@ import java.util.Random;
  * files download, then the chat beside her body ({@link AvatarPane}), which pops out into a window of its own and goes
  * fullscreen (the Looking Glass). Text chat, her voice played back ({@link SpeechPlayer}).
  * <p>
- * A stub: the avatar pane shows her state and the animation she would play; the renderer is not chosen yet (JavaFX's
- * WebView has no WebGL, see {@code DESIGN.md}).
+ * Her body is the renderer page ({@link RendererServer}): her cached files unpacked ({@link BodyFiles}) and served on
+ * localhost and shown in the pane by Chromium (JCEF); without it, it opens in a browser.
  */
 public class JoiNodeApp extends Application {
 
@@ -62,6 +65,7 @@ public class JoiNodeApp extends Application {
     private Stage stage;
     private ServerClient client;
     private NodeSocket socket;
+    private RendererServer renderer;
 
     public static void main(String[] args) {
         launch(args);
@@ -82,6 +86,10 @@ public class JoiNodeApp extends Application {
         if (socket != null) {
             socket.close();
         }
+        if (renderer != null) {
+            renderer.close();
+        }
+        Chromium.dispose();
     }
 
     private void show(Parent view) {
@@ -250,7 +258,8 @@ public class JoiNodeApp extends Application {
     // ----------------------------------------------------------------------------------------------------------------
 
     /** What the loading screen got: her, her body (null for none) and the names of her animations. */
-    private record Loaded(JoiSummary summary, JoiInfo joi, BodyInfo body, Map<String, String> animations) {
+    private record Loaded(JoiSummary summary, JoiInfo joi, BodyInfo body, Map<String, String> animations, BodyFiles files,
+                          org.cef.CefClient chromium) {
     }
 
     private void load(JoiSummary chosen) {
@@ -271,25 +280,41 @@ public class JoiNodeApp extends Application {
                 JoiInfo joi = client.joi(chosen.id());
                 BodyInfo body = client.body(chosen.id());
                 Map<String, String> names = new HashMap<>();
+                Path joim = null;
+                Path joia = null;
                 if (body != null) {
                     if (body.model() != null && body.model().joim() != null) {
-                        fetch("her body", body.model().joim());
+                        joim = fetch("her body", body.model().joim());
                     }
                     if (body.animations() != null) {
                         for (BodyAnimation animation : body.animations().animations()) {
                             names.put(animation.id(), animation.name());
                         }
                         if (body.animations().joia() != null) {
-                            fetch("her animations", body.animations().joia());
+                            joia = fetch("her animations", body.animations().joia());
                         }
                     }
                 }
-                return new Loaded(chosen, joi, body, names);
+                Platform.runLater(() -> {
+                    what.setText("Unpacking her body...");
+                    progress.setProgress(-1);
+                });
+                BodyFiles files = BodyFiles.unpack(joim, joia, settings.cache().resolve("unpacked"));
+                Platform.runLater(() -> what.setText("Starting her renderer..."));
+                org.cef.CefClient chromium;
+                try {
+                    chromium = Chromium.client(settings.dir());
+                } catch (Exception e) {
+                    // her body only in a browser then
+                    System.err.println("Chromium did not start: " + e);
+                    chromium = null;
+                }
+                return new Loaded(chosen, joi, body, names, files, chromium);
             }
 
-            private void fetch(String label, Download file) throws Exception {
+            private Path fetch(String label, Download file) throws Exception {
                 Platform.runLater(() -> what.setText("Downloading " + label + "..."));
-                client.download(file, bytes -> Platform.runLater(() -> progress.setProgress(file.size() <= 0 ? -1 : (double) bytes / file.size())));
+                return client.download(file, bytes -> Platform.runLater(() -> progress.setProgress(file.size() <= 0 ? -1 : (double) bytes / file.size())));
             }
         });
     }
@@ -299,7 +324,16 @@ public class JoiNodeApp extends Application {
     // ----------------------------------------------------------------------------------------------------------------
 
     private void connect(Loaded loaded) {
-        AvatarPane avatarPane = new AvatarPane(loaded.animations());
+        try {
+            if (renderer == null) {
+                renderer = new RendererServer();
+            }
+        } catch (java.io.IOException e) {
+            showServer(client.server(), "The renderer could not start: " + e.getMessage());
+            return;
+        }
+        renderer.show(loaded.files());
+        AvatarPane avatarPane = new AvatarPane(loaded.animations(), renderer, loaded.chromium(), url -> getHostServices().showDocument(url));
         ChatPane chat = new ChatPane(loaded.summary().name());
         SpeechPlayer speech = new SpeechPlayer();
         AvatarDirector director = new AvatarDirector(new AvatarDirector.Avatar() {
