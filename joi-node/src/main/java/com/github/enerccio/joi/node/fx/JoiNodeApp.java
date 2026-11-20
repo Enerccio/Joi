@@ -105,6 +105,9 @@ public class JoiNodeApp extends Application {
         if (socket != null) {
             socket.close();
         }
+        if (lookingGlass != null) {
+            lookingGlass.quit();
+        }
         if (renderer != null) {
             renderer.close();
         }
@@ -529,7 +532,8 @@ public class JoiNodeApp extends Application {
                 LookingGlassWindow window;
                 try {
                     renderer.lookingGlass(device.renderer());
-                    window = LookingGlassWindow.open(device, loaded.chromium(), renderer.lookingGlassUrl().toString());
+                    window = LookingGlassWindow.open(device, settings.dir(), nodeSetting(node -> node.lookingGlassBrowser),
+                            renderer.lookingGlassUrl().toString());
                 } catch (IOException | RuntimeException e) {
                     lookingGlassFailed(avatarPane, chat, e.getMessage(), asked);
                     return;

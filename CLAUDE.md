@@ -106,7 +106,8 @@ with the code.
   (`npm install --offline`, the packages are in the npm cache). The JavaFX app is `node/fx`, compiled only with `-Pfx`
   (OpenJFX 25, mac-aarch64, is in `~/.m2`). Her body is shown in the pane by Chromium (JCEF 152, `jcefmaven` with the
   macOS arm64 natives jar, unpacked into `~/.joi-client/jcef` on the first start, never downloaded at run time):
-  `fx/Chromium` starts it, `org/cef/browser/JoiOsrBrowser` renders off screen into `fx/ChromiumPane`. Run with
+  `fx/Chromium` starts it, `org/cef/browser/JoiOsrBrowser` renders off screen into `fx/ChromiumPane`; on the Looking
+  Glass the page is shown in the user's own Chrome instead (`fx/LookingGlassWindow`; see `DESIGN.md`). Run with
   `exec:exec@run` (`fx/Launcher`), not `javafx:run`, which leaves JCEF's jars off the class path.
 - `tools/upgrade_dev_db.py` — upgrades a dev database to the current V1 without losing its data (see above).
 - `MARGINALIA.md` — what Joi uses from Marginalia's platform and what it provides itself.

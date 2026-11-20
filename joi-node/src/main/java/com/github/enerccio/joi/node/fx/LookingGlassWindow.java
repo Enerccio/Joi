@@ -1,82 +1,107 @@
 package com.github.enerccio.joi.node.fx;
 
 import com.github.enerccio.joi.node.LookingGlassBridge;
+import javafx.application.Platform;
 import javafx.collections.ListChangeListener;
 import javafx.geometry.Rectangle2D;
-import javafx.scene.Scene;
-import javafx.scene.input.KeyCombination;
-import javafx.scene.layout.StackPane;
-import javafx.scene.paint.Color;
 import javafx.stage.Screen;
-import javafx.stage.Stage;
-import javafx.stage.StageStyle;
-import org.cef.CefClient;
 
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 /**
- * Her body on a Looking Glass: a window of its own, full screen on the display, showing the renderer page that renders
- * for it ({@code RendererServer#lookingGlassUrl}) by Chromium off screen ({@link ChromiumPane}), at the display's own
- * pixels (the lenses need every pixel where it is). The page is only made once the window is on the display at its
- * scale: one made at another screen's scale would render twice the pixels. (A windowed Chromium in an AWT frame showed
- * only black while JavaFX runs the app, so it is off screen here too.) Call it on the UI thread.
+ * Her body on a Looking Glass: the renderer page that renders for it ({@code RendererServer#lookingGlassUrl}), full
+ * screen on the display in the user's own Chrome, an app window with a profile of the node's
+ * ({@code looking-glass-chrome}). Chrome draws straight to the screen. Rendered off screen here (JCEF, as the pane),
+ * every frame went through the CPU three times and held up the whole machine; and JCEF's own window shows nothing on
+ * macOS (its view is placed inside Java's window, which draws over it). The display must be shown at its own pixels:
+ * the lenses need every pixel where it is. Call it on the UI thread; its callback runs there too.
  */
 final class LookingGlassWindow {
 
-    private final Stage stage;
-    private final ChromiumPane page;
+    /** Where Chrome is usually installed, when the node's settings don't say. */
+    private static final List<String> BROWSERS = List.of(
+            "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+            System.getProperty("user.home") + "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+            "/Applications/Chromium.app/Contents/MacOS/Chromium");
+
+    private final Process process;
     private Runnable onClosed = () -> {
     };
     private boolean closing;
+    private boolean quitting;
     /** Closes the window when its screen goes away (the display was unplugged). */
     private ListChangeListener<Screen> screens;
+    private Thread hook;
 
-    private LookingGlassWindow(Stage stage, ChromiumPane page) {
-        this.stage = stage;
-        this.page = page;
+    private LookingGlassWindow(Process process) {
+        this.process = process;
     }
 
     /**
      * Opens the window on the display.
      *
-     * @throws IOException when the display is not among the screens, or it is not shown at its own pixels
+     * @param browser Chrome's executable, null to look where it usually is
+     * @throws IOException when there is no Chrome, the display is not among the screens at its own pixels, or Chrome
+     *                     does not start
      */
-    static LookingGlassWindow open(LookingGlassBridge.Device device, CefClient chromium, String url) throws IOException {
+    static LookingGlassWindow open(LookingGlassBridge.Device device, Path nodeDir, String browser, String url) throws IOException {
         Screen screen = screen(device);
         Rectangle2D bounds = screen.getBounds();
-        ChromiumPane page = new ChromiumPane(chromium, url);
-        StackPane root = new StackPane();
-        root.setStyle("-fx-background-color: black;");
-        Stage stage = new Stage(StageStyle.UNDECORATED);
-        stage.setTitle("Joi on the Looking Glass");
-        stage.setX(bounds.getMinX());
-        stage.setY(bounds.getMinY());
-        stage.setWidth(bounds.getWidth());
-        stage.setHeight(bounds.getHeight());
-        stage.setScene(new Scene(root, bounds.getWidth(), bounds.getHeight(), Color.BLACK));
-        stage.setFullScreenExitHint("");
-        stage.setFullScreenExitKeyCombination(KeyCombination.NO_MATCH);
-        Runnable place = () -> {
-            if (root.getChildren().isEmpty() && stage.getOutputScaleX() == screen.getOutputScaleX()
-                    && screen.getBounds().contains(stage.getX() + 1, stage.getY() + 1)) {
-                root.getChildren().add(page);
-            }
-        };
-        stage.outputScaleXProperty().addListener((o, a, b) -> place.run());
-        stage.xProperty().addListener((o, a, b) -> place.run());
-        stage.setOnShown(e -> place.run());
-        LookingGlassWindow window = new LookingGlassWindow(stage, page);
-        stage.setOnHidden(e -> window.closed());
+        List<String> command = new ArrayList<>();
+        command.add(browser(browser));
+        command.add("--user-data-dir=" + nodeDir.resolve("looking-glass-chrome"));
+        command.add("--no-first-run");
+        command.add("--no-default-browser-check");
+        command.add("--disable-extensions");
+        // nothing else running in it: no syncing, updates of its parts, translation or models of its own
+        command.add("--disable-background-networking");
+        command.add("--disable-component-update");
+        command.add("--disable-sync");
+        command.add("--disable-features=Translate,OptimizationHints,OptimizationGuideModelDownloading,MediaRouter");
+        String debug = System.getenv("JOI_LOOKING_GLASS_DEBUG_PORT");
+        if (debug != null) {
+            command.add("--remote-debugging-port=" + Integer.parseInt(debug));
+        }
+        command.add("--window-position=" + Math.round(bounds.getMinX()) + "," + Math.round(bounds.getMinY()));
+        command.add("--window-size=" + Math.round(bounds.getWidth()) + "," + Math.round(bounds.getHeight()));
+        // full screen hides the menu bar, which would cover the top of her views
+        command.add("--start-fullscreen");
+        command.add("--app=" + url);
+        Process process = new ProcessBuilder(command).redirectErrorStream(true)
+                .redirectOutput(nodeDir.resolve("looking-glass-chrome.log").toFile()).start();
+        LookingGlassWindow window = new LookingGlassWindow(process);
         window.screens = change -> {
             if (!Screen.getScreens().contains(screen)) {
-                stage.close();
+                window.stop();
             }
         };
         Screen.getScreens().addListener(window.screens);
-        stage.show();
-        // full screen hides the menu bar, which would cover the top of her views
-        stage.setFullScreen(true);
+        // Chrome goes with the node when it is stopped, not only when it quits
+        window.hook = new Thread(process::destroy, "Joi Looking Glass Chrome");
+        Runtime.getRuntime().addShutdownHook(window.hook);
+        process.onExit().thenRun(() -> Platform.runLater(window::closed));
         return window;
+    }
+
+    private static String browser(String configured) throws IOException {
+        if (configured != null) {
+            if (!Files.isExecutable(Path.of(configured))) {
+                throw new IOException("The browser for the Looking Glass is not there: " + configured);
+            }
+            return configured;
+        }
+        for (String candidate : BROWSERS) {
+            if (Files.isExecutable(Path.of(candidate))) {
+                return candidate;
+            }
+        }
+        throw new IOException("Google Chrome is not installed (it shows her on the Looking Glass; another Chrome or "
+                + "Chromium can be set as lookingGlassBrowser in node.json)");
     }
 
     /** The screen that is the display: where Bridge says, at its pixels. */
@@ -100,15 +125,14 @@ final class LookingGlassWindow {
         return found;
     }
 
-    /** Called once the window closed, by {@link #close} or not (the display went away). */
+    /** Called once the window closed, by {@link #close} or not (the display went away, Chrome was quit). */
     void setOnClosed(Runnable onClosed) {
         this.onClosed = onClosed;
     }
 
     void close() {
         closing = true;
-        stage.setFullScreen(false);
-        stage.close();
+        stop();
     }
 
     /** Whether it was closed by {@link #close} (else it went away by itself). */
@@ -116,9 +140,38 @@ final class LookingGlassWindow {
         return closing;
     }
 
+    /** Quits Chrome as the app quits: nothing is remembered or told, she stays on the Looking Glass for the next start. */
+    void quit() {
+        quitting = true;
+        process.destroy();
+        try {
+            if (!process.waitFor(2, TimeUnit.SECONDS)) {
+                process.destroyForcibly();
+            }
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            process.destroyForcibly();
+        }
+    }
+
+    /** Asks Chrome to quit; it is killed when it doesn't. */
+    private void stop() {
+        process.destroy();
+        process.onExit().orTimeout(3, TimeUnit.SECONDS).exceptionally(error -> {
+            process.destroyForcibly();
+            return null;
+        });
+    }
+
     private void closed() {
         Screen.getScreens().removeListener(screens);
-        page.close();
-        onClosed.run();
+        try {
+            Runtime.getRuntime().removeShutdownHook(hook);
+        } catch (IllegalStateException e) {
+            // the node is stopping
+        }
+        if (!quitting) {
+            onClosed.run();
+        }
     }
 }

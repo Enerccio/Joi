@@ -44,6 +44,8 @@ public final class NodeSettings {
         public Boolean lookingGlass;
         /** How she is rendered there (the tuning panel), null for the defaults. */
         public com.github.enerccio.joi.node.renderer.LookingGlassTuning lookingGlassTuning;
+        /** The Chrome (or Chromium) that shows her there, its executable; null to look where it is usually installed. */
+        public String lookingGlassBrowser;
     }
 
     /** {@code credentials.json}: a token the user made, or the OAuth pair. */

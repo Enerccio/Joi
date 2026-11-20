@@ -974,8 +974,8 @@ The first real node is a desktop app in JavaFX (`joi-node`). What it does, in or
    history from the server (`GET /api/v1/jois/{id}/chat`), so it goes on where it was. When she has a voice, the
    text of a reply waits for its first piece of speech, so the chat doesn't run ahead of her. Her body is a 3D view next
    to the chat; **On the Looking Glass** moves her onto the Looking Glass: the node asks Bridge where the display is
-   and for its calibration (`LookingGlassBridge`), opens a window full screen on it (`fx/LookingGlassWindow`) with
-   the renderer page in its Looking Glass mode, and closes the page in the pane (one renderer at a time). The server
+   and for its calibration (`LookingGlassBridge`), opens the renderer page in its Looking Glass mode full screen on it in the user's
+   Chrome (`fx/LookingGlassWindow`), and closes the page in the pane (one renderer at a time). The server
    is told (`display`), so she reacts. The choice is kept in `node.json` (`lookingGlass`): a node left with her on
    the Looking Glass opens it again as it starts, without telling the server; one where it could not be opened
    (no Bridge, no display) remembers that and only tries again from the button. An unplugged display closes the
@@ -1185,7 +1185,7 @@ after both spikes: three.js + VRM** (Unity ran at about 6 fps on the Go and its 
 [Unity path](#unity-path)).
 
 **Hosting it inside the node:** the renderer runs in a browser embedded in the Java node, so there is no separate app
-or runtime to install and the node owns the window:
+or runtime to install and the node owns the window; only on the Looking Glass it is the user's own Chrome (below):
 
 - **JCEF** (Chromium Embedded Framework for Java, what JetBrains IDEs use; `jcefmaven` ships the native builds for
   macOS / Windows / Linux) gives the same Chromium WebGL as the spike. JavaFX WebView is WebKit with weaker WebGL and no
@@ -1195,16 +1195,25 @@ or runtime to install and the node owns the window:
   `src/main/renderer/src/looking-glass.js` hooks the viewer's frame, `renderFrame`: 66 cameras along the viewer
   camera's right, each frustum turned back to meet at the point it looks at, a view cone of 54° × 0.47, into an sRGB
   4092² quilt of 11 × 6 tiles, then each subpixel reads the view its lens shows; Chromium renders it at the
-  display's own pixels, scale 1, and the page is only made once the window is there). While she is on the Looking
+  display's own pixels, scale 1). While she is on the Looking
   Glass her pane shows a **tuning panel** instead of the page (`fx/LookingGlassTuningPane`, kept in `node.json` as
   `lookingGlassTuning`, sent to the page live): depth (the share of the view cone), focus (the sharp plane, metres
   from the point the camera looks at), zoom, nudges of the calibration's center and pitch, the views inverted, the
   lenses from the top, the quilt size, a frame cap, and debug views (the quilt as it is, the middle view only).
   Tuned by eye on the Go with the test avatar: depth 0.27, focus −0.35 m, zoom 0.97, center −0.003 (the defaults).
-  The window is JavaFX with Chromium off screen, as the pane: a windowed Chromium in an AWT frame (no copy of each
-  frame) only showed black while JavaFX runs the app.
-  **Performance is not good yet:** about 20 fps capped, with Chromium's GPU and page processes near 80% CPU each:
-  66 renders of the avatar a frame (MToon), as in the spike, plus the copy of each frame. To try: fewer views,
+  On the Looking Glass the page is shown by **the user's own Chrome** (Google Chrome, or a Chrome / Chromium set as
+  `lookingGlassBrowser` in `node.json`; a requirement only for the Looking Glass, the node says when it is missing):
+  `fx/LookingGlassWindow` starts it as an app window full screen on the display (`--app`, `--start-fullscreen`), with
+  a profile of the node's (`~/.joi-client/looking-glass-chrome`) and its background services off, and quits it when
+  the window is closed from the button, when the node quits or is stopped (a shutdown hook), or when the display goes
+  away. `JOI_LOOKING_GLASS_DEBUG_PORT` opens its DevTools port. Why not JCEF: off screen in the app, as the pane,
+  each frame was read back from the GPU, copied into JavaFX and uploaded again: 15 fps against a 20 fps cap,
+  Chromium's processes near 80% CPU each, and the whole machine lagged (video playback too), though the spike drew
+  the same in Chrome without it. JCEF's own window shows nothing on macOS, in the JavaFX process (black) and in an AWT
+  process of its own (it showed the frame's background): JCEF puts Chromium's view inside Java's window, whose own
+  layer draws over it. Measured on the Go at the 20 fps cap: Chrome holds 20 fps, its GPU and page processes 20–45%
+  CPU each, no lag; uncapped about 23 fps.
+  **Still to make faster:** 66 renders of the avatar a frame (MToon), as in the spike. To try: fewer views,
   cheaper shading on the Go, the lighter Looking Glass model of the body. That avoids the
   WebXR polyfill's popup and "enter XR" button, which were the fragile part of the spike. The node still asks Bridge for
   the calibration (REST on 33334).
