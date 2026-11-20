@@ -284,7 +284,7 @@ public class UserSettingsPart implements WorkspacePart {
                 .setWidth("10em");
         personalityGrid.addComponentColumn(p -> actions(p.builtIn(), p.changed(), () -> openPersonality(p.key()),
                 () -> personaService.resetPersonality(p.key()), () -> clonePersonality(p))).setFlexGrow(0)
-                .setWidth(UIConstants.TOOL_COLUMN_SIZE_LARGE);
+                .setWidth(UIConstants.TOOL_COLUMN_SIZE_TRIPLE);
         return gridLayout(add, personalityGrid);
     }
 
