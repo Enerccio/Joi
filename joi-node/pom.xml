@@ -6,7 +6,7 @@
 
   <!-- The reference node (see DESIGN.md → Node): the server client (login, OAuth device grant, the assistants, her
        body's files cached by hash), the node WebSocket, what her body plays in each state, and a terminal client.
-       The JavaFX app (package fx) builds only with -Pfx: it needs OpenJFX, which is not downloaded yet. -->
+       The JavaFX app (package fx) builds only with -Pfx, which brings OpenJFX. -->
   <parent>
     <groupId>io.github.enerccio</groupId>
     <artifactId>joi-parent</artifactId>
@@ -66,7 +66,7 @@
   </build>
 
   <profiles>
-    <!-- The JavaFX app: mvn -Pfx javafx:run -pl joi-node (downloads OpenJFX the first time) -->
+    <!-- The JavaFX app: mvn -Pfx javafx:run -pl joi-node (OpenJFX 25 is in ~/.m2 now: -o works) -->
     <profile>
       <id>fx</id>
       <properties>
@@ -92,6 +92,10 @@
             <version>0.0.8</version>
             <configuration>
               <mainClass>com.github.enerccio.joi.node.fx.JoiNodeApp</mainClass>
+              <options>
+                <!-- JavaFX loads its native libraries: allowed, without the warning -->
+                <option>--enable-native-access=javafx.graphics,javafx.media</option>
+              </options>
             </configuration>
           </plugin>
         </plugins>

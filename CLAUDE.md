@@ -33,7 +33,7 @@ mvn test -pl joi-server -Dtest=JoiContextTest                 # joi-server's tes
 mvn jetty:run -pl joi-server                                  # dev mode on http://localhost:8080, data in ~/.joi (JOI_DATA)
 mvn package -pl joi-server -Pproduction                       # the WAR with the production frontend bundle
 mvn test -pl joi-node                                         # the node's core and its terminal client (JoiNodeCli)
-mvn -Pfx javafx:run -pl joi-node                              # the JavaFX node (downloads OpenJFX: ask first)
+mvn -o -Pfx javafx:run -pl joi-node                           # the JavaFX node (OpenJFX 25 is in ~/.m2)
 ```
 
 `-pl joi-server -am` also builds the platform first (its tests are skipped by `-Dtest=...` with
@@ -99,7 +99,7 @@ with the code.
 - `joi-node/` — the reference node (`com.github.enerccio.joi.node`): `ServerClient` (HTTP API, device grant, her
   body's files cached by hash), `NodeSocket` (the node WebSocket), `AvatarDirector` (what her body plays: idle,
   talking, asleep through her first turn, waking up), `NodeSettings` (`~/.joi-client`, `JOI_CLIENT`), `JoiNodeCli`
-  (the node in a terminal). The JavaFX app is `node/fx`, compiled only with `-Pfx` (OpenJFX is not downloaded).
+  (the node in a terminal). The JavaFX app is `node/fx`, compiled only with `-Pfx` (OpenJFX 25, mac-aarch64, is in `~/.m2`).
 - `tools/upgrade_dev_db.py` — upgrades a dev database to the current V1 without losing its data (see above).
 - `MARGINALIA.md` — what Joi uses from Marginalia's platform and what it provides itself.
 - `DESIGN.md` — the design (architecture, server, node, avatar, spikes and their results, roadmap, open decisions).

@@ -965,8 +965,8 @@ ones; falling asleep and asleep come from her dialog too (`AvatarDirector`).
 **Built (stub):** `joi-node` holds the server client (`ServerClient`: login, device grant, her, her body, the
 downloads), the node WebSocket (`NodeSocket`), what her body plays in each state (`AvatarDirector`, tested), the
 settings (`NodeSettings`), and `JoiNodeCli`, the node in a terminal (text chat, the animations printed). The JavaFX
-app (`node/fx`: `JoiNodeApp` with the screens above, `AvatarPane`, `SpeechPlayer`) builds only with `-Pfx`, which
-downloads OpenJFX; its avatar pane shows her state and the animation she would play, no renderer yet.
+app (`node/fx`: `JoiNodeApp` with the screens above, `AvatarPane`, `SpeechPlayer`) builds with `-Pfx` (OpenJFX 25)
+and starts; its avatar pane shows her state and the animation she would play, no renderer yet.
 
 **Open:**
 - **The renderer's host.** JavaFX's WebView has no WebGL, so three.js can't run in it. The choices: JCEF (Chromium in
