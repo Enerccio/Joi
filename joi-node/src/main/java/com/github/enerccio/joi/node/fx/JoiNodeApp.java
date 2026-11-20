@@ -20,6 +20,10 @@ import javafx.scene.Node;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
+import javafx.scene.input.KeyCode;
+import javafx.scene.input.KeyCodeCombination;
+import javafx.scene.input.KeyCombination;
+import javafx.stage.Window;
 import javafx.scene.layout.*;
 import javafx.stage.Stage;
 
@@ -57,6 +61,8 @@ public class JoiNodeApp extends Application {
 
     private final NodeSettings settings = NodeSettings.standard();
     private Stage stage;
+    /** What the scene is: the Edit menu above the screen shown. */
+    private final BorderPane frame = new BorderPane();
     private ServerClient client;
     private NodeSocket socket;
     private java.util.concurrent.ScheduledExecutorService stagingTimer;
@@ -77,7 +83,9 @@ public class JoiNodeApp extends Application {
         });
         this.stage = stage;
         stage.setTitle("Joi");
-        stage.setScene(new Scene(new StackPane(), 1100, 700));
+        frame.setTop(editMenu());
+        frame.setCenter(new StackPane());
+        stage.setScene(new Scene(frame, 1100, 700));
         // the Looking Glass window would keep the app going: closing this one quits
         stage.setOnHidden(e -> Platform.exit());
         stage.show();
@@ -105,7 +113,36 @@ public class JoiNodeApp extends Application {
     }
 
     private void show(Parent view) {
-        stage.getScene().setRoot(view);
+        frame.setCenter(view);
+    }
+
+    /**
+     * The Edit menu: on macOS the keys of cut, copy, paste and select all are the menu's, and an app without the menu gets
+     * none of them (not even in a text field). It is the system's menu bar there, a bar above the window elsewhere.
+     */
+    private static MenuBar editMenu() {
+        MenuItem cut = editItem("Cut", KeyCode.X, TextInputControl::cut);
+        MenuItem copy = editItem("Copy", KeyCode.C, TextInputControl::copy);
+        MenuItem paste = editItem("Paste", KeyCode.V, TextInputControl::paste);
+        MenuItem all = editItem("Select All", KeyCode.A, TextInputControl::selectAll);
+        MenuBar bar = new MenuBar(new Menu("Edit", null, cut, copy, paste, new SeparatorMenuItem(), all));
+        bar.setUseSystemMenuBar(true);
+        return bar;
+    }
+
+    private static MenuItem editItem(String text, KeyCode key, java.util.function.Consumer<TextInputControl> action) {
+        MenuItem item = new MenuItem(text);
+        item.setAccelerator(new KeyCodeCombination(key, KeyCombination.SHORTCUT_DOWN));
+        item.setOnAction(e -> {
+            for (Window window : Window.getWindows()) {
+                if (window.isFocused() && window.getScene() != null
+                        && window.getScene().getFocusOwner() instanceof TextInputControl field) {
+                    action.accept(field);
+                    return;
+                }
+            }
+        });
+        return item;
     }
 
     private static VBox centered(Node... children) {
