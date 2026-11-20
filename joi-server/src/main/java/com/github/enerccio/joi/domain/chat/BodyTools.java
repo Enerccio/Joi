@@ -90,7 +90,7 @@ public class BodyTools implements InitializingBean, DisposableBean {
         properties.putObject("state").put("type", "string").put("description", text.toString().strip());
         schema.putArray("required").add("part").add("state");
         return FunctionDefinition.dynamic(CHANGE_BODY_PART, "Changes a part of your own body (take it off, put it on, change "
-                + "what it is like), the way you choose: use it when you decide to, or when the user asks and you agree. "
+                + "what it is like), the way you choose: use it when you feel like it, as often as it suits your mood and what is going on, and when the user asks and you agree. "
                 + "The change is made at once and the user sees it.", schema, (continuation, arguments) -> {
             String part = text(arguments, "part");
             String state = text(arguments, "state");

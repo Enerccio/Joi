@@ -27,6 +27,8 @@ public enum NodeMessage {
     PART_KEPT("part_kept", Direction.TO_NODE, PartKept.class),
     /** {@link PartRefused}: she did not allow the change asked for by a {@code part} with an id (since 1.5); {@code ref} is that id. */
     PART_REFUSED("part_refused", Direction.TO_NODE, PartRefused.class),
+    /** {@link PlayAnimation}: she plays an animation now (since 1.5), a function of hers. */
+    ANIMATION("animation", Direction.TO_NODE, PlayAnimation.class),
     /** {@link TurnStart}: a turn the server started (first boot, the user is back); answered like a say. */
     TURN("turn", Direction.TO_NODE, TurnStart.class),
     /** {@link TextDelta} of the thinking (only when asked for). */

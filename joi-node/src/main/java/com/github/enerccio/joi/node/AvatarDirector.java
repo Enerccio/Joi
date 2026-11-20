@@ -187,8 +187,27 @@ public class AvatarDirector {
         }
     }
 
+    /**
+     * She plays an animation of her own choice (her {@code play_animation}) on top of what she is doing: once, and then
+     * what she was doing goes on (if she started talking meanwhile, that); or until something else, when it loops.
+     * Not while she sleeps, wakes up or falls asleep: those animations are not interrupted.
+     */
+    public void gesture(String animation, boolean loop) {
+        if (animation == null || state == State.SLEEPING || state == State.WAKING_UP || state == State.FALLING_ASLEEP) {
+            return;
+        }
+        gesturing = !loop;
+        avatar.play(animation, loop);
+    }
+
     /** The renderer finished an animation that does not loop. */
     public void animationEnded() {
+        if (gesturing) {
+            // back to what she is doing now (it may have changed while the gesture played)
+            gesturing = false;
+            avatar.play(current, true);
+            return;
+        }
         if (state == State.WAKING_UP) {
             String turn = held;
             held = null;
@@ -285,10 +304,18 @@ public class AvatarDirector {
     }
 
     private String current;
+    /** A gesture of her own plays: the animation of her state waits for its end. */
+    private boolean gesturing;
 
     private void enter(State next, String animation, boolean loop) {
         state = next;
         current = animation;
+        if (gesturing && loop && (next == State.IDLE || next == State.TALKING)) {
+            // her gesture is played to its end, then this
+            avatar.state(next);
+            return;
+        }
+        gesturing = false;
         avatar.play(animation, loop);
         avatar.state(next);
     }

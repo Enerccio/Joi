@@ -41,4 +41,11 @@ public interface NodeService {
 
     /** Tells her nodes that something changed on the server ({@code body}, {@code joi}): an {@code event} frame. */
     void notify(Joi joi, String event);
+
+    /**
+     * She plays an animation: an {@code animation} frame to her nodes.
+     *
+     * @return how many nodes were told (none when no node is connected)
+     */
+    int animate(Joi joi, String animation, String name, boolean loop);
 }

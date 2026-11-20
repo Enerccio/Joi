@@ -914,6 +914,14 @@ UI — nothing is deleted):
     shaking the head, looking at you or away — are procedural and need no clip.
   - **Both ways:** Joi plays them with a tool (`play_animation`, listing what fits the active body and shot), e.g. waves
     hello, shrugs, dances when asked; you trigger them from the UI or a Stream Deck key and she is told.
+    **Built (her side):** `play_animation` (`domain/chat/AnimationTools`) is offered to every turn when her active body
+    plays animations: the animation by its name, the function lists the names with their descriptions, so she picks by
+    what they show. Her master template asks her to use it **often**, in most replies, before or while she speaks, and
+    not to repeat the last one, and not to announce it. It sends an `animation` frame (`PlayAnimation`, protocol 1.5) to
+    her nodes at once and answers her that it played (or that no node shows her). A node plays it **once on top of her
+    state** (`AvatarDirector.gesture`): if she starts talking while it plays, her talking animation waits for its end,
+    and then plays; a loop of her state goes on after it; not while she sleeps, falls asleep or wakes up. This is the
+    "immediate" mode; the staggered one (the animation, then her voice) stays open.
   - Clips that leave the frame (a jump, a full-body dance) ask for a wider shot, so the camera follows.
   - **Animation viewer and editor:** a dialog like the model's, with the clip played on a chosen body in the three.js
     preview (play, pause, scrub, loop, speed, the camera presets). Its edits are kept on the clip, never in the file:
@@ -1119,7 +1127,7 @@ server-sent events and the page posts back when an animation ends, so the same p
 - **Text on the Looking Glass Go without blur:** to find out (text drawn on a plane at the focal depth, or kept off
   the hologram).
 - **Two modes for an animation she plays from a tool call:** *staggered* (the animation first, then her voice) or
-  *immediate* (her voice with the animation).
+  *immediate* (her voice with the animation). Immediate is built (see Animations); staggered is open.
 - **Talking animations that match her voice:** ideally lip sync and gestures that follow the speech (visemes from the
   audio).
 

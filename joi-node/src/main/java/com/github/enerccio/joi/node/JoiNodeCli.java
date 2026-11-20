@@ -109,6 +109,13 @@ public final class JoiNodeCli {
             }
 
             @Override
+            public void animation(com.github.enerccio.joi.protocol.node.PlayAnimation play) {
+                synchronized (lock) {
+                    director.gesture(play.animation(), play.loops());
+                }
+            }
+
+            @Override
             public void toolUsed(String turn, ToolUse use) {
                 out.println("  (" + use.name() + (use.ok() ? "" : " failed") + ")");
             }

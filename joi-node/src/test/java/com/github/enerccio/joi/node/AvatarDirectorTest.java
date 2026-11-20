@@ -156,4 +156,43 @@ class AvatarDirectorTest {
             last = played;
         }
     }
+
+    @Test
+    void aGesturePlaysOnceAndTheStateGoesOn() {
+        AvatarDirector director = new AvatarDirector(avatar, ALL, new Random(1));
+        director.start();
+        director.gesture("wave", false);
+        assertThat(log).containsExactly("play idle loop", "play wave");
+
+        // she starts talking while the gesture plays: her talking waits for its end
+        director.turnStarted("t1", NodeSocket.SAY, true);
+        director.reply("t1", reply("Hi."));
+        director.audio("t1", new AudioChunk(0, "Hi.", "audio/wav", ""));
+        assertThat(director.state()).isEqualTo(AvatarDirector.State.TALKING);
+        assertThat(log).doesNotContain("play talk loop");
+
+        director.animationEnded();
+        assertThat(log.getLast()).isEqualTo("play talk loop");
+        director.speechEnded();
+        assertThat(log.getLast()).isEqualTo("play idle loop");
+    }
+
+    @Test
+    void aGestureEndsInTheStateSheWasIn() {
+        AvatarDirector director = new AvatarDirector(avatar, ALL, new Random(1));
+        director.start();
+        director.gesture("nod", false);
+        director.animationEnded();
+        assertThat(log).containsExactly("play idle loop", "play nod", "play idle loop");
+    }
+
+    @Test
+    void noGestureWhileSheSleeps() {
+        AvatarDirector director = new AvatarDirector(avatar, ALL, new Random(1));
+        director.start();
+        director.fallAsleep();
+        int before = log.size();
+        director.gesture("wave", false);
+        assertThat(log).hasSize(before);
+    }
 }

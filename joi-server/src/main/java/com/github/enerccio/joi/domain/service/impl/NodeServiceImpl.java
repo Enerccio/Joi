@@ -231,6 +231,15 @@ public class NodeServiceImpl implements NodeService, InitializingBean, Disposabl
         }
     }
 
+    @Override
+    public int animate(Joi joi, String animation, String name, boolean loop) {
+        List<NodeSession> nodes = sessions(joi);
+        for (NodeSession session : nodes) {
+            session.send(NodeMessage.ANIMATION, null, null, new PlayAnimation(animation, name, loop ? Boolean.TRUE : null));
+        }
+        return nodes.size();
+    }
+
     private static String key(NodeSession session) {
         return session.principal().user().getId() + "/" + session.joiId() + "/" + session.hello().nodeId();
     }

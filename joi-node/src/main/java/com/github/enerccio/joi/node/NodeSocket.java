@@ -63,6 +63,10 @@ public class NodeSocket {
         default void event(ServerEvent event) {
         }
 
+        /** She plays an animation of her own choice (her {@code play_animation}): see {@link AvatarDirector#gesture}. */
+        default void animation(PlayAnimation animation) {
+        }
+
         /** The server kept a part in the state asked for by {@link #part(String, String, String)} (the id is the frame's). */
         default void partKept(String id, PartKept kept) {
         }
@@ -519,6 +523,7 @@ public class NodeSocket {
             case PART_KEPT -> listener.partKept(ref, data(frame, PartKept.class));
             case PART_REFUSED -> listener.partRefused(ref, data(frame, PartRefused.class));
             case EVENT -> listener.event(data(frame, ServerEvent.class));
+            case ANIMATION -> listener.animation(data(frame, PlayAnimation.class));
             case TOOL_CALL -> call(data(frame, ToolCall.class));
             case TOOL_CANCEL -> {
                 // the tools of this node finish quickly; a long one would stop here (data(frame, ToolCancel.class))

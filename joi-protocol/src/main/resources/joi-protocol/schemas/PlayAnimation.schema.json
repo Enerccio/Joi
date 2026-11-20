@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Enerccio/joi/protocol/v1/PlayAnimation.schema.json",
+  "title": "PlayAnimation",
+  "description": "animation (since 1.5): she chose an animation to play now (her play_animation function). The node plays it once, on top of what she is doing (waiting, talking), and goes back to that when it is over. A node that does not know the animation ignores the frame.",
+  "type": "object",
+  "properties": {
+    "animation": {
+      "type": "string",
+      "description": "The animation's uuid (BodyAnimation.id, JoiAnimations)."
+    },
+    "name": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Its name, for a node that shows what she does."
+    },
+    "loop": {
+      "type": [
+        "boolean",
+        "null"
+      ],
+      "description": "True plays it until she does something else; false or null plays it once."
+    }
+  },
+  "required": [
+    "animation"
+  ]
+}

@@ -1,5 +1,6 @@
 package com.github.enerccio.joi.domain.node;
 
+import com.github.enerccio.joi.domain.model.impl.AnimationPack;
 import com.github.enerccio.joi.domain.bodies.ModelFiles;
 import com.github.enerccio.joi.domain.bodies.UnityFixtures;
 import com.github.enerccio.joi.domain.collections.ChatMessageType;
@@ -56,6 +57,8 @@ class NodeServiceTest extends PlatformTestBase {
     private ChatMessageService chatMessageService;
     @Autowired
     private BodyService bodyService;
+    @Autowired
+    private AnimationPackService packService;
     @Autowired
     private ModelService modelService;
     @Autowired
@@ -500,6 +503,42 @@ class NodeServiceTest extends PlatformTestBase {
         node.next("done");
         assertThat(llm.getCompletionRequests().get(4).getLastMessage().content()).contains("golden halo can be: shown, hidden");
         assertThat(bodyService.find(body.getId()).partStateMap()).containsEntry("key:Headgear/Hide Halo", "hidden");
+    }
+
+    @Test
+    void sheFindsAnAnimationOfHerBodyAndTheNodePlaysIt() throws Exception {
+        haloBody();
+        AnimationPack wave = new AnimationPack();
+        wave.setName("Wave");
+        wave.setDescription("You wave hello.");
+        wave = packService.save(wave);
+        llm.enqueue(MockLLMResponse.text("Hello."),
+                MockLLMResponse.text("Hi!").andToolCall("play_animation", "{\"animation\":\"Wave\"}"),
+                MockLLMResponse.text("There."),
+                MockLLMResponse.toolCall("play_animation", "{\"animation\":\"Moonwalk\"}"),
+                MockLLMResponse.text("Hm."));
+        Node node = connect("Bearer " + token);
+        node.hello("n1", "desk", joi.getUuid(), "1.5");
+        node.next("welcome");
+        node.manifest(1);
+        node.frame("say", "t1", "{\"text\": \"Hi\", \"speak\": false}");
+        node.next("done");
+        // her prompt asks her to use animations and the body, often
+        assertThat(llm.getCompletionRequests().getFirst().getPromptText())
+                .contains("Use play_animation in most of your replies").contains("change a part of it with change_body_part");
+        assertThat(llm.getCompletionRequests().getFirst().getRawBody()).contains("play_animation").contains("You wave hello.");
+
+        node.frame("say", "t2", "{\"text\": \"Wave!\", \"speak\": false}");
+        JsonObject play = node.next("animation");
+        assertThat(play.getAsJsonObject("data").get("animation").getAsString()).isEqualTo(wave.getUuid());
+        assertThat(play.getAsJsonObject("data").get("name").getAsString()).isEqualTo("Wave");
+        node.next("done");
+        assertThat(llm.getCompletionRequests().get(2).getLastMessage().content()).contains("You played Wave.");
+
+        // an animation she does not have: she is told which she has, nothing plays
+        node.frame("say", "t3", "{\"text\": \"Moonwalk!\", \"speak\": false}");
+        node.next("done");
+        assertThat(llm.getCompletionRequests().get(4).getLastMessage().content()).contains("no such animation").contains("Wave");
     }
 
     @Test

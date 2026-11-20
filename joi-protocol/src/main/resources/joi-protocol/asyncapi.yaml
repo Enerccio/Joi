@@ -54,6 +54,10 @@ info:
          a turn runs) and starts one turn about all of them, in the order they happened. A `say` with `withEvents`
          true, sent right after the `part` frames, takes what waits for her along instead: one turn, with the `say`'s
          id, whose input is the user's words, then the events (the user typed a message and changed a part).
+       - **Her animations** (since 1.5). The server sends `animation` (the animation's uuid, its name, `loop`) when she
+         chooses an animation to play (her `play_animation` function, which she is asked to use often): outside any
+         turn's frames, while her turn runs. The node plays it once on top of what she is doing (waiting, talking) and
+         goes back to that when it is over; it ignores one it does not have in the body's `.joia`.
        - **Tools.** The server sends `tool_call` (with its `callId`). The node checks the arguments and its own
          harness again, may send `tool_progress` and `approval` (asked, then allowed or denied), and answers with
          exactly one `tool_result`. Each frame about a call restarts its timeout; an approval that is asked waits for
@@ -114,6 +118,7 @@ channels:
       part: { $ref: "#/components/messages/part" }
       part_kept: { $ref: "#/components/messages/part_kept" }
       part_refused: { $ref: "#/components/messages/part_refused" }
+      animation: { $ref: "#/components/messages/animation" }
       reasoning: { $ref: "#/components/messages/reasoning" }
       text: { $ref: "#/components/messages/text" }
       tool: { $ref: "#/components/messages/tool" }
@@ -155,6 +160,7 @@ operations:
       - { $ref: "#/channels/node/messages/turn" }
       - { $ref: "#/channels/node/messages/part_kept" }
       - { $ref: "#/channels/node/messages/part_refused" }
+      - { $ref: "#/channels/node/messages/animation" }
       - { $ref: "#/channels/node/messages/reasoning" }
       - { $ref: "#/channels/node/messages/text" }
       - { $ref: "#/channels/node/messages/tool" }
@@ -210,6 +216,10 @@ components:
       name: part_refused
       summary: She did not allow the change of a part the node asked for (since 1.5)
       payload: { $ref: "#/components/schemas/partRefusedFrame" }
+    animation:
+      name: animation
+      summary: She plays an animation now, her own choice (since 1.5)
+      payload: { $ref: "#/components/schemas/animationFrame" }
     reasoning:
       name: reasoning
       summary: A piece of the thinking of the model (only when asked for); ref is the turn
@@ -321,6 +331,11 @@ components:
         - $ref: "schemas/Frame.schema.json"
         - properties: { type: { const: part_refused }, ref: { type: string }, data: { $ref: "schemas/PartRefused.schema.json" } }
           required: [ ref, data ]
+    animationFrame:
+      allOf:
+        - $ref: "schemas/Frame.schema.json"
+        - properties: { type: { const: animation }, data: { $ref: "schemas/PlayAnimation.schema.json" } }
+          required: [ data ]
     textDeltaFrame:
       allOf:
         - $ref: "schemas/Frame.schema.json"

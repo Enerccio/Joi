@@ -642,6 +642,11 @@ public class JoiNodeApp extends Application {
             }
 
             @Override
+            public void animation(com.github.enerccio.joi.protocol.node.PlayAnimation play) {
+                Platform.runLater(() -> director.gesture(play.animation(), play.loops()));
+            }
+
+            @Override
             public void text(String turn, String delta) {
                 reacted(turn);
                 Platform.runLater(() -> director.text(turn, delta));
