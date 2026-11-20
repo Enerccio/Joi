@@ -74,6 +74,20 @@ class AvatarDirectorTest {
     }
 
     @Test
+    void aLostConnectionWakesHerAndShowsWhatCame() {
+        AvatarDirector director = new AvatarDirector(avatar, ALL, new Random(1));
+        director.start();
+        director.turnStarted("s1", AvatarDirector.FIRST_BOOT, true);
+        director.text("s1", "Hel");
+        director.reply("s1", reply("Hello."));
+
+        director.disconnected();
+        assertThat(log).containsExactly("play idle loop", "play sleep loop", "play idle loop", "text Hel", "reply Hello.",
+                "play talk loop", "play idle loop");
+        assertThat(director.state()).isEqualTo(AvatarDirector.State.IDLE);
+    }
+
+    @Test
     void withoutSpeechSheIsIdleWhenTheTurnIsDone() {
         AvatarDirector director = new AvatarDirector(avatar, ALL, new Random(1));
         director.start();

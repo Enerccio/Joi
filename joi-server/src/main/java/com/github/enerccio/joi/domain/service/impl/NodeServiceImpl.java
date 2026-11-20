@@ -397,7 +397,10 @@ public class NodeServiceImpl implements NodeService, InitializingBean, Disposabl
         }
     }
 
-    /** Her turn as the node connects: her very first waking up, or the greeting of the user who is back. */
+    /**
+     * Her turn as the node connects: her very first waking up, or the greeting of the user who is back (not for a node
+     * that only lost the connection, {@code hello.resumed}).
+     */
     private void greet(NodeSession session) throws Exception {
         Joi joi;
         boolean first;
@@ -409,6 +412,9 @@ public class NodeServiceImpl implements NodeService, InitializingBean, Disposabl
                 return;
             }
             first = !chatMessageService.hasAny(joi);
+            if (!first && Boolean.TRUE.equals(session.hello().resumed())) {
+                return;
+            }
             NodeEventTemplateData data = new NodeEventTemplateData();
             data.setNode(session.name());
             data.setNodeKind(StringUtils.defaultIfBlank(session.hello().kind(), null));

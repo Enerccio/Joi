@@ -19,6 +19,7 @@ import com.github.enerccio.joi.protocol.http.JoiSummary;
 import com.github.enerccio.joi.protocol.http.ServerInfo;
 import com.github.enerccio.joi.protocol.node.Hello;
 import com.github.enerccio.joi.protocol.node.Manifest;
+import com.github.enerccio.joi.protocol.node.Welcome;
 import com.github.enerccio.joi.protocol.node.NodePart;
 import com.github.enerccio.joi.protocol.oauth.DeviceAuthorization;
 import javafx.application.Application;
@@ -408,6 +409,19 @@ public class JoiNodeApp extends Application {
             }
 
             @Override
+            public void disconnected(int code, String reason) {
+                Platform.runLater(() -> {
+                    chat.note("Disconnected: " + reason + " (" + code + "). Connecting again…");
+                    director.disconnected();
+                });
+            }
+
+            @Override
+            public void reconnected(Welcome welcome) {
+                Platform.runLater(() -> chat.note("Connected again."));
+            }
+
+            @Override
             public void closed(int code, String reason) {
                 Platform.runLater(() -> chat.note("Disconnected: " + reason + " (" + code + ")"));
             }
@@ -431,7 +445,7 @@ public class JoiNodeApp extends Application {
             protected Void call() throws Exception {
                 NodeSettings.Node node = settings.node();
                 Hello hello = new Hello(JoiProtocol.NODE_VERSION, node.nodeId, node.name, node.kind == null ? "desktop" : node.kind,
-                        "joi-node (JavaFX)", loaded.summary().id(), List.of(NodePart.AUDIO_OUT, NodePart.AVATAR), null);
+                        "joi-node (JavaFX)", loaded.summary().id(), List.of(NodePart.AUDIO_OUT, NodePart.AVATAR), null, null);
                 Manifest manifest = new Manifest(1, System.getProperty("os.name") + " " + System.getProperty("os.version"),
                         System.getProperty("os.arch"), null, List.of());
                 socket.connect(client.nodeSocket(), client.authorization(), hello, manifest).get();

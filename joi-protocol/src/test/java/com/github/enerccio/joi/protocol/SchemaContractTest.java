@@ -169,9 +169,9 @@ class SchemaContractTest {
         arguments.addProperty("path", "~/notes.md");
 
         Hello hello = new Hello(JoiProtocol.NODE_VERSION, "6f1d-4c2a", "desk", "desktop", "joi-node 0.1.0", "2f0c",
-                List.of(NodePart.TOOLS, NodePart.AUDIO_OUT, NodePart.APPROVALS), null);
+                List.of(NodePart.TOOLS, NodePart.AUDIO_OUT, NodePart.APPROVALS), null, null);
         valid(hello);
-        valid(new Hello("1.2", "n1", "kitchen-pi", null, null, "2f0c", List.of(), "joi_x"));
+        valid(new Hello("1.3", "n1", "kitchen-pi", null, null, "2f0c", List.of(), "joi_x", true));
         valid(new Welcome("1.2", "joi-server", "0.1.0", "s1", new JoiSummary("2f0c", "Joi", null), 30));
         JsonObject capabilities = new JsonObject();
         capabilities.addProperty("microphone", true);

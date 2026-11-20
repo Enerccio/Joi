@@ -15,7 +15,9 @@ import java.util.List;
  * @param joi      the id of the assistant
  * @param parts    what it implements
  * @param token    the credentials, for a client that cannot send {@code Authorization} on the upgrade; null otherwise
+ * @param resumed  true when the node connects again after it lost the connection (since 1.3): she does not greet the
+ *                 user for it; null or false for a new start
  */
 public record Hello(String protocol, String nodeId, String name, String kind, String software, String joi,
-                    List<NodePart> parts, String token) {
+                    List<NodePart> parts, String token, Boolean resumed) {
 }

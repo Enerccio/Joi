@@ -108,7 +108,7 @@ one; the server treats every node the same.
     first administrator; a credential that is sent must still be valid. Turning a way off stops its credentials at
     once. Credentials are `AccessToken` rows (prefix + SHA-256, like Marginalia's API keys), listed and revoked under
     Access.
-- **The node WebSocket (built, 1.2):** `asyncapi.yaml` and the schemas in `joi-protocol`,
+- **The node WebSocket (built, 1.3):** `asyncapi.yaml` and the schemas in `joi-protocol`,
   the records in `protocol/node`; `SchemaContractTest` checks the records, the enums and the AsyncAPI document
   against each other. `GET /api/v1/node` with `Upgrade: websocket`, the API's credentials (or in `hello.token` for a
   client that cannot set headers; never in the URL). Every message is a JSON text frame
@@ -128,7 +128,7 @@ one; the server treats every node the same.
     streaming share one connection; the HTTP chat stays for simple clients. The server starts a turn itself with
     `turn` (its id and cause), answered the same way: after the first manifest of a connection she **wakes up for
     the very first time** (`first_boot`, when she has no message yet) or **greets the user who is back**
-    (`connected`). Each is an event she is told as the user's turn, from a template the user can change
+    (`connected`), but not for a node that only lost the connection (`hello.resumed`, 1.3). Each is an event she is told as the user's turn, from a template the user can change
     (`JoiPromptField.FIRST_BOOT_EVENT`, `CONNECTED_EVENT`, `NodeEventTemplateData`: the node, its kind, when they
     last talked), and stored as an event message (`node.first_boot`, `node.connected`). Nothing is said when she has
     no chat model.
@@ -139,6 +139,11 @@ one; the server treats every node the same.
     user. `tool_cancel` when the result is no longer wanted; the node still answers.
   - **Events and heartbeat:** `event` (`body`, `joi`: read the HTTP call again), so a node no longer polls.
     `ping` / `pong` both ways; a connection silent for twice the heartbeat is closed.
+  - **Reconnecting (1.3):** a node that lost the connection (the server restarted, the network dropped, `4008`)
+    connects again after 1 s, 2 s, 4 s... up to 30 s, with `hello.resumed` and its latest manifest, so she does not
+    greet the user again, then what the user said meanwhile. A turn that ran then is lost. It does not try again
+    after 4001, 4002, 4003, 4004 or 4009.
+    `NodeSocket` does it in joi-node; the node also closes a connection the server stopped answering on.
   - **Errors:** an `error` frame (`ApiError`, `ref` the frame) keeps the connection; close codes 4001 unauthorized,
     4002 unsupported version, 4003 replaced, 4004 no such assistant, 4008 timeout, 4009 revoked.
   - **On the server:** `api/NodeEndpoint` (Jakarta WebSocket, registered on the container once Spring is up; it
@@ -150,7 +155,7 @@ one; the server treats every node the same.
     the heartbeat tick, which also closes silent connections and times out calls. A node leaving fails its calls
     and stops its turn. `NodeServiceTest` drives it all through a fake transport, checking every frame against the
     schemas.
-  - Not in 1.2 yet: audio in, avatar state frames, screen images (later minor versions); `event` frames are sent
+  - Not in 1.3 yet: audio in, avatar state frames, screen images (later minor versions); `event` frames are sent
     by `NodeService.notify` but nothing calls it yet.
   - Next: the JavaFX joi-node (see Node → The first node), then the conformance tests.
 - **Same idea for renderers:** the node ↔ renderer state frames are documented too, so a renderer can be three.js,

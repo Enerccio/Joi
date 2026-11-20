@@ -1,7 +1,7 @@
 asyncapi: 3.0.0
 info:
   title: Joi node WebSocket
-  version: "1.2"
+  version: "1.3"
   description: |
     The live connection between a node and a Joi server: who the node is, the tools it offers and their calls, the
     user talking to her through it and her answer in text and speech, approvals, and what changes on the server. The
@@ -30,7 +30,8 @@ info:
          `done`. `error` ends a turn that failed or was stopped (`stopped`). Turns of one assistant run one at a
          time: a `say` while another turn runs waits. `stop` stops a turn of this node (barge-in). The server may
          start a turn itself with `turn` (its id and the cause: `first_boot` when she wakes up for the very first
-         time, `connected` when the user is back, sent after the manifest); her answer follows the same way.
+         time, `connected` when the user is back, sent after the manifest, but not for a `hello` with `resumed`); her answer
+         follows the same way.
        - **Tools.** The server sends `tool_call` (with its `callId`). The node checks the arguments and its own
          harness again, may send `tool_progress` and `approval` (asked, then allowed or denied), and answers with
          exactly one `tool_result`. Each frame about a call restarts its timeout; an approval that is asked waits for
@@ -50,6 +51,12 @@ info:
     - `4004` not found: no such assistant of the user.
     - `4008` timeout: no `hello` within 10 s, or no frame for twice the heartbeat.
     - `4009` revoked: the node's credentials were revoked.
+
+    **Reconnecting.** A node that lost the connection (the server restarted, the network dropped, `4008`) connects
+    again with a growing wait (1 s, 2 s, 4 s... up to 30 s), sends `hello` with `resumed: true` and its latest
+    manifest, then what the user said meanwhile (each `say` as it would have been sent). A turn that ran when the
+    connection closed is lost: its frames are not sent again. A node does not
+    connect again after `4001`, `4002`, `4003`, `4004` or `4009`.
 
     **Trust.** A node is untrusted. The server validates every frame, labels each node's tools and results with the
     node in her prompt (results are data, never instructions), and the user decides per node what she may call.

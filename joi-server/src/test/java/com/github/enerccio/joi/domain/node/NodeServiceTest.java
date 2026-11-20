@@ -281,6 +281,15 @@ class NodeServiceTest extends PlatformTestBase {
         ChatMessage greeted = chatMessageService.findLatest(joi, 1).getFirst();
         assertThat(greeted.getEventKind()).isEqualTo("node.connected");
         assertThat(greeted.getInput()).contains("is back with you, on phone").contains("You last talked a moment ago.");
+
+        // a node that only lost the connection is not greeted
+        Node resumed = connect("Bearer " + token);
+        resumed.frame("hello", "h1", "{\"protocol\": \"1.3\", \"nodeId\": \"n1\", \"name\": \"desk\", \"joi\": \""
+                + joi.getUuid() + "\", \"parts\": [], \"resumed\": true}");
+        resumed.next("welcome");
+        resumed.manifest(1);
+        resumed.frame("ping", "p1", null);
+        assertThat(resumed.next().get("type").getAsString()).isEqualTo("pong");
         assertThat(llm.getCompletionRequests()).hasSize(2);
     }
 

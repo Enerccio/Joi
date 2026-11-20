@@ -133,13 +133,26 @@ public final class JoiNodeCli {
             }
 
             @Override
+            public void disconnected(int code, String reason) {
+                synchronized (lock) {
+                    out.println("[disconnected: " + code + " " + reason + "; connecting again]");
+                    director.disconnected();
+                }
+            }
+
+            @Override
+            public void reconnected(com.github.enerccio.joi.protocol.node.Welcome welcome) {
+                out.println("[connected again]");
+            }
+
+            @Override
             public void closed(int code, String reason) {
                 out.println("[disconnected: " + code + " " + reason + "]");
                 closed.countDown();
             }
         });
         Hello hello = new Hello(JoiProtocol.NODE_VERSION, node.nodeId, node.name, node.kind, "joi-node " + version(), chosen.id(),
-                List.of(), null);
+                List.of(), null, null);
         Manifest manifest = new Manifest(1, System.getProperty("os.name") + " " + System.getProperty("os.version"),
                 System.getProperty("os.arch"), null, List.of());
         try {

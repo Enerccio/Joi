@@ -156,6 +156,24 @@ public class AvatarDirector {
         }
     }
 
+    /**
+     * The connection to the server was lost: the turn that ran is lost with it. Her held words are shown (she does
+     * not stay asleep), and she waits unless her speech still plays.
+     */
+    public void disconnected() {
+        if (held != null) {
+            String turn = held;
+            held = null;
+            heldDone = false;
+            idle();
+            replayHeld(turn);
+        }
+        if (speakingTurn != null && !speechPlaying) {
+            speakingTurn = null;
+            idle();
+        }
+    }
+
     /** The renderer finished an animation that does not loop. */
     public void animationEnded() {
         if (state == State.WAKING_UP) {
