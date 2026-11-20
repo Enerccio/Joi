@@ -164,27 +164,61 @@ public class JoiNodeApp extends Application {
     // ----------------------------------------------------------------------------------------------------------------
 
     private void showServer(String server, String problem) {
-        TextField address = new TextField(server);
+        List<String> known;
+        try {
+            known = settings.servers();
+        } catch (IOException e) {
+            known = List.of();
+        }
+        ComboBox<String> address = new ComboBox<>(javafx.collections.FXCollections.observableArrayList(known));
+        address.setEditable(true);
+        address.setMaxWidth(Double.MAX_VALUE);
         address.setPromptText("http://host:8080");
         TextField token = new TextField();
-        token.setPromptText("A token from User Settings → Access (empty to pair the node)");
         Label status = new Label(problem == null ? "" : problem);
         Button connect = new Button("Connect");
         connect.setDefaultButton(true);
         connect.setOnAction(e -> {
             connect.setDisable(true);
             status.setText("Connecting...");
-            login(address.getText().strip(), token.getText().strip(), status, () -> connect.setDisable(false));
+            login(NodeSettings.normalise(address.getEditor().getText()), token.getText().strip(), status, () -> connect.setDisable(false));
         });
-        show(new StackPane(centered(new Label("Joi server"), address, token, connect, status)));
+        show(new StackPane(centered(new Label("Joi server"), address, token, new HBox(8, connect, forget), status)));
+        address.getEditor().setText(server);
     }
 
     private void login(String server, String token, Label status, Runnable failed) {
         Task<ServerInfo> task = new Task<>() {
             @Override
+        Button forget = new Button("Forget this server");
+        forget.setTooltip(new Tooltip("Removes the server from the list, with its token or pairing"));
+        // a server known has its token or pairing kept: nothing to type
+        Runnable shown = () -> {
+            String typed = address.getEditor().getText();
+            boolean saved = address.getItems().contains(NodeSettings.normalise(typed));
+            forget.setDisable(!saved);
+            token.setPromptText(saved ? "Saved for this server (a new token replaces it)"
+                    : "A token from User Settings → Access (empty to pair the node)");
+        };
+        address.getEditor().textProperty().addListener((o, a, b) -> shown.run());
+        shown.run();
+        forget.setOnAction(e -> {
+            String typed = NodeSettings.normalise(address.getEditor().getText());
+            try {
+                settings.forget(typed);
+            } catch (IOException ex) {
+                status.setText(ex.getMessage());
+                return;
+            }
+            address.getItems().remove(typed);
+            address.getEditor().clear();
+            token.clear();
+            status.setText("Forgot " + typed);
+            shown.run();
+        });
             protected ServerInfo call() throws Exception {
                 NodeSettings.Node node = settings.node();
-                node.server = server;
+                node.server = NodeSettings.normalise(server);
                 settings.saveNode();
                 client = new ServerClient(server, settings);
                 if (!token.isEmpty()) {
@@ -259,7 +293,10 @@ public class JoiNodeApp extends Application {
 
             @Override
             protected List<JoiSummary> call() throws Exception {
-                return client.jois().jois();
+                List<JoiSummary> jois = client.jois().jois();
+                // in: this server is offered again, with what got the node in
+                settings.connected(settings.node().server);
+                return jois;
             }
         });
     }

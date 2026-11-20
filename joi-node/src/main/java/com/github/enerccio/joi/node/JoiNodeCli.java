@@ -64,6 +64,7 @@ public final class JoiNodeCli {
         } else if (node.server == null) {
             node.server = "http://localhost:8080";
         }
+        node.server = NodeSettings.normalise(node.server);
         node.kind = node.kind == null ? "desktop" : node.kind;
         settings.saveNode();
         ServerClient client = new ServerClient(node.server, settings);
@@ -72,6 +73,7 @@ public final class JoiNodeCli {
         out.println("Joi server " + info.version() + " (protocol " + info.protocol() + ") at " + node.server);
         login(client, settings, info, node.name);
         out.println("Logged in as " + client.me().name());
+        settings.connected(node.server);
 
         JoiSummary chosen = choose(client.jois(), node.joi);
         if (chosen == null) {

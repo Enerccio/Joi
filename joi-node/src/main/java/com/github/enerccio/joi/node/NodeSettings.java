@@ -2,6 +2,7 @@ package com.github.enerccio.joi.node;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import com.google.gson.JsonObject;
 import com.google.gson.JsonParseException;
 
 import java.io.IOException;
@@ -12,13 +13,18 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.nio.file.attribute.PosixFilePermissions;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
 /**
  * What the node remembers between runs, in {@code ~/.joi-client} ({@code JOI_CLIENT} to move it): {@code node.json}
  * (its stable id, its name, the server, the assistant chosen last) and {@code credentials.json} (the token or the
- * OAuth tokens, readable by the user alone). The cache of her body's files is {@code cache/}, the harness policy
+ * OAuth tokens of each server it was connected to, readable by the user alone). The cache of her body's files is {@code cache/}, the harness policy
  * {@code policy.json} (later).
  */
 public final class NodeSettings {
@@ -53,13 +59,21 @@ public final class NodeSettings {
         public String partsShown;
     }
 
-    /** {@code credentials.json}: a token the user made, or the OAuth pair. */
+    /** {@code credentials.json}: the credentials of each server the node has been connected to, by its address. */
+    static final class Store {
+        /** Oldest first: the server connected last is the last one. */
+        Map<String, Credentials> servers = new LinkedHashMap<>();
+    }
+
+    /** The credentials for one server: a token the user made, or the OAuth pair. */
     public static final class Credentials {
         public String token;
         public String accessToken;
         public String refreshToken;
         /** When the access token expires (epoch millis). */
         public long accessExpires;
+        /** Whether the node got in with it (or needed none): only such servers are offered again. */
+        public boolean connected;
 
         /** The {@code Authorization} header, null for none. */
         public String authorization() {
@@ -70,7 +84,7 @@ public final class NodeSettings {
 
     private final Path dir;
     private Node node;
-    private Credentials credentials;
+    private Store store;
 
     public NodeSettings(Path dir) {
         this.dir = dir;
@@ -118,18 +132,72 @@ public final class NodeSettings {
         write("node.json", node, false);
     }
 
+    /** A server address as it is kept: without spaces and the slashes at its end. */
+    public static String normalise(String server) {
+        return server == null ? "" : server.strip().replaceAll("/+$", "");
+    }
+
+    /** The credentials for the server the node is set to ({@link Node#server}); empty ones for a server not seen before. */
     public synchronized Credentials credentials() throws IOException {
-        if (credentials == null) {
-            credentials = read("credentials.json", Credentials.class);
-            if (credentials == null) {
-                credentials = new Credentials();
-            }
-        }
-        return credentials;
+        return credentials(node().server);
+    }
+
+    /** The credentials for the server; empty ones, kept from the next save, for a server not seen before. */
+    public synchronized Credentials credentials(String server) throws IOException {
+        return store().servers.computeIfAbsent(normalise(server), _ -> new Credentials());
     }
 
     public synchronized void saveCredentials() throws IOException {
-        write("credentials.json", credentials, true);
+        write("credentials.json", store(), true);
+    }
+
+    /** The servers the node knows, the one connected last first. */
+    public synchronized List<String> servers() throws IOException {
+        List<String> servers = new ArrayList<>();
+        store().servers.forEach((address, credentials) -> {
+            if (credentials.connected && !address.isEmpty()) {
+                servers.add(address);
+            }
+        });
+        Collections.reverse(servers);
+        return servers;
+    }
+
+    /** Notes that the node connected to the server: it goes to the front of {@link #servers()}, with what it has. */
+    public synchronized void connected(String server) throws IOException {
+        String key = normalise(server);
+        Credentials kept = store().servers.remove(key);
+        kept = kept == null ? new Credentials() : kept;
+        kept.connected = true;
+        store().servers.put(key, kept);
+        saveCredentials();
+    }
+
+    /** Forgets the server and its credentials (a token, the pairing); the server itself is not touched. */
+    public synchronized void forget(String server) throws IOException {
+        store().servers.remove(normalise(server));
+        saveCredentials();
+    }
+
+    private Store store() throws IOException {
+        if (store == null) {
+            JsonObject json = read("credentials.json", JsonObject.class);
+            if (json == null) {
+                store = new Store();
+            } else if (json.has("servers")) {
+                store = GSON.fromJson(json, Store.class);
+                if (store.servers == null) {
+                    store.servers = new LinkedHashMap<>();
+                }
+            } else {
+                // the file of the first versions: one set of credentials, which were for the server of the node
+                store = new Store();
+                Credentials old = GSON.fromJson(json, Credentials.class);
+                old.connected = true;
+                store.servers.put(normalise(node().server), old);
+            }
+        }
+        return store;
     }
 
     /** The host's name as a node name: lowercase letters, digits, - and _, at most 32. */

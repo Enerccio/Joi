@@ -1031,7 +1031,7 @@ The first real node is a desktop app in JavaFX (`joi-node`). What it does, in or
 
 1. **Login** to the server: a token, or OAuth (the device grant: a code the user approves in the server's UI), or
    none on a development server. Its id, name, the server and the assistant chosen last are kept in
-   `~/.joi-client/node.json`, the credentials in `credentials.json` (readable by the user alone).
+   `~/.joi-client/node.json`, the credentials in `credentials.json` (readable by the user alone), kept per server address: the login screen offers the servers the node got into before (a combo box, the last one first), a known server needs no token typed, and *Forget this server* removes it with its token or pairing.
 2. **Her pick:** the list of the user's assistants, unless the one chosen last still exists; then she is loaded.
 3. **A loading screen** while her body's `.joim` and `.joia` download (cached by SHA-256 in `~/.joi-client/cache`,
    checked before they are kept).
