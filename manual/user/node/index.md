@@ -7,14 +7,41 @@ expanded: true
 
 # Nodes
 
-A node runs on a machine: it shows her body, hears you, and offers tools to her. The JavaFX node and the terminal node
-are the reference ones.
+A node is a program on one of your machines that connects to the server. It is where she appears, where you talk to her, and
+what gives her hands on that machine.
 
-!!!warning This page is a stub
-It lists what the page will cover. The text is not written yet.
-!!!
+| Node | What it is |
+|---|---|
+| [The JavaFX node](javafx.md) | a desktop app: her body next to a text chat, her voice, her questions to you |
+| [The terminal node](terminal.md) | the same conversation in a terminal, with what her body would play printed |
+| [The Looking Glass](looking-glass.md) | the JavaFX node can move her onto a Looking Glass display |
 
-## This page will cover
+You can run several nodes at once, one per machine. Each connects for one assistant. The same node connecting again for her
+replaces its old connection.
 
-- What a node is and what it can offer.
-- Pairing and tokens.
+## What a node offers
+
+- **Her body**: the node downloads the `.joim` and `.joia` of her active body, keeps them by hash, and draws her with her
+  animations: idle while she waits, talking while she speaks, asleep, falling asleep and waking up.
+- **Her voice**: the speech the server makes is played back.
+- **Tools**: when a node connects it sends a list of the tools it offers, and she sees them as `<node>__<tool>` while it is
+  connected. The first one is `notify`: she can show you a notification on this machine, if you allow it. See
+  [Notifications](notifications.md). A tool is marked Allow, Ask or Deny by the node itself, which decides again when it runs.
+- **Your answers**: when a task of hers waits for your approval, the node asks you. See [Answering her questions](approvals.md).
+
+## Pairing and tokens
+
+A node signs in to the server with a token you made, or by the device grant, or with nothing on a development server. See
+[Your first node](../getting-started/first-node.md) and [Access tokens](../access.md). The administrator decides which of the
+ways the server offers, and you can revoke any node's credentials in **User Settings → Access**.
+
+## When it is connected, and when it is not
+
+On connect, if she has never talked she wakes up for the first time; otherwise she greets you. If the connection drops (the server
+restarts, the network goes), the node connects again after 1, 2, 4... seconds, up to 30, and does not greet you again. While it
+is not connected the chat, Send and Stop, her parts and the Looking Glass button are disabled, and she stands still and gray. A bar
+above the input counts down to the next try, with **Reconnect now**.
+
+A reply that she was already writing is kept in the conversation when the connection is lost after she wrote something or
+changed something; one that had only thought so far is dropped. After the server was down, she is told when the first node comes
+back.
