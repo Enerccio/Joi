@@ -39,3 +39,4 @@ Optional. A commit that has no row here is simply not recorded.
 | `7c29655` | `claude-sonnet-5-5` |
 | `7a46652` | `claude-sonnet-5-5` |
 | `2e5a0da` | `claude-opus-5-5` |
+| `cd7efe8` | `claude-opus-5-5` |

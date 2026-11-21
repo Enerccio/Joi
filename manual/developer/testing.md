@@ -5,13 +5,16 @@ order: 690
 covers:
   - joi-server/src/test
   - joi-node/src/test
-verified: d71f903
+verified: cd7efe8
 ---
 
 # Testing
 
 Tests boot the real Spring configuration on SQLite with a fake model server: no network and no API key. Run the classes you touched, not the whole
 suite.
+
+The build sets the platform's `StaleSaves` to fail in tests: a save of an entity from a copy read before the row was saved again
+throws there (in production it only logs). Change such a copy through its service's `update(entity, change)`.
 
 ```bash
 mvn test -pl joi-server -Dtest=ChatTurnTest

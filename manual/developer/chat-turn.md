@@ -4,7 +4,7 @@ icon: sync
 order: 750
 covers:
   - joi-server/src/main/java/com/github/enerccio/joi/domain/chat
-verified: d71f903
+verified: cd7efe8
 ---
 
 # A chat turn
@@ -17,7 +17,7 @@ Each step (`TurnStepType`) is a bean listed under the chat service in `services-
 
 | Step | What it does |
 |---|---|
-| `PREPARE` | today's mood, the data of her system prompt |
+| `PREPARE` | today's mood (a new one is written with `JoiService.saveMood`, never by saving the turn's copy of her), the data of her system prompt |
 | `PAYLOAD` | the prompt and the latest messages |
 | `TOOLS` | what she may call |
 | `INFERENCE` | one round of the model |
@@ -46,6 +46,9 @@ cancelled with the turn. `ChatService.running()` lists the turns that wait or ru
   listener may answer instead: a refusal, the user's answer), its result, the reply before it is stored, the text she speaks. They can stop the
   turn through its cancellation token.
 - **Observers** (`addEventObserver`) only watch, synchronously. The pieces of the reply are for observers only.
+
+The caller's listener (`onReply`, `onAudio`) may fail, for example a stream whose client left. Its error is logged and the turn goes on: her
+speech and the steps after the store still run.
 
 `AFTER_CLEANUP` comes for every turn with its outcome (`TurnOutcome`).
 
