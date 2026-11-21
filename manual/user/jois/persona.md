@@ -58,7 +58,7 @@ the appearance, outfit and part prompts, the web task prompt, and the texts of t
 places: **User Settings → Prompts** (yours, for all assistants) and her **Templates** tab (hers alone). Empty falls back to
 the next one in the chain.
 
-- Templates are Handlebars. Sections such as `{{#memories}}...{{/memories}}` are left out when there is nothing to put in
+- Templates are Handlebars. Sections such as `{{ '{{#memories}}' }}...{{ '{{/memories}}' }}` are left out when there is nothing to put in
   them. The variables of each template are described next to it.
 - **Preview the system prompt** shows what her system prompt is now.
 - An invalid template is reported and not stored.

@@ -9,9 +9,6 @@ order: 400
 ## The server does not start
 
 - Check the Java version: the server needs JDK 25 or newer. Maven on the path may run on an older one: set `JAVA_HOME`.
-- A dev database from an older schema fails the migration's checksum. Do not delete it: upgrade it with
-  `python3 tools/upgrade_dev_db.py` with the server stopped. It backs the database up, rebuilds it from the current schema and
-  copies the data.
 - Another program on the port: the development server uses 8080, change it with `-Djetty.http.port=`.
 - Look at the server's log.
 
