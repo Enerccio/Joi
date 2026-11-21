@@ -11,4 +11,7 @@ export SHOT_URL="http://127.0.0.1:$SHOT_PORT"  # 127.0.0.1, not localhost: cooki
 export JAVA_HOME="${JOI_JAVA_HOME:-$HOME/Library/Java/JavaVirtualMachines/corretto-26.0.2.1/Contents/Home}"
 # the JavaFX node in its screenshot mode (joi-node fx/NodeShots): the commands of a script arrive on this port
 export SHOT_NODE_PORT=8097
-export SHOT_NODE_HOME="$SHOT_HOME/joi-client"  # JOI_CLIENT: the node's own settings, apart from ~/.joi-client
+# JOI_CLIENT: the node's own settings, a temporary folder of their own: not ~/.joi-client (the personal node), not ~/.joi-dev-client (the
+# development node), and not in the repository. Fixed, so every script of a run finds it; the system empties the temporary folder now and then
+# (the node unpacks Chromium into it again), and `bin/start-node.sh --fresh` empties it.
+export SHOT_NODE_HOME="${TMPDIR:-/tmp}/joi-shots-client"

@@ -1,6 +1,6 @@
 #!/bin/bash
 # Starts the JavaFX node in its screenshot mode (it opens a window, OpenJFX has no headless mode) with settings of its own
-# (.data/joi-client; --fresh empties them first: a node that was never started) and waits for its command port. Logs: screenshots/.run/node.log. Pictures go to screenshots/out/.
+# (a temporary folder, SHOT_NODE_HOME in env.sh; --fresh empties it first: a node that was never started) and waits for its command port. Logs: screenshots/.run/node.log. Pictures go to screenshots/out/.
 . "$(dirname "$0")/env.sh"
 mkdir -p "$SHOT_ROOT/.run" "$SHOT_NODE_HOME" "$SHOT_ROOT/out"
 "$SHOT_ROOT/bin/stop-node.sh" >/dev/null

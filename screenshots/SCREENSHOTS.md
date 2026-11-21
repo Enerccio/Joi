@@ -4,7 +4,7 @@ This folder is a **scripted environment that takes every picture of the manual**
 dataset: its own Joi server with its own data folder, a fake inference server instead of a model (so no API key and no
 network), headless Google Chrome driven by Playwright for the server's UI, and the JavaFX node in a **screenshot mode**
 that a script drives through commands. It follows Marginalia's environment (`../marginalia/screenshots`); nothing here
-touches `~/.joi` or `~/.joi-client`.
+touches `~/.joi`, `~/.joi-client` or `~/.joi-dev-client`.
 
 The text is written for an agent (or a person) who has to retake pictures: what exists, how to start it, how to get back
 to an earlier state, and what each script does. Read [Rules of the game](#rules-of-the-game) before you change a script.
@@ -21,7 +21,7 @@ screenshots/
   dataset/            the content that the flows put in (empty so far)
   assets/             pictures that flows upload (not in Git when they are not ours)
   steps/              step backups: <name>.tar.gz of the whole data folder after each step   (not in Git)
-  .data/              joi/ is the server's data folder (JOI_DATA), joi-client/ the node's settings (JOI_CLIENT)   (not in Git)
+  .data/              joi/ is the server's data folder (JOI_DATA), the node's settings are not here: they are in a temporary folder (`$TMPDIR/joi-shots-client`, JOI_CLIENT)   (not in Git)
   .run/               pid files, logs of the server, the node and the fake model, request log   (not in Git)
   out/                the pictures that were taken, before they are copied to the manual   (not in Git)
 ```
@@ -144,7 +144,7 @@ Nothing else starts it. A flow drives the app with the commands of `lib/node.mjs
 The pictures are `Node.snapshot` of the scene graph, so they need no screen recording permission, and the Chromium pane
 that shows her body is part of them (it is painted off screen into the scene). A flow that needs the node in a state (a task
 that waits for approval, a notification question) makes the state on the server first, through the HTTP API or the web UI,
-then drives the node. The settings of the node are `.data/joi-client`: `bin/start-node.sh --fresh` empties them, so the
+then drives the node. The settings of the node are in a temporary folder of their own (`$TMPDIR/joi-shots-client`, `SHOT_NODE_HOME`): `bin/start-node.sh --fresh` empties them, so the
 first-start screens can be taken again; `shoot-all.sh` starts each node flow fresh.
 
 **The Looking Glass** is not shown: only its controls (the tuning pane, `fx/LookingGlassTuningPane`, and the controls pane)

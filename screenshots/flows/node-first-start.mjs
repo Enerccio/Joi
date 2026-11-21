@@ -1,6 +1,6 @@
 // The JavaFX node, first start: the screen where the server is chosen, the same filled in, and the Joi menu. Needs the node in
 // its screenshot mode (bin/start-node.sh) and the server (bin/start-app.sh). Only looks (it connects, which saves the server in the
-// node's own settings, never in ~/.joi-client).
+// node's own settings, never in ~/.joi-client or ~/.joi-dev-client).
 import {click, combo, main, openMenu, closeMenus, serverUrl, snap, wait, texts} from '../lib/node.mjs';
 
 await main(async () => {
