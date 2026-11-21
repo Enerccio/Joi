@@ -1,0 +1,185 @@
+// Fake OpenAI compatible inference server for the screenshot environment (no dependencies, Node 20+).
+//
+//   node llm/mock-llm.mjs [port]          default port 8098, base url for the AI: http://localhost:8098/v1
+//
+// Answers GET /v1/models and POST /v1/chat/completions (streaming SSE and plain JSON).
+// What it answers comes from llm/rules.mjs (first matching rule wins) unless a one-shot answer was queued:
+//
+//   POST /_queue   {"reply":"text","reasoning":"...","status":429,"message":"...","delayMs":0}   (one-shot, FIFO)
+//                  {"toolCalls":[{"name":"get_ui_state","arguments":{"path":""}}]}               the model calls functions
+//   POST /_mode    {"mode":"slow"|null}      rules can look at ctx.mode (e.g. to produce an error)
+//   POST /_pace    {"delayMs":3000,"chunkDelayMs":250}   every answer that sets neither waits / streams this slowly ({} = normal),
+//                                           to try by hand what happens while a model works (folding a window, a second tab, Stop)
+//   GET  /_log                              the last requests (messages flattened), newest last
+//   POST /_reset                            clears queue, mode and log
+import http from 'node:http';
+import fs from 'node:fs';
+import path from 'node:path';
+import {fileURLToPath} from 'node:url';
+
+const here = path.dirname(fileURLToPath(import.meta.url));
+const port = Number(process.argv[2] || process.env.SHOT_LLM_PORT || 8098);
+const logFile = path.join(here, '..', '.run', 'llm-requests.jsonl');
+fs.mkdirSync(path.dirname(logFile), { recursive: true });
+
+const MODELS = ['joi-demo-12b', 'joi-demo-reasoner', 'joi-demo-small'];
+let queue = [];
+let mode = null;
+let pace = {};
+let log = [];
+
+const flatten = c => typeof c === 'string' ? c
+  : Array.isArray(c) ? c.map(p => p.text ?? '').join('\n') : '';
+const tokens = s => Math.max(1, Math.round(s.length / 4));
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+async function loadRules() {
+  // re-import on every request so the rules can be edited while the server runs
+  return (await import('./rules.mjs?' + Date.now())).default;
+}
+
+function readBody(req) {
+  return new Promise(resolve => {
+    const chunks = [];
+    req.on('data', c => chunks.push(c));
+    req.on('end', () => resolve(Buffer.concat(chunks).toString('utf8')));
+  });
+}
+
+function sendJson(res, status, obj) {
+  const data = JSON.stringify(obj);
+  res.writeHead(status, { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(data) });
+  res.end(data);
+}
+
+function splitForStream(text) {
+  // word sized pieces keep the stream lively without hundreds of events
+  return text.match(/\S+\s*|\s+/g) ?? [];
+}
+
+async function chat(req, res, body) {
+  const messages = body.messages ?? [];
+  const flat = messages.map(m => ({ role: m.role, content: flatten(m.content) }));
+  const ctx = {
+    body, messages: flat, mode,
+    system: flat.filter(m => m.role === 'system').map(m => m.content).join('\n'),
+    last: flat.length ? flat[flat.length - 1].content : '',
+    text: flat.map(m => m.content).join('\n'),
+    model: body.model, stream: !!body.stream,
+    wantsJson: !!body.response_format && body.response_format.type !== 'text',
+    hasTools: Array.isArray(body.tools) && body.tools.length > 0,
+  };
+  log.push({ at: new Date().toISOString(), model: body.model, stream: ctx.stream, wantsJson: ctx.wantsJson, messages: flat });
+  log = log.slice(-60);
+  // the tools of an agent request (names and parameters) are what a flow has to call: the last set is kept for reading
+  if (ctx.hasTools) fs.writeFileSync(path.join(path.dirname(logFile), 'last-tools.json'), JSON.stringify(body.tools.map(t => t.function ?? t), null, 1));
+  fs.appendFileSync(logFile, JSON.stringify(log[log.length - 1]) + '\n');
+
+  let answer = queue.shift();
+  if (!answer) {
+    for (const rule of await loadRules()) {
+      if (rule.when(ctx)) {
+        answer = typeof rule.reply === 'function' ? await rule.reply(ctx) : rule;
+        if (typeof answer === 'string') answer = { reply: answer };
+        if (rule.reasoning && !answer.reasoning) answer = { ...answer, reasoning: rule.reasoning };
+        if (rule.delayMs && !answer.delayMs) answer = { ...answer, delayMs: rule.delayMs };
+        answer.rule = rule.name;
+        break;
+      }
+    }
+  }
+  answer ??= { reply: 'The mock server has no rule for this request.', rule: '(default)' };
+  console.log(`${new Date().toISOString()} chat ${body.model} stream=${ctx.stream} rule=${answer.rule ?? '(queued)'}`);
+
+  answer = { ...pace, ...answer };
+  if (answer.delayMs) await sleep(answer.delayMs);
+  if (answer.status) {
+    return sendJson(res, answer.status, { error: { message: answer.message ?? 'error', type: 'server_error', code: null, param: null } });
+  }
+
+  const reply = answer.reply ?? '';
+  const reasoning = answer.reasoning ?? '';
+  const promptTokens = tokens(ctx.text);
+  const completionTokens = tokens(reply + reasoning);
+  const id = 'chatcmpl-demo-' + Date.now();
+  const model = body.model ?? MODELS[0];
+  const created = Math.floor(Date.now() / 1000);
+
+  const toolCalls = (answer.toolCalls ?? []).map((call, index) => ({
+    index, id: `call_${Date.now()}_${index}`, type: 'function',
+    function: { name: call.name, arguments: typeof call.arguments === 'string' ? call.arguments : JSON.stringify(call.arguments ?? {}) },
+  }));
+
+  if (!ctx.stream) {
+    const message = { role: 'assistant', content: toolCalls.length ? null : reply, refusal: null };
+    if (toolCalls.length) message.tool_calls = toolCalls;
+    if (reasoning) message.reasoning_content = reasoning;
+    return sendJson(res, 200, {
+      id, object: 'chat.completion', created, model,
+      choices: [{ index: 0, message, finish_reason: toolCalls.length ? 'tool_calls' : 'stop', logprobs: null }],
+      usage: { prompt_tokens: promptTokens, completion_tokens: completionTokens, total_tokens: promptTokens + completionTokens },
+    });
+  }
+
+  res.writeHead(200, { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache' });
+  const event = (delta, finish = null) => res.write('data: ' + JSON.stringify({
+    id, object: 'chat.completion.chunk', created, model,
+    choices: [{ index: 0, delta, finish_reason: finish }],
+  }) + '\n\n');
+  const pause = answer.chunkDelayMs ?? 12;
+  let first = true;
+  for (const piece of splitForStream(reasoning)) {
+    event(first ? { role: 'assistant', reasoning_content: piece } : { reasoning_content: piece });
+    first = false; await sleep(pause);
+  }
+  for (const piece of splitForStream(toolCalls.length ? '' : reply)) {
+    event(first ? { role: 'assistant', content: piece } : { content: piece });
+    first = false; await sleep(pause);
+  }
+  if (toolCalls.length) event(first ? { role: 'assistant', tool_calls: toolCalls } : { tool_calls: toolCalls });
+  event({}, toolCalls.length ? 'tool_calls' : 'stop');
+  if (body.stream_options?.include_usage !== false) {
+    res.write('data: ' + JSON.stringify({
+      id, object: 'chat.completion.chunk', created, model, choices: [],
+      usage: { prompt_tokens: promptTokens, completion_tokens: completionTokens, total_tokens: promptTokens + completionTokens },
+    }) + '\n\n');
+  }
+  res.write('data: [DONE]\n\n');
+  res.end();
+}
+
+const server = http.createServer(async (req, res) => {
+  try {
+    const url = new URL(req.url, 'http://x');
+    const p = url.pathname.replace(/^\/v1/, '');
+    const raw = req.method === 'POST' ? await readBody(req) : '';
+    let body = {};
+    try { body = raw ? JSON.parse(raw) : {}; } catch { body = {}; }   // a multipart upload (/upload_reference) is not JSON
+    if (req.method === 'GET' && p === '/models') {
+      return sendJson(res, 200, { object: 'list', data: MODELS.map(id => ({ id, object: 'model', created: 0, owned_by: 'demo' })) });
+    }
+    if (req.method === 'POST' && p === '/chat/completions') return await chat(req, res, body);
+    if (req.method === 'POST' && p === '/_queue') { queue.push(body); return sendJson(res, 200, { queued: queue.length }); }
+    if (req.method === 'POST' && p === '/_mode') { mode = body.mode ?? null; return sendJson(res, 200, { mode }); }
+    if (req.method === 'POST' && p === '/_pace') {
+      pace = {};
+      if (Number(body.delayMs) > 0) pace.delayMs = Number(body.delayMs);
+      if (Number(body.chunkDelayMs) > 0) pace.chunkDelayMs = Number(body.chunkDelayMs);
+      return sendJson(res, 200, pace);
+    }
+    if (req.method === 'POST' && p === '/_reset') { queue = []; mode = null; pace = {}; log = []; return sendJson(res, 200, {}); }
+    if (req.method === 'GET' && p === '/_log') return sendJson(res, 200, log);
+    sendJson(res, 404, { error: { message: 'unsupported ' + req.method + ' ' + p } });
+  } catch (e) {
+    console.error(e);
+    if (!res.headersSent) sendJson(res, 500, { error: { message: String(e) } }); else res.end();
+  }
+});
+
+// `node --watch` restarts this process while the old one may still hold the port: try again for a few seconds
+let attempts = 0;
+server.on('error', e => {
+  if (e.code === 'EADDRINUSE' && attempts++ < 40) setTimeout(() => server.listen(port), 250);
+  else throw e;
+});
+server.listen(port, () => console.log(`mock llm on http://localhost:${port}/v1`));

@@ -204,7 +204,7 @@ one; the server treats every node the same.
     `ping` / `pong` both ways; a connection silent for twice the heartbeat is closed.
   - **Reconnecting (1.3):** a node that lost the connection (the server restarted, the network dropped, `4008`)
     connects again after 1 s, 2 s, 4 s... up to 30 s, with `hello.resumed` and its latest manifest, so she does not
-    greet the user again. A turn that ran then is lost. **Offline the node does nothing for the user:** the chat
+    greet the user again. A turn that ran then is not stopped by the lost connection once it has written something or called a function that changes state (`ToolEffects`; a gesture or a look does not count): it finishes, her words and her voice are kept in the chat, but its frames are lost; one that has only thought so far is dropped. **Offline the node does nothing for the user:** the chat
     input, Send and Stop, the controls of her parts and the Looking Glass button are disabled until it is connected
     again, and `NodeSocket.say` sends nothing and keeps nothing to send later (it fails with `disconnected`): what the
     user said while she could not hear is said again by them, not delivered late and out of context. A bar above the input says
@@ -256,6 +256,24 @@ The server follows Marginalia's conventions (see its `CLAUDE.md` and `manual/dev
   Spring config on SQLite with contract base classes.
 
 The node is a plain Java daemon (no Vaadin, no AspectJ weaving), the renderer is a small web app (or Unity).
+
+### The manual and its pictures
+
+Like Marginalia's, the manual is Retype (`retype.yml`, sources in `manual/`: `user/` and `developer/`, pictures in
+`manual/images/`, built by `tools/retype_build.sh` into `docs/`, which is not in Git; the `Manual` workflow publishes it to
+GitHub Pages from `master`). It is English only for now (Marginalia's per-language build, `tools/manual_i18n.py`, is not
+ported). The pages of the developer guide carry `covers` (the code they describe) and `verified` (the commit they were
+checked against): `tools/check_dev_docs.py` lists the pages whose code changed since. A page that is still a stub has no
+`verified` on purpose, so the tool keeps reporting it until it is written and stamped. The pages are stubs first: each says
+what it will cover.
+
+The pictures are retaken by a scripted environment, `screenshots/` (see `screenshots/SCREENSHOTS.md`): a server of its own on
+port 8099 with its own data folder, a fake model, Chrome driven by Playwright, step snapshots of the data folder. The
+JavaFX node has a **screenshot mode** for the same: `Launcher shots <out dir> <port>` runs the normal app and a command server
+on loopback (`fx/NodeShots`, `fx/ShotCommands`), and a script presses buttons of the scene, types into its fields and writes
+the window as a PNG with `Node.snapshot`, so it needs no screen recording permission. OpenJFX has no headless mode, so the
+window does open. Of the Looking Glass only its controls are shown, never the display. The model in the pictures is Saiki
+(CC BY-SA, credited on the manual's credits page); the purchased test avatars never appear.
 
 **Open — sharing code with Marginalia.** Joi needs what Marginalia's `TODO.VN.md` calls layer 1, the platform: entity
 base, security and users, AI / Protocol / Usage and the inference implementations, `function` / `tool` /

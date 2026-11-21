@@ -1,0 +1,9 @@
+# The setup chain: <flow> -> <step snapshot taken after it>. bin/rebuild.sh replays it from 00-empty.
+# One line per step, in order. Flows are in flows/, snapshots in steps/.
+00-first-start.mjs          01-admin
+01-model-saiki.mjs          02-saiki
+02-text-models.mjs          03-models
+03-joi.mjs                  04-joi
+04-user-settings.mjs        05-user-models
+05-appearance.mjs           06-appearance
+06-body.mjs                 07-body

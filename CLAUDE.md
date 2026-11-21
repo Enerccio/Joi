@@ -35,6 +35,8 @@ mvn package -pl joi-server -Pproduction                       # the WAR with the
 mvn test -pl joi-node                                         # the node's core and its terminal client (JoiNodeCli)
 mvn -o -Pfx compile exec:exec@run -pl joi-node               # the JavaFX node (OpenJFX 25 and JCEF are in ~/.m2)
 mvn -o -Pfx compile exec:exec@run -pl joi-node -Dnode.args=preview   # her cached body in Chromium, no server
+tools/retype_build.sh                                         # the manual into docs/ (needs `retype`)
+screenshots/bin/shoot-all.sh                                  # retake the pictures of the manual (screenshots/SCREENSHOTS.md)
 ```
 
 `-pl joi-server -am` also builds the platform first (its tests are skipped by `-Dtest=...` with
@@ -109,6 +111,13 @@ with the code.
   `fx/Chromium` starts it, `org/cef/browser/JoiOsrBrowser` renders off screen into `fx/ChromiumPane`; on the Looking
   Glass the page is shown in the user's own Chrome instead (`fx/LookingGlassWindow`; see `DESIGN.md`). Run with
   `exec:exec@run` (`fx/Launcher`), not `javafx:run`, which leaves JCEF's jars off the class path.
+- `manual/` — the source of the manual (Retype, `retype.yml`): `manual/user`, `manual/developer`, pictures in `manual/images`.
+  `docs/` is its generated output: never edit or read it, it is not in Git. Build it with `tools/retype_build.sh`. The pages
+  are stubs first; developer pages carry `covers` and `verified` (`python3 tools/check_dev_docs.py` lists the ones whose code
+  changed). The `Manual` workflow (`.github/workflows/manual.yml`) publishes it from `master`.
+- `screenshots/` — the scripted environment that takes the pictures of the manual (see `screenshots/SCREENSHOTS.md`): its
+  own server (8099), a fake model (8098), Playwright for the UI, and the JavaFX node's screenshot mode (8097,
+  `Launcher shots`, `fx/NodeShots`). Run one heavy thing at a time.
 - `tools/upgrade_dev_db.py` — upgrades a dev database to the current V1 without losing its data (see above).
 - `MARGINALIA.md` — what Joi uses from Marginalia's platform and what it provides itself.
 - `DESIGN.md` — the design (architecture, server, node, avatar, spikes and their results, roadmap, open decisions).
@@ -158,6 +167,8 @@ Don't add adult content from avatar packages to anything (the converter drops it
   push only when the user asks.
 - Write prose (docs, `DESIGN.md`) in plain, short sentences; keep `DESIGN.md` sections current rather than appending
   history.
+- When you implement a feature or fix, update the docs that describe it: user docs in `manual/user`, developer docs in
+  `manual/developer` (and the picture flows in `screenshots/flows` when a screen changed).
 - **Files go through the disk, not memory:** uploads stream into a file (`UploadHandler.toFile`), downloads and what
   the client or a node gets stream from a file (`DownloadHandler.forFile`), exports and imports are written and read
   as streams through temp files on disk. Models, images and archives can be large: never read a whole file into a

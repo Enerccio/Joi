@@ -1,0 +1,20 @@
+# Joi manual - https://retype.com
+# Sources are in manual/, the generated site is written to docs/ (not in the repository, ignored by git).
+# The Manual workflow (.github/workflows/manual.yml) builds it and publishes it to GitHub Pages
+# (Settings → Pages → Source: GitHub Actions). Build it locally with tools/retype_build.sh.
+input: manual
+output: docs
+
+url: https://enerccio.github.io/Joi
+
+branding:
+  title: Joi
+  label: Manual
+
+links:
+  - text: GitHub
+    link: https://github.com/Enerccio/Joi
+    icon: mark-github
+
+footer:
+  copyright: "&copy; Copyright 2026. MIT License."
