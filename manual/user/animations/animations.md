@@ -9,9 +9,11 @@ order: 680
 An animation is what she plays: a name, a description, its **steps** in order, whether the whole animation loops, and the body
 it is previewed on.
 
-![The Animations tab](../../images/tab-animations.png)
+![The Animations tab](../../images/tab-animations-library.png)
 
 ## The animation dialog
+
+![An animation of two steps](../../images/animation-dialog.png)
 
 **Add animation** (or **New animation of this clip** from a clip) opens the dialog. Under **Steps**, **Add** clips from the
 library. Each step is a clip with how it plays there:
@@ -39,6 +41,8 @@ jumps looping, a stop once. A clip added to an animation appends its description
 Deleting an animation keeps its clips.
 
 ## Roles in her dialog
+
+![Her Animations tab](../../images/joi-animations-roles.png)
 
 The **Animations** tab of her dialog chooses, from your animations, what she plays asleep, falling asleep, waking up, idle and
 talking. A node plays them from her body's `.joia`, so a body that plays only some animations needs these among them; one you

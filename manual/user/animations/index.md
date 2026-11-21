@@ -14,9 +14,9 @@ She moves with animations from your library. There are two layers, and two works
 - **Animations** are what she plays: one or more clips as steps, each with its own loop, speed, direction and blend. See
   [Animations of an assistant](animations.md).
 
-![The Clips tab](../../images/tab-clips.png)
+![The Clips tab](../../images/tab-clips-library.png)
 
-![The Animations tab](../../images/tab-animations.png)
+![The Animations tab](../../images/tab-animations-library.png)
 
 The library is shared by all your bodies and assistants: a clip made for one humanoid body plays on all of them, because the
 viewer retargets it to the rig of the body. Both tabs can be previewed on any body of yours.

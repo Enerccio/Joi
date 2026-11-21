@@ -7,3 +7,4 @@
 04-user-settings.mjs        05-user-models
 05-appearance.mjs           06-appearance
 06-body.mjs                 07-body
+07-animations.mjs          08-animations

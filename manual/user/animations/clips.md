@@ -8,7 +8,7 @@ order: 690
 
 The **Clips** tab is the library of motions.
 
-![The Clips tab](../../images/tab-clips.png)
+![The Clips tab](../../images/tab-clips-library.png)
 
 ## Uploading
 
@@ -30,6 +30,8 @@ A clip keeps its name, description, tags, the length, the bones it moves, whethe
 from (the FBX or BVH and the take).
 
 ## The list and the clip dialog
+
+![A clip, previewed on a body](../../images/clip-dialog.png)
 
 The tab lists the clips with checkboxes and **Delete selected**. Open one to see it in the clip dialog: it plays in a loop on the
 body you pick under **Preview on** (in that body's state of parts). Edit its name, description, tags and loop. **New animation of
