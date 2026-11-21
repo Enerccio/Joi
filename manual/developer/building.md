@@ -6,6 +6,9 @@ covers:
   - pom.xml
   - joi-node/pom.xml
   - CLAUDE.md
+  - Dockerfile
+  - docker-compose.yml
+  - docker-entrypoint.sh
 verified: 64a2196
 ---
 
@@ -37,6 +40,19 @@ production profile builds the Vite bundle (npm install, Vite).
 
 The UI classes are created with `new` and are `@Configurable`: the build uses AspectJ compile-time weaving, so injected fields are
 filled. Compiling with plain `javac` leaves them `null`.
+
+## The image
+
+The `Dockerfile` in the root builds the server, nothing else (the node runs on the user's machines): a Maven stage builds the platform from
+the submodule, `joi-protocol` and `joi-server` into the WAR with the production frontend bundle (`-Pproduction -pl joi-server -am`), and a Jetty 12
+stage runs it, started by `docker-entrypoint.sh` (it hands the data folder to the `jetty` user, then drops root). The data folder is `JOI_DATA`
+(`/var/joi/data`, the volume of `docker-compose.yml`), the health check is `/health`. The image has ffmpeg and headless Blender 5.2.1 with the VRM add-on (the official x86-64 build, checked against its sha256, in
+`/opt/blender`, the add-on in `BLENDER_USER_RESOURCE`; on another architecture it is left out with a warning, since blender.org has no ARM Linux build;
+`--build-arg WITH_FFMPEG=false` / `WITH_BLENDER=false` leave them out). The user's guide is [Server (Docker)](../user/getting-started/docker-server.md).
+
+```bash
+docker compose up -d --build
+```
 
 ## The node
 

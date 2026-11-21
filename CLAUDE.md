@@ -73,6 +73,8 @@ with the code.
   The `.joim` and `.joia` containers (`protocol/joim`, `protocol/joia`, documented in `joim.md` and `joia.md` there;
   their sections share `joim/Sections`) are part of it too: the format and its doc
   change together.
+- `Dockerfile`, `docker-compose.yml`, `docker-entrypoint.sh` — the server's image (the platform, the protocol and the server built into the WAR,
+  run by Jetty, with ffmpeg and headless Blender; the data folder `JOI_DATA` is the volume). Not the node. See `manual/user/getting-started/docker-server.md`.
 - `marginalia/` — git submodule of Marginalia, pinned at a commit on its `dev` branch; joi-server uses only its
   platform module (`marginalia-platform`). Bump it on purpose, never edit it from here (see `MARGINALIA.md`).
 - `joi-server/` — the server WAR. Packages under `com.github.enerccio.joi`. Its own Spring XML

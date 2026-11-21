@@ -1,0 +1,19 @@
+services:
+  joi:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: joi-server
+    restart: unless-stopped
+    ports:
+      # only a reverse proxy on the same host should reach it: see manual/user/getting-started/docker-server.md
+      - "127.0.0.1:8080:8080"
+    volumes:
+      - ./data:/var/joi/data
+    environment:
+      - JAVA_TOOL_OPTIONS=-Xms256m -Xmx1g -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/var/joi/data/heapdump.hprof
+      # the address of the reverse proxy as the container sees it (the Docker network), so that the log-in and the access list
+      # see the real client address
+      - JOI_TRUSTED_PROXIES=172.16.0.0/12
+      # the address the server is reached at from outside, for the links of the device sign-in of a node
+      # - JOI_API_PUBLIC_URL=https://joi.example.com

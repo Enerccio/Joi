@@ -1924,8 +1924,8 @@ with avatars whose shaders match the installed Poiyomi.
 5. Deeper OS actions, long-term memory, MCP, proactive events.
 
 **The first production version** (decided 2026-11-21) is the server with text chat, the avatar, memory and the summaries.
-Before it: the node's `--joi-home-dir` / `JOI_HOME_DIR`, a deployment guide (TLS behind a reverse proxy, the data folder,
-backups and a restore test), the Flyway V1 freeze (later changes are V2 and up) and the first full verification pass
+Before it: the node's `--joi-home-dir` / `JOI_HOME_DIR` (built), a deployment guide and the Docker image (`Dockerfile`, written 2026-11-21, not yet
+built and run: TLS behind a reverse proxy, the data folder, backups and a restore test), the Flyway V1 freeze (later changes are V2 and up) and the first full verification pass
 (`verification.md`). **After it,** because each is an addition and none changes the server's schema: the node's harness
 (it is only more tools in the manifest; ship it whole, with its ALLOW / ASK / DENY policy and audit), voice in (audio in is
 a new minor version of the protocol), and the privacy mode (not built at all yet; see Privacy mode).

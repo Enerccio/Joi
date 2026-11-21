@@ -34,7 +34,7 @@ mvn jetty:run -pl joi-server
 It listens on `http://localhost:8080`. This mode lets API calls without credentials act as the first administrator, so a
 node on the same machine connects with no token. Do not use it on a network.
 
-For a real installation build the WAR with the production frontend bundle and put it in any servlet container:
+For a real installation use [Docker](docker-server.md), or build the WAR with the production frontend bundle and put it in any servlet container:
 
 ```bash
 mvn package -pl joi-server -Pproduction
