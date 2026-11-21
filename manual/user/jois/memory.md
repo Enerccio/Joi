@@ -10,6 +10,8 @@ What she remembers beyond the latest messages: short facts she keeps and you can
 
 ## The Memories tab
 
+![Her Memories tab](../../images/joi-memories.png)
+
 A grid with one row per memory: name, type, who it is from (**You** or **Her**) and when it was created, newest first.
 
 - Click a row to open it. A memory has a **Name** (for you only: it never goes into a prompt), a **Type**, **Keywords** and

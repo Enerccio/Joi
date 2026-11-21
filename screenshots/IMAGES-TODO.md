@@ -36,9 +36,9 @@ Status: `[ ]` to take, `[x]` taken and published, `[-]` dropped (why).
 | [x] | `clip-dialog` | animations/clips.md | `07-animations` | a clip playing on the body |
 | [x] | `animation-dialog` | animations/animations.md | `07-animations` | an animation with its steps |
 | [x] | `joi-animations-roles` | animations/animations.md | `07-animations` | her Animations tab with the roles chosen |
-| [ ] | `joi-chats` | jois/chats.md | `08-conversation` (`09-conversation`) | her Chats tab with an exchange, reasoning and tools used |
-| [ ] | `joi-memories` | jois/memory.md | `08-conversation` | her Memories tab with a memory she wrote |
-| [ ] | `joi-tasks-waiting` | jois/tasks.md | `08-conversation` | her Tasks tab with a search that waits for approval |
+| [x] | `joi-chats` | jois/chats.md | `08-conversation` (`09-conversation`) | her Chats tab with an exchange, reasoning and tools used |
+| [x] | `joi-memories` | jois/memory.md | `08-conversation` | her Memories tab with a memory she wrote |
+| [x] | `joi-tasks-waiting` | jois/tasks.md | `08-conversation` | her Tasks tab with a search that waits for approval |
 | [ ] | `node-chat` | node/javafx.md | `node-chat` (needs `08-conversation`) | the JavaFX node with her body and the chat |
 | [ ] | `node-controls` | node/javafx.md | `node-chat` | the controls panel, Her parts |
 | [ ] | `node-approval` | node/approvals.md | `node-chat` | the dialog of a task that waits |

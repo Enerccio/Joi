@@ -12,6 +12,8 @@ the result in her own words.
 
 ## The Tasks tab
 
+![A task that waits for approval](../../images/joi-tasks-waiting.png)
+
 The **Tasks** tab of her dialog lists what she started, newest first: the task, its status and when it was asked. Click one to
 see what she asked for, the page, the result or the error, and the transcript: every step of the model, what it was told,
 which tool it called, how long it took and its tokens.

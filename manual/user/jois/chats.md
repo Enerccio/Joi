@@ -11,6 +11,8 @@ The **Chats** tab of her dialog shows the conversation as a transcript, oldest a
 
 ## What a card shows
 
+![Her Chats tab: two exchanges, with reasoning and the functions she used](../../images/joi-chats.png)
+
 - **What you said** on the right, or an **event** in the middle with its kind (a part of her was switched, a task finished;
   see [Events](events.md)).
 - **Her reasoning**, folded, when the model thought.
