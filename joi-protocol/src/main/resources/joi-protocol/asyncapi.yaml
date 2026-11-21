@@ -94,7 +94,9 @@ info:
     again with a growing wait (1 s, 2 s, 4 s... up to 30 s), sends `hello` with `resumed: true` and its latest
     manifest. What the user says while the node is not connected is not sent, nor kept to be sent later: a node does
     not offer the user anything to do (say, stop, change a part, move her onto a Looking Glass) until it is connected
-    again. A turn that ran when the connection closed is lost: its frames are not sent again. A node does not
+    again. A turn that ran when the connection closed is not stopped by it once it has written something or called a function that changes
+    state (not a gesture or a look): the server finishes it, and her words and voice are kept in the chat, but its frames are
+    not sent again. A turn that has only thought so far is dropped. A node does not
     connect again after `4001`, `4002`, `4003`, `4004` or `4009`.
 
     **A server that was down** (since 1.5). `welcome` has `serverStartedAt`, when this run of the server started. A

@@ -29,6 +29,10 @@ public class JoimServiceImpl implements JoimService {
     @Autowired
     private ModelConversionService conversionService;
 
+    @Autowired
+    @org.springframework.context.annotation.Lazy
+    private com.github.enerccio.joi.domain.service.BodyService bodyService;
+
     @Override
     public boolean needsExport(Model model) throws Exception {
         if (model.getId() == null) {
@@ -61,7 +65,10 @@ public class JoimServiceImpl implements JoimService {
         File out = ModelFiles.uploadFile(modelService.uploadFolder(), "model." + JoimFile.EXTENSION);
         try {
             String hash = JoimFile.write(out, JoimFile.Profile.FULL, meta, vrm, modelService.bodyHash(stored), progress);
-            return modelService.linkExport(stored, out, fingerprint, hash);
+            Model exported = modelService.linkExport(stored, out, fingerprint, hash);
+            // the nodes of those who are in a body of it read the new file
+            bodyService.modelChanged(exported);
+            return exported;
         } catch (Exception e) {
             FileUtils.deleteQuietly(out);
             throw e;

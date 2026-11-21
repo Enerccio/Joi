@@ -393,15 +393,56 @@
     min-height: 8rem;
 }
 
-.task-details pre,
-.task-step {
+.task-details pre {
     white-space: pre-wrap;
     overflow-wrap: anywhere;
     margin: 0;
 }
 
 .task-step {
+    /* not pre-wrap: the newlines inside the rendered Markdown of a step would show as empty lines */
+    overflow-wrap: anywhere;
     border-left: 3px solid var(--lumo-contrast-20pct);
     padding-left: var(--lumo-space-s);
+    margin-bottom: var(--lumo-space-s);
+}
+
+.task-step-head {
+    color: var(--lumo-secondary-text-color);
+    font-size: var(--lumo-font-size-xs);
     margin-bottom: var(--lumo-space-xs);
+}
+
+.task-meta {
+    color: var(--lumo-secondary-text-color);
+    font-size: var(--lumo-font-size-s);
+    margin-bottom: var(--lumo-space-s);
+}
+
+.task-block {
+    margin-bottom: var(--lumo-space-m);
+}
+
+.task-block > h5 {
+    margin: 0 0 var(--lumo-space-xs) 0;
+    color: var(--lumo-secondary-text-color);
+    font-size: var(--lumo-font-size-xs);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.task-result,
+.task-error {
+    border-radius: var(--lumo-border-radius-m);
+    padding: var(--lumo-space-s) var(--lumo-space-m);
+}
+
+.task-result {
+    background: var(--lumo-success-color-10pct);
+    border-left: 3px solid var(--lumo-success-color);
+}
+
+.task-error {
+    background: var(--lumo-error-color-10pct);
+    border-left: 3px solid var(--lumo-error-color);
 }

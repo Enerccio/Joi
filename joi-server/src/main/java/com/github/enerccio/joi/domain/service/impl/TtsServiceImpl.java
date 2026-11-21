@@ -15,10 +15,13 @@ import com.github.enerccio.marginalia.domain.service.ResourceService;
 import com.github.enerccio.marginalia.domain.service.SettingService;
 import com.github.enerccio.marginalia.domain.service.gpu.GpuException;
 import com.github.enerccio.marginalia.domain.service.gpu.GpuLease;
+import com.github.enerccio.marginalia.ui.components.ThreadCopyRequestAttributes;
+import com.github.enerccio.marginalia.ui.components.ThreadCopyRequestAttributes.InRequestScope;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.web.context.request.RequestAttributes;
 
 import java.text.Collator;
 import java.util.ArrayList;
@@ -238,8 +241,10 @@ public class TtsServiceImpl implements TtsService {
 
     private static <T> CompletableFuture<T> inBackground(Work<T> work) {
         CompletableFuture<T> result = new CompletableFuture<>();
+        // the thread works for the user of the caller: the job of the call is theirs (the session scope is not active on it)
+        RequestAttributes attributes = ThreadCopyRequestAttributes.create();
         Thread.ofVirtual().name("joi-tts").start(() -> {
-            try {
+            try (InRequestScope _ = new InRequestScope(attributes)) {
                 result.complete(work.run());
             } catch (Exception | Error e) {
                 TtsLog.get().warn("A call to a speech server failed: {}", e.getMessage());

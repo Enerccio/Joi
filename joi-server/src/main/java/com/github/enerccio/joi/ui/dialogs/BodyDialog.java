@@ -292,6 +292,7 @@ public class BodyDialog extends Dialog {
             body = bodyService.find(body.getId());
             body.setAnimationUuids(chosenAnimations());
             body = bodyService.save(body);
+            bodyService.changed(body);
             showJoia();
         } catch (Exception e) {
             UIUtils.internalServerError(loc, e);
@@ -390,6 +391,7 @@ public class BodyDialog extends Dialog {
             Long lookingGlassId = lookingGlassSelect.getValue();
             body.setLookingGlassModel(lookingGlassId == null ? null : models.get(lookingGlassId));
             body = bodyService.save(body);
+            bodyService.changed(body);
             updateTitle();
             if (joiaInfo != null) {
                 showJoia();

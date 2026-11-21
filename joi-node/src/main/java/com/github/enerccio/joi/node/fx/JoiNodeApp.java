@@ -682,6 +682,8 @@ public class JoiNodeApp extends Application {
         java.util.concurrent.atomic.AtomicReference<Runnable> resync = new java.util.concurrent.atomic.AtomicReference<>(() -> {
         });
         java.util.concurrent.atomic.AtomicBoolean resyncLater = new java.util.concurrent.atomic.AtomicBoolean();
+        // which body and files are shown now: when the server's differ, her body is replaced, not only its parts switched
+        java.util.concurrent.atomic.AtomicReference<String> shownBody = new java.util.concurrent.atomic.AtomicReference<>(bodyKey(loaded.body()));
         PartStaging staging = new PartStaging(PART_TIMING, stagingTimer,
                 (id, part, state) -> socket.part(id, part, state),
                 () -> {
@@ -742,6 +744,39 @@ public class JoiNodeApp extends Application {
                 try {
                     BodyInfo info = client.body(loaded.summary().id());
                     if (info == null || info.parts() == null) {
+                        return;
+                    }
+                    String key = bodyKey(info);
+                    if (!key.equals(shownBody.get())) {
+                        // she is in another body (or her model or animations were written again): its files come, and it replaces hers
+                        Path joim = info.model() == null || info.model().joim() == null ? null : client.download(info.model().joim(), bytes -> {
+                        });
+                        Path joia = info.animations() == null || info.animations().joia() == null ? null
+                                : client.download(info.animations().joia(), bytes -> {
+                                });
+                        BodyFiles files = BodyFiles.unpack(joim, joia, settings.cache().resolve("unpacked"));
+                        Map<String, String> names = new HashMap<>();
+                        if (info.animations() != null) {
+                            for (BodyAnimation animation : info.animations().animations()) {
+                                names.put(animation.id(), animation.name());
+                            }
+                        }
+                        Platform.runLater(() -> {
+                            shownBody.set(key);
+                            renderer.show(files);
+                            avatarPane.names(names);
+                            parts.clear();
+                            kept.clear();
+                            for (BodyPart part : info.parts()) {
+                                parts.put(part.id(), part);
+                                kept.put(part.id(), part.state());
+                            }
+                            controls.parts(info.parts());
+                            toggles.clear();
+                            toggles.addAll(info.toggles() == null ? List.of() : info.toggles());
+                            renderer.toggles(List.copyOf(toggles));
+                            chat.note("She is in " + (info.name() == null ? "another body" : info.name()) + " now.");
+                        });
                         return;
                     }
                     Platform.runLater(() -> {
@@ -975,6 +1010,15 @@ public class JoiNodeApp extends Application {
                 return null;
             }
         });
+    }
+
+    /** Tells one body with its files from another: the body, the hash of its model and the hash of its animations. */
+    private static String bodyKey(BodyInfo body) {
+        if (body == null) {
+            return "";
+        }
+        return body.id() + "|" + (body.model() == null || body.model().joim() == null ? "" : body.model().joim().sha256()) + "|"
+                + (body.animations() == null || body.animations().joia() == null ? "" : body.animations().joia().sha256());
     }
 
     /** The server kept a part in a state: it is the kept one now, and shown on her body, and in the controls. */

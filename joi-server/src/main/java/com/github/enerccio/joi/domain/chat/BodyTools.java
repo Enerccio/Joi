@@ -8,7 +8,6 @@ import com.github.enerccio.joi.domain.bodies.Outfit;
 import com.github.enerccio.joi.domain.model.impl.Body;
 import com.github.enerccio.joi.domain.model.impl.Joi;
 import com.github.enerccio.joi.domain.service.BodyService;
-import com.github.enerccio.joi.domain.service.NodeService;
 import com.github.enerccio.marginalia.domain.service.function.FunctionDefinition;
 import com.github.enerccio.marginalia.domain.service.function.FunctionSet;
 import org.apache.commons.lang3.StringUtils;
@@ -48,9 +47,6 @@ public class BodyTools implements InitializingBean, DisposableBean {
 
     @Autowired
     private BodyService bodyService;
-
-    @Autowired
-    private NodeService nodeService;
 
     private final ObjectMapper jackson = new ObjectMapper();
     private Registration registration;
@@ -127,8 +123,6 @@ public class BodyTools implements InitializingBean, DisposableBean {
                     return;
                 }
                 String answer = bodyService.changePart(body, part, state);
-                // the nodes show it: they read her body again
-                nodeService.notify(joi, "body");
                 continuation.complete(answer);
             } catch (IllegalArgumentException e) {
                 continuation.fail(e.getMessage());
@@ -194,7 +188,6 @@ public class BodyTools implements InitializingBean, DisposableBean {
                     return;
                 }
                 String answer = bodyService.wearOutfit(body, outfit);
-                nodeService.notify(joi, "body");
                 continuation.complete(answer);
             } catch (IllegalArgumentException e) {
                 continuation.fail(e.getMessage());
@@ -242,7 +235,6 @@ public class BodyTools implements InitializingBean, DisposableBean {
             }
             try {
                 String answer = bodyService.switchBody(joi, target);
-                nodeService.notify(joi, "body");
                 continuation.complete(answer);
             } catch (IllegalArgumentException e) {
                 continuation.fail(e.getMessage());

@@ -651,5 +651,11 @@ public class JoiLocalizationBundleEN extends TextBundleBase<J_L> {
         setValue(J_L.LABEL_SOURCE_ENABLED, "Enabled");
         setValue(J_L.LABEL_SOURCE_WHERE, "Address, or the sites");
         setValue(J_L.LABEL_CHAT_NOTE, "Note");
+        setValue(J_L.LABEL_TASK_STEP, "Step");
+        setValue(J_L.LABEL_TASK_INSTRUCTIONS, "What the model was told");
+        setValue(J_L.LABEL_TASK_TOOL, "Tool");
+        setValue(J_L.LABEL_TASK_DURATION, "Took");
+        setValue(J_L.LABEL_TASK_TOKENS, "tokens");
+        setValue(J_L.LABEL_SHOW_ALL, "Show all (%d characters)");
     }
 }

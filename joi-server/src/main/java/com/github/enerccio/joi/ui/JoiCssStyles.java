@@ -106,4 +106,14 @@ public final class JoiCssStyles {
     public static final String TASK_DETAILS = "task-details";
     /** A message of a task's transcript. */
     public static final String TASK_STEP = "task-step";
+    /** The line of facts above a task's details: tool, model, when, how long. */
+    public static final String TASK_META = "task-meta";
+    /** A block of a task's details (what was asked, the result, the error). */
+    public static final String TASK_BLOCK = "task-block";
+    /** What the task found: the block that stands out. */
+    public static final String TASK_RESULT = "task-result";
+    /** Why the task failed. */
+    public static final String TASK_ERROR = "task-error";
+    /** The head of a step of the transcript: its number, model and tokens. */
+    public static final String TASK_STEP_HEAD = "task-step-head";
 }

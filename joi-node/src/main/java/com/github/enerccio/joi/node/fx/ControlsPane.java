@@ -34,6 +34,8 @@ final class ControlsPane extends ScrollPane {
     };
     private final Map<String, Consumer<String>> setters = new HashMap<>();
     private VBox partsBox;
+    /** The section of her parts, replaced in its place when she moves into another body. */
+    private Node partsSection;
     private boolean quiet;
 
     ControlsPane() {
@@ -54,6 +56,20 @@ final class ControlsPane extends ScrollPane {
         Label heading = new Label(title);
         heading.setStyle("-fx-font-weight: bold;");
         sections.getChildren().add(new VBox(6, heading, content));
+    }
+
+    /** Puts the section of her parts where the one before it was (after the others when there is none). */
+    private void partsSection(Node content) {
+        Label heading = new Label("Her parts");
+        heading.setStyle("-fx-font-weight: bold;");
+        Node next = new VBox(6, heading, content);
+        int at = partsSection == null ? -1 : sections.getChildren().indexOf(partsSection);
+        if (at < 0) {
+            sections.getChildren().add(next);
+        } else {
+            sections.getChildren().set(at, next);
+        }
+        partsSection = next;
     }
 
     /**
@@ -78,7 +94,7 @@ final class ControlsPane extends ScrollPane {
             none.setStyle("-fx-opacity: 0.6;");
             box.getChildren().add(none);
         }
-        section("Her parts", box);
+        partsSection(box);
     }
 
     /**

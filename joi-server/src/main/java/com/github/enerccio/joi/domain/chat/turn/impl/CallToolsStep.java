@@ -44,6 +44,11 @@ public class CallToolsStep extends TurnStepBase {
                 answered(controller, call, next);
                 return;
             }
+            try {
+                controller.getListener().onToolStart(call.getName(), call.getArguments());
+            } catch (Exception e) {
+                log.debug("A listener of a chat failed: {}", e.getMessage());
+            }
             controller.getFunctions()
                     .call(call.getName(), StringUtils.defaultIfBlank(call.getArguments(), "{}"), controller.getExecutor(),
                             controller.getCancellationToken()::isCancelled)

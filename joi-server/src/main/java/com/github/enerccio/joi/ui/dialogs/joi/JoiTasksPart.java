@@ -3,6 +3,7 @@ package com.github.enerccio.joi.ui.dialogs.joi;
 import com.flowingcode.vaadin.addons.fontawesome.FontAwesome.Solid;
 import com.github.enerccio.joi.domain.chat.turn.TurnControllerEvent.Registration;
 import com.github.enerccio.joi.domain.collections.JoiTaskStatus;
+import com.github.enerccio.joi.domain.collections.TaskMessageRole;
 import com.github.enerccio.joi.domain.model.impl.Joi;
 import com.github.enerccio.joi.domain.model.impl.JoiTask;
 import com.github.enerccio.joi.domain.model.impl.JoiTaskMessage;
@@ -14,6 +15,7 @@ import com.github.enerccio.joi.loc.J_L;
 import com.github.enerccio.joi.ui.JoiCssStyles;
 import com.github.enerccio.joi.ui.dialogs.AutoApprovedDialog;
 import com.github.enerccio.joi.ui.tools.ToolPermissionsPanel;
+import com.github.enerccio.joi.ui.widgets.LongText;
 import com.github.enerccio.marginalia.CssStyles;
 import com.github.enerccio.marginalia.UIConstants;
 import com.github.enerccio.marginalia.loc.L;
@@ -23,6 +25,12 @@ import com.github.enerccio.marginalia.ui.widgets.DialogFocus;
 import com.github.enerccio.marginalia.utils.UIUtils;
 import com.vaadin.flow.component.Component;
 import com.vaadin.flow.component.UI;
+import com.vaadin.flow.component.Text;
+import com.vaadin.flow.component.markdown.Markdown;
+import com.vaadin.flow.dom.Element;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.details.Details;
 import com.vaadin.flow.component.dialog.Dialog;
@@ -61,6 +69,8 @@ public class JoiTasksPart implements JoiDialogPart {
 
     @Autowired
     private JoiTaskMessageService transcripts;
+
+    private static final int TOOL_TEXT = 3000;
 
     private final DateFormat format = DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT);
     private final ToolPermissionsPanel permissions = new ToolPermissionsPanel(ToolScope.JOI);
@@ -202,32 +212,165 @@ public class JoiTasksPart implements JoiDialogPart {
             return;
         }
         try {
-            addSection(J_L.LABEL_TASK_QUESTION, task.getInstructions());
-            addSection(J_L.LABEL_TASK_URL, task.getUrl());
-            addSection(J_L.LABEL_TASK_RESULT, task.getResult());
-            addSection(J_L.LABEL_TASK_ERROR, task.getError());
             List<JoiTaskMessage> steps = transcripts.findByTask(task);
-            details.add(new H5(loc.getValue(J_L.LABEL_TASK_TRANSCRIPT)));
-            if (steps.isEmpty()) {
-                Span none = new Span(loc.getValue(J_L.MSG_TASK_NO_TRANSCRIPT));
-                none.addClassName(CssStyles.HINT_TEXT);
-                details.add(none);
+            details.add(meta(task, steps));
+            details.add(block(J_L.LABEL_TASK_QUESTION, new Pre(StringUtils.defaultString(task.getInstructions()))));
+            if (StringUtils.isNotBlank(task.getUrl())) {
+                details.add(block(J_L.LABEL_TASK_URL, new Pre(task.getUrl())));
             }
-            for (JoiTaskMessage step : steps) {
-                String text = StringUtils.defaultIfEmpty(step.getContent(), StringUtils.defaultString(step.getToolCalls()));
-                Pre line = new Pre(step.getRole().name().toLowerCase() + ": " + text);
-                line.addClassName(JoiCssStyles.TASK_STEP);
-                details.add(line);
+            if (StringUtils.isNotBlank(task.getResult())) {
+                Markdown result = new Markdown(task.getResult());
+                result.addClassNames(JoiCssStyles.CHAT_MARKDOWN, JoiCssStyles.TASK_RESULT);
+                details.add(block(J_L.LABEL_TASK_RESULT, result));
             }
+            if (StringUtils.isNotBlank(task.getError())) {
+                Pre error = new Pre(task.getError());
+                error.addClassName(JoiCssStyles.TASK_ERROR);
+                details.add(block(J_L.LABEL_TASK_ERROR, error));
+            }
+            details.add(transcript(task, steps));
         } catch (Exception e) {
             UIUtils.internalServerError(loc, e);
         }
     }
 
-    private void addSection(J_L label, String text) {
-        if (StringUtils.isNotBlank(text)) {
-            details.add(new H5(loc.getValue(label)), new Pre(text));
+    /** One line of facts: the tool, the model, when it ran and for how long, and the tokens it took. */
+    private Component meta(JoiTask task, List<JoiTaskMessage> steps) {
+        List<String> facts = new ArrayList<>();
+        if (StringUtils.isNotBlank(task.getTool())) {
+            facts.add(loc.getValue(J_L.LABEL_TASK_TOOL) + ": " + task.getTool());
         }
+        steps.stream().map(JoiTaskMessage::getModelUsed).filter(StringUtils::isNotBlank).findFirst().ifPresent(facts::add);
+        if (task.getStartedAt() != null) {
+            facts.add(format.format(task.getStartedAt()));
+            if (task.getFinishedAt() != null) {
+                long seconds = Math.max(0, (task.getFinishedAt().getTime() - task.getStartedAt().getTime()) / 1000);
+                facts.add(loc.getValue(J_L.LABEL_TASK_DURATION) + " " + (seconds < 60 ? seconds + " s" : seconds / 60 + " min " + seconds % 60 + " s"));
+            }
+        }
+        long tokens = steps.stream().map(JoiTaskMessage::getTokenCount).filter(java.util.Objects::nonNull).mapToLong(Long::longValue).sum();
+        if (tokens > 0) {
+            facts.add(tokens + " " + loc.getValue(J_L.LABEL_TASK_TOKENS));
+        }
+        Div line = new Div(new Text(String.join(" · ", facts)));
+        line.addClassName(JoiCssStyles.TASK_META);
+        return line;
+    }
+
+    /** A block of the details under a small heading. */
+    private Component block(J_L label, Component content) {
+        H5 heading = new H5(loc.getValue(label));
+        Div block = new Div(heading, content);
+        block.addClassName(JoiCssStyles.TASK_BLOCK);
+        return block;
+    }
+
+    /**
+     * The transcript folded away (open while the task goes on): what the model was told once, then each step of the model with
+     * its reasoning, its words and the tools it called, each with what it answered.
+     */
+    private Component transcript(JoiTask task, List<JoiTaskMessage> steps) {
+        Div body = new Div();
+        if (steps.isEmpty()) {
+            Span none = new Span(loc.getValue(J_L.MSG_TASK_NO_TRANSCRIPT));
+            none.addClassName(CssStyles.HINT_TEXT);
+            body.add(none);
+        }
+        // the answers of the tools, by the call they answer
+        java.util.Map<String, JoiTaskMessage> answers = new java.util.HashMap<>();
+        for (JoiTaskMessage step : steps) {
+            if (step.getRole() == TaskMessageRole.TOOL && step.getToolCallId() != null) {
+                answers.put(step.getToolCallId(), step);
+            }
+        }
+        List<String> told = new ArrayList<>();
+        for (JoiTaskMessage step : steps) {
+            if ((step.getRole() == TaskMessageRole.SYSTEM || step.getRole() == TaskMessageRole.USER) && StringUtils.isNotBlank(step.getContent())) {
+                told.add(step.getContent());
+            }
+        }
+        if (!told.isEmpty()) {
+            Details instructions = new Details(loc.getValue(J_L.LABEL_TASK_INSTRUCTIONS), new Pre(String.join("\n\n", told)));
+            instructions.addClassName(JoiCssStyles.CHAT_REASONING);
+            body.add(instructions);
+        }
+        int number = 0;
+        for (JoiTaskMessage step : steps) {
+            if (step.getRole() != TaskMessageRole.ASSISTANT) {
+                continue;
+            }
+            body.add(round(++number, step, answers));
+        }
+        Details transcript = new Details(loc.getValue(J_L.LABEL_TASK_TRANSCRIPT) + " (" + number + ")", body);
+        transcript.setOpened(!task.getStatus().isFinished());
+        transcript.setWidthFull();
+        return transcript;
+    }
+
+    /** One step of the model, and the answers of the tools it called. */
+    private Component round(int number, JoiTaskMessage step, java.util.Map<String, JoiTaskMessage> answers) {
+        Div round = new Div();
+        round.addClassName(JoiCssStyles.TASK_STEP);
+        List<String> head = new ArrayList<>();
+        head.add(loc.getValue(J_L.LABEL_TASK_STEP) + " " + number);
+        if (StringUtils.isNotBlank(step.getModelUsed())) {
+            head.add(step.getModelUsed());
+        }
+        if (step.getTokenCount() != null) {
+            head.add(step.getTokenCount() + " " + loc.getValue(J_L.LABEL_TASK_TOKENS));
+        }
+        Div title = new Div(new Text(String.join(" · ", head)));
+        title.addClassName(JoiCssStyles.TASK_STEP_HEAD);
+        round.add(title);
+        if (StringUtils.isNotBlank(step.getReasoning())) {
+            Markdown reasoning = new Markdown(step.getReasoning());
+            reasoning.addClassName(JoiCssStyles.CHAT_MARKDOWN);
+            Details reasons = new Details(loc.getValue(J_L.LABEL_REASONING), reasoning);
+            reasons.addClassName(JoiCssStyles.CHAT_REASONING);
+            round.add(reasons);
+        }
+        if (StringUtils.isNotBlank(step.getContent())) {
+            Markdown words = new Markdown(step.getContent());
+            words.addClassName(JoiCssStyles.CHAT_MARKDOWN);
+            round.add(words);
+        }
+        round.add(calls(step, answers));
+        return round;
+    }
+
+    /** The tools a step called: each one's name and arguments, and under them what it answered. */
+    private Component calls(JoiTaskMessage step, java.util.Map<String, JoiTaskMessage> answers) {
+        Div list = new Div();
+        if (StringUtils.isBlank(step.getToolCalls())) {
+            return list;
+        }
+        try {
+            for (JsonElement element : JsonParser.parseString(step.getToolCalls()).getAsJsonArray()) {
+                JsonObject call = element.getAsJsonObject();
+                Div entry = new Div();
+                entry.addClassName(JoiCssStyles.CHAT_TOOL);
+                Element name = new Element("b");
+                name.setText(call.has("name") ? call.get("name").getAsString() : "?");
+                entry.getElement().appendChild(name);
+                String arguments = call.has("arguments") && !call.get("arguments").isJsonNull() ? call.get("arguments").getAsString().strip() : "";
+                if (!arguments.isEmpty() && !"{}".equals(arguments)) {
+                    entry.add(data(arguments));
+                }
+                JoiTaskMessage answer = call.has("id") ? answers.get(call.get("id").getAsString()) : null;
+                if (answer != null && StringUtils.isNotBlank(answer.getContent())) {
+                    entry.add(data("→ " + answer.getContent()));
+                }
+                list.add(entry);
+            }
+        } catch (RuntimeException e) {
+            // calls that cannot be read are shown as they were stored
+            list.add(data(step.getToolCalls()));
+        }
+        return list;
+    }
+
+    private Component data(String text) {
+        return new LongText(text, TOOL_TEXT, loc.getValue(J_L.LABEL_SHOW_ALL));
     }
 
     private void approve() {

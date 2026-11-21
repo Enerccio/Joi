@@ -23,7 +23,8 @@ import java.util.function.Consumer;
  */
 class AvatarPane extends BorderPane {
 
-    private final Map<String, String> names;
+    /** The names of her animations by id; replaced when she moves into another body. */
+    private volatile Map<String, String> names;
     private final RendererServer renderer;
     private final Label state = new Label("…");
     private final Label animation = new Label();
@@ -39,6 +40,11 @@ class AvatarPane extends BorderPane {
     private final javafx.scene.control.ToggleButton lookingGlass = new javafx.scene.control.ToggleButton("On the Looking Glass");
     private Consumer<Boolean> onLookingGlass = on -> {
     };
+
+    /** Her animations' names, of the body she is in now. */
+    void names(Map<String, String> names) {
+        this.names = names;
+    }
 
     /** Offline the user can't move her onto the Looking Glass: the server could not be told, and she could not react. */
     void setOnline(boolean online) {

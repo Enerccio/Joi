@@ -39,6 +39,15 @@ public interface BodyService extends ExtendableService<Body, BodyRepository> {
     List<QueuedEvent> activate(Joi joi, Body body) throws Exception;
 
     /**
+     * Tells her nodes that the body changed in a way the service did not see (its model or animations chosen in a dialog): they
+     * read it again. Nothing when the body is not the one she is in.
+     */
+    void changed(Body body) throws Exception;
+
+    /** Tells the nodes of the assistants that are in a body of this model that its file was written again. */
+    void modelChanged(Model model) throws Exception;
+
+    /**
      * Deletes the body. When she was in it she is in none afterwards, and she is told as for {@link #activate}.
      *
      * @return the events queued, empty when none

@@ -54,6 +54,10 @@ public interface ChatService {
         default void onAudio(int index, String text, byte[] audio) throws Exception {
         }
 
+        /** She is about to call a function (before it runs; {@link ToolEffects} tells whether it changes anything). */
+        default void onToolStart(String name, String arguments) throws Exception {
+        }
+
         /** She called a function and it answered (or failed). */
         default void onToolCall(String name, String arguments, String result, boolean failed) throws Exception {
         }

@@ -201,12 +201,24 @@ public class NodeSession {
         return current == null || current.tools() == null ? List.of() : current.tools();
     }
 
+    private volatile boolean produced;
+
     public String turnId() {
         return turnId;
     }
 
     public CompletableFuture<?> turn() {
         return turn;
+    }
+
+    /** Whether the turn that runs has produced anything yet (a piece of her words, or a function that changes state; thinking does not count). */
+    public boolean produced() {
+        return produced;
+    }
+
+    /** The turn about to start has produced nothing yet ({@code false}), or it has now ({@code true}). */
+    public void produced(boolean produced) {
+        this.produced = produced;
     }
 
     public synchronized void turnStarted(String id, CompletableFuture<?> turn) {

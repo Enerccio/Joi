@@ -9,8 +9,20 @@ import java.util.concurrent.TimeUnit;
  */
 public final class DesktopScreen implements Notifications.Screen {
 
+    private static final System.Logger LOG = System.getLogger(DesktopScreen.class.getName());
+
     @Override
     public void show(String title, String text) throws IOException {
+        long start = System.nanoTime();
+        try {
+            display(title, text);
+        } finally {
+            // when the system was asked, and how long it took to take it: a notification that shows late is late in the system
+            LOG.log(System.Logger.Level.INFO, "notification handed to the system in " + (System.nanoTime() - start) / 1_000_000 + " ms");
+        }
+    }
+
+    private void display(String title, String text) throws IOException {
         if (System.getProperty("os.name", "").toLowerCase().contains("mac")) {
             // the script reads its two texts from the arguments: nothing the model wrote becomes script
             Process process = new ProcessBuilder("osascript", "-e", "on run argv", "-e",

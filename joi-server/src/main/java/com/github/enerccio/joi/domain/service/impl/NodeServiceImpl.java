@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.github.enerccio.joi.api.JoiApi;
 import com.github.enerccio.joi.domain.chat.ChatService;
+import com.github.enerccio.joi.domain.chat.ToolEffects;
 import com.github.enerccio.joi.domain.chat.ChatService.NoModelException;
 import com.github.enerccio.joi.domain.chat.turn.TurnControllerEvent.Registration;
 import com.github.enerccio.joi.domain.chat.turn.TurnEvents;
@@ -219,8 +220,12 @@ public class NodeServiceImpl implements NodeService, InitializingBean, Disposabl
         CompletableFuture<?> turn = session.turn();
         ApiRequestAttributes attributes = session.attributes();
         if (turn != null) {
-            turn.cancel(true);
-            // the turn cleans up in the connection's request scope: closed after it
+            // a node that closed or crashed does not stop her turn once the turn has written something or called a function that
+            // changes state (not a gesture): it finishes, her words and her voice are kept in the chat, and its frames go nowhere.
+            // A turn that has only thought so far is dropped. The turn works in the connection's request scope: closed after it
+            if (!session.produced()) {
+                turn.cancel(true);
+            }
             turn.whenComplete((r, e) -> closeQuietly(attributes));
         } else {
             closeQuietly(attributes);
@@ -845,10 +850,12 @@ public class NodeServiceImpl implements NodeService, InitializingBean, Disposabl
      */
     private boolean startTurn(NodeSession session, String turn, Joi joi, TurnInput input, boolean reasoning) throws Exception {
         CompletableFuture<ChatService.Result> result;
+        session.produced(false);
         try (InRequestScope _ = new InRequestScope(session.attributes())) {
             result = chatService.chat(joi, input, new ChatService.Listener() {
                 @Override
                 public void onReasoning(String delta) {
+                    // thinking that was not followed by anything is dropped with the connection
                     if (reasoning) {
                         session.send(NodeMessage.REASONING, null, turn, new TextDelta(delta));
                     }
@@ -856,7 +863,16 @@ public class NodeServiceImpl implements NodeService, InitializingBean, Disposabl
 
                 @Override
                 public void onText(String delta) {
+                    session.produced(true);
                     session.send(NodeMessage.TEXT, null, turn, new TextDelta(delta));
+                }
+
+                @Override
+                public void onToolStart(String name, String arguments) {
+                    // a function that changes something is finished even when the node is gone; a gesture is not
+                    if (ToolEffects.changesState(name)) {
+                        session.produced(true);
+                    }
                 }
 
                 @Override
@@ -866,6 +882,7 @@ public class NodeServiceImpl implements NodeService, InitializingBean, Disposabl
 
                 @Override
                 public void onReply(ChatMessage message) {
+                    session.produced(true);
                     session.send(NodeMessage.REPLY, null, turn, JoiApi.reply(message, reasoning, null, null, -1));
                 }
 

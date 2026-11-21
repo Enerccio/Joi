@@ -20,6 +20,7 @@ import com.github.enerccio.joi.domain.service.AnimationPackService;
 import com.github.enerccio.joi.domain.service.BodyService;
 import com.github.enerccio.joi.domain.service.ChatMessageService;
 import com.github.enerccio.joi.domain.service.JoiService;
+import com.github.enerccio.joi.domain.service.NodeService;
 import com.github.enerccio.joi.domain.service.ModelService;
 import com.github.enerccio.joi.domain.service.PersonaService;
 import com.github.enerccio.joi.domain.service.QueuedEventService;
@@ -34,6 +35,9 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Lazy;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.io.File;
 import java.util.ArrayList;
@@ -46,6 +50,8 @@ import java.util.Objects;
 import java.util.Set;
 
 public class BodyServiceImpl extends ExtendableServiceImpl<Body, BodyRepository> implements BodyService {
+
+    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(BodyServiceImpl.class);
 
     @Autowired
     private ChatMessageService chatMessageService;
@@ -67,6 +73,11 @@ public class BodyServiceImpl extends ExtendableServiceImpl<Body, BodyRepository>
 
     @Autowired
     private ResourceService resourceService;
+
+    // the node service uses this one
+    @Autowired
+    @Lazy
+    private NodeService nodeService;
 
 
     @Override
@@ -100,6 +111,7 @@ public class BodyServiceImpl extends ExtendableServiceImpl<Body, BodyRepository>
         if (saved.isActive()) {
             // her first body: she is in it at once, and told so when she has chatted
             switched(joi, null, saved);
+            bodyChanged(joi);
         }
         return saved;
     }
@@ -119,6 +131,7 @@ public class BodyServiceImpl extends ExtendableServiceImpl<Body, BodyRepository>
             }
         }
         Body after = body == null ? null : find(body.getId());
+        bodyChanged(joi);
         return switched(joi, before, after);
     }
 
@@ -134,7 +147,53 @@ public class BodyServiceImpl extends ExtendableServiceImpl<Body, BodyRepository>
             stored.setAnimationsResourceId(null);
         }
         delete(save(stored), false);
+        if (wasActive) {
+            bodyChanged(joi);
+        }
         return wasActive ? switched(joi, stored, null) : List.of();
+    }
+
+    /**
+     * Her nodes read her body again: it changed (another body, a part, an outfit, her files). Told once the change is committed, or
+     * the node would read what was before it; never a failure of the change itself.
+     */
+    private void bodyChanged(Joi joi) {
+        Runnable tell = () -> {
+            try {
+                nodeService.notify(joi, "body");
+            } catch (RuntimeException e) {
+                log.debug("The nodes of an assistant were not told that her body changed: {}", e.getMessage());
+            }
+        };
+        if (TransactionSynchronizationManager.isSynchronizationActive()) {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    tell.run();
+                }
+            });
+        } else {
+            tell.run();
+        }
+    }
+
+    @Override
+    @CommonTxReadOnly
+    public void changed(Body body) throws Exception {
+        Body stored = find(body.getId());
+        if (stored.isActive()) {
+            bodyChanged(stored.getJoi());
+        }
+    }
+
+    @Override
+    @CommonTxReadOnly
+    public void modelChanged(Model model) throws Exception {
+        for (Body body : findByModel(model)) {
+            if (body.isActive() && body.getModel() != null && body.getModel().getId().equals(model.getId())) {
+                bodyChanged(body.getJoi());
+            }
+        }
     }
 
     /** The event of her switch from one body to another (each may be null), when she has chatted and it changed. */
@@ -291,6 +350,9 @@ public class BodyServiceImpl extends ExtendableServiceImpl<Body, BodyRepository>
         }
         stored.setPartStateMap(states);
         stored = save(stored);
+        if (stored.isActive()) {
+            bodyChanged(stored.getJoi());
+        }
         JsonObject payload = new JsonObject();
         payload.addProperty("to", stored.getUuid());
         payload.addProperty("part", part.id());
@@ -522,6 +584,9 @@ public class BodyServiceImpl extends ExtendableServiceImpl<Body, BodyRepository>
         Outfit before = currentOutfit(stored);
         stored.setPartStateMap(BodyState.wearing(outfit));
         stored = save(stored);
+        if (stored.isActive()) {
+            bodyChanged(stored.getJoi());
+        }
         List<QueuedEvent> events = new ArrayList<>();
         if (stored.isActive() && (before == null || !before.id().equals(outfit.id())) && chatMessageService.hasAny(stored.getJoi())) {
             JsonObject payload = new JsonObject();
@@ -550,6 +615,9 @@ public class BodyServiceImpl extends ExtendableServiceImpl<Body, BodyRepository>
         }
         stored.setPartStateMap(BodyState.wearing(outfit));
         stored = save(stored);
+        if (stored.isActive()) {
+            bodyChanged(stored.getJoi());
+        }
         // she did it herself: she is told how she looks, not again as an event
         String look = appearance(stored);
         return "You put on " + outfit.name() + "." + (StringUtils.isBlank(look) ? "" : " How you look now: " + look.strip());
@@ -666,6 +734,7 @@ public class BodyServiceImpl extends ExtendableServiceImpl<Body, BodyRepository>
             }
         }
         Body now = find(target.getId());
+        bodyChanged(joi);
         String look = appearance(now);
         Outfit wearing = currentOutfit(now);
         List<Outfit> outfits = now.outfitList();
@@ -719,7 +788,11 @@ public class BodyServiceImpl extends ExtendableServiceImpl<Body, BodyRepository>
         if (previous != null) {
             forgetAnimations(previous);
         }
-        return save(stored);
+        stored = save(stored);
+        if (stored.isActive()) {
+            bodyChanged(stored.getJoi());
+        }
+        return stored;
     }
 
     private void forgetAnimations(Long resourceId) throws Exception {

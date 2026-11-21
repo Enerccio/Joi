@@ -2,6 +2,7 @@ package com.github.enerccio.joi.node.fx;
 
 import com.github.enerccio.joi.protocol.http.AudioChunk;
 import javafx.animation.PauseTransition;
+import javafx.application.Platform;
 import javafx.scene.media.Media;
 import javafx.scene.media.MediaPlayer;
 import javafx.util.Duration;
@@ -15,7 +16,11 @@ import java.util.Queue;
 
 /**
  * Her speech: the pieces of a reply played one after another as they come, each a whole file (written to a temp file
- * for the media player, deleted once played). Tells when the last one ended. Runs on the JavaFX thread.
+ * for the player, deleted once played). Tells when the last one ended. Runs on the JavaFX thread.
+ * <p>
+ * On macOS a piece is played by the system's {@code afplay} in a process of its own: JavaFX's media library there reads a
+ * player from an audio thread of its own, and a player that was stopped or finished crashed the whole node more than once
+ * (SIGSEGV in {@code AudioQueueProcessingTapGetSourceAudio}, even when it was disposed late). Elsewhere the JavaFX player is used.
  */
 class SpeechPlayer {
 
@@ -23,7 +28,13 @@ class SpeechPlayer {
     private static final double RETIRE_SECONDS = 2;
 
     private final Queue<Path> queue = new ArrayDeque<>();
+    private static final boolean MAC = System.getProperty("os.name", "").toLowerCase().contains("mac");
+
     private MediaPlayer playing;
+    /** The {@code afplay} that plays now (macOS). */
+    private Process process;
+    /** A piece is playing now, by either player. */
+    private boolean busy;
     private Runnable onEnded = () -> {
     };
 
@@ -38,12 +49,12 @@ class SpeechPlayer {
             Files.write(file, Base64.getDecoder().decode(chunk.data()));
             file.toFile().deleteOnExit();
             queue.add(file);
-            if (playing == null) {
+            if (!busy) {
                 next();
             }
         } catch (IOException | IllegalArgumentException e) {
             // a piece that can't be played is skipped
-            if (playing == null && queue.isEmpty()) {
+            if (!busy && queue.isEmpty()) {
                 onEnded.run();
             }
         }
@@ -52,6 +63,12 @@ class SpeechPlayer {
     /** Stops her speech (she was talked over). */
     void stop() {
         queue.clear();
+        busy = false;
+        if (process != null) {
+            Process stopped = process;
+            process = null;
+            stopped.destroy();
+        }
         if (playing != null) {
             retire(playing);
             playing = null;
@@ -78,7 +95,13 @@ class SpeechPlayer {
         Path file = queue.poll();
         if (file == null) {
             playing = null;
+            busy = false;
             onEnded.run();
+            return;
+        }
+        busy = true;
+        if (MAC) {
+            nextWithProcess(file);
             return;
         }
         MediaPlayer player = new MediaPlayer(new Media(file.toUri().toString()));
@@ -95,5 +118,35 @@ class SpeechPlayer {
         player.setOnEndOfMedia(done);
         player.setOnError(done);
         player.play();
+    }
+
+    /** Plays the piece with {@code afplay}; the next one follows when it ends (unless her speech was stopped meanwhile). */
+    private void nextWithProcess(Path file) {
+        Process started;
+        try {
+            started = new ProcessBuilder("afplay", file.toString()).redirectErrorStream(true)
+                    .redirectOutput(ProcessBuilder.Redirect.DISCARD).start();
+        } catch (IOException e) {
+            // no player: the piece is skipped
+            deleteQuietly(file);
+            next();
+            return;
+        }
+        process = started;
+        started.onExit().thenRun(() -> Platform.runLater(() -> {
+            deleteQuietly(file);
+            if (process == started) {
+                process = null;
+                next();
+            }
+        }));
+    }
+
+    private static void deleteQuietly(Path file) {
+        try {
+            Files.deleteIfExists(file);
+        } catch (IOException e) {
+            // removed on exit
+        }
     }
 }

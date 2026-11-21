@@ -10,6 +10,7 @@ import com.github.enerccio.joi.domain.model.impl.Joi;
 import com.github.enerccio.joi.domain.service.ChatMessageService;
 import com.github.enerccio.joi.loc.J_L;
 import com.github.enerccio.joi.ui.JoiCssStyles;
+import com.github.enerccio.joi.ui.widgets.LongText;
 import com.github.enerccio.joi.ui.JoiJavascriptLibrary;
 import com.github.enerccio.marginalia.CssStyles;
 import com.github.enerccio.marginalia.loc.L;
@@ -456,10 +457,8 @@ public class JoiChatsPart implements JoiDialogPart {
         return details;
     }
 
-    private static Component toolData(String text) {
-        Div data = new Div(new Text(StringUtils.abbreviate(text, TOOL_TEXT)));
-        data.addClassName(JoiCssStyles.CHAT_TOOL_DATA);
-        return data;
+    private Component toolData(String text) {
+        return new LongText(text, TOOL_TEXT, loc.getValue(J_L.LABEL_SHOW_ALL));
     }
 
     /** One exchange: the input on the right (an event in the middle), her reply on the left. */
