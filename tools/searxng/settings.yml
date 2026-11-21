@@ -1,0 +1,20 @@
+# Minimal SearXNG settings for Joi. Everything not set here keeps SearXNG's default.
+use_default_settings: true
+
+general:
+  instance_name: "Joi SearXNG"
+
+search:
+  safe_search: 0
+  # Joi asks for format=json; without it SearXNG answers 403.
+  formats:
+    - html
+    - json
+
+server:
+  # Overridden by SEARXNG_SECRET from the environment.
+  secret_key: "overridden-by-env"
+  # The instance is private and bound to localhost; the bot limiter would only block Joi's requests
+  # (and it needs Valkey/Redis).
+  limiter: false
+  image_proxy: false

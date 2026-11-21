@@ -1,0 +1,32 @@
+# SearXNG for Joi's web_search tool.
+#   cd tools/searxng && docker compose up -d
+# Then in Joi: Tools -> web search -> add a SearXNG source with the address http://localhost:8888
+# (use http://host.docker.internal:8888 if the Joi server itself runs in a container).
+services:
+  searxng:
+    image: searxng/searxng:latest
+    container_name: joi-searxng
+    restart: unless-stopped
+    ports:
+      - "8888:8080"
+    volumes:
+      - ./settings.yml:/etc/searxng/settings.yml:ro
+      - searxng-cache:/var/cache/searxng
+    environment:
+      - SEARXNG_BASE_URL=http://localhost:8888/
+      # Set a long random value of your own: `openssl rand -hex 32`
+      - SEARXNG_SECRET=${SEARXNG_SECRET:-change-me-please-use-openssl-rand-hex-32}
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - SETGID
+      - SETUID
+    logging:
+      driver: json-file
+      options:
+        max-size: "1m"
+        max-file: "1"
+
+volumes:
+  searxng-cache:
