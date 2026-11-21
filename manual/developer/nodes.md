@@ -10,14 +10,64 @@ covers:
 
 # Writing a node
 
-What a node must do: handshake, manifest of tools, say and her streamed answer, tool calls, task frames.
+A node is a client of the node WebSocket: `GET /api/v1/node` with `Upgrade: websocket` and the API's credentials (in the `Authorization` header, or in
+`hello.token` for a client that cannot set headers; never in the URL). The messages are in `asyncapi.yaml` and `schemas/` (see
+[The protocol](protocol.md)). A node declares which parts it implements, so a minimal node is a handshake, a manifest with one tool, and answers to calls.
 
-!!!warning This page is a stub
-It lists what the page will cover. The text is not written yet.
-!!!
+Every message is a JSON text frame `{"type", "id", "ref", "data"}`: `type` names the data's schema, `id` is set when an answer refers to it, `ref` is the frame it
+answers. Unknown types and fields are ignored.
 
-## This page will cover
+## The conversation
 
-- The reference node `joi-node`.
-- The capability manifest.
-- The terminal node as the smallest example.
+1. **Handshake.** `hello` (protocol version, the node's stable id and short name, kind, software, the assistant, its parts) answered by `welcome` (the version
+   spoken, the session, the assistant, the heartbeat, `serverStartedAt`). One assistant per connection; the same node connecting again for her replaces the old
+   connection.
+2. **Manifest.** `manifest` after `welcome` and again on every change, with a growing `version`: OS, architecture, capabilities, and the tools (name,
+   description, JSON Schema of the arguments, tier `allow`, `ask`, `deny` or `depends`). She sees them as `<node>__<tool>` while the node is connected.
+3. **Talking.** `say` (text, speak, reasoning); the frame's id is the turn, and the answer is the streamed chat as frames that refer to it: `reasoning`, `text`, `tool`,
+   `reply`, `audio`, then `done`, or `error`. `stop` ends a turn. The server starts a turn itself with `turn` (an id and a cause), answered the same way: after the
+   first manifest of a connection she wakes up for the first time or greets the user who is back, but not for a node that only lost the connection
+   (`hello.resumed`).
+4. **Tools.** `tool_call` (call id, tool, arguments, a timeout) to the node, which checks its own policy again, may send `tool_progress` and `approval` (asked, then
+   allowed or denied), and sends exactly one `tool_result` (ok, content, an error word: `denied`, `failed`, `cancelled`, `timeout`, `unknown_tool`, `bad_arguments`).
+   `tool_cancel` when the result is no longer wanted; the node still answers.
+5. **Her body.** `event` (`body`, `joi`) tells the node to read `GET .../body` again. `animation` asks the node to play one once. `display` tells the server she is
+   on a Looking Glass. `part` (staged by the node, see below) switches a part; the server answers `part_kept` or `part_refused`.
+6. **Tasks.** The server sends `task` (a `TaskInfo` without the transcript) when a task is made and each time its status changes, and to a node that connects for
+   each task that waits. A `waiting` one is a question: show it and answer through the HTTP API (`approve`, `approve` with `always`, `deny`). The first answer wins.
+7. **Heartbeat.** `ping` and `pong` both ways; a connection silent for twice the heartbeat is closed. `log` carries a note of the system.
+8. **Errors.** An `error` frame keeps the connection. Close codes: 4001 unauthorized, 4002 unsupported version, 4003 replaced, 4004 no such assistant, 4008 timeout,
+   4009 revoked.
+
+## Reconnecting
+
+Connect again after 1 s, 2 s, 4 s... up to 30 s, with `hello.resumed` and the latest manifest, so she does not greet the user again. After the server was
+down, `hello.resume` has the `serverStartedAt` the node got, when it lost the connection and the close code: the first node to come back starts a turn with the
+cause `server_restarted`. Do not try again after 4001, 4002, 4003, 4004 or 4009. While offline do nothing for the user: keep nothing to send later, because what
+the user said while she could not hear is said again by them.
+
+## Parts of her body
+
+The user's changes of a part are staged: hold them back until the user left the parts alone for 4 s, send one `part` with an `id` for each changed part, and lock the
+controls until the server answered each (`part_kept`, `part_refused` or `error`, with the id; 15 s without an answer frees them). `say` has an optional `withEvents`:
+the server then takes the events of the `part` frames sent just before into the turn of the words.
+
+## The reference node
+
+`joi-node` (`com.github.enerccio.joi.node`):
+
+| Class | What |
+|---|---|
+| `ServerClient` | the HTTP API: login, the device grant, her, her body, the downloads cached by hash |
+| `NodeSocket` | the node WebSocket, with reconnecting |
+| `AvatarDirector` | what her body plays: idle, talking, asleep through her first turn, waking up, a gesture on top |
+| `NodeSettings` | `~/.joi-client` (`JOI_CLIENT`), `node.json` and `credentials.json` |
+| `Notifications` | the first tool, `notify` |
+| `TaskQuestions` | the tasks that wait for the user's answer |
+| `PartStaging` | the staging of her parts |
+| `JoiNodeCli` | the node in a terminal: the smallest complete example |
+| `renderer/` | her body's files unpacked (`BodyFiles`) and served to the renderer page (`RendererServer`), the page's source in `src/main/renderer` |
+| `fx/` | the JavaFX app: `JoiNodeApp`, `AvatarPane`, `ControlsPane`, `SpeechPlayer`, the Chromium host and the Looking Glass |
+
+Start with `JoiNodeCli`: it logs in (token, device grant or none), picks her, downloads her body into the cache, connects, chats, answers the questions of tasks and
+offers `notify`.

@@ -11,14 +11,46 @@ covers:
 
 # Screenshots and the manual
 
-How the pictures of the manual are retaken (`screenshots/`) and how the manual is built (Retype).
+## The manual
 
-!!!warning This page is a stub
-It lists what the page will cover. The text is not written yet.
-!!!
+The manual is Retype: `retype.yml`, sources in `manual/` (`user/` and `developer/`), pictures in `manual/images/`. `tools/retype_build.sh` builds it into
+`docs/`, which is not in Git. The `Manual` workflow (`.github/workflows/manual.yml`) publishes it from `master`. It is English only.
 
-## This page will cover
+The pages of this guide carry `covers` (the code they describe) and `verified` (the commit they were checked against). `python3 tools/check_dev_docs.py`
+lists the pages whose code changed since; `--stamp` marks pages as verified at HEAD, in a commit of their own after the review. A page is only as good as its `covers`.
 
-- The scripted environment, its own data and the fake model.
-- The node's screenshot mode.
-- Building the manual; keeping the developer pages checked against the code.
+When you implement a feature or a fix, update the docs that describe it: the user guide in `manual/user`, this guide here, and the flows of the pictures
+(`screenshots/flows`) when a screen changed.
+
+## The pictures
+
+`screenshots/` is a scripted environment that takes every picture of the manual from the same dataset. Its full description is `screenshots/SCREENSHOTS.md`. In short:
+
+- its own server on port 8099 with its own data folder (`screenshots/.data/joi`), never `~/.joi`;
+- a fake inference server on port 8098 that answers by rules (`llm/rules.mjs`), so there is no model, key or network;
+- headless Google Chrome driven by Playwright for the server's UI;
+- the JavaFX node in a screenshot mode, driven by commands on port 8097, with its own settings folder (`.data/joi-client`);
+- step snapshots of the data folder, so a picture is taken from a named state.
+
+```bash
+cd screenshots && npm install                    # once
+bin/rebuild.sh                                   # the whole setup chain from the empty installation
+bin/shoot-all.sh                                 # all pictures that the chain does not take itself
+bin/publish.sh --dry ; bin/publish.sh            # compare / copy out/*.png to manual/images/
+bin/shoot-some.sh 01-admin shoot-workspace.mjs   # restore a state and run only those flows
+```
+
+The chain (`bin/chain.txt`) lists each step: a flow and the snapshot taken after it. Rules: one state per picture; never use real data; after a flow fails
+restore the step; coordinates are for 1920x932 and a control's text beats a coordinate; look at the pictures with your own eyes before publishing.
+
+## The node's screenshot mode
+
+`Launcher shots <out dir> <port>` starts the normal app and a small command server on the loopback (`fx/NodeShots`, `fx/ShotCommands`). A script presses buttons of the
+scene, types into its fields and writes the window as a PNG with `Node.snapshot`, so it needs no screen recording permission; the Chromium pane that shows her body is part
+of the picture. OpenJFX has no headless mode, so the window opens. `lib/node.mjs` has the commands (`click`, `type`, `combo`, `wait`, `texts`, the menus, `snap`, `snapDialog`,
+`quit`). Of the Looking Glass only its controls are taken, never the display.
+
+## Rules
+
+The model in the pictures is Saiki; the credits page names it. Never use the purchased test avatars. Run one heavy thing at a time: the server, Chrome, a Maven build and
+the node together are too much for the machine.
