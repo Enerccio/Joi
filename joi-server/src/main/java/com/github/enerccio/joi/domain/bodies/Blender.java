@@ -1,5 +1,8 @@
 package com.github.enerccio.joi.domain.bodies;
 
+import com.github.enerccio.marginalia.domain.service.job.JobCallType;
+import com.github.enerccio.marginalia.domain.service.job.JobStatus;
+import com.github.enerccio.marginalia.domain.service.job.Jobs;
 import org.apache.commons.lang3.StringUtils;
 
 import java.io.*;
@@ -68,17 +71,32 @@ public final class Blender {
                 throw new IllegalStateException("Blender was not found (" + executable + "): install it with the VRM add-on, "
                         + "or set JOI_BLENDER to its executable", e);
             }
-            try (BufferedReader out = new BufferedReader(new InputStreamReader(process.getInputStream(), StandardCharsets.UTF_8))) {
-                String line;
-                while ((line = out.readLine()) != null) {
-                    lines.accept(line);
+            // Blender is a call of the job of the conversion (outside a job it is not recorded); ending a call twice counts the first
+            Jobs.Call call = Jobs.beginCall(JobCallType.OTHER, "blender", null);
+            int exit = -1;
+            try {
+                try (BufferedReader out = new BufferedReader(new InputStreamReader(process.getInputStream(), StandardCharsets.UTF_8))) {
+                    String line;
+                    while ((line = out.readLine()) != null) {
+                        lines.accept(line);
+                    }
+                }
+                if (!process.waitFor(timeoutMinutes, TimeUnit.MINUTES)) {
+                    process.destroyForcibly();
+                    throw new IllegalStateException("Blender did not finish in " + timeoutMinutes + " minutes");
+                }
+                exit = process.exitValue();
+                return exit;
+            } catch (IOException | InterruptedException | RuntimeException e) {
+                if (call != null) {
+                    call.finish(JobStatus.FAILED, e.getClass().getSimpleName());
+                }
+                throw e;
+            } finally {
+                if (call != null) {
+                    call.finish(exit == 0 ? JobStatus.COMPLETED : JobStatus.FAILED, exit == 0 ? null : "exit code " + exit);
                 }
             }
-            if (!process.waitFor(timeoutMinutes, TimeUnit.MINUTES)) {
-                process.destroyForcibly();
-                throw new IllegalStateException("Blender did not finish in " + timeoutMinutes + " minutes");
-            }
-            return process.exitValue();
         } finally {
             RUNNING.unlock();
         }

@@ -54,6 +54,21 @@ stage runs it, started by `docker-entrypoint.sh` (it hands the data folder to th
 docker compose up -d --build
 ```
 
+## The extensions
+
+`joi-extensions/` holds the model providers that come with Joi (`anthropic`, `google-genai`, `grok`), OSGi bundles built against the platform only
+(see [Extensions](extensions.md)). They are in the reactor but not in the server's image: build them with Maven, or in Docker (needs the Dockerfile's
+`extensions` stage, the platform comes from the server's build):
+
+```bash
+mvn -o package -pl joi-extensions/anthropic,joi-extensions/google-genai,joi-extensions/grok   # target/<name>-<version>.jar
+docker compose -f joi-extensions/docker-compose.yml build
+docker compose -f joi-extensions/docker-compose.yml run --rm extensions                       # the JARs in joi-extensions/build
+```
+
+Then copy the JARs into the `extensions` folder of the data folder (`./data/extensions` with the compose file) and restart the server, or load them
+in Administration → Extensions.
+
 ## The node
 
 The JavaFX node is behind the `fx` profile (OpenJFX 25, the embedded Chromium from `jcefmaven`, and the renderer page built by Vite):

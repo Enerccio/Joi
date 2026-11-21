@@ -1,5 +1,5 @@
 # Stages: builder (the platform from the Marginalia submodule, the protocol and the server, built into the WAR with the
-# production frontend bundle) and runtime (the image, the default target, so it must stay the last stage). The node is
+# production frontend bundle), extensions-build and extensions (the extensions that come with Joi, as JARs) and runtime (the image, the default target, so it must stay the last stage). The node is
 # not part of the image: it runs on the user's machines. Build from the repository root, with the submodule checked out
 # (git clone --recurse-submodules, or git submodule update --init).
 FROM maven:3.9-eclipse-temurin-25 AS builder
@@ -15,19 +15,45 @@ COPY marginalia/marginalia/platform/pom.xml ./marginalia/marginalia/platform/pom
 COPY joi-protocol/pom.xml ./joi-protocol/pom.xml
 COPY joi-server/pom.xml ./joi-server/pom.xml
 COPY joi-node/pom.xml ./joi-node/pom.xml
+COPY joi-extensions/pom.xml ./joi-extensions/pom.xml
+COPY joi-extensions/anthropic/pom.xml ./joi-extensions/anthropic/pom.xml
+COPY joi-extensions/google-genai/pom.xml ./joi-extensions/google-genai/pom.xml
+COPY joi-extensions/grok/pom.xml ./joi-extensions/grok/pom.xml
 RUN mvn install -N -B -f pom.xml \
     && mvn install -N -B -f marginalia/pom.xml \
     && mvn dependency:go-offline -B -f marginalia/marginalia/platform/pom.xml
 
 # The sources, then the WAR (the platform and the protocol are built first, -am). Tests are skipped; run them outside.
-# The frontend tooling (node_modules, Node.js in ~/.vaadin, the npm cache) is deleted in the same step, so it never gets
-# into a layer.
+# install, not just package: the platform's JAR and the parent POMs go into the local Maven repository, where the extensions
+# find them (the extensions stage below starts from this stage); the WAR's copy there is deleted again. The frontend tooling
+# (node_modules, Node.js in ~/.vaadin, the npm cache) is deleted in the same step, so it never gets into a layer.
 COPY marginalia/marginalia/platform/src ./marginalia/marginalia/platform/src
 COPY joi-protocol/src ./joi-protocol/src
 COPY joi-server/src ./joi-server/src
-RUN mvn package -B -DskipTests -Pproduction -pl joi-server -am \
+RUN mvn install -B -DskipTests -Pproduction -pl joi-server -am \
     && mkdir /war && cp joi-server/target/joi-server-*.war /war/ROOT.war \
+    && find "$HOME/.m2/repository/io/github/enerccio/joi-server" -name '*.war' -delete \
     && rm -rf joi-server/node_modules "$HOME/.vaadin" "$HOME/.npm" "$HOME/.cache"
+
+# The extensions that come with Joi (the model providers Anthropic Claude, Google Gemini and xAI Grok), built against the
+# platform the builder installed. Not part of the server's image: they are loaded from the extensions folder of the data
+# folder, which is a volume (see joi-extensions/docker-compose.yml). BuildKit skips these stages for the runtime image.
+FROM builder AS extensions-build
+
+COPY joi-extensions/anthropic/src ./joi-extensions/anthropic/src
+COPY joi-extensions/google-genai/src ./joi-extensions/google-genai/src
+COPY joi-extensions/grok/src ./joi-extensions/grok/src
+RUN mkdir /jars \
+    && mvn package -B -DskipTests -pl joi-extensions/anthropic,joi-extensions/google-genai,joi-extensions/grok \
+    && cp joi-extensions/*/target/*.jar /jars/
+
+# The extension JARs; the command copies them into the mounted folder /output, replacing the ones from an earlier build
+# (a bind mount exists only when a container runs, so they can't be copied out during the build)
+FROM alpine:3 AS extensions
+
+COPY --from=extensions-build /jars /jars
+
+CMD ["sh", "-c", "mkdir -p /output && rm -f /output/*.jar && cp /jars/*.jar /output/ && ls -l /output"]
 
 FROM jetty:12-jdk25-eclipse-temurin AS runtime
 

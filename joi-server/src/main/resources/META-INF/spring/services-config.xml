@@ -151,6 +151,10 @@
 
     <bean class="com.github.enerccio.marginalia.domain.service.impl.ExtensionServiceImpl" />
 
+    <!-- what Joi's extensions add (functions for her turns, tabs, turn listeners) and the loader that gives them the context -->
+    <bean class="com.github.enerccio.joi.domain.extensions.JoiExtensions" />
+    <bean class="com.github.enerccio.joi.domain.extensions.JoiExtensionLoader" />
+
     <bean class="com.github.enerccio.marginalia.domain.service.impl.DatabaseBackupServiceImpl" />
 
     <bean class="com.github.enerccio.marginalia.domain.service.impl.UpdateServiceImpl" />

@@ -14,7 +14,7 @@ Open **Models → Text Models** and press **Add model** (the pencil edits, the c
 
 | Field | Meaning |
 |---|---|
-| **Type** | *OpenAI Compatible*: any server that speaks the OpenAI chat protocol |
+| **Type** | *OpenAI Compatible*: any server that speaks the OpenAI chat protocol. *Extension*: a provider an [extension](../extensions/index.md) brings (Anthropic Claude, Google Gemini, xAI Grok), offered once it is loaded |
 | **Name** | what you call it in lists |
 | **OpenAI URL** | the server's address, ending with `/v1` |
 | **Api Key** | the key, if the server needs one. It is stored protected and never shown again; leave the field empty to keep it |

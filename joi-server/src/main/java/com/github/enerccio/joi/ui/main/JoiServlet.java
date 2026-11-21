@@ -1,6 +1,8 @@
 package com.github.enerccio.joi.ui.main;
 
+import com.vaadin.flow.router.RouteConfiguration;
 import com.vaadin.flow.server.VaadinServlet;
+import com.vaadin.flow.server.startup.ApplicationRouteRegistry;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.ServletRequest;
 import jakarta.servlet.ServletResponse;
@@ -18,6 +20,18 @@ import java.io.IOException;
 @Configurable
 public class JoiServlet extends VaadinServlet {
     private static final Logger log = LoggerFactory.getLogger(JoiServlet.class);
+
+    /**
+     * The page {@code /jobs} of the platform names Marginalia: Joi's takes its place. The routes of the classes are registered
+     * before the servlet starts, so the platform's is replaced here.
+     */
+    @Override
+    protected void servletInitialized() throws ServletException {
+        super.servletInitialized();
+        RouteConfiguration routes = RouteConfiguration.forRegistry(ApplicationRouteRegistry.getInstance(getService().getContext()));
+        routes.removeRoute(JoiJobsView.PATH);
+        routes.setRoute(JoiJobsView.PATH, JoiJobsView.class);
+    }
 
     @Override
     public void service(ServletRequest req, ServletResponse res) throws ServletException, IOException {

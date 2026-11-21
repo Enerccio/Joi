@@ -2,6 +2,7 @@ package com.github.enerccio.joi.domain.chat;
 
 import com.github.enerccio.joi.defaults.JoiDefaults;
 import com.github.enerccio.joi.domain.chat.turn.*;
+import com.github.enerccio.marginalia.domain.service.job.JobStatus;
 import com.github.enerccio.joi.domain.chat.turn.TurnControllerEvent.EventChain;
 import com.github.enerccio.joi.domain.chat.turn.TurnControllerEvent.Registration;
 import com.github.enerccio.joi.domain.model.impl.ChatMessage;
@@ -73,6 +74,8 @@ public class ChatServiceImpl implements ChatService, InitializingBean, Disposabl
     /** The end of the last turn of each assistant: the next one starts after it. */
     private final Map<Long, CompletableFuture<Void>> lastTurns = new HashMap<>();
     private final Map<Long, List<Feed>> feeds = new ConcurrentHashMap<>();
+    /** The turns that wait or run now, for the page of the jobs. */
+    private final java.util.Set<TurnEngine> running = ConcurrentHashMap.newKeySet();
     private final List<java.util.function.Consumer<ChatMessage>> logWatchers = new CopyOnWriteArrayList<>();
     private final Random random = new Random();
     private ExecutorService executor;
@@ -167,6 +170,25 @@ public class ChatServiceImpl implements ChatService, InitializingBean, Disposabl
     }
 
     @Override
+    public List<RunningTurn> running() {
+        List<RunningTurn> turns = new ArrayList<>();
+        for (TurnEngine engine : running) {
+            turns.add(new RunningTurn(engine.joi, engine.started ? engine.current : null, engine.sent));
+        }
+        turns.sort(Comparator.comparing(RunningTurn::since));
+        return turns;
+    }
+
+    /** The name of the job of a turn: hers. */
+    private String label(Joi joi) {
+        try {
+            return joiService.name(joi);
+        } catch (Exception e) {
+            return "Joi";
+        }
+    }
+
+    @Override
     public CompletableFuture<Result> chat(Joi joi, TurnInput input, Listener listener) throws Exception {
         if (input == null || StringUtils.isBlank(input.text())) {
             throw new IllegalArgumentException("There is nothing to say");
@@ -180,6 +202,7 @@ public class ChatServiceImpl implements ChatService, InitializingBean, Disposabl
                         StringUtils.defaultIfBlank(input.eventKind(), null)),
                 listener == null ? new Listener() {
                 } : listener, RequestContextHolder.getRequestAttributes());
+        running.add(engine);
         CompletableFuture<Void> before;
         synchronized (lastTurns) {
             before = lastTurns.getOrDefault(joi.getId(), CompletableFuture.completedFuture(null));
@@ -286,11 +309,15 @@ public class ChatServiceImpl implements ChatService, InitializingBean, Disposabl
         /** Whether the watchers of the conversation were told how the turn ended. */
         private final AtomicBoolean told = new AtomicBoolean();
         private final Executor scoped;
+        /** The job of the turn in the administrator's log (one request after another, her speech too). */
+        private final TurnJob job;
         private final long startNanos = System.nanoTime();
         private final Date sent = AppClock.now();
         private final AtomicLong firstToken = new AtomicLong(-1);
 
         private volatile TurnStepType current = TurnStepType.PREPARE;
+        /** Whether the turn left the line of the turns before it. */
+        private volatile boolean started;
         private volatile Joi joi;
         private volatile Mood mood;
         private volatile ChatTemplateData templateData;
@@ -314,8 +341,9 @@ public class ChatServiceImpl implements ChatService, InitializingBean, Disposabl
             this.input = input;
             this.listener = listener;
             this.requestAttributes = requestAttributes;
+            this.job = new TurnJob(label(joi));
             this.scoped = runnable -> executor.execute(() -> {
-                try (InRequestScope _ = new InRequestScope(requestAttributes)) {
+                try (InRequestScope _ = new InRequestScope(requestAttributes); TurnJob.Left _ = job.enter()) {
                     runnable.run();
                 }
             });
@@ -323,6 +351,7 @@ public class ChatServiceImpl implements ChatService, InitializingBean, Disposabl
         }
 
         void start() {
+            started = true;
             executeStep();
         }
 
@@ -342,7 +371,7 @@ public class ChatServiceImpl implements ChatService, InitializingBean, Disposabl
 
         private void executeStep() {
             executor.execute(() -> {
-                try (InRequestScope _ = new InRequestScope(requestAttributes)) {
+                try (InRequestScope _ = new InRequestScope(requestAttributes); TurnJob.Left _ = job.enter()) {
                     TurnStepType type = current;
                     if (type == null) {
                         finish();
@@ -377,6 +406,8 @@ public class ChatServiceImpl implements ChatService, InitializingBean, Disposabl
                 return;
             }
             try {
+                job.finish(message != null ? JobStatus.COMPLETED : failure != null ? JobStatus.FAILED : JobStatus.CANCELLED);
+                running.remove(this);
                 if (message != null) {
                     long first = firstToken.get();
                     result.complete(new Result(message, mood, ai, audio, speechError, promptTokens, completionTokens, first,
@@ -414,7 +445,7 @@ public class ChatServiceImpl implements ChatService, InitializingBean, Disposabl
                 @Override
                 public void next() {
                     executor.execute(() -> {
-                        try (InRequestScope _ = new InRequestScope(requestAttributes)) {
+                        try (InRequestScope _ = new InRequestScope(requestAttributes); TurnJob.Left _ = job.enter()) {
                             if (token.isCancelled() && !event.isTerminal() || !iterator.hasNext() || view.terminated) {
                                 terminate();
                                 return;
@@ -468,7 +499,7 @@ public class ChatServiceImpl implements ChatService, InitializingBean, Disposabl
         @Override
         public Runnable wrapCallback(FromEventCallback callback) {
             return () -> executor.execute(() -> {
-                try (InRequestScope _ = new InRequestScope(requestAttributes)) {
+                try (InRequestScope _ = new InRequestScope(requestAttributes); TurnJob.Left _ = job.enter()) {
                     callback.returnFromEvent();
                 } catch (Throwable e) {
                     failed(e);

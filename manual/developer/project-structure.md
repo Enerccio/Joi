@@ -29,6 +29,8 @@ See the [Developer guide](index.md). The server's Java is under `com.github.ener
 | `domain.bodies`, `.animations` | models, capabilities, appearance, outfits, spring bones, animation steps |
 | `domain.tools`, `domain.web` | server tools and their permissions; web search and page reading |
 | `domain.events`, `domain.node` | queued events and their merge; a node's session |
+| `extensions`, `domain.extensions` | the API of Joi's extensions and what they registered (see [Extensions](extensions.md)) |
+| `domain.jobs` | the names of the work logged as jobs (see [Jobs](jobs.md)) |
 | `domain.summary` | the pure logic of the summaries: her days, what is due, the queue (see [Summaries](summaries.md)) |
 | `tts` | speech backends (Chatterbox, Higgs in ComfyUI), TTS models, voice actors, audio |
 | `ui` | the Vaadin UI (see [The UI](ui.md)) |

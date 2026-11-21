@@ -20,5 +20,6 @@
     <import resource="datasources-config.xml" />
     <import resource="services-config.xml" />
     <import resource="container-config.xml" />
+    <import resource="extensions-config.xml" />
 
 </beans>

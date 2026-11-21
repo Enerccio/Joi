@@ -171,6 +171,8 @@
             <marginalia.staleSaves>${test.staleSaves}</marginalia.staleSaves>
             <!-- the minute tick of the summaries is off: a test asks for a look itself -->
             <joi.summary.tick-seconds>0</joi.summary.tick-seconds>
+            <!-- no OSGi framework in the tests: extensions-config.xml -->
+            <spring.profiles.active>test</spring.profiles.active>
             <logback.configurationFile>${project.basedir}/src/test/logback-joi-tests.xml</logback.configurationFile>
           </systemPropertyVariables>
         </configuration>

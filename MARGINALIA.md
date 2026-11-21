@@ -103,8 +103,8 @@ Done in Joi (2026-11-18): the submodule `marginalia/` (URL `../marginalia`, so i
 `github.com/Enerccio/marginalia`) pinned at `a6a1edc37` (now `0b29644d`), and `joi-server` built from these templates:
 
 - `services-config.xml` is the platform's part of the test wiring (43 beans), with `JoiUserSetting`. **No OSGi and no
-  runtime instrumentation**, as in the platform's tests, so no Claude / Gemini provider plugins yet (open question
-  below). No `BuildTimeWeaver` step either: Joi has no `@Extendable` classes.
+  runtime instrumentation** at first; since 2026-11-21 OSGi runs in production (`extensions-config.xml`, not in the tests) and
+  the Claude, Gemini and Grok providers are `joi-extensions/` (see DESIGN.md → Extensions). Still no instrumentation. No `BuildTimeWeaver` step either: Joi has no `@Extendable` classes.
 - `V1__platform.sql` is the platform's test migration copied. Joi's own tables go into the same V1 until the first
   production install (then V2 and on).
 - `JoiDatabase.SCHEMA` (`classpath:migration`, the platform's core tables for now), data folder `~/.joi` (`JOI_DATA`).
@@ -181,10 +181,8 @@ change after the split.
 
 ## Open questions
 
-- **Provider plugins without the whole OSGi system?** Claude and Gemini are OSGi plugins (`anthropic`,
-  `google-genai`). Either the platform keeps OSGi and Joi loads the same JARs, or the provider code moves into plain
-  platform modules that both applications include. The first keeps one way of adding providers; the second is simpler
-  for Joi.
+- ~~**Provider plugins without the whole OSGi system?**~~ — the platform keeps OSGi and Joi loads the same kind of bundle: the
+  providers (`anthropic`, `google-genai`, `grok`) are copied into `joi-extensions/` and built against the platform only.
 - **`@Extendable` and the plugin API in Joi:** does joi-server want plugins at all in step 1? If not, the weaving still
   has to work for the platform's own `@Extendable` classes.
 - ~~**Localization**~~: answered by the refactor, one key enum per layer (Joi adds its own enum and bundles).

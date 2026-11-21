@@ -36,6 +36,10 @@ public interface ChatService {
     /** How many of the latest messages no summary covers go into the prompt (the summaries are in the system prompt, see DESIGN.md → Memory). */
     int HISTORY = 40;
 
+    /** A turn that waits for the one before it or runs now; {@code step} is null while it waits. */
+    record RunningTurn(Joi joi, com.github.enerccio.joi.domain.chat.turn.TurnStepType step, Date since) {
+    }
+
     /** What a turn tells while it runs, on the threads of the turn (the pieces of text on the model's thread). */
     interface Listener {
         /** A piece of the thinking of the model. */
@@ -72,6 +76,9 @@ public interface ChatService {
     record Result(ChatMessage message, Mood mood, AI model, byte[] audio, String speechError, long promptTokens,
                   long completionTokens, long firstTokenMs, long textMs, long speechMs) {
     }
+
+    /** The turns that wait or run now, the oldest first. */
+    java.util.List<RunningTurn> running();
 
     /** The assistant has no chat model, or it is gone. */
     class NoModelException extends Exception {

@@ -40,6 +40,9 @@ public enum PartIcon {
     /** A bin: the trash. */
     TRASH("<path d='M4 7h16M10 11v6M14 11v6M5.5 7l1 13a1 1 0 0 0 1 1h9a1 1 0 0 0 1-1l1-13M9 7V4h6v3'/>"),
 
+    /** A puzzle piece: the tabs that the extensions add. */
+    EXTENSION("<path d='M9 4h6v3a2 2 0 1 0 0 4h0V8h0M6 8h3a2 2 0 1 1 4 0h3v4a2 2 0 1 1 0 4v4H6v-4a2 2 0 1 0 0-4z'/>"),
+
     /** A shield: the administration. */
     ADMIN("<path d='M12 3l7 3v5c0 4.5-3 8.5-7 10-4-1.5-7-5.5-7-10V6z'/><path d='M9 12l2 2 4-4'/>");
 

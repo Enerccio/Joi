@@ -43,6 +43,9 @@ Status: `[ ]` to take, `[x]` taken and published, `[-]` dropped (why).
 | [x] | `node-controls` | node/javafx.md | `node-chat` | the controls panel, Her parts |
 | [x] | `node-approval` | node/approvals.md | `node-chat` | the dialog of a task that waits |
 | [ ] | `joi-summaries` | jois/summaries.md | `08-conversation` | her Summaries tab: a part of a day, a day, a week and the one a week covers dimmed (needs a rule for the summary prompts in `llm/rules.mjs`) |
+| [ ] | `admin-jobs` | administration/jobs.md | `shoot-settings` | Administration, Jobs, with a chat turn and a summary in the log (queue answers for the fake model) |
+| [ ] | `jobs-live` | administration/jobs.md | `shoot-settings` | the page /jobs with a turn that runs |
+| [ ] | `admin-extensions` | administration/extensions.md | `shoot-settings` | Administration, Extensions, with the grok extension loaded (the flow needs the JAR in the data folder) |
 | [x] | `node-looking-glass-tuning` | node/looking-glass.md | `node-chat` | the tuning pane of the Looking Glass |
 
 ## Rules for these

@@ -37,6 +37,8 @@ code does.
 | add a server tool | [Server tools](tools.md) |
 | touch models, outfits or animations | [Bodies and models](bodies.md) |
 | change what she is told | [Events](events.md) |
+| see what the server does and for whom | [Jobs](jobs.md) |
+| add features without changing the server | [Extensions](extensions.md) |
 | call the API or write a node | [The protocol](protocol.md) and [Writing a node](nodes.md) |
 | write tests | [Testing](testing.md) |
 | retake the pictures of the manual | [Screenshots and the manual](screenshots-and-manual.md) |

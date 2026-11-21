@@ -31,3 +31,4 @@ Optional. A commit that has no row here is simply not recorded.
 | `64a2196` | `claude-sonnet-5-5` |
 | `ee73ef6` | `claude-sonnet-5-5` |
 | `7084150` | `claude-sonnet-5-5` |
+| `7d8ce47` | `claude-sonnet-5-5` |

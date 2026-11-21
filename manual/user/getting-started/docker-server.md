@@ -192,6 +192,22 @@ The image has a Docker health check: `docker ps` shows `(health: starting)` whil
 monitoring tool can use it too (through the proxy: `https://joi.example.com/health`). It answers `200` and `{"status":"UP"}` when
 the server runs and its database answers, and `503` otherwise; it shows nothing else.
 
+## Extensions
+
+The model providers Anthropic Claude, Google Gemini and xAI Grok are [extensions](../extensions/index.md), and they are not in the server's image: they
+are loaded from the `extensions` folder of the data folder, which is the volume. Build them in a container (no Java or Maven needed on the server)
+and copy them in:
+
+```sh
+docker compose -f joi-extensions/docker-compose.yml build
+docker compose -f joi-extensions/docker-compose.yml run --rm extensions
+cp joi-extensions/build/*.jar data/extensions/
+docker compose restart joi
+```
+
+Or load a JAR in Administration → Extensions, which needs no restart. Build them from the same checkout as the server: an extension is built for
+one version.
+
 ## Logs
 
 ```sh

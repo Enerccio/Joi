@@ -1,6 +1,7 @@
 package com.github.enerccio.joi.ui.workspace;
 
 import com.flowingcode.vaadin.addons.fontawesome.FontAwesome.Solid;
+import com.github.enerccio.joi.domain.extensions.JoiExtensions;
 import com.github.enerccio.joi.loc.J_L;
 import com.github.enerccio.joi.ui.workspace.parts.*;
 import com.github.enerccio.marginalia.domain.security.AdminGuard;
@@ -55,6 +56,9 @@ public class JoiWorkspace implements BaseWorkspace {
     @Autowired
     private AdminGuard adminGuard;
 
+    @Autowired
+    private JoiExtensions joiExtensions;
+
     private HTabSheet tabs;
 
     // the parts under the keys of the stored state, in the order of the tabs; a key never changes. The admin part is
@@ -103,6 +107,17 @@ public class JoiWorkspace implements BaseWorkspace {
         addTab("models", PartIcon.MODELS, J_L.LABEL_MODELS);
         addTab("trash", PartIcon.TRASH, L.LABEL_TRASH);
         addTab("settings", PartIcon.SETTINGS, J_L.LABEL_USER_SETTINGS);
+        // the tabs of the extensions that are loaded now, after the settings; one loaded later shows in the next workspace
+        for (JoiExtensions.Part extension : joiExtensions.parts()) {
+            WorkspacePart part = new ExtensionTab(extension.part());
+            partsByKey.put(extension.key(), part);
+            Component content = part.create();
+            partComponents.put(part, content);
+            HorizontalLayout header = new HorizontalLayout(PartIcon.EXTENSION.create(), new Span(extension.part().caption()));
+            header.setAlignItems(Alignment.CENTER);
+            header.setSpacing(true);
+            tabToPart.put(tabs.add(header, content), part);
+        }
         if (adminGuard.isAdmin()) {
             adminPart = new AdminPart();
             partsByKey.put("admin", adminPart);

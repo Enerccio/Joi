@@ -73,6 +73,8 @@ with the code.
   The `.joim` and `.joia` containers (`protocol/joim`, `protocol/joia`, documented in `joim.md` and `joia.md` there;
   their sections share `joim/Sections`) are part of it too: the format and its doc
   change together.
+- `joi-extensions/` — the extensions that come with Joi (OSGi bundles: the model providers `anthropic`, `google-genai`, `grok`, built against the platform only), loaded from the
+  extensions folder of the data folder (Administration → Extensions); the API of Joi's own extensions is `joi-server/.../extensions` (`JoiExtension`).
 - `Dockerfile`, `docker-compose.yml`, `docker-entrypoint.sh` — the server's image (the platform, the protocol and the server built into the WAR,
   run by Jetty, with ffmpeg and headless Blender; the data folder `JOI_DATA` is the volume). Not the node. See `manual/user/getting-started/docker-server.md`.
 - `marginalia/` — git submodule of Marginalia, pinned at a commit on its `dev` branch; joi-server uses only its

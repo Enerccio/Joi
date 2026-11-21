@@ -24,10 +24,15 @@ import com.github.enerccio.marginalia.test.llm.MockLLMResponse;
 import com.google.gson.JsonArray;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
+import com.github.enerccio.marginalia.domain.service.job.FinishedJob;
+import com.github.enerccio.marginalia.domain.service.job.JobCallType;
+import com.github.enerccio.marginalia.domain.service.job.JobStatus;
+import com.github.enerccio.marginalia.domain.service.job.Jobs;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
 import java.util.ArrayList;
+import java.util.function.Consumer;
 import java.util.List;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
@@ -85,6 +90,57 @@ class ChatTurnTest extends PlatformTestBase {
             event.setFunctions(event.getFunctions().and(FunctionSet.bind(List.of(note), this)));
             chain.next();
         }));
+    }
+
+    @Test
+    void aTurnIsOneJobWithAllItsRequestsAsCalls() throws Exception {
+        List<String> calls = new CopyOnWriteArrayList<>();
+        offerNote(calls);
+        List<FinishedJob> jobs = new CopyOnWriteArrayList<>();
+        Consumer<FinishedJob> sink = jobs::add;
+        Jobs.addSink(sink);
+        try {
+            llm.enqueue(MockLLMResponse.text("Let me note it.").andToolCall("note", "{\"text\":\"milk\"}"),
+                    MockLLMResponse.text("Noted the milk."));
+
+            chat("Remember the milk", null);
+
+            // the two rounds of the turn (the call and its result) are two calls of one job, owned by the user
+            List<FinishedJob> turns = jobs.stream().filter(job -> "chat".equals(job.kind())).toList();
+            assertThat(turns).hasSize(1);
+            FinishedJob turn = turns.getFirst();
+            assertThat(turn.label()).isEqualTo("Mira");
+            assertThat(turn.status()).isEqualTo(JobStatus.COMPLETED);
+            assertThat(turn.userId()).isNotNull();
+            assertThat(turn.calls()).hasSize(2).allSatisfy(call -> assertThat(call.type()).isEqualTo(JobCallType.LLM));
+            assertThat(jobs.stream().filter(job -> "untagged".equals(job.kind()))).isEmpty();
+            // nothing runs any more
+            assertThat(chatService.running()).isEmpty();
+        } finally {
+            Jobs.removeSink(sink);
+        }
+    }
+
+    @Test
+    void aStoppedTurnIsACancelledJob() throws Exception {
+        List<FinishedJob> jobs = new CopyOnWriteArrayList<>();
+        Consumer<FinishedJob> sink = jobs::add;
+        Jobs.addSink(sink);
+        try {
+            registrations.add(chatService.addEventListener(TurnEvents.BEFORE_INFERENCE, (event, chain) -> {
+                event.getCancellationToken().cancel();
+                chain.next();
+            }));
+            llm.enqueue(MockLLMResponse.text("never said"));
+
+            CompletableFuture<ChatService.Result> stopped = chatService.chat(joi, new TurnInput("Hello", null, false, false), null);
+            assertThatThrownBy(() -> stopped.get(30, TimeUnit.SECONDS)).isInstanceOf(CancellationException.class);
+
+            FinishedJob turn = jobs.stream().filter(job -> "chat".equals(job.kind())).findFirst().orElseThrow();
+            assertThat(turn.status()).isEqualTo(JobStatus.CANCELLED);
+        } finally {
+            Jobs.removeSink(sink);
+        }
     }
 
     @Test

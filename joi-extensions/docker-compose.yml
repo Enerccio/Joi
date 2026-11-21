@@ -1,0 +1,14 @@
+# Builds the extensions that come with Joi in a container and copies the JARs into ./build:
+#   docker compose -f joi-extensions/docker-compose.yml build
+#   docker compose -f joi-extensions/docker-compose.yml run --rm extensions
+# then copy them into the extensions folder of the data folder (./data/extensions) and restart the server, or load them in
+# Administration -> Extensions. The image is the stage "extensions" of the Dockerfile in the repository root, which shares its
+# build of the platform with the server's image.
+services:
+  extensions:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+      target: extensions
+    volumes:
+      - ./build:/output

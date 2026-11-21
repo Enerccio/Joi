@@ -2,6 +2,8 @@ package com.github.enerccio.joi.domain.service.impl;
 
 import com.github.enerccio.joi.domain.bodies.*;
 import com.github.enerccio.joi.domain.collections.ConversionStatus;
+import com.github.enerccio.joi.domain.jobs.JoiJobs;
+import com.github.enerccio.marginalia.domain.service.job.JobCallType;
 import com.github.enerccio.joi.domain.model.impl.Model;
 import com.github.enerccio.joi.domain.service.ModelConversionService;
 import com.github.enerccio.joi.domain.service.ModelService;
@@ -106,7 +108,7 @@ public class ModelConversionServiceImpl implements ModelConversionService, Dispo
                  InRequestScope _ = new InRequestScope(attributes)) {
                 Model finished = null;
                 try {
-                    finished = run(id);
+                    finished = JoiJobs.call(JoiJobs.CONVERSION, label(id), JobCallType.OTHER, () -> run(id));
                 } catch (Throwable t) {
                     log.error("The conversion of model {} failed", id, t);
                 } finally {
@@ -310,5 +312,14 @@ public class ModelConversionServiceImpl implements ModelConversionService, Dispo
     @Override
     public void destroy() {
         executor.shutdownNow();
+    }
+
+    /** The name of the job in the log: the model's. */
+    private String label(Long id) {
+        try {
+            return modelService.find(id).getName();
+        } catch (Exception e) {
+            return "model";
+        }
     }
 }

@@ -470,8 +470,8 @@ check) is in [MARGINALIA.md](MARGINALIA.md).
 
 ### LLM providers
 
-All major providers. Marginalia already has the OpenAI-compatible core plus Anthropic and Google Gen AI (as extension
-AIs) — ported right away. Grok (xAI), Mistral, DeepSeek, OpenRouter, Ollama, LM Studio, llama.cpp and vLLM are
+All major providers. Marginalia already has the OpenAI-compatible core plus Anthropic, Google Gen AI and Grok (as extension
+AIs): ported (see Extensions). Grok (xAI), Mistral, DeepSeek, OpenRouter, Ollama, LM Studio, llama.cpp and vLLM are
 OpenAI-compatible, so they are covered by the same protocol. Only Bedrock / Azure / Vertex hosting differ (auth), later
 if ever. Tool calling and streaming must be solid with every provider: they are central here.
 
@@ -557,6 +557,28 @@ dislikes, continuity through her memory.
   prompts are templates too: the conversation summary, the day summary and the facts to remember; so are the body
   section that fills `{{#body}}` and the request for a body's self-image. **Every prompt sent to a model is such a template**, resolved along the same chain (hers,
   the user's, the default), so the user can change any of them.
+
+### Jobs (built)
+
+What the server asks of an external AI is logged as jobs, as in Marginalia: the platform's log (Administration → Jobs: who, when, how it
+ended, every call to a model, a speech backend or Blender; metadata only, never text) and a live page `/jobs` for administrators. Joi names
+its work (`JoiJobs`: `chat` a turn, with all its rounds and her speech as calls; `summary`; `web-task`; `appearance`; `conversion`) and shows
+what each assistant does now (her turn, her summary jobs, her tasks) under the running jobs. Own page replaces the platform's `/jobs`, which
+names Marginalia. See `manual/developer/jobs.md`.
+
+### Extensions (built)
+
+Joi loads Marginalia's kind of extension: OSGi bundles from the `extensions` folder of the data folder, at the start and at runtime
+(Administration → Extensions: load, stop, start, log, SHA-256, the verification report). The platform's `OsgiService` does the work; Joi wires it
+(production only: the tests start no framework) and adds the tab. The model providers that come with it, **Anthropic Claude, Google Gemini and xAI
+Grok** (`joi-extensions/`, Marginalia's plugins copied and built against the platform only), are extensions: they register an `ExtensionAIFactory`
+and the text model's dialog offers the type *Extension*. The Docker image does not contain them: they are built in a container and copied into
+the data folder, as in Marginalia.
+
+**Joi's own extension points** (`JoiExtension`, `JoiExtensionContext`): functions offered to her turns (`ToolProvider`), tabs of the workspace
+(`ExtensionPart`) and listeners of the turn events; all removed with the extension. **Not built, added when one is needed:** tabs of the
+assistant's dialog, settings of an extension, prompt sections, an API JAR (today a bundle sees the server's classes by boot delegation, so an
+extension is built against the server of one version, as Marginalia's are). See `manual/developer/extensions.md`.
 
 ### Several assistants
 

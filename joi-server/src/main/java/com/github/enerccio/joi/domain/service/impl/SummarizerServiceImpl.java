@@ -9,6 +9,8 @@ import com.github.enerccio.joi.domain.collections.JoiTaskStatus;
 import com.github.enerccio.joi.domain.collections.SummaryType;
 import com.github.enerccio.joi.domain.events.JoiEvents;
 import com.github.enerccio.joi.domain.memory.SummaryCoverage;
+import com.github.enerccio.joi.domain.jobs.JoiJobs;
+import com.github.enerccio.marginalia.domain.service.job.JobCallType;
 import com.github.enerccio.joi.domain.model.impl.ChatMessage;
 import com.github.enerccio.joi.domain.model.impl.Joi;
 import com.github.enerccio.joi.domain.model.impl.QueuedEvent;
@@ -291,6 +293,15 @@ public class SummarizerServiceImpl implements SummarizerService, InitializingBea
         }
     }
 
+    /** The name of the job in the log: whose summary and which. */
+    private String label(Long joiId, SummaryPlan.Job job) {
+        try {
+            return joiService.name(joiService.find(joiId)) + " · " + job.kind().name().toLowerCase();
+        } catch (Exception e) {
+            return job.kind().name().toLowerCase();
+        }
+    }
+
     private void inScope(User owner, Runnable work) {
         try (ApiRequestAttributes attributes = new ApiRequestAttributes(owner, new SessionPoint());
              InRequestScope _ = new InRequestScope(attributes)) {
@@ -368,7 +379,7 @@ public class SummarizerServiceImpl implements SummarizerService, InitializingBea
             }
             try (ApiRequestAttributes attributes = new ApiRequestAttributes(owner, new SessionPoint());
                  InRequestScope _ = new InRequestScope(attributes)) {
-                execute(joiId, job);
+                JoiJobs.run(JoiJobs.SUMMARY, label(joiId, job), JobCallType.LLM, () -> execute(joiId, job));
             }
         }
     }

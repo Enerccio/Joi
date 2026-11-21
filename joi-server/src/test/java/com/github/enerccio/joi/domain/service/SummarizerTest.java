@@ -25,6 +25,10 @@ import com.github.enerccio.marginalia.test.PlatformTestBase;
 import com.github.enerccio.marginalia.test.llm.MockLLMResponse;
 import com.github.enerccio.marginalia.utils.AppClock;
 import org.junit.jupiter.api.BeforeEach;
+import com.github.enerccio.marginalia.domain.service.job.FinishedJob;
+import com.github.enerccio.marginalia.domain.service.job.JobCallType;
+import com.github.enerccio.marginalia.domain.service.job.JobStatus;
+import com.github.enerccio.marginalia.domain.service.job.Jobs;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
@@ -32,7 +36,9 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalTime;
 import java.util.Date;
+import java.util.function.Consumer;
 import java.util.List;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.Callable;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
@@ -186,6 +192,36 @@ class SummarizerTest extends PlatformTestBase {
         summarizer.check(joi);
         awaitNoJobs();
         assertThat(llm.getCompletionRequests()).hasSize(requests);
+    }
+
+    @Test
+    void aSummaryIsAJobInTheAdministratorsLog() throws Exception {
+        List<FinishedJob> jobs = new CopyOnWriteArrayList<>();
+        Consumer<FinishedJob> sink = jobs::add;
+        Jobs.addSink(sink);
+        try {
+            message(ago(Duration.ofMinutes(180)), "Hello there", "Hi, I am Mira.");
+            message(ago(Duration.ofMinutes(175)), "What is the plan for Friday?", "A dentist at ten.");
+            answers("They met and planned Friday.");
+
+            settle();
+
+            List<FinishedJob> summaries = jobs.stream().filter(job -> "summary".equals(job.kind())).toList();
+            assertThat(summaries).hasSize(1);
+            FinishedJob job = summaries.getFirst();
+            assertThat(job.label()).contains("Mira").contains("quiet");
+            assertThat(job.status()).isEqualTo(JobStatus.COMPLETED);
+            // the user of the assistant, though the work runs on a thread of the server's own
+            assertThat(job.userId()).isNotNull();
+            assertThat(job.login()).isNotBlank();
+            // the request to the model is a call of the job, not a job of its own: and no text is kept
+            assertThat(job.calls()).hasSize(1);
+            assertThat(job.calls().getFirst().type()).isEqualTo(JobCallType.LLM);
+            assertThat(job.calls().getFirst().backend()).isEqualTo(model.getName());
+            assertThat(jobs.stream().filter(j -> "untagged".equals(j.kind()))).isEmpty();
+        } finally {
+            Jobs.removeSink(sink);
+        }
     }
 
     @Test

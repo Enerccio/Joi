@@ -4,6 +4,8 @@ import com.github.enerccio.joi.domain.bodies.AppearanceProposal;
 import com.github.enerccio.joi.domain.bodies.DescribedPart;
 import com.github.enerccio.joi.domain.bodies.ModelCapabilities;
 import com.github.enerccio.joi.domain.bodies.Outfit;
+import com.github.enerccio.joi.domain.jobs.JoiJobs;
+import com.github.enerccio.marginalia.domain.service.job.JobCallType;
 import com.github.enerccio.joi.domain.model.impl.Body;
 import com.github.enerccio.joi.domain.collections.ProposalStatus;
 import com.github.enerccio.joi.domain.model.impl.Model;
@@ -154,7 +156,7 @@ public class AppearanceServiceImpl implements AppearanceService, DisposableBean 
                  InRequestScope _ = new InRequestScope(attributes)) {
                 Model finished = null;
                 try {
-                    finished = run(id);
+                    finished = JoiJobs.call(JoiJobs.APPEARANCE, label(id), JobCallType.LLM, () -> run(id));
                 } catch (Throwable t) {
                     log.error("The appearance of model {} failed", id, t);
                 } finally {
@@ -176,6 +178,15 @@ public class AppearanceServiceImpl implements AppearanceService, DisposableBean 
                 log.error("The appearance of model {} could not start", id, t);
             }
         });
+    }
+
+    /** The name of the job in the log: the model's. */
+    private String label(Long id) {
+        try {
+            return modelService.find(id).getName();
+        } catch (Exception e) {
+            return "model";
+        }
     }
 
     /** Asks for the whole model, then for each part described apart, and stores the proposal, or the error. */
@@ -303,7 +314,8 @@ public class AppearanceServiceImpl implements AppearanceService, DisposableBean 
         executor.submit(() -> {
             try (ApiRequestAttributes attributes = new ApiRequestAttributes(user, new SessionPoint());
                  InRequestScope _ = new InRequestScope(attributes)) {
-                done.complete(outfitDescription(ai, modelService.find(model.getId()), outfit, shots));
+                done.complete(JoiJobs.call(JoiJobs.APPEARANCE, outfit.name(), JobCallType.LLM,
+                        () -> outfitDescription(ai, modelService.find(model.getId()), outfit, shots)));
             } catch (Throwable t) {
                 log.warn("The photoshoot of the outfit {} failed", outfit.name(), t);
                 done.completeExceptionally(t);

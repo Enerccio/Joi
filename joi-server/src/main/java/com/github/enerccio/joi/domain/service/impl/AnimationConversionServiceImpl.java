@@ -2,6 +2,8 @@ package com.github.enerccio.joi.domain.service.impl;
 
 import com.github.enerccio.joi.domain.bodies.Blender;
 import com.github.enerccio.joi.domain.bodies.ModelFiles;
+import com.github.enerccio.joi.domain.jobs.JoiJobs;
+import com.github.enerccio.marginalia.domain.service.job.JobCallType;
 import com.github.enerccio.joi.domain.model.impl.Animation;
 import com.github.enerccio.joi.domain.service.AnimationConversionService;
 import com.github.enerccio.joi.domain.service.AnimationService;
@@ -84,7 +86,7 @@ public class AnimationConversionServiceImpl implements AnimationConversionServic
             try (ApiRequestAttributes attributes = new ApiRequestAttributes(user, new SessionPoint());
                  InRequestScope _ = new InRequestScope(attributes)) {
                 try {
-                    added.addAll(run(upload, fileName));
+                    added.addAll(JoiJobs.call(JoiJobs.CONVERSION, fileName, JobCallType.OTHER, () -> run(upload, fileName)));
                 } catch (Exception e) {
                     error = StringUtils.defaultIfBlank(e.getMessage(), e.getClass().getSimpleName());
                     log.warn("The conversion of the clip {} failed: {}", fileName, error, e);

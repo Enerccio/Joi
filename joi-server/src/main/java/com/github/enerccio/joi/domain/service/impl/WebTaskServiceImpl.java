@@ -7,6 +7,8 @@ import com.github.enerccio.joi.domain.collections.JoiTaskStatus;
 import com.github.enerccio.joi.domain.collections.TaskMessageRole;
 import com.github.enerccio.joi.domain.collections.TextLLMType;
 import com.github.enerccio.joi.domain.events.JoiEvents;
+import com.github.enerccio.joi.domain.jobs.JoiJobs;
+import com.github.enerccio.marginalia.domain.service.job.JobCallType;
 import com.github.enerccio.joi.domain.model.impl.Joi;
 import com.github.enerccio.joi.domain.model.impl.JoiTask;
 import com.github.enerccio.joi.domain.model.impl.JoiTaskMessage;
@@ -409,7 +411,8 @@ public class WebTaskServiceImpl implements WebTaskService, InitializingBean, Dis
                 }
             }
             for (JoiTask task = first(joi); task != null; task = first(joi)) {
-                execute(joi, task);
+                JoiTask current = task;
+                JoiJobs.run(JoiJobs.WEB_TASK, joiService.name(joi) + " · " + task.getTool(), JobCallType.LLM, () -> execute(joi, current));
             }
         } catch (Exception e) {
             log.warn("The tasks of the assistant failed: {}", e.getMessage(), e);

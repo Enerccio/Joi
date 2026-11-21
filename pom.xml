@@ -18,6 +18,7 @@
     <module>joi-protocol</module>
     <module>joi-server</module>
     <module>joi-node</module>
+    <module>joi-extensions</module>
   </modules>
 
   <properties>

@@ -2,6 +2,7 @@ package com.github.enerccio.joi.ui.workspace.parts;
 
 import com.github.enerccio.joi.domain.tools.ToolScope;
 import com.github.enerccio.joi.ui.access.ApiAccessPanel;
+import com.github.enerccio.joi.ui.extensions.ExtensionsPanel;
 import com.github.enerccio.joi.ui.tools.ToolsPanel;
 import com.flowingcode.vaadin.addons.fontawesome.FontAwesome.Solid;
 import com.github.enerccio.joi.loc.J_L;
@@ -20,6 +21,7 @@ import com.github.enerccio.marginalia.ui.widgets.Notification;
 import com.github.enerccio.marginalia.ui.workspace.parts.admin.CleanupPanel;
 import com.github.enerccio.marginalia.ui.workspace.parts.admin.DatabaseBackupPanel;
 import com.github.enerccio.marginalia.ui.workspace.parts.admin.GpuPanel;
+import com.github.enerccio.marginalia.ui.workspace.parts.admin.JobsPanel;
 import com.github.enerccio.marginalia.ui.workspace.parts.admin.ResourceGarbagePanel;
 import com.github.enerccio.marginalia.utils.UIUtils;
 import com.vaadin.flow.component.Component;
@@ -60,6 +62,10 @@ public class AdminPart implements WorkspacePart {
     private final DatabaseBackupPanel databaseBackupPanel = new DatabaseBackupPanel();
     private final CleanupPanel cleanupPanel = new CleanupPanel();
     private final ResourceGarbagePanel resourceGarbagePanel = new ResourceGarbagePanel();
+    // the log of the jobs (what ran for whom, with the calls to models), after Marginalia's Jobs tab; what runs now is /jobs
+    private final JobsPanel jobsPanel = new JobsPanel();
+    // the extensions of the installation: model providers and the features that bring their own (the platform's OsgiService)
+    private final ExtensionsPanel extensionsPanel = new ExtensionsPanel();
     private Grid<User> usersGrid;
     private Button addUserButton;
     private TabSheet tabs;
@@ -72,6 +78,8 @@ public class AdminPart implements WorkspacePart {
         tabs.add(loc.getValue(L.LABEL_GPUS), gpuPanel.create());
         tabs.add(loc.getValue(J_L.LABEL_API_ACCESS), apiAccessPanel.create());
         tabs.add(loc.getValue(J_L.LABEL_TOOLS), toolsPanel.create());
+        tabs.add(loc.getValue(J_L.LABEL_EXTENSIONS), extensionsPanel.create());
+        tabs.add(loc.getValue(J_L.LABEL_JOBS), jobsPanel.create());
         tabs.add(loc.getValue(J_L.LABEL_DATABASE_BACKUPS), databaseBackupPanel.create());
         tabs.add(loc.getValue(J_L.LABEL_CLEANUP), cleanupPanel.create());
         tabs.add(loc.getValue(J_L.LABEL_RESOURCE_FILES), resourceGarbagePanel.create());

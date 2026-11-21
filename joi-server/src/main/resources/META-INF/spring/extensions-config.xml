@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd">
+
+    <!-- Extensions: OSGi bundles (JARs) loaded from the extensions folder of the data folder, at the start and at runtime
+         (Administration → Extensions). The platform's service starts Felix when the root context is refreshed. Not in the
+         tests (profile "test", set by the pom): a test context is not a web context, and a framework in every test JVM
+         would only slow them down. The registry of what Joi's extensions add is in services-config.xml, with the tests. -->
+    <beans profile="!test">
+        <bean class="com.github.enerccio.marginalia.domain.service.impl.OsgiServiceImpl" />
+    </beans>
+</beans>
