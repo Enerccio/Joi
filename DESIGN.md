@@ -1508,12 +1508,14 @@ The first real node is a desktop app in JavaFX (`joi-node`). What it does, in or
 While she waits she plays one of her **idle** animations (another each time), while she speaks one of her **talking**
 ones; falling asleep and asleep come from her dialog too (`AvatarDirector`).
 
-**A home directory of its own (planned).** Everything the node keeps (`node.json`, `credentials.json`, the cache, the JCEF unpack, the policy
+**A home directory of its own (built).** Everything the node keeps (`node.json`, `credentials.json`, the cache, the JCEF unpack, the policy
 and audit files, the Looking Glass Chrome profile) lives under one directory, `~/.joi-client` today. The node takes a flag
 `--joi-home-dir <path>` and the environment variable `JOI_HOME_DIR` to put it somewhere else; the flag wins over the variable, the variable
 over `JOI_CLIENT` (the old name, kept as an alias), and that over the default. The reason: a development node and the personal one, side by side
 on one machine, each with its own login, cache and settings, once the main app is done. Nothing in the node may build a path from the user's home
-by itself: every path goes through `NodeSettings`. Each home keeps its own pairing, so the two nodes can talk to different servers.
+by itself: every path goes through `NodeSettings` (`resolve`: a leading `~` is the user's home, a relative path is made absolute; the flag is taken
+out of the arguments by `withoutHome`, so the terminal node's server address stays its first argument). Each home keeps its own pairing, so the two nodes
+can talk to different servers.
 
 **Built (stub):** `joi-node` holds the server client (`ServerClient`: login, device grant, her, her body, the
 downloads), the node WebSocket (`NodeSocket`), what her body plays in each state (`AvatarDirector`, tested), the

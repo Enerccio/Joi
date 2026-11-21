@@ -22,7 +22,8 @@ import java.util.Set;
 import java.util.UUID;
 
 /**
- * What the node remembers between runs, in {@code ~/.joi-client} ({@code JOI_CLIENT} to move it): {@code node.json}
+ * What the node remembers between runs, in its home directory ({@code ~/.joi-client}; {@code --joi-home-dir},
+ * {@code JOI_HOME_DIR} or {@code JOI_CLIENT} to move it, see {@link #resolve}): {@code node.json}
  * (its stable id, its name, the server, the assistant chosen last) and {@code credentials.json} (the token or the
  * OAuth tokens of each server it was connected to, readable by the user alone). The cache of her body's files is {@code cache/}, the harness policy
  * {@code policy.json} (later).
@@ -95,10 +96,65 @@ public final class NodeSettings {
         this.dir = dir;
     }
 
-    /** {@code JOI_CLIENT}, else {@code ~/.joi-client}. */
-    public static NodeSettings standard() {
-        String env = System.getenv("JOI_CLIENT");
-        return new NodeSettings(env != null && !env.isBlank() ? Path.of(env) : Path.of(System.getProperty("user.home"), ".joi-client"));
+    /** The flag that names the home directory. */
+    public static final String HOME_FLAG = "--joi-home-dir";
+
+    /** The node's home for this run: the flag in {@code args}, else the environment, else {@code ~/.joi-client} ({@link #resolve}). */
+    public static NodeSettings standard(String... args) {
+        return new NodeSettings(resolve(args, System.getenv(), System.getProperty("user.home")));
+    }
+
+    /**
+     * Where the node keeps everything (its settings, credentials, cache, the unpacked Chromium, the Looking Glass profile): the
+     * flag {@code --joi-home-dir <path>} (or {@code --joi-home-dir=<path>}; the last one wins), else {@code JOI_HOME_DIR}, else
+     * {@code JOI_CLIENT} (the old name), else {@code ~/.joi-client}. A leading {@code ~} is the user's home; the path is made
+     * absolute so that a change of the working directory does not move it. Every path of the node is under it.
+     *
+     * @throws IllegalArgumentException the flag has no path
+     */
+    public static Path resolve(String[] args, Map<String, String> env, String userHome) {
+        String chosen = null;
+        for (int i = 0; i < args.length; i++) {
+            if (args[i].equals(HOME_FLAG)) {
+                if (i + 1 >= args.length || args[i + 1].isBlank()) {
+                    throw new IllegalArgumentException(HOME_FLAG + " needs a folder");
+                }
+                chosen = args[++i];
+            } else if (args[i].startsWith(HOME_FLAG + "=")) {
+                chosen = args[i].substring(HOME_FLAG.length() + 1);
+                if (chosen.isBlank()) {
+                    throw new IllegalArgumentException(HOME_FLAG + " needs a folder");
+                }
+            }
+        }
+        for (String name : new String[] {"JOI_HOME_DIR", "JOI_CLIENT"}) {
+            if (chosen == null && env.get(name) != null && !env.get(name).isBlank()) {
+                chosen = env.get(name);
+            }
+        }
+        if (chosen == null) {
+            return Path.of(userHome, ".joi-client");
+        }
+        chosen = chosen.strip();
+        if (chosen.equals("~")) {
+            chosen = userHome;
+        } else if (chosen.startsWith("~/")) {
+            chosen = userHome + chosen.substring(1);
+        }
+        return Path.of(chosen).toAbsolutePath().normalize();
+    }
+
+    /** The arguments without the home flag and its folder: what is left for the node's own use. */
+    public static String[] withoutHome(String... args) {
+        List<String> rest = new ArrayList<>();
+        for (int i = 0; i < args.length; i++) {
+            if (args[i].equals(HOME_FLAG)) {
+                i++;
+            } else if (!args[i].startsWith(HOME_FLAG + "=")) {
+                rest.add(args[i]);
+            }
+        }
+        return rest.toArray(String[]::new);
     }
 
     public Path dir() {

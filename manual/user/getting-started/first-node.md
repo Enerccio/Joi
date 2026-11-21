@@ -17,7 +17,9 @@ From the source tree (JDK 25 or newer; OpenJFX and the embedded Chromium are fet
 mvn -Pfx compile exec:exec@run -pl joi-node
 ```
 
-The node keeps its settings in `~/.joi-client` (or the folder named by `JOI_CLIENT`).
+The node keeps everything in one folder, its home: `~/.joi-client`. To keep it somewhere else, start the node with
+`--joi-home-dir <folder>` or set `JOI_HOME_DIR` (the flag wins; `JOI_CLIENT` is the old name of the variable and still works). Each home has its own
+login, cache and settings, so you can run a development node and your own side by side.
 
 ## Connect to the server
 
@@ -43,7 +45,7 @@ The node lists your assistants under *Who?*. Pick one and press **Open**. It rem
 next time.
 
 While her body downloads the node shows what it is doing (downloading, unpacking, starting her renderer). The files are
-kept by hash in `~/.joi-client/cache`, so the next start is quick.
+kept by hash in the node's home (`~/.joi-client/cache`), so the next start is quick.
 
 ## The first greeting
 

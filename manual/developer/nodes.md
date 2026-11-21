@@ -62,7 +62,7 @@ the server then takes the events of the `part` frames sent just before into the 
 | `ServerClient` | the HTTP API: login, the device grant, her, her body, the downloads cached by hash |
 | `NodeSocket` | the node WebSocket, with reconnecting |
 | `AvatarDirector` | what her body plays: idle, talking, asleep through her first turn, waking up, a gesture on top |
-| `NodeSettings` | `~/.joi-client` (`JOI_CLIENT`), `node.json` and `credentials.json` |
+| `NodeSettings` | the node's home (`~/.joi-client`, moved by `--joi-home-dir`, `JOI_HOME_DIR` or `JOI_CLIENT`: `NodeSettings.resolve`), `node.json` and `credentials.json`; every path of the node is under it |
 | `Notifications` | the first tool, `notify` |
 | `TaskQuestions` | the tasks that wait for the user's answer |
 | `PartStaging` | the staging of her parts |

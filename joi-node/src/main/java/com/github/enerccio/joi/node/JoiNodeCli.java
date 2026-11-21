@@ -68,7 +68,8 @@ public final class JoiNodeCli {
     }
 
     private void run(String[] args) throws Exception {
-        NodeSettings settings = NodeSettings.standard();
+        NodeSettings settings = NodeSettings.standard(args);
+        args = NodeSettings.withoutHome(args);
         NodeSettings.Node node = settings.node();
         if (args.length > 0) {
             node.server = args[0];

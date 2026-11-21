@@ -12,7 +12,7 @@ The JavaFX node is a desktop app. It needs JDK 25 or newer; the build fetches Op
 mvn -Pfx compile exec:exec@run -pl joi-node
 ```
 
-Settings are in `~/.joi-client` (`JOI_CLIENT` names another folder): `node.json` holds the node's id, name, the server and the assistant
+Settings are in the node's home, `~/.joi-client` (`--joi-home-dir <folder>` or `JOI_HOME_DIR` name another one; `JOI_CLIENT` is the old name of the variable): `node.json` holds the node's id, name, the server and the assistant
 chosen last, and `credentials.json` holds the credentials for each server, readable by you alone. Her body is cached in
 `cache`.
 

@@ -15,7 +15,8 @@ Joi runs on your machine, and what it sends out is what you set up.
 - **Secrets** (model keys, search keys, tokens of page readers, proxy passwords) are stored encrypted with the key in
   `secret.key` in that folder. A secret is never shown again, logged, or returned by the API; a field says it is saved and an
   empty field keeps it.
-- **A node** keeps its settings and its cache of her body in `~/.joi-client`, its credentials readable by you alone.
+- **A node** keeps its settings and its cache of her body in its home folder (`~/.joi-client`, or the one you name with `--joi-home-dir`), its credentials
+  readable by you alone.
 
 ## What leaves the machine
 

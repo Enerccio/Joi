@@ -59,7 +59,8 @@ public class JoiNodeApp extends Application {
     /** The cause of her turn about what was changed in her parts. */
     private static final String PART_SWITCHED = "part_switched";
 
-    private final NodeSettings settings = NodeSettings.standard();
+    /** The node's home for this run: {@code --joi-home-dir} among the arguments, else the environment ({@link NodeSettings#resolve}). */
+    private NodeSettings settings;
     private Stage stage;
     /** What the scene is: the Edit menu above the screen shown. */
     private final BorderPane frame = new BorderPane();
@@ -104,6 +105,9 @@ public class JoiNodeApp extends Application {
             error.printStackTrace();
         });
         this.stage = stage;
+        // not launched (the screenshot mode starts the app itself): no arguments, the environment decides
+        Parameters parameters = getParameters();
+        settings = NodeSettings.standard(parameters == null ? new String[0] : parameters.getRaw().toArray(String[]::new));
         stage.setTitle("Joi");
         frame.setTop(editMenu());
         frame.setCenter(new StackPane());

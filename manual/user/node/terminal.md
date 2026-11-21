@@ -16,7 +16,8 @@ mvn -q -pl joi-node compile org.codehaus.mojo:exec-maven-plugin:java \
 
 The address is the server's; without it the last one used is taken (else `http://localhost:8080`). Sign-in: a token in the environment
 variable `JOI_TOKEN`, else the device grant (it prints a code and a link), or nothing on a server that runs without
-authentication. The settings are the same `~/.joi-client` as the JavaFX node's, or the folder named by `JOI_CLIENT`.
+authentication. The settings are in the same home as the JavaFX node's (`~/.joi-client`, or the folder named by `--joi-home-dir` or `JOI_HOME_DIR`), so give the flag
+to both to use the same login: `JoiNodeCli --joi-home-dir ~/.joi-dev http://localhost:8080`.
 
 ## Talking
 

@@ -28,7 +28,7 @@ public class RendererPreviewApp extends Application {
 
     @Override
     public void start(Stage stage) throws Exception {
-        NodeSettings settings = NodeSettings.standard();
+        NodeSettings settings = NodeSettings.standard(getParameters().getRaw().toArray(String[]::new));
         renderer = new RendererServer();
         renderer.show(BodyFiles.unpack(newest(settings.cache(), ".joim"), newest(settings.cache(), ".joia"),
                 settings.cache().resolve("unpacked")));

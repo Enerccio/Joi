@@ -45,6 +45,7 @@ The JavaFX node is behind the `fx` profile (OpenJFX 25, the embedded Chromium fr
 ```bash
 mvn -o -Pfx compile exec:exec@run -pl joi-node                           # the JavaFX node
 mvn -o -Pfx compile exec:exec@run -pl joi-node -Dnode.args=preview       # her cached body in Chromium, with no server
+mvn -o -Pfx compile exec:exec@run -pl joi-node -Dnode.args="--joi-home-dir ~/.joi-dev"   # a node with a home of its own (or JOI_HOME_DIR)
 ```
 
 Run it with `exec:exec@run` (`fx/Launcher`), not `javafx:run`, which leaves the Chromium jars off the class path. The renderer page is

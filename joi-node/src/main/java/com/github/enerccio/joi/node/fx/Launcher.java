@@ -4,7 +4,8 @@ import javafx.application.Application;
 
 /**
  * Starts the JavaFX node from the class path (a main class that is not an {@link Application}, so JavaFX may be on the
- * class path too): {@code preview} as the first argument starts {@link RendererPreviewApp} instead, {@code shots <out dir> <port>} the node with
+ * class path too): {@code --joi-home-dir <folder>} (anywhere) moves the node's home, see {@link com.github.enerccio.joi.node.NodeSettings#resolve}.
+ * {@code preview} as the first argument starts {@link RendererPreviewApp} instead, {@code shots <out dir> <port>} the node with
  * the commands of the screenshot mode ({@link NodeShots}).
  */
 public final class Launcher {
@@ -18,7 +19,7 @@ public final class Launcher {
             args = args[0].strip().split("\\s+");
         }
         if (args.length > 0 && args[0].equals("preview")) {
-            Application.launch(RendererPreviewApp.class);
+            Application.launch(RendererPreviewApp.class, java.util.Arrays.copyOfRange(args, 1, args.length));
         } else if (args.length > 0 && args[0].equals("shots")) {
             // the screenshot mode: the node plus the commands of a script (NodeShots)
             NodeShots.run(java.util.Arrays.copyOfRange(args, 1, args.length));
