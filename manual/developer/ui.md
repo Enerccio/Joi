@@ -16,7 +16,9 @@ The UI is Vaadin Flow in Java, calling services directly: there is no REST API b
 
 After the login `ui/workspace/JoiWorkspace` shows tabs of `WorkspacePart`s, with their state kept by `WorkspaceAutosave`. The parts are in
 `ui/workspace/parts`: `JoisPart`, `BodiesPart`, `AnimationsPart` (Clips), `AnimationPacksPart` (Animations), `AIPart` (Models),
-`TrashPart`, `UserSettingsPart` and `AdminPart`.
+`TrashPart`, `UserSettingsPart` and `AdminPart` (tabs: users, GPUs, API access, tools, extensions (`ui/extensions/ExtensionsPanel`), jobs (the platform's
+`JobsPanel`), database backups, cleanup, resource files). The tabs the loaded extensions add come after the settings (`ExtensionTab`, see
+[Extensions](extensions.md)). `/jobs` is `ui/main/JoiJobsView` with `ui/jobs/AssistantsRunsGrid` (see [Jobs](jobs.md)).
 
 The assistant's dialog is `ui/dialogs/JoiDialog`, with a `JoiDialogPart` for each tab: `JoiAboutPart`, `JoiBodiesPart`,
 `JoiAnimationsPart`, `JoiTemplatesPart`, `JoiMemoriesPart`, `JoiChatsPart` (with the Summarize button), `JoiSummariesPart` and `JoiTasksPart`. The settings of the

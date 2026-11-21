@@ -27,7 +27,7 @@ body of hers is active.
 | `BodyState` | | a body's state of its parts (part id to state id) and of toggles under an outfit (`@<toggle id>`) |
 | `Outfit` | | a preset of the model's toggles with a name and a description; a JSON list on the body |
 | `SpringBones`, `SpringChain` | | the spring chains guessed from bone names and written into the VRM |
-| `Blender` | | runs headless Blender, one process at a time |
+| `Blender` | | runs headless Blender, one process at a time; each run is a call of the job of the conversion (see [Jobs](jobs.md)) |
 | `ModelFiles`, `ConversionSource`, `ConversionReport` | | unpacking the upload, finding the avatar, what the converter reports |
 
 ## Conversion

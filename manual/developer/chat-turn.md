@@ -34,6 +34,10 @@ A step hands over through callbacks and never waits on a thread. A listener hold
 answers through its continuation, so a node's tool or an approval can answer minutes later. `ChatService.chat` returns a future; the turns of
 one assistant still run one at a time. The work runs on virtual threads in the caller's request scope, so it acts as the caller.
 
+A turn is also one **job** in the administrator's log (`TurnJob`, kind `chat`): opened on the thread of the first step, entered by every other
+thread of the turn next to its request scope, so every request to the model and her speech is a call of it; it ends completed, failed or
+cancelled with the turn. `ChatService.running()` lists the turns that wait or run (`RunningTurn`), for the page `/jobs`. See [Jobs](jobs.md).
+
 ## Events
 
 `TurnEvents` has two kinds of hooks:

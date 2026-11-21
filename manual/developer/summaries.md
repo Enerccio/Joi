@@ -66,7 +66,8 @@ context). When a day ends, `DAY_ROLL` summarizes what is left of it and then:
 ## The tick and the settings
 
 `SummarizerServiceImpl` looks at every assistant once a minute (`joi.summary.tick-seconds`, 0 in the tests, which call `check`) and after every turn
-(`AFTER_CLEANUP`, for the growing conversation). It runs each job in the request scope of the assistant's owner.
+(`AFTER_CLEANUP`, for the growing conversation). It runs each job in the request scope of the assistant's owner, as a job of the administrator's log (kind `summary`, named after the assistant and the
+kind: `JoiJobs`, see [Jobs](jobs.md)).
 
 The settings are a chain (the assistant, the user setting, the default): `pauseMinutes` (the pause), `autoSummary`, `autoSummaryTokens`,
 `weeklySummaryTime`, `monthlySummaryTime`, `yearlySummaryTime`, `summaryModel` (else the auxiliary, the deep reasoning, the chat model). The prompts:
