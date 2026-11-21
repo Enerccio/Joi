@@ -672,11 +672,59 @@ from the ones marked for it. Whether a model takes images is the model's own **M
   - **Not the cause:** the MTP head (same results without it), the GGUF (checksum matches), the chat template (the
     embedded one equals Google's and the 31B's), the sampler defaults, the old event messages in the history. Banning
     the two channel tokens (`logit_bias`) ends the loop but also removes real calls (6 → 2 of 10).
-  - **The `TOOLS` section** at the end of the master template ("You act only through function calls…") is the fix that
-    worked: the 12B's text calls went from 7 to 1 of 10, and the 26B-A4B Q5 made real calls in 9 of 10 instead of 1.
+  - **The rule "You act only through function calls…"** is the fix that worked: the 12B's text calls went from 7 to 1 of
+    10 in the system prompt, and the 26B-A4B Q5 made real calls in 9 of 10 instead of 1. It was a `TOOLS` section of the
+    master template; since Marginalia `febc107` it is a setting of the AI instead (AI dialog: *Function call rule* and
+    *Rule placement*, the platform puts it into the request, the default is the end of the latest user message), because
+    the right place and the need for it depend on the model, and the 12B did better with it in the user message. The
+    template no longer has it. For a Gemma 4 model set the rule to: "You act only through function calls. The words you
+    write are spoken aloud, so never write a call in them, not even in a short form such as play_animation(animation="...").
+    To move, change your body or look something up, call the function itself." The same dialog places the images
+    (*Image placement*: before the text for Gemma) and can write the function definitions into the user message.
   - Real calls of 10 on the "show skin" prompt, thinking on: 12B Q6_K 2, 26B-A4B Q5 1 (9 with the section), 31B Q6_K 10
     (it also never looped). The 31B Q6_K does not fit next to Chatterbox (about 5.9 GB); the 26B-A4B Q5 (18 GB) does.
-  - Open: the text-call parser as a safety net, the loop watchdog, the 31B at Q4.
+  - **The 12B often does not think when asked to:** in 20 of 28 logged thinking-on runs it wrote no reasoning; the
+    26B-A4B, the 31B Q4 and Qwen3.8-27B always did. The leaks and the loops happen with and without it.
+  - **Tool results go as `role: tool`.** Google's current template turns them into `<|tool_response>` in the model's
+    turn (name resolved from `tool_call_id`). Marginalia's `gemma4toolsfix` plugin (role `tool_responses`) renders a
+    stray `<|turn>tool_responses` with this template, so Joi must not use it. The legacy `tool_responses` field on the
+    assistant message is dropped by llama.cpp, so on llama.cpp `tool` is the only route. Google's prompt-formatting
+    page (gemma.ai/get-started/prompt-formatting) shows `tool_responses` only as an array of `{name, response}` on the
+    assistant message next to `tool_calls`, never as a role, and says `<|tool_response>` is an extra stop sequence
+    for the engine (the model must stop there, or it writes the result itself).
+  - **From the same page:** the larger models (26B-A4B, 31B) "may occasionally generate a thought channel even when
+    thinking mode is turned off", so an empty thought block in the prompt stabilizes them (llama.cpp's template does
+    this); a system instruction that asks for LOW thinking cuts thinking tokens by about 20 % (no wording is given); the
+    thinking token and the tool definitions go in one system turn.
+  - **We will need to control the position of parts of the prompt**, not only their text:
+    - **The nudge to act through calls** (the `TOOLS` section) is not a system-prompt thing. Tool definitions belong in
+      the system turn (the template puts them there), but the instruction to use them did better in the user message:
+      12B Q6_K, "show skin", thinking off, 10 samples: in the system prompt 3 real calls, 5 loops, 2 text calls; at the
+      start of the latest user message 10 real calls, 0 loops, 0 text calls; the whole prompt in the first user
+      message 6 calls, 4 loops. With thinking on the placements were within noise. Its end (right before the answer)
+      is still to be tested. So the prompt builder places each part: system, start or end of the latest user message.
+    - **Media order in a user message:** Gemma's model card (best practices, "modality order") says to put image
+      content before the text and audio content after the text; it gives no rule for video. Joi sends images (her
+      look, the user's pictures) and, with a multimodal model, the user's voice, so the builder puts each kind where
+      the model expects it. Audio input exists only on the 12B (and the small E2B / E4B): the 26B-A4B and the 31B
+      take text and images. The card's sampling for every use is temperature 1.0, top_p 0.95, top_k 64. Other limits
+      on the card: audio at most 30 seconds, video at most 60 seconds (one frame
+      per second), image budgets of 70, 140, 280, 560 or 1120 tokens (lower for captions, higher for reading text).
+    - **Thoughts in the history:** the card says only the final answer of an earlier model turn stays in the
+      history; thinking is kept only inside the tool-call turns of the current turn (Joi's `TOOL_CALLS` passthrough).
+      With thinking off, the larger models still write an empty thought block themselves, which is what the template
+      prefills.
+  - **Built: the guard against a call written as text** (`CallTextGuard`, `InferenceStep`). A setting of the AI, off by
+    default, kept in the AI's attributes under `joi` (`guardCallText`, a checkbox in Joi's AI dialog; the platform
+    never sees it). The first words of a round are held back (reasoning is not) until they are known to be words:
+    a name written as a name with a bracket right after it is a call when the function is known, the name has an
+    underscore, or the arguments are written `name=` or empty; "Hmm (laughs)" is speech. A round that opens with a
+    call is cancelled and asked again as it is, twice at most, then the words pass as they are. A round that ends
+    with only a call and no real call is asked again too. A call later in the reply is not looked for (in about 90
+    saved replies there was none). The voice is built after the round, so holding costs it nothing; the streamed text
+    starts a word or two later.
+  - Open: running or stripping a `tool_name(...)` line later in a reply (text before it becomes reasoning), the loop watchdog, the position of the nudge (user message start or end), the 31B at Q4 (no leaks or
+    loops in about 40 thinking-off replays; Qwen3.8-27B has none either but calls tools far less).
 - **Local stays in the loop:** a quantized local model is tested on purpose (a nightly run or before a release), since
   that's what the local setup ships with and weaker models break tool calls first.
 - **Most tests use no LLM at all:** a scripted fake provider that returns canned replies and tool calls drives the tool

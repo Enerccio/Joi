@@ -1,11 +1,13 @@
 package com.github.enerccio.joi.ui.dialogs;
 
 import com.github.enerccio.joi.domain.collections.TextLLMType;
+import com.github.enerccio.joi.domain.components.CallTextGuard;
 import com.github.enerccio.joi.domain.components.TextModelTypes;
 import com.github.enerccio.joi.loc.J_L;
 import com.github.enerccio.marginalia.domain.model.impl.AI;
 import com.github.enerccio.marginalia.ui.dialogs.AIDialog;
 import com.vaadin.flow.component.Component;
+import com.vaadin.flow.component.checkbox.Checkbox;
 import com.vaadin.flow.component.combobox.MultiSelectComboBox;
 import org.springframework.beans.factory.annotation.Configurable;
 
@@ -22,6 +24,7 @@ import java.util.List;
 public class JoiAIDialog extends AIDialog {
 
     private MultiSelectComboBox<TextLLMType> typesBox;
+    private Checkbox guardBox;
 
     public JoiAIDialog() {
         this(null);
@@ -39,12 +42,15 @@ public class JoiAIDialog extends AIDialog {
         typesBox.setHelperText(loc.getValue(J_L.HELP_TEXT_LLM_TYPES));
         typesBox.setWidthFull();
         typesBox.setValue(TextModelTypes.get(ai));
-        return List.of(typesBox);
+        guardBox = new Checkbox(loc.getValue(J_L.LABEL_GUARD_CALL_TEXT), CallTextGuard.enabled(ai));
+        guardBox.setHelperText(loc.getValue(J_L.HELP_GUARD_CALL_TEXT));
+        return List.of(typesBox, guardBox);
     }
 
     @Override
     protected void applyApplicationFields(AI ai) {
         TextModelTypes.set(ai, typesBox.getValue());
+        CallTextGuard.set(ai, guardBox.getValue());
     }
 
     /**

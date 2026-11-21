@@ -18,6 +18,7 @@ public enum J_L implements LocalizationKey {
     LABEL_CLONE_MODEL,
     LABEL_TEXT_MODELS,
     LABEL_USED_FOR,
+    LABEL_GUARD_CALL_TEXT,
     LABEL_ADMIN,
     LABEL_DATABASE_BACKUPS,
     LABEL_CLEANUP,
@@ -343,6 +344,7 @@ public enum J_L implements LocalizationKey {
 
     // --- HELP ---
     HELP_TEXT_LLM_TYPES,
+    HELP_GUARD_CALL_TEXT,
     HELP_TTS_ADDRESS,
     HELP_SERVER_IS_LOCAL,
     HELP_TTS_GPU_LOCK,

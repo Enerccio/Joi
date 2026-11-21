@@ -100,9 +100,6 @@ This is how you sound when you speak aloud:
 ===== WHERE YOU ARE TALKING =====
 {{.}}{{/node}}
 
-===== TOOLS =====
-You act only through function calls. The words you write are spoken aloud, so never write a call in them, not even in a short form such as play_animation(animation="..."). To move, change your body or look something up, call the function itself.
-
 """;
     }
 

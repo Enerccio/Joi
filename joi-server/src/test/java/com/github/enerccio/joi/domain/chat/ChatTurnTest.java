@@ -2,6 +2,7 @@ package com.github.enerccio.joi.domain.chat;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.github.enerccio.joi.domain.components.CallTextGuard;
 import com.github.enerccio.joi.domain.chat.turn.TurnControllerEvent.Registration;
 import com.github.enerccio.joi.domain.chat.turn.TurnEvents;
 import com.github.enerccio.joi.domain.chat.turn.TurnInput;
@@ -255,6 +256,63 @@ class ChatTurnTest extends PlatformTestBase {
         llm.enqueue(MockLLMResponse.text("Good morning!").usage(100, 12));
         assertThat(chat("Hello?", new ChatService.Listener() {
         }).message().getResponse()).isEqualTo("Good morning!");
+    }
+
+    @Test
+    void aRoundThatOpensWithACallWrittenAsTextIsAskedAgainWhenTheModelIsSetToGuardIt() throws Exception {
+        List<String> calls = new CopyOnWriteArrayList<>();
+        offerNote(calls);
+        OpenAICompatible ai = createAI();
+        CallTextGuard.set(ai, true);
+        aiService.save(ai);
+        joi.setChatModel(ai.getId());
+        joi = joiService.save(joi);
+        // the first two answers are the call as words, the third is words
+        llm.enqueue(MockLLMResponse.text("note(text=\"milk\")"), MockLLMResponse.text("note(text=\"milk\") Noted."),
+                MockLLMResponse.text("Noted the milk."));
+        StringBuilder shown = new StringBuilder();
+
+        ChatService.Result result = chat("Remember the milk", new ChatService.Listener() {
+            @Override
+            public void onText(String chunk) {
+                shown.append(chunk);
+            }
+        });
+
+        assertThat(result.message().getResponse()).isEqualTo("Noted the milk.");
+        assertThat(shown.toString()).isEqualTo("Noted the milk.");
+        assertThat(llm.getCompletionRequests()).hasSize(3);
+    }
+
+    @Test
+    void aCallWrittenAsTextIsLeftAloneWhenTheModelIsNotSetToGuardIt() throws Exception {
+        offerNote(new CopyOnWriteArrayList<>());
+        llm.enqueue(MockLLMResponse.text("note(text=\"milk\")"));
+
+        assertThat(chat("Remember the milk", new ChatService.Listener() {
+        }).message().getResponse()).isEqualTo("note(text=\"milk\")");
+        assertThat(llm.getCompletionRequests()).hasSize(1);
+    }
+
+    @Test
+    void theFunctionCallRuleOfTheModelGoesIntoTheLatestUserMessageOfEveryRound() throws Exception {
+        offerNote(new CopyOnWriteArrayList<>());
+        OpenAICompatible ai = createAI();
+        ai.setFunctionRule("You act only through function calls.");
+        aiService.save(ai);
+        joi.setChatModel(ai.getId());
+        joi = joiService.save(joi);
+        llm.enqueue(MockLLMResponse.text("").andToolCall("note", "{\"text\":\"milk\"}"), MockLLMResponse.text("Noted."));
+
+        chat("Remember the milk", new ChatService.Listener() {
+        });
+
+        List<MockLLMRequest> requests = llm.getCompletionRequests();
+        assertThat(requests).hasSize(2);
+        // the rule follows the text of the user's message, not the system prompt
+        assertThat(requests.getFirst().getMessages().stream().filter(m -> "user".equals(m.role())).reduce((a, b) -> b).orElseThrow()
+                .content()).contains("Remember the milk").endsWith("You act only through function calls.");
+        assertThat(requests.getFirst().getMessages().getFirst().content()).doesNotContain("act only through function calls");
     }
 
     @Test

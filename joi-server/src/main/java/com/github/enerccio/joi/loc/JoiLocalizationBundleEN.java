@@ -28,6 +28,7 @@ public class JoiLocalizationBundleEN extends TextBundleBase<J_L> {
         setValue(J_L.LABEL_CLONE_MODEL, "Clone model");
         setValue(J_L.LABEL_TEXT_MODELS, "Text Models");
         setValue(J_L.LABEL_USED_FOR, "Used for");
+        setValue(J_L.LABEL_GUARD_CALL_TEXT, "Ask again when a reply opens with a call written as text");
         setValue(J_L.LABEL_ADMIN, "Administration");
         setValue(J_L.LABEL_DATABASE_BACKUPS, "Database Backups");
         setValue(J_L.LABEL_CLEANUP, "Cleanup");
@@ -354,6 +355,10 @@ public class JoiLocalizationBundleEN extends TextBundleBase<J_L> {
         setValue(J_L.HELP_TEXT_LLM_TYPES, "What Joi may use this model for: Chat (the conversation, fast replies), Deep "
                 + "reasoning (long tasks and tool loops) and Auxiliary (small background jobs such as classifications and "
                 + "summaries). A model can do several.");
+        setValue(J_L.HELP_GUARD_CALL_TEXT, "For models that sometimes write a function call into their words (play_animation(...)), "
+                + "which would be spoken instead of done. The first words of a reply are held back until they are known to be words; "
+                + "a reply that opens with a call is thrown away and asked again, twice at most. Costs a moment before the text "
+                + "starts to show. Only Joi uses this setting.");
         setValue(J_L.HELP_TTS_ADDRESS, "The base address of the speech server: Chatterbox-TTS-Server (for example "
                 + "http://localhost:8004) or, for Higgs Audio v3, ComfyUI (for example http://localhost:8188).");
         setValue(J_L.HELP_SERVER_IS_LOCAL, "Allows the addresses of this machine and the local network; leave it off for a server in the "

@@ -1,5 +1,6 @@
 package com.github.enerccio.joi.domain.chat.turn.impl;
 
+import com.github.enerccio.joi.domain.components.CallTextGuard;
 import com.github.enerccio.joi.domain.chat.turn.TurnController;
 import com.github.enerccio.joi.domain.chat.turn.TurnEvents;
 import com.github.enerccio.joi.domain.chat.turn.TurnProperties;
@@ -43,10 +44,14 @@ public class InferenceStep extends TurnStepBase {
 
     @Override
     protected void onStep(TurnController controller) throws Exception {
-        controller.emitEvent(TurnEvents.BEFORE_INFERENCE, () -> round(controller));
+        controller.emitEvent(TurnEvents.BEFORE_INFERENCE, () -> round(controller, 0));
     }
 
-    private void round(TurnController controller) throws Exception {
+    /**
+     * @param reruns how often this round was asked again because it opened with a call written as text
+     *               ({@link CallTextGuard})
+     */
+    private void round(TurnController controller, int reruns) throws Exception {
         InferenceService service = inferenceServices.forAIOrThrow(controller.getAi());
         int done = rounds(controller);
         boolean noCalls = done >= InferenceService.MAX_FUNCTION_ROUNDS;
@@ -66,11 +71,59 @@ public class InferenceStep extends TurnStepBase {
                 controller.wrapCallback(() -> controller.jumpTo(TurnStepType.CLEANUP)).run();
             }
         };
+        AtomicReference<CancellationToken> requestRef = new AtomicReference<>();
+        // the guard against a call written as text: the first words wait here until they are known to be words; the model's
+        // setting, and only until the rounds asked again are used up
+        boolean guarding = !noCalls && CallTextGuard.enabled(controller.getAi()) && reruns < CallTextGuard.MAX_RERUNS;
+        StringBuilder held = new StringBuilder();
+        AtomicBoolean released = new AtomicBoolean(!guarding);
+        // the round is thrown away and asked again, as it is
+        Runnable again = () -> {
+            if (over.compareAndSet(false, true)) {
+                forget(stopListener);
+                CancellationToken request = requestRef.get();
+                if (request != null) {
+                    request.cancel();
+                }
+                log.warn("A round of {} opened with a call written as text ({}), asking again ({} of {})",
+                        controller.getAi().getName(), StringUtils.abbreviate(held.toString().strip(), 80), reruns + 1,
+                        CallTextGuard.MAX_RERUNS);
+                controller.wrapCallback(() -> round(controller, reruns + 1)).run();
+            }
+        };
         InferenceRoundCallback callback = new InferenceRoundCallback() {
             @Override
             public void onChunk(ChunkType chunkType, String chunk) {
                 controller.markFirstToken();
                 boolean reasoning = chunkType == ChunkType.REASONING;
+                String shown = chunk;
+                if (!reasoning && !released.get()) {
+                    synchronized (held) {
+                        if (over.get()) {
+                            return;
+                        }
+                        if (!released.get()) {
+                            held.append(chunk);
+                            CallTextGuard.Verdict verdict = CallTextGuard.check(held.toString(), controller.getFunctions()::contains,
+                                    false);
+                            if (verdict == CallTextGuard.Verdict.WAIT) {
+                                return;
+                            }
+                            if (verdict == CallTextGuard.Verdict.LEAK) {
+                                again.run();
+                                return;
+                            }
+                            released.set(true);
+                            shown = held.toString();
+                        } else {
+                            shown = chunk;
+                        }
+                    }
+                }
+                deliver(reasoning, shown);
+            }
+
+            private void deliver(boolean reasoning, String chunk) {
                 controller.getProperties().put(TurnProperties.CHUNK, chunk);
                 controller.emitEvent(reasoning ? TurnEvents.REASONING_CHUNK_RECEIVED : TurnEvents.CHUNK_RECEIVED, null);
                 try {
@@ -91,6 +144,25 @@ public class InferenceStep extends TurnStepBase {
 
             @Override
             public void onRound(String text, String reasoning, List<LLMToolCall> calls, RoundUsage usage) {
+                if (!released.get()) {
+                    // the round ended before the words were let through: a reply that is only a call is asked again, the rest is shown
+                    synchronized (held) {
+                        if (!released.get()) {
+                            boolean noCall = calls == null || calls.isEmpty();
+                            if (noCall && CallTextGuard.check(StringUtils.defaultString(text), controller.getFunctions()::contains, true)
+                                    == CallTextGuard.Verdict.LEAK) {
+                                held.setLength(0);
+                                held.append(StringUtils.defaultString(text));
+                                again.run();
+                                return;
+                            }
+                            released.set(true);
+                            if (!held.isEmpty() && !over.get()) {
+                                deliver(false, held.toString());
+                            }
+                        }
+                    }
+                }
                 if (over.compareAndSet(false, true)) {
                     forget(stopListener);
                     controller.wrapCallback(() -> answered(controller, noCalls, text, reasoning, calls, usage)).run();
@@ -113,6 +185,11 @@ public class InferenceStep extends TurnStepBase {
             }
         };
         CancellationToken request = service.round(controller.getPayload(), null, controller.getFunctions(), noCalls, callback);
+        requestRef.set(request);
+        if (over.get() && request != null) {
+            // asked again before the request was known
+            request.cancel();
+        }
         // a stop reaches the request (which may be waiting for the server to read the prompt) and ends the round
         Runnable unregister = controller.getCancellationToken().onCancel(() -> {
             if (request != null) {
