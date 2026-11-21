@@ -174,8 +174,12 @@ Don't add adult content from avatar packages to anything (the converter drops it
   e.g. `claude-sonnet-5-5`, the commits checked, notes: what you read, whether you ran the tests, what you fixed) and
   move "Verified up to" to the newest of them. Your own fix commits belong to that row and may be included in "Verified
   up to". Never mark a commit as verified without really reviewing it. Never rebase or squash verified history. "Written by"
-  is secondary and optional: when you make a commit, you may add a row with its hash and your model id in your next change
-  (a commit cannot contain its own hash), only for commits you made yourself. Do not put the model id into commit messages.
+  is secondary, but follow it every time: **always write one commit behind.** A commit cannot contain its own hash, so the row of
+  a commit you made goes into your **next commit**, together with that commit's own change, never into a commit made only to hold
+  the row (that one would need a row of its own, for ever). So before each commit, add rows (hash, your model id) to "Written by"
+  in `verification.md` for every commit of yours since the last row (`git log` shows them), and commit that file with the rest. The row
+  of the commit you are making now waits for the next one. Only commits you made yourself; skip a commit that only touched
+  `verification.md`. Do not put the model id into commit messages.
 - When you implement a feature or fix, update the docs that describe it: user docs in `manual/user`, developer docs in
   `manual/developer` (and the picture flows in `screenshots/flows` when a screen changed).
 - **Files go through the disk, not memory:** uploads stream into a file (`UploadHandler.toFile`), downloads and what

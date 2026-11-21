@@ -288,7 +288,7 @@ runs only when the user asks for it; it reads the code around each diff, fixes w
 to its row. A row is a record that a model reviewed the commits, not a proof; the notes say how deep the review went.
 Verified history is never rebased or squashed, since the hashes would point at nothing. The log starts at the last commit before it existed, so the first
 verification has to go over the whole code. Who wrote a commit is secondary: an optional table of hash and model id,
-filled in a later change by the model that made the commit (a commit cannot contain its own hash). The rules are in
+filled in by the model that made the commit, always one commit behind: a commit cannot contain its own hash, so the row of a commit goes into the next commit that model makes, together with that commit's own change, never into a commit made only for the row. The rules are in
 `CLAUDE.md`. The model id is not written into commit messages.
 
 **Open — sharing code with Marginalia.** Joi needs what Marginalia's `TODO.VN.md` calls layer 1, the platform: entity
