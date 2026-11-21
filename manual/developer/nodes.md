@@ -63,7 +63,9 @@ the server then takes the events of the `part` frames sent just before into the 
 | `NodeSocket` | the node WebSocket, with reconnecting |
 | `AvatarDirector` | what her body plays: idle, talking, asleep through her first turn, waking up, a gesture on top |
 | `NodeSettings` | the node's home (`~/.joi-client`, moved by `--joi-home-dir`, `JOI_HOME_DIR` or `JOI_CLIENT`: `NodeSettings.resolve`), `node.json` and `credentials.json`; every path of the node is under it |
-| `Notifications` | the first tool, `notify` |
+| `NodeTools`, `NodeTool` | the tools the user switches on: the manifest with the ones that are on (a new, higher version when a choice changes), the routing of a call by its name, the `approval` frames of a call that asks |
+| `Notifications` | the tool `notify`: off, ask or allow |
+| `ClipboardOffers`, `DesktopClipboard` | the tool `offer_to_clipboard`: off, ask or allow; the clipboard of the terminal node |
 | `TaskQuestions` | the tasks that wait for the user's answer |
 | `PartStaging` | the staging of her parts |
 | `JoiNodeCli` | the node in a terminal: the smallest complete example |
@@ -71,4 +73,12 @@ the server then takes the events of the `part` frames sent just before into the 
 | `fx/` | the JavaFX app: `JoiNodeApp`, `AvatarPane`, `ControlsPane`, `SpeechPlayer`, the Chromium host and the Looking Glass |
 
 Start with `JoiNodeCli`: it logs in (token, device grant or none), picks her, downloads her body into the cache, connects, chats, answers the questions of tasks and
-offers `notify`.
+offers `notify` and `offer_to_clipboard`.
+
+## A tool the user switches on
+
+`notify` and `offer_to_clipboard` are `NodeTool`s in one `NodeTools`: `offered()` is the definition or null, so a tool that is off is not in the manifest and she does not know it exists; `NodeTools.changed()` sends the manifest again with a higher version when a choice is saved. A tool that asks the user goes through `NodeTools.ask`, which sends the `approval` frames (`asked`, then `allowed` or `denied`) around the answer; no answer in two minutes is a no. The user's choice is in `node.json` (`notifications`: `off`/`ask`/`allow`; `clipboard`: `off`/`ask`/`allow`; anything else is off).
+
+`allow` of the clipboard tool copies without showing the text: what lands on a clipboard is pasted into a terminal or a form later, and the text can come from a web page through a task, so it is the user's informed choice (off by default, `ask` is the recommended one, the docs warn). The terminal node asks with `/yes` and `/no`, the JavaFX node with a dialog that shows the text (`askClipboard`), and copies on the JavaFX thread. `offer_to_clipboard(text, title?)` takes up to 100 000 characters (`ClipboardOffers.MAX_TEXT`, the same as a file of the server's workspace).
+
+The server can call a node's tool itself, not only through her function `<node>__<tool>`: `NodeService.sessionsWithTool` lists the nodes that offer it (the one with a turn running first) and `NodeService.callTool` runs it, with the turn id and the same timeout and cancellation. `offer_file_to_clipboard` (see [Server tools](tools.md)) is built on that.

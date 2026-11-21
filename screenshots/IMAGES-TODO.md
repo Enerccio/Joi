@@ -46,6 +46,7 @@ Status: `[ ]` to take, `[x]` taken and published, `[-]` dropped (why).
 | [ ] | `admin-jobs` | administration/jobs.md | `shoot-settings` | Administration, Jobs, with a chat turn and a summary in the log (queue answers for the fake model) |
 | [ ] | `jobs-live` | administration/jobs.md | `shoot-settings` | the page /jobs with a turn that runs |
 | [ ] | `admin-extensions` | administration/extensions.md | `shoot-settings` | Administration, Extensions, with the grok extension loaded (the flow needs the JAR in the data folder) |
+| [ ] | `node-clipboard-offer` | node/clipboard.md | `node-chat` | the dialog that shows a text she offers for the clipboard (the node flow queues a `desk__offer_to_clipboard` call) |
 | [x] | `node-looking-glass-tuning` | node/looking-glass.md | `node-chat` | the tuning pane of the Looking Glass |
 
 ## Rules for these

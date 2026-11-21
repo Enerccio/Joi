@@ -1,7 +1,5 @@
 package com.github.enerccio.joi.node;
 
-import com.github.enerccio.joi.protocol.node.ApprovalState;
-import com.github.enerccio.joi.protocol.node.Manifest;
 import com.github.enerccio.joi.protocol.node.ToolCall;
 import com.github.enerccio.joi.protocol.node.ToolDefinition;
 import com.github.enerccio.joi.protocol.node.ToolResult;
@@ -9,16 +7,14 @@ import com.github.enerccio.joi.protocol.node.ToolTier;
 import com.google.gson.JsonObject;
 
 import java.io.IOException;
-import java.util.List;
-import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * The node's first tool: {@code notify}, with which she shows the user a notification on this machine (a task of hers
  * finished, something happened and the user may not be looking). The harness is the user's: {@link Mode#OFF} (the
  * default) offers her no tool at all, {@link Mode#ASK} asks the user about each notification ({@code approval} frames), and
- * {@link Mode#ALLOW} lets her. A change of the mode sends a new manifest, so she gets the tool, or loses it, at once.
+ * {@link Mode#ALLOW} lets her. A change of the mode sends a new manifest ({@link NodeTools}), so she gets the tool, or loses it, at once.
  */
-public final class Notifications {
+public final class Notifications implements NodeTool {
 
     /** The tool's name in the manifest; she sees it as {@code <node>__notify}. */
     public static final String TOOL = "notify";
@@ -60,18 +56,10 @@ public final class Notifications {
         boolean ask(String title, String text, long timeoutSeconds) throws InterruptedException;
     }
 
-    /** Where the node's frames go: the approval of a call, and a new manifest. {@link NodeSocket} is it. */
-    public interface Frames {
-        void approval(String callId, ApprovalState state, String scope, String via);
-
-        void manifest(Manifest manifest);
-    }
-
     private final NodeSettings settings;
     private final Screen screen;
     private final Asker asker;
-    private final AtomicLong version = new AtomicLong(1);
-    private volatile Frames frames;
+    private volatile NodeTools host;
 
     public Notifications(NodeSettings settings, Screen screen, Asker asker) {
         this.settings = settings;
@@ -79,9 +67,19 @@ public final class Notifications {
         this.asker = asker;
     }
 
-    /** Where a new manifest and the approvals go once connected. */
-    public void attach(Frames frames) {
-        this.frames = frames;
+    @Override
+    public String name() {
+        return TOOL;
+    }
+
+    @Override
+    public void bind(NodeTools host) {
+        this.host = host;
+    }
+
+    @Override
+    public ToolDefinition offered() {
+        return mode() == Mode.OFF ? null : definition();
     }
 
     public Mode mode() {
@@ -100,20 +98,10 @@ public final class Notifications {
         }
         settings.node().notifications = mode.setting();
         settings.saveNode();
-        Frames to = frames;
+        NodeTools to = host;
         if (to != null) {
-            to.manifest(manifest(version.incrementAndGet()));
+            to.changed();
         }
-    }
-
-    /** The manifest for the mode now: the tool when she may use it, no tool when she may not. */
-    public Manifest manifest() {
-        return manifest(version.get());
-    }
-
-    private Manifest manifest(long version) {
-        return new Manifest(version, System.getProperty("os.name") + " " + System.getProperty("os.version"),
-                System.getProperty("os.arch"), null, mode() == Mode.OFF ? List.of() : List.of(definition()));
     }
 
     /** The tool as it is offered in the mode now ({@code ask} or {@code allow}). */
@@ -138,7 +126,7 @@ public final class Notifications {
                 + "for what matters: it is not a way to chat.", parameters, mode() == Mode.ASK ? ToolTier.ASK : ToolTier.ALLOW);
     }
 
-    /** A call of hers (on a thread of its own: it may wait for the user). */
+    @Override
     public ToolResult run(ToolCall call) {
         if (!TOOL.equals(call.tool())) {
             return new ToolResult(call.callId(), false, "This node has no tool " + call.tool(), "unknown_tool");
@@ -155,19 +143,14 @@ public final class Notifications {
         title = title == null || title.isBlank() ? "Joi" : clean(title, MAX_TITLE);
         text = clean(text, MAX_TEXT);
         if (mode == Mode.ASK) {
-            Frames to = frames;
-            if (to != null) {
-                to.approval(call.callId(), ApprovalState.ASKED, null, null);
-            }
+            String shownTitle = title;
+            String shownText = text;
             boolean allowed;
             try {
-                allowed = asker.ask(title, text, ANSWER_SECONDS);
+                allowed = NodeTools.ask(host, call.callId(), () -> asker.ask(shownTitle, shownText, ANSWER_SECONDS));
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
                 return new ToolResult(call.callId(), false, "Stopped.", "cancelled");
-            }
-            if (to != null) {
-                to.approval(call.callId(), allowed ? ApprovalState.ALLOWED : ApprovalState.DENIED, allowed ? "once" : null, "click");
             }
             if (!allowed) {
                 return new ToolResult(call.callId(), false, "The user did not allow this notification.", "denied");

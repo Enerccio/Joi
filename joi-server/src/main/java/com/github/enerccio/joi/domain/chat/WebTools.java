@@ -94,7 +94,9 @@ public class WebTools implements InitializingBean, DisposableBean {
         return FunctionDefinition.dynamic(ServerTool.WEB_SEARCH.function(), "Looks something up on the web. A stronger model does it "
                 + "in the background after this reply and its answer comes back to you later as an event, so say you are looking into it "
                 + "and do not guess the answer meanwhile. Use it for what changes or what you do not know (news, prices, schedules, "
-                + "documentation), not for what you can answer yourself. It may need the user's approval first.", schema,
+                + "documentation), not for what you can answer yourself. If the user wants the result as a file (a script, a list, a "
+                + "text to paste), say so in the question: it is then written to your workspace and you can offer it to the user's "
+                + "clipboard. It may need the user's approval first.", schema,
                 (continuation, arguments) -> start(joi, ServerTool.WEB_SEARCH, text(arguments, "question"), null, continuation));
     }
 

@@ -21,7 +21,8 @@ A dialog shows the title of the task, the tool and what it does, what she asked 
 - **Later**: close the dialog and leave it waiting. The **Tasks** tab of her dialog in the server still answers it.
 
 A notification she asks to show (see [Notifications](notifications.md)) is asked about in a dialog too: **She wants to notify you**,
-with **Allow** and Deny.
+with **Allow** and Deny. A text she offers for the clipboard (see [Clipboard offers](clipboard.md)) is asked about in a dialog that shows it:
+**Copy** or Don't copy.
 
 ## The list of auto-approved tools
 

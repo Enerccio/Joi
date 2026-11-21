@@ -12,7 +12,7 @@ server tools are `web_search` and `fetch_page`. Both start a [task](../jois/task
 will tell you"), the task runs on her deep reasoning model after her reply, and she reports the result.
 
 Whether she may use a tool, and who decides, is a **permission chain**: see [Permissions](permissions.md). The search sources and
-how a page is read are set up in [Web search and pages](web-search.md).
+how a page is read are set up in [Web search and pages](web-search.md). What a task writes for you as a file is in [Her workspace](workspace.md).
 
 ## Where the tools are listed
 

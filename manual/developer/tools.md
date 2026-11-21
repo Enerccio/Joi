@@ -5,6 +5,8 @@ order: 740
 covers:
   - joi-server/src/main/java/com/github/enerccio/joi/domain/tools
   - joi-server/src/main/java/com/github/enerccio/joi/domain/web
+  - joi-server/src/main/java/com/github/enerccio/joi/domain/workspace
+  - joi-server/src/main/java/com/github/enerccio/joi/domain/chat/WorkspaceTools.java
 verified: b6f812e
 ---
 
@@ -65,3 +67,20 @@ rounds). `WebSearchClient` calls the sources (`DDGS`, `SEARXNG`, `GOOGLE`, `BRAV
 - Fetched content is data, not instructions. Direct reads refuse addresses of the server's own network unless the option allows them (`UrlGuard`).
 
 The prompt of the task and the three event texts are templates (`JoiPromptField`s).
+
+## The workspace and the clipboard
+
+`TaskWorkspace` (a plain bean, `domain/workspace`) is the temporary workspace of an assistant: `<data>/workspace/<uuid of the assistant>`, a flat folder of text
+files. A name is `[letters digits][letters digits . _ - space]{0,79}` with no `..` and no trailing dot or space, checked by `TaskWorkspace.cleanName`, so
+nothing a model writes leaves the folder. A file is at most `MAX_CHARS` (100 000) characters, an assistant has at most `MAX_FILES` (30; a new file pushes out
+the oldest), and a file older than `KEEP` (a day) is deleted whenever the workspace is written or listed: there is no timer. A write goes through a temporary
+file and an atomic move. A refusal is a `RejectedException` whose message is written for the model that reads it.
+
+The files are written by the task: `WebResearch.withFiles` gives the model of a task the function `write_file(name, content)` (at most `MAX_WRITES`, 5, per
+task, and the rounds of the loop grow by that), and `WebTaskServiceImpl` adds the names of the files it wrote to the task's result, so she is told where they are.
+`web_search` and `fetch_page` say in their descriptions that a file is asked for in the question.
+
+`WorkspaceTools` is hers: `list_workspace_files`, and `offer_file_to_clipboard(file, node?)`, which reads the file and calls the node's `offer_to_clipboard`
+(`NodeService.callTool`) with the text, so the text does not pass through her turn. Each is offered only when there is something to offer it for: any file for
+the list, and a connected node that has `offer_to_clipboard` for the offer. Neither is a `ServerTool`: they touch only her own files, so the chain has nothing to
+decide; the user's decision is on the node. `ToolEffects` lists the list as read-only; the offer changes the user's machine, so a turn that did it is finished.

@@ -335,5 +335,8 @@
     <bean class="com.github.enerccio.joi.domain.chat.MemoryTools" />
     <!-- she searches the web and reads pages through tasks of the stronger model -->
     <bean class="com.github.enerccio.joi.domain.chat.WebTools" />
+    <!-- the temporary workspace of an assistant (files her tasks write) and her functions to it: list them, offer one to the clipboard of a node -->
+    <bean class="com.github.enerccio.joi.domain.workspace.TaskWorkspace" />
+    <bean class="com.github.enerccio.joi.domain.chat.WorkspaceTools" />
 
 </beans>

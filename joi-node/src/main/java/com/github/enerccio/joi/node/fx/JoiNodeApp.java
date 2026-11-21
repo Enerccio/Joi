@@ -72,6 +72,11 @@ public class JoiNodeApp extends Application {
     private final RadioMenuItem notifyAsk = new RadioMenuItem("Ask me each time");
     private final RadioMenuItem notifyAllow = new RadioMenuItem("Allow");
     private final MenuItem notifyTest = new MenuItem("Show a test notification");
+    /** What she may do with the clipboard tool, the user's choice ({@link ClipboardOffers}): she may offer, the user sees each text and decides. */
+    private final RadioMenuItem clipOff = new RadioMenuItem("Off (she does not get the tool)");
+    private final RadioMenuItem clipAsk = new RadioMenuItem("Show me each offer, I decide");
+    private final RadioMenuItem clipAllow = new RadioMenuItem("Allow (she copies without asking)");
+    private final Menu clipMenu = new Menu("Clipboard offers", null, clipOff, clipAsk, clipAllow);
     private final Menu notifyMenu = new Menu("Notifications", null, notifyOff, notifyAsk, notifyAllow, new SeparatorMenuItem(), notifyTest);
     {
         ToggleGroup group = new ToggleGroup();
@@ -79,6 +84,11 @@ public class JoiNodeApp extends Application {
         notifyAsk.setToggleGroup(group);
         notifyAllow.setToggleGroup(group);
         notifyMenu.setDisable(true);
+        ToggleGroup clipGroup = new ToggleGroup();
+        clipOff.setToggleGroup(clipGroup);
+        clipAsk.setToggleGroup(clipGroup);
+        clipAllow.setToggleGroup(clipGroup);
+        clipMenu.setDisable(true);
     }
     /** The menu item of the tools approved ahead of time: it works once she is loaded. */
     private final MenuItem approvals = new MenuItem("Auto-approved tools…") {
@@ -88,6 +98,8 @@ public class JoiNodeApp extends Application {
     };
     private final Map<String, Alert> taskAlerts = new HashMap<>();
     private NodeSocket socket;
+    /** The tools the user switches on (notifications, clipboard offers), made once she is loaded. */
+    private NodeTools nodeTools;
     private java.util.concurrent.ScheduledExecutorService stagingTimer;
     /** The turn of hers about the parts that her reaction to is waited for, null for none. */
     private volatile String partsTurn;
@@ -162,7 +174,7 @@ public class JoiNodeApp extends Application {
         MenuItem copy = editItem("Copy", KeyCode.C, TextInputControl::copy);
         MenuItem paste = editItem("Paste", KeyCode.V, TextInputControl::paste);
         MenuItem all = editItem("Select All", KeyCode.A, TextInputControl::selectAll);
-        MenuBar bar = new MenuBar(new Menu("Edit", null, cut, copy, paste, new SeparatorMenuItem(), all), new Menu("Joi", null, approvals, notifyMenu));
+        MenuBar bar = new MenuBar(new Menu("Edit", null, cut, copy, paste, new SeparatorMenuItem(), all), new Menu("Joi", null, approvals, notifyMenu, clipMenu));
         bar.setUseSystemMenuBar(true);
         return bar;
     }
@@ -582,6 +594,62 @@ public class JoiNodeApp extends Application {
         }
     }
 
+    /** Shows the user a text she offers for the clipboard and asks whether it is copied; no answer in time is a no. */
+    private boolean askClipboard(String title, String text, long seconds) throws InterruptedException {
+        java.util.concurrent.CompletableFuture<Boolean> answer = new java.util.concurrent.CompletableFuture<>();
+        Alert[] shown = new Alert[1];
+        Platform.runLater(() -> {
+            ButtonType copy = new ButtonType("Copy", ButtonBar.ButtonData.YES);
+            ButtonType refuse = new ButtonType("Don't copy", ButtonBar.ButtonData.NO);
+            Alert alert = new Alert(Alert.AlertType.CONFIRMATION, null, copy, refuse);
+            alert.setTitle("She offers you a text");
+            alert.setHeaderText(title + " (" + text.length() + " characters): put it on your clipboard?");
+            TextArea area = new TextArea(ClipboardOffers.preview(text, 20_000));
+            area.setEditable(false);
+            area.setWrapText(false);
+            area.setPrefColumnCount(70);
+            area.setPrefRowCount(16);
+            alert.getDialogPane().setContent(area);
+            alert.resultProperty().addListener((o, before, result) -> answer.complete(result == copy));
+            alert.setOnHidden(e -> answer.complete(false));
+            shown[0] = alert;
+            alert.show();
+        });
+        try {
+            return answer.get(seconds, java.util.concurrent.TimeUnit.SECONDS);
+        } catch (java.util.concurrent.ExecutionException | java.util.concurrent.TimeoutException e) {
+            Platform.runLater(() -> {
+                if (shown[0] != null) {
+                    shown[0].close();
+                }
+            });
+            return false;
+        }
+    }
+
+    /** The system clipboard, set on the JavaFX thread. */
+    private static void copyToClipboard(String text) throws IOException {
+        java.util.concurrent.CompletableFuture<Void> done = new java.util.concurrent.CompletableFuture<>();
+        Platform.runLater(() -> {
+            try {
+                javafx.scene.input.ClipboardContent content = new javafx.scene.input.ClipboardContent();
+                content.putString(text);
+                javafx.scene.input.Clipboard.getSystemClipboard().setContent(content);
+                done.complete(null);
+            } catch (RuntimeException e) {
+                done.completeExceptionally(e);
+            }
+        });
+        try {
+            done.get(10, java.util.concurrent.TimeUnit.SECONDS);
+        } catch (java.util.concurrent.ExecutionException | java.util.concurrent.TimeoutException e) {
+            throw new IOException("The clipboard did not take it");
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new IOException("stopped");
+        }
+    }
+
     private void connect(Loaded loaded) {
         try {
             if (renderer == null) {
@@ -620,6 +688,19 @@ public class JoiNodeApp extends Application {
             }
         });
         notifyMenu.setDisable(false);
+        ClipboardOffers clipboardOffers = new ClipboardOffers(settings, JoiNodeApp::copyToClipboard, (title, text, seconds) -> askClipboard(title, text, seconds));
+        nodeTools = new NodeTools(notifications, clipboardOffers);
+        clipOff.setSelected(clipboardOffers.mode() == ClipboardOffers.Mode.OFF);
+        clipAsk.setSelected(clipboardOffers.mode() == ClipboardOffers.Mode.ASK);
+        clipAllow.setSelected(clipboardOffers.mode() == ClipboardOffers.Mode.ALLOW);
+        java.util.Map.of(clipOff, ClipboardOffers.Mode.OFF, clipAsk, ClipboardOffers.Mode.ASK, clipAllow, ClipboardOffers.Mode.ALLOW).forEach((item, mode) -> item.setOnAction(e -> {
+            try {
+                clipboardOffers.setMode(mode);
+            } catch (IOException ex) {
+                chat.note("The choice was not kept: " + ex.getMessage());
+            }
+        }));
+        clipMenu.setDisable(false);
         chat.history(loaded.history());
         SpeechPlayer speech = new SpeechPlayer();
         AvatarDirector director = new AvatarDirector(new AvatarDirector.Avatar() {
@@ -993,9 +1074,9 @@ public class JoiNodeApp extends Application {
                 NodeSettings.Node node = settings.node();
                 Hello hello = new Hello(JoiProtocol.NODE_VERSION, node.nodeId, node.name, node.kind == null ? "desktop" : node.kind,
                         "joi-node (JavaFX)", loaded.summary().id(), List.of(NodePart.AUDIO_OUT, NodePart.AVATAR, NodePart.TOOLS), null, null);
-                Manifest manifest = notifications.manifest();
-                socket.setTools(notifications::run);
-                notifications.attach(new Notifications.Frames() {
+                Manifest manifest = nodeTools.manifest();
+                socket.setTools(nodeTools::run);
+                nodeTools.attach(new NodeTools.Frames() {
                     @Override
                     public void approval(String callId, com.github.enerccio.joi.protocol.node.ApprovalState state, String scope, String via) {
                         socket.approval(callId, state, scope, via);

@@ -38,6 +38,7 @@ import com.github.enerccio.joi.tts.audio.AudioKind;
 import com.github.enerccio.marginalia.bound.ApiRequestAttributes;
 import com.github.enerccio.marginalia.bound.SessionPoint;
 import com.github.enerccio.marginalia.domain.security.model.User;
+import com.github.enerccio.marginalia.domain.service.function.FunctionContinuation;
 import com.github.enerccio.marginalia.domain.service.function.FunctionDefinition;
 import com.github.enerccio.marginalia.domain.service.function.FunctionSet;
 import com.github.enerccio.marginalia.ui.components.ThreadCopyRequestAttributes.InRequestScope;
@@ -247,6 +248,23 @@ public class NodeServiceImpl implements NodeService, InitializingBean, Disposabl
     @Override
     public List<NodeSession> sessions(Joi joi) {
         return sessions(joi.getId());
+    }
+
+    @Override
+    public List<NodeSession> sessionsWithTool(Joi joi, String tool) {
+        return sessions(joi).stream().filter(session -> session.tools().stream().anyMatch(t -> tool.equals(t.name())))
+                .sorted(java.util.Comparator.comparing((NodeSession session) -> session.turnId() == null)).toList();
+    }
+
+    @Override
+    public void callTool(NodeSession session, String tool, JsonObject arguments, FunctionContinuation<Object> continuation) {
+        if (session.closed()) {
+            continuation.fail("The node " + session.name() + " is gone");
+            return;
+        }
+        String callId = "c-" + UUID.randomUUID().toString().substring(0, 12);
+        continuation.onCancel(() -> session.cancel(callId, "The turn was stopped"));
+        session.call(callId, tool, arguments == null ? new JsonObject() : arguments, session.turnId(), TOOL_TIMEOUT_SECONDS, continuation);
     }
 
     private List<NodeSession> sessions(Long joiId) {
@@ -1009,14 +1027,8 @@ public class NodeServiceImpl implements NodeService, InitializingBean, Disposabl
             case ALLOW -> "";
         };
         return FunctionDefinition.dynamic(name, where + tool.description() + tier, schema(tool), (continuation, arguments) -> {
-            if (session.closed()) {
-                continuation.fail("The node " + session.name() + " is gone");
-                return;
-            }
-            String callId = "c-" + UUID.randomUUID().toString().substring(0, 12);
-            JsonObject json = arguments == null ? new JsonObject() : NodeSession.GSON.toJsonTree(arguments).getAsJsonObject();
-            continuation.onCancel(() -> session.cancel(callId, "The turn was stopped"));
-            session.call(callId, tool.name(), json, session.turnId(), TOOL_TIMEOUT_SECONDS, continuation);
+            callTool(session, tool.name(), arguments == null ? new JsonObject() : NodeSession.GSON.toJsonTree(arguments).getAsJsonObject(),
+                    continuation);
         });
     }
 

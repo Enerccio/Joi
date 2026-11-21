@@ -1,6 +1,7 @@
 package com.github.enerccio.joi.domain.service.impl;
 
 import com.github.enerccio.joi.domain.chat.WebResearch;
+import com.github.enerccio.joi.domain.chat.WorkspaceTools;
 import com.github.enerccio.joi.domain.chat.turn.TurnControllerEvent.Registration;
 import com.github.enerccio.joi.domain.chat.turn.TurnEvents;
 import com.github.enerccio.joi.domain.collections.JoiTaskStatus;
@@ -32,6 +33,7 @@ import com.github.enerccio.joi.domain.service.WebToolSettingsService.Search;
 import com.github.enerccio.joi.domain.templates.TaskEventTemplateData;
 import com.github.enerccio.joi.domain.templates.WebTaskTemplateData;
 import com.github.enerccio.joi.domain.tools.ServerTool;
+import com.github.enerccio.joi.domain.workspace.TaskWorkspace;
 import com.github.enerccio.joi.domain.tools.ToolPermission;
 import com.github.enerccio.joi.domain.web.SearchSource;
 import com.github.enerccio.marginalia.bound.ApiRequestAttributes;
@@ -97,6 +99,8 @@ public class WebTaskServiceImpl implements WebTaskService, InitializingBean, Dis
     private User currentUser;
     @Autowired
     private AIService aiService;
+    @Autowired
+    private TaskWorkspace workspace;
     @Autowired
     private InferenceServices inferenceServices;
     private final ExecutorService executor = Executors.newCachedThreadPool(r -> {
@@ -483,7 +487,9 @@ public class WebTaskServiceImpl implements WebTaskService, InitializingBean, Dis
                     log.warn("The transcript of the task {} lost a step: {}", id, e.getMessage());
                 }
             });
+            research.withFiles((name, content) -> workspace.write(joi, name, content).name());
             result = research.run(ai, instruction);
+            result = withFiles(joi, result, research.written());
             status = "finished";
         } catch (CancellationException e) {
             status = "cancelled";
@@ -512,6 +518,19 @@ public class WebTaskServiceImpl implements WebTaskService, InitializingBean, Dis
         } catch (Exception e) {
             log.error("The end of the task {} was not kept", id, e);
         }
+    }
+
+    /** What the task found, and the files it wrote (she hands them to the user with {@code offer_file_to_clipboard}). */
+    private String withFiles(Joi joi, String result, List<String> written) {
+        if (written.isEmpty()) {
+            return result;
+        }
+        StringBuilder out = new StringBuilder(result).append("\n\nFiles in your workspace, written by this task (").append(WorkspaceTools.OFFER)
+                .append(" offers one to the user's clipboard):");
+        for (String name : written) {
+            out.append("\n- ").append(name);
+        }
+        return out.toString();
     }
 
     private WebTaskTemplateData instruction(Joi joi, JoiTask task, boolean withSearch, Search search) throws Exception {

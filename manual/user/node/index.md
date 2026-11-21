@@ -25,8 +25,8 @@ replaces its old connection.
   animations: idle while she waits, talking while she speaks, asleep, falling asleep and waking up.
 - **Her voice**: the speech the server makes is played back.
 - **Tools**: when a node connects it sends a list of the tools it offers, and she sees them as `<node>__<tool>` while it is
-  connected. The first one is `notify`: she can show you a notification on this machine, if you allow it. See
-  [Notifications](notifications.md). A tool is marked Allow, Ask or Deny by the node itself, which decides again when it runs.
+  connected. `notify` shows you a notification on this machine, and `offer_to_clipboard` offers you a text for the clipboard; she has
+  each only if you allow it. See [Notifications](notifications.md) and [Clipboard offers](clipboard.md). A tool is marked Allow, Ask or Deny by the node itself, which decides again when it runs.
 - **Your answers**: when a task of hers waits for your approval, the node asks you. See [Answering her questions](approvals.md).
 
 ## Pairing and tokens

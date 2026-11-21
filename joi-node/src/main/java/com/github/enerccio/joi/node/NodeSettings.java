@@ -63,6 +63,12 @@ public final class NodeSettings {
          * approves each notification) or {@code allow}. The user's choice on this node ({@link Notifications}).
          */
         public String notifications;
+        /**
+         * What she may do with the clipboard tool: {@code off} (null too: she does not get the tool), {@code ask} (the user
+         * sees each offer and decides) or {@code allow} (it is copied at once). The user's choice on this node
+         * ({@link ClipboardOffers}).
+         */
+        public String clipboard;
     }
 
     /** {@code credentials.json}: the credentials of each server the node has been connected to, by its address. */

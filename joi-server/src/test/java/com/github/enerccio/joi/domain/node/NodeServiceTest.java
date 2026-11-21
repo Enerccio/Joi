@@ -77,6 +77,8 @@ class NodeServiceTest extends PlatformTestBase {
     private QueuedEventService queuedEventService;
     @Autowired
     private WebTaskService webTaskService;
+    @Autowired
+    private com.github.enerccio.joi.domain.workspace.TaskWorkspace workspace;
 
     private final JsonSchemaFactory schemas = JsonSchemaFactory.getInstance(SpecVersion.VersionFlag.V202012,
             builder -> builder.schemaMappers(m -> m.mapPrefix(BASE, "classpath:joi-protocol/schemas/")));
@@ -141,6 +143,13 @@ class NodeServiceTest extends PlatformTestBase {
         void hello(String nodeId, String name, String joiId, String protocol) {
             frame("hello", "h1", "{\"protocol\": \"" + protocol + "\", \"nodeId\": \"" + nodeId + "\", \"name\": \"" + name
                     + "\", \"kind\": \"desktop\", \"software\": \"test\", \"joi\": \"" + joiId + "\", \"parts\": [\"tools\"]}");
+        }
+
+        /** A manifest with the clipboard tool, as the node offers it when the user allowed it. */
+        void manifestWithClipboard(long version) {
+            frame("manifest", null, "{\"version\": " + version + ", \"os\": \"macos\", \"tools\": [{\"name\": \"offer_to_clipboard\","
+                    + " \"description\": \"Offers a text to the clipboard\", \"parameters\": {\"type\": \"object\", \"properties\":"
+                    + " {\"title\": {\"type\": \"string\"}, \"text\": {\"type\": \"string\"}}, \"required\": [\"text\"]}, \"tier\": \"ask\"}]}");
         }
 
         void manifest(long version) {
@@ -263,6 +272,97 @@ class NodeServiceTest extends PlatformTestBase {
         assertThat(node.next("error").getAsJsonObject("data").get("code").getAsString()).isEqualTo("not_found");
         nodeService.closed(node.session);
         assertThat(nodeService.sessions(joi)).isEmpty();
+    }
+
+    @Test
+    void sheOffersAFileOfHerWorkspaceToTheClipboardOfTheNodeWithoutTheTextPassingThroughHer() throws Exception {
+        String script = "#!/bin/sh\necho \"hello\"\n";
+        workspace.write(joi, "hello.sh", script);
+        Node node = connect("Bearer " + token);
+        node.hello("n1", "desk", joi.getUuid(), "1.2");
+        node.next("welcome");
+        node.manifestWithClipboard(1);
+        llm.enqueue(MockLLMResponse.toolCall("offer_file_to_clipboard", "{\"file\":\"hello.sh\"}"), MockLLMResponse.text("It is on your clipboard."));
+
+        node.frame("say", "t1", "{\"text\": \"Put the script on my clipboard\", \"speak\": false}");
+        JsonObject data = node.next("tool_call").getAsJsonObject("data");
+        // the server read the file and called the node's tool with it: the user decides there
+        assertThat(data.get("tool").getAsString()).isEqualTo("offer_to_clipboard");
+        assertThat(data.get("turn").getAsString()).isEqualTo("t1");
+        assertThat(data.getAsJsonObject("arguments").get("text").getAsString()).isEqualTo(script);
+        assertThat(data.getAsJsonObject("arguments").get("title").getAsString()).isEqualTo("hello.sh");
+        String callId = data.get("callId").getAsString();
+        node.frame("approval", null, "{\"callId\": \"" + callId + "\", \"state\": \"asked\"}");
+        node.frame("approval", null, "{\"callId\": \"" + callId + "\", \"state\": \"allowed\", \"scope\": \"once\", \"via\": \"click\"}");
+        node.frame("tool_result", null, "{\"callId\": \"" + callId + "\", \"ok\": true, \"content\": \"Copied to the user's clipboard (24 characters).\"}");
+        node.next("done");
+
+        List<MockLLMRequest> requests = llm.getCompletionRequests();
+        // she was offered the list and the offer; the text of the script was never in her turn
+        assertThat(requests.getFirst().getRawBody()).contains("list_workspace_files").contains("offer_file_to_clipboard");
+        assertThat(requests.getFirst().getRawBody()).doesNotContain("echo");
+        assertThat(requests.get(1).getLastMessage().content()).startsWith("Copied to the user's clipboard");
+    }
+
+    @Test
+    void sheSendsATextOfHerOwnToTheClipboardWithNoTaskAndNoFile() throws Exception {
+        Node node = connect("Bearer " + token);
+        node.hello("n1", "desk", joi.getUuid(), "1.2");
+        node.next("welcome");
+        node.manifestWithClipboard(1);
+        llm.enqueue(MockLLMResponse.text("Here it is.").andToolCall("desk__offer_to_clipboard", "{\"title\":\"command\",\"text\":\"ls -la\"}"),
+                MockLLMResponse.text("It is on your clipboard."));
+
+        node.frame("say", "t1", "{\"text\": \"Give me the command to list files\", \"speak\": false}");
+        JsonObject data = node.next("tool_call").getAsJsonObject("data");
+        assertThat(data.get("tool").getAsString()).isEqualTo("offer_to_clipboard");
+        assertThat(data.getAsJsonObject("arguments").get("text").getAsString()).isEqualTo("ls -la");
+        assertThat(data.getAsJsonObject("arguments").get("title").getAsString()).isEqualTo("command");
+        node.frame("tool_result", null, "{\"callId\": \"" + data.get("callId").getAsString() + "\", \"ok\": true, \"content\": \"Copied to the user's clipboard (6 characters).\"}");
+        node.next("done");
+
+        // she had the node's tool from its manifest; the workspace functions were not offered, there is no file
+        String first = llm.getCompletionRequests().getFirst().getRawBody();
+        assertThat(first).contains("desk__offer_to_clipboard").doesNotContain("offer_file_to_clipboard").doesNotContain("list_workspace_files");
+        assertThat(llm.getCompletionRequests().get(1).getLastMessage().content()).startsWith("Copied to the user's clipboard");
+    }
+
+    @Test
+    void theOfferIsNotMadeWhenNoNodeHasTheToolAndAFileThatIsNotThereIsSaidSo() throws Exception {
+        workspace.write(joi, "hello.sh", "echo hi");
+        Node node = connect("Bearer " + token);
+        node.hello("n1", "desk", joi.getUuid(), "1.2");
+        node.next("welcome");
+        // the user has not allowed clipboard offers on the node: its manifest has no such tool
+        node.manifest(1);
+        llm.enqueue(MockLLMResponse.text("I cannot offer it."));
+        node.frame("say", "t1", "{\"text\": \"Put the script on my clipboard\", \"speak\": false}");
+        node.next("done");
+        assertThat(llm.getCompletionRequests().getFirst().getRawBody()).contains("list_workspace_files").doesNotContain("offer_file_to_clipboard");
+
+        // the user allows it on the node: a new manifest, and a turn later she has it; a file that is not there is answered with the list
+        node.manifestWithClipboard(2);
+        llm.enqueue(MockLLMResponse.toolCall("offer_file_to_clipboard", "{\"file\":\"missing.sh\"}"), MockLLMResponse.text("There is no such file."));
+        node.frame("say", "t2", "{\"text\": \"Again\", \"speak\": false}");
+        node.next("done");
+        List<MockLLMRequest> requests = llm.getCompletionRequests();
+        assertThat(requests.get(1).getRawBody()).contains("offer_file_to_clipboard");
+        assertThat(requests.get(2).getLastMessage().content()).contains("no file missing.sh").contains("hello.sh (7 bytes)");
+    }
+
+    @Test
+    void aClipboardOfferTheUserRefusesReachesHerAsItsReason() throws Exception {
+        workspace.write(joi, "hello.sh", "echo hi");
+        Node node = connect("Bearer " + token);
+        node.hello("n1", "desk", joi.getUuid(), "1.2");
+        node.next("welcome");
+        node.manifestWithClipboard(1);
+        llm.enqueue(MockLLMResponse.toolCall("offer_file_to_clipboard", "{\"file\":\"hello.sh\",\"node\":\"desk\"}"), MockLLMResponse.text("Alright."));
+        node.frame("say", "t1", "{\"text\": \"Clipboard please\", \"speak\": false}");
+        String callId = node.next("tool_call").getAsJsonObject("data").get("callId").getAsString();
+        node.frame("tool_result", null, "{\"callId\": \"" + callId + "\", \"ok\": false, \"content\": \"The user did not want this on their clipboard.\", \"error\": \"denied\"}");
+        node.next("done");
+        assertThat(llm.getCompletionRequests().get(1).getLastMessage().content()).endsWith("denied: The user did not want this on their clipboard.");
     }
 
     @Test

@@ -29,12 +29,14 @@ class NotificationsTest {
     private volatile boolean answer = true;
     private NodeSettings settings;
     private Notifications notifications;
+    private NodeTools tools;
 
     @BeforeEach
     void setUp() {
         settings = new NodeSettings(dir);
         notifications = new Notifications(settings, (title, text) -> shown.add(title + "|" + text), (title, text, seconds) -> answer);
-        notifications.attach(new Notifications.Frames() {
+        tools = new NodeTools(notifications);
+        tools.attach(new NodeTools.Frames() {
             @Override
             public void approval(String callId, ApprovalState state, String scope, String via) {
                 frames.add(callId + " " + state + " " + scope);
@@ -61,7 +63,7 @@ class NotificationsTest {
     @Test
     void shePicksUpTheToolOnlyWhenTheUserAllowedItAndTheChoiceIsKept() throws Exception {
         assertThat(notifications.mode()).isEqualTo(Notifications.Mode.OFF);
-        assertThat(notifications.manifest().tools()).isEmpty();
+        assertThat(tools.manifest().tools()).isEmpty();
 
         notifications.setMode(Notifications.Mode.ASK);
         assertThat(manifests).hasSize(1);

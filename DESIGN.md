@@ -680,6 +680,8 @@ of that report is the full synthesis again (text and voice); it may be one task 
 switches back only once. States: `QUEUED`, `RUNNING`, `WAITING` (an approval), `DONE`, `FAILED`, `CANCELLED`. Smaller roles — salience scoring of events, short classifications — can
 use the conversation model or a third cheap one.
 
+A task of the web tools can also write files into her workspace (see Server tools → Her workspace).
+
 **A task's result is in the prompt once (designed, not built).** What a task brings back can be huge (a website of
 25k tokens read for her), and it should not weigh on every later prompt. So the result message is shown to the model in
 full **once**, in the prompt of the next message after it came, and is then **replaced in the history** by a short note
@@ -832,6 +834,23 @@ description, so a client that approves on its own can write the approval down as
 **In the UI:** `ui/tools`: `ToolPermissionsPanel` (a row per tool: Inherit / Allow / Ask / Deny, stored at once, and the
 one in force), in **Administration → Tools** (the administrator's), **User Settings → Tools** (the user's) and the Joi
 dialog's **Tasks** tab (the assistant's own).
+
+### Her workspace (built: `TaskWorkspace`, `WorkspaceTools`)
+
+Each assistant has a **temporary workspace** on the server, `<data>/workspace/<uuid>`: a flat folder of text files for what her
+tasks hand to the user (a script, a list, a text to paste). It is not storage: a file is at most 100 000 characters, an assistant
+has at most 30 (a new one pushes out the oldest), a file lives a day (deleted when the workspace is next written or read; no
+timer), a name is a plain file name (no folder, no `..`), a write is atomic.
+
+- **The task writes:** the model of a `web_search` / `fetch_page` task gets a third internal function, `write_file(name, content)`
+  (at most 5 a task), when the question asks for a file (her two functions say so in their descriptions). The names of the files
+  it wrote are added to the task's result, so she is told where they are.
+- **She hands it over:** `list_workspace_files`, and `offer_file_to_clipboard(file, node?)`: the server reads the file and calls
+  the node's `offer_to_clipboard` with its text, so a large text does not pass through her turn. Offered only when there is a file,
+  and (for the clipboard) a connected node that has the tool, which the user switched on there. No `ServerTool` permission: both
+  only touch her own files; the user's decision is on the node, per offer.
+- **Not built:** other task kinds writing there (a task that is not web), reading a file back for her to edit, a UI to see or
+  delete the files, an offer to another place than the clipboard (a file download on the node).
 
 ### Web search and reading pages
 
@@ -1592,6 +1611,18 @@ enforces its harness again.
   the terminal node prints it. Terminal node: `/notify off|ask|allow|test`, and an asked one is answered with `/yes` or `/no`;
   JavaFX node: the **Joi → Notifications** menu and a dialog. She is told about the tool through its description (the
   tier is said in it too), so she uses it for what matters, not as a way to chat.
+- **The second node tool: `offer_to_clipboard` (built, `ClipboardOffers`).** She puts a text (a script a task of hers wrote,
+  a command, a snippet) on the clipboard of this machine, or offers it: `offer_to_clipboard(title?, text)`,
+  as `<node>__offer_to_clipboard`, up to 100 000 characters; she can pass a text of her own straight to it. The user's choice on the
+  node is `off` (the default: no tool in the manifest), `ask` (the node shows the whole text and copies only on a yes; no answer in
+  two minutes is a no; `approval` frames as for `notify`) or `allow` (copied at once, tier ALLOW). **`allow` is a choice to make
+  knowingly:** a clipboard is pasted into a terminal or a form later, and the text may have come from a web page through a task;
+  `ask` is the recommended one and the docs say so. Terminal node:
+  `/clipboard off|ask|allow`, an offer answered with `/yes` or `/no` (copied with `pbcopy`, `wl-copy`, `xclip`, `xsel`, else the Java
+  clipboard); JavaFX node: **Joi → Clipboard offers** and a dialog with the text. `NodeTools` holds the tools the user switches on
+  (`notify`, `offer_to_clipboard`) in one manifest and sends it again, with a higher version, when a choice changes. The server can
+  call a node's tool for a function of its own (`NodeService.sessionsWithTool`, `callTool`), which is how her workspace offers a
+  file (see Server tools → Her workspace).
 - What Joi sees in a turn: the server tools plus the tools of the node you are talking through, and of the other
   connected nodes by name ("on the desk"), so she can act on another machine when it makes sense.
 

@@ -45,6 +45,8 @@ import java.util.concurrent.atomic.AtomicReference;
  * that waits for the user's answer ({@code task} frame): {@code /yes}, {@code /always} (the tool from now on, kept by
  * the server) and {@code /no [reason]}, which answer the oldest question; {@code /tasks} lists her tasks, {@code /auto}
  * the tools approved ahead of time, {@code /auto on <tool>} and {@code /auto off <tool>} approve one or take it back;
+ * {@code /clipboard off|ask|allow} sets whether she may put text on the clipboard ({@link ClipboardOffers}; with {@code ask} each
+ * offer is shown and asked about, {@code /yes} or {@code /no}),
  * {@code /notify off|ask|allow} sets whether she gets the notification tool ({@link Notifications}), {@code /notify test}
  * shows one.
  * <p>
@@ -103,21 +105,14 @@ public final class JoiNodeCli {
         Object lock = director;
         CountDownLatch closed = new CountDownLatch(1);
         TaskQuestions questions = new TaskQuestions();
-        // the notification tool (off until the user allows it with /notify); an asked notification is answered with /yes or /no
+        // the tools the user switches on (off until they do, with /notify and /clipboard); what they are asked about is answered with /yes or /no
         AtomicReference<CompletableFuture<Boolean>> asking = new AtomicReference<>();
         Notifications notifications = new Notifications(settings, (title, text) -> out.println("[notification] " + title + ": " + text + "\u0007"),
-                (title, text, seconds) -> {
-                    CompletableFuture<Boolean> answer = new CompletableFuture<>();
-                    asking.set(answer);
-                    out.println("[asks] she wants to show you a notification \"" + title + ": " + text + "\" - /yes or /no");
-                    try {
-                        return answer.get(seconds, TimeUnit.SECONDS);
-                    } catch (java.util.concurrent.ExecutionException | java.util.concurrent.TimeoutException e) {
-                        return false;
-                    } finally {
-                        asking.compareAndSet(answer, null);
-                    }
-                });
+                (title, text, seconds) -> askYesNo(out, asking, "she wants to show you a notification \"" + title + ": " + text + "\"", seconds));
+        ClipboardOffers clipboardOffers = new ClipboardOffers(settings, new DesktopClipboard(),
+                (title, text, seconds) -> askYesNo(out, asking, "she offers you this for your clipboard (" + title + "):\n"
+                        + ClipboardOffers.preview(text, 1500) + "\n", seconds));
+        NodeTools nodeTools = new NodeTools(notifications, clipboardOffers);
         NodeSocket socket = new NodeSocket(new NodeSocket.Listener() {
             @Override
             public void turnStarted(String turn, String cause) {
@@ -205,9 +200,9 @@ public final class JoiNodeCli {
         });
         Hello hello = new Hello(JoiProtocol.NODE_VERSION, node.nodeId, node.name, node.kind, "joi-node " + version(), chosen.id(),
                 List.of(NodePart.TOOLS), null, null);
-        Manifest manifest = notifications.manifest();
-        socket.setTools(notifications::run);
-        notifications.attach(new Notifications.Frames() {
+        Manifest manifest = nodeTools.manifest();
+        socket.setTools(nodeTools::run);
+        nodeTools.attach(new NodeTools.Frames() {
             @Override
             public void approval(String callId, com.github.enerccio.joi.protocol.node.ApprovalState state, String scope, String via) {
                 socket.approval(callId, state, scope, via);
@@ -265,6 +260,15 @@ public final class JoiNodeCli {
                         out.println("[not kept: " + e.getMessage() + "]");
                     }
                 }
+                case "/clipboard" -> out.println("[clipboard offers: " + clipboardOffers.mode().setting() + "; /clipboard off, ask or allow]");
+                case "/clipboard off", "/clipboard ask", "/clipboard allow" -> {
+                    try {
+                        clipboardOffers.setMode(ClipboardOffers.Mode.of(line.substring(11)));
+                        out.println("[clipboard offers: " + clipboardOffers.mode().setting() + "]");
+                    } catch (IOException e) {
+                        out.println("[not kept: " + e.getMessage() + "]");
+                    }
+                }
                 case "/tasks" -> tasks(client, chosen.id());
                 case "/auto" -> autoApproved(client, chosen.id(), null, null);
                 case "/sleep" -> {
@@ -286,6 +290,21 @@ public final class JoiNodeCli {
         }
         socket.close();
         later.shutdownNow();
+    }
+
+    /** Asks the user a yes or no on the terminal (answered with /yes or /no); no answer in time is a no. */
+    private static boolean askYesNo(PrintStream out, AtomicReference<CompletableFuture<Boolean>> asking, String what, long seconds)
+            throws InterruptedException {
+        CompletableFuture<Boolean> answer = new CompletableFuture<>();
+        asking.set(answer);
+        out.println("[asks] " + what + " - /yes or /no");
+        try {
+            return answer.get(seconds, TimeUnit.SECONDS);
+        } catch (java.util.concurrent.ExecutionException | java.util.concurrent.TimeoutException e) {
+            return false;
+        } finally {
+            asking.compareAndSet(answer, null);
+        }
     }
 
     /** Answers the oldest question the server asked about a task of hers, through the HTTP API. */

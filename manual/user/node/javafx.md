@@ -65,7 +65,7 @@ read again by it.
 | Menu | Items |
 |---|---|
 | **Edit** | Cut, Copy, Paste, Select all |
-| **Joi** | **Auto-approved tools…** (see [Answering her questions](approvals.md)) and **Notifications** (see [Notifications](notifications.md)) |
+| **Joi** | **Auto-approved tools…** (see [Answering her questions](approvals.md)) **Notifications** (see [Notifications](notifications.md)) and **Clipboard offers** (see [Clipboard offers](clipboard.md)) |
 
 ## While she is away from the server
 

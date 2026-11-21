@@ -39,6 +39,19 @@ public interface NodeService {
     /** The nodes connected for the assistant (welcomed). */
     List<NodeSession> sessions(Joi joi);
 
+    /**
+     * The nodes connected for the assistant that offer the tool now, the one she is talking through first (it has a turn
+     * running), the others in the order they connected.
+     */
+    List<NodeSession> sessionsWithTool(Joi joi, String tool);
+
+    /**
+     * Calls a tool of a node for a function of the server's own (a call of hers goes through {@code <node>__<tool>}): the result,
+     * or the node's refusal, goes to the continuation. The user's harness on the node applies as to any call.
+     */
+    void callTool(NodeSession session, String tool, com.google.gson.JsonObject arguments,
+                  com.github.enerccio.marginalia.domain.service.function.FunctionContinuation<Object> continuation);
+
     /** Tells her nodes that something changed on the server ({@code body}, {@code joi}): an {@code event} frame. */
     void notify(Joi joi, String event);
 

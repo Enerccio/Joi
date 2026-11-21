@@ -37,6 +37,8 @@ Type a line and press Return: it is your message. Her reply streams in; her anim
 | `/notify` | says whether she gets the notification tool |
 | `/notify off`, `/notify ask`, `/notify allow` | sets it |
 | `/notify test` | shows a test notification |
+| `/clipboard` | says whether she may offer texts for the clipboard |
+| `/clipboard off`, `/clipboard ask`, `/clipboard allow` | sets it; an offer is answered with `/yes` or `/no` |
 
 When a task of hers waits for your answer the node prints the question: the title, the tool, what it does, what she asked for and
 the page. See [Answering her questions](approvals.md).

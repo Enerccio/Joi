@@ -8,7 +8,7 @@ order: 850
 
 Some of her tools do not answer at once: searching the web or reading a page is a **task**. She starts it, says she is on it, and
 the task runs after her reply on the stronger model (her deep reasoning model, else the chat model). When it ends she tells you
-the result in her own words.
+the result in her own words. When you ask for the result as a file, the task writes it to her [workspace](../tools/workspace.md).
 
 ## The Tasks tab
 

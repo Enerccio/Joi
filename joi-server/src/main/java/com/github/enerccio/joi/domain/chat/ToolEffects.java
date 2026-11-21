@@ -12,7 +12,7 @@ public final class ToolEffects {
 
     /** The functions that change nothing: a gesture, a look at what she has, a look at what she remembers. */
     private static final Set<String> READ_ONLY = Set.of(AnimationTools.PLAY_ANIMATION, BodyTools.LIST_OUTFITS,
-            BodyTools.LIST_BODIES, MemoryTools.RECALL);
+            BodyTools.LIST_BODIES, MemoryTools.RECALL, WorkspaceTools.LIST);
 
     private ToolEffects() {
     }
