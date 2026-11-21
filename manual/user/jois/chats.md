@@ -18,7 +18,7 @@ The **Chats** tab of her dialog shows the conversation as a transcript, oldest a
 - **Tools used (3): ...**, folded: every tool she used in the reply, in the order it happened, with the arguments she wrote and
   what it answered. A failed call is marked.
 - A **play button** when the reply was spoken: the pieces of speech are joined into one clip kept on the message.
-- **Notes** of the system (for example *approved automatically* or *you took this task back*): these are for you. She is
+- **Notes** of the system (for example *approved automatically*): these are for you. She is
   never given them, they do not count as a conversation, and they are not in her summaries.
 
 ## Reading and loading
