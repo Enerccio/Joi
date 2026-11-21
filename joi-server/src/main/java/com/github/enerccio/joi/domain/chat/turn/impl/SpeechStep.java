@@ -111,7 +111,12 @@ public class SpeechStep extends TurnStepBase {
                         return;
                     }
                     keep(controller, audio);
-                    controller.getListener().onAudio(index, piece, audio);
+                    try {
+                        controller.getListener().onAudio(index, piece, audio);
+                    } catch (Exception e) {
+                        // a caller that is gone does not stop the speech: the clip is kept with the message
+                        log.debug("A listener of a chat failed: {}", e.getMessage());
+                    }
                     piece(controller, model, voice, delivery, pieces, index + 1, start);
                 }).run());
     }

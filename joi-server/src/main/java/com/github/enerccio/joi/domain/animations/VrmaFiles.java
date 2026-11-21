@@ -66,7 +66,15 @@ public final class VrmaFiles {
         try (InputStream in = Files.newInputStream(file.toPath())) {
             json = json(in);
         }
-        return json == null ? null : inspect(json);
+        if (json == null) {
+            return null;
+        }
+        try {
+            return inspect(json);
+        } catch (RuntimeException e) {
+            // a value of the wrong kind (a node that is no number): not a clip that can be played
+            return null;
+        }
     }
 
     /** The JSON chunk of a binary glTF, null when the stream is not one. */

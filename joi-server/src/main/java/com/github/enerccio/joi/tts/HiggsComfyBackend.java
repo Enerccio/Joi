@@ -134,7 +134,7 @@ public class HiggsComfyBackend implements SpeechBackend {
         }
         boolean wav = "wav".equals(request.format());
         if (wav && !ffmpeg) {
-            throw new BackendException("ComfyUI writes no wav: the audio is stored as wav here, which needs ffmpeg on the server of Marginalia to convert it");
+            throw new BackendException("ComfyUI writes no wav: the audio is stored as wav here, which needs ffmpeg on Joi's server to convert it");
         }
         byte[] audio = run(workflow(request, model, ffmpeg, config.getPrecision()), cancel);
         return ffmpeg ? trimmed(audio, wav) : audio;

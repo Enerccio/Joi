@@ -171,7 +171,9 @@ public class ModelConversionServiceImpl implements ModelConversionService, Dispo
             String fbx = model.fbxToConvert();
             // a single FBX is unpacked under its own name, which is its only entry of fbxFiles
             String fbxPath = fbx;
-            if (!Files.isRegularFile(source.root().resolve(fbxPath))) {
+            // the name comes from the upload's entries: it must stay in the folder the upload was unpacked into
+            Path fbxFile = source.root().resolve(fbxPath).normalize();
+            if (!fbxFile.startsWith(source.root().normalize()) || !Files.isRegularFile(fbxFile)) {
                 throw new IllegalStateException("the FBX " + fbx + " is not in the upload");
             }
             Map<String, Map<String, Object>> materials = source.materials();

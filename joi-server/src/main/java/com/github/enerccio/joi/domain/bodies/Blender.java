@@ -74,20 +74,28 @@ public final class Blender {
             // Blender is a call of the job of the conversion (outside a job it is not recorded); ending a call twice counts the first
             Jobs.Call call = Jobs.beginCall(JobCallType.OTHER, "blender", null);
             int exit = -1;
-            try {
+            // the output is read in a thread of its own: a Blender that hangs keeps it open, and the timeout must still end it
+            Thread reader = Thread.ofVirtual().name("blender-output").start(() -> {
                 try (BufferedReader out = new BufferedReader(new InputStreamReader(process.getInputStream(), StandardCharsets.UTF_8))) {
                     String line;
                     while ((line = out.readLine()) != null) {
                         lines.accept(line);
                     }
+                } catch (IOException e) {
+                    // the process was ended
                 }
+            });
+            try {
                 if (!process.waitFor(timeoutMinutes, TimeUnit.MINUTES)) {
                     process.destroyForcibly();
+                    reader.join(TimeUnit.SECONDS.toMillis(10));
                     throw new IllegalStateException("Blender did not finish in " + timeoutMinutes + " minutes");
                 }
+                reader.join(TimeUnit.SECONDS.toMillis(30));
                 exit = process.exitValue();
                 return exit;
-            } catch (IOException | InterruptedException | RuntimeException e) {
+            } catch (InterruptedException | RuntimeException e) {
+                process.destroyForcibly();
                 if (call != null) {
                     call.finish(JobStatus.FAILED, e.getClass().getSimpleName());
                 }

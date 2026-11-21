@@ -51,7 +51,11 @@ the user said while she could not hear is said again by them.
 
 The user's changes of a part are staged: hold them back until the user left the parts alone for 4 s, send one `part` with an `id` for each changed part, and lock the
 controls until the server answered each (`part_kept`, `part_refused` or `error`, with the id; 15 s without an answer frees them). `say` has an optional `withEvents`:
-the server then takes the events of the `part` frames sent just before into the turn of the words.
+the server then takes the events of the `part` frames sent just before into the turn of the words. In the reference node a batch lost with the
+connection (also while the user is asked whether their words go with it) is told as not kept, so the controls show what is kept again.
+
+A node trusts the server only so far: the reference node names a cached download by its `sha256` only when that is 64 hex digits, and a frame it
+can't handle is logged and the socket reads on.
 
 ## The reference node
 

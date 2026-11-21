@@ -53,7 +53,8 @@ final class UnityMaterial {
             }
             String trimmed = line.strip();
             if (line.startsWith("    m_") && !line.startsWith("     ")) {
-                section = trimmed.substring(0, trimmed.indexOf(':'));
+                int colon = trimmed.indexOf(':');
+                section = colon < 0 ? trimmed : trimmed.substring(0, colon);
                 textureProperty = null;
                 continue;
             }
@@ -73,11 +74,15 @@ final class UnityMaterial {
                 } else if ("m_Colors".equals(section) && COLORS.contains(property)) {
                     Matcher color = COLOR.matcher(value);
                     if (color.find()) {
-                        List<Double> rgba = new ArrayList<>();
-                        for (int i = 1; i <= 4; i++) {
-                            rgba.add(Double.parseDouble(color.group(i)));
+                        try {
+                            List<Double> rgba = new ArrayList<>();
+                            for (int i = 1; i <= 4; i++) {
+                                rgba.add(Double.parseDouble(color.group(i)));
+                            }
+                            colors.put(property, rgba);
+                        } catch (NumberFormatException e) {
+                            // not numbers ("1e"): left out, like a float that is not one
                         }
-                        colors.put(property, rgba);
                     }
                 }
                 continue;

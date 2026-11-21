@@ -184,6 +184,15 @@ public final class PartStaging {
         }
         locked.accept(true);
         boolean words = withWords.getAsBoolean();
+        boolean lost;
+        synchronized (this) {
+            // the connection was lost while the user was asked about words: cancel resolved the batch without it
+            lost = generation != mine || phase != Phase.ANSWERS;
+        }
+        if (lost) {
+            resolved.resolved(List.of(), batch, List.of());
+            return;
+        }
         synchronized (this) {
             for (PartSwitch change : batch) {
                 String id = "p-" + (++counter);

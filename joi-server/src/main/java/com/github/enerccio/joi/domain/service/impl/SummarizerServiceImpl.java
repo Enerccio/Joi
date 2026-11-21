@@ -555,6 +555,9 @@ public class SummarizerServiceImpl implements SummarizerService, InitializingBea
 
         /** The oldest messages that leave her about half of what she may keep, never the newest one. */
         private List<ChatMessage> oldest(List<ChatMessage> open) {
+            if (open.isEmpty()) {
+                return open;
+            }
             int keep = Math.max(1, config.settings().autoTokens() / 2);
             int start = open.size() - 1;
             long sum = tokens(open.get(start));

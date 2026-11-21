@@ -14,6 +14,8 @@ import com.github.enerccio.marginalia.domain.service.impl.generation.dto.LLMTool
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import org.apache.commons.lang3.StringUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 
 import java.util.Date;
@@ -22,6 +24,8 @@ import java.util.Locale;
 
 /** The turn stored as a {@link ChatMessage}, with its prompt (the calls of her functions and their results included). */
 public class StoreStep extends TurnStepBase {
+
+    private static final Logger log = LoggerFactory.getLogger(StoreStep.class);
 
     @Autowired
     private ChatMessageService chatMessageService;
@@ -55,7 +59,12 @@ public class StoreStep extends TurnStepBase {
             message = chatMessageService.save(message);
             messagePromptService.store(message, promptText(controller.getPayload()));
             controller.setMessage(message);
-            controller.getListener().onReply(message);
+            try {
+                controller.getListener().onReply(message);
+            } catch (Exception e) {
+                // a caller that is gone (a stream whose client left) does not stop her speech and what follows the store
+                log.debug("A listener of a chat failed: {}", e.getMessage());
+            }
             controller.emitEvent(TurnEvents.AFTER_STORE, controller::next);
         });
     }

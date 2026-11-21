@@ -27,7 +27,7 @@ body of hers is active.
 | `BodyState` | | a body's state of its parts (part id to state id) and of toggles under an outfit (`@<toggle id>`) |
 | `Outfit` | | a preset of the model's toggles with a name and a description; a JSON list on the body |
 | `SpringBones`, `SpringChain` | | the spring chains guessed from bone names and written into the VRM |
-| `Blender` | | runs headless Blender, one process at a time; each run is a call of the job of the conversion (see [Jobs](jobs.md)) |
+| `Blender` | | runs headless Blender, one process at a time; each run is a call of the job of the conversion (see [Jobs](jobs.md)); its output is read on a thread of its own, so the timeout holds and a hung Blender is killed and frees the lock |
 | `ModelFiles`, `ConversionSource`, `ConversionReport` | | unpacking the upload, finding the avatar, what the converter reports |
 
 ## Conversion
@@ -41,7 +41,10 @@ keys are in the script's docstring. By hand:
 ```
 
 Nothing is filtered on its own: the avatar FBX, the meshes, the shape keys to delete or bake and the largest texture are the user's choice.
-Spring bones are not made by the converter: `SpringBones` rewrites only the VRM's JSON chunk and copies the binary.
+Spring bones are not made by the converter: `SpringBones` rewrites only the VRM's JSON chunk and copies the binary. A VRM comes from the user
+(an imported `.joim` too), so its node tree is not trusted: a child that would close a loop is left out of the tree. Likewise `VrmaFiles` and
+`UnityMaterial` give nothing for a file they can't read instead of failing the whole import, and the FBX path from an archive must stay in the
+work folder.
 
 ## Appearance
 

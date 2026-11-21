@@ -30,6 +30,7 @@ import java.util.function.Function;
 public class NodeSocket {
 
     private static final Gson GSON = new GsonBuilder().disableHtmlEscaping().create();
+    private static final System.Logger LOG = System.getLogger(NodeSocket.class.getName());
 
     /** What happens on the connection; every method runs on the WebSocket's thread. */
     public interface Listener {
@@ -208,7 +209,12 @@ public class NodeSocket {
                     String frame = text.toString();
                     text.setLength(0);
                     if (gen == generation.get()) {
-                        receive(frame);
+                        // a frame that fails (a listener's error, a frame without its data) must not stop the reading
+                        try {
+                            receive(frame);
+                        } catch (RuntimeException e) {
+                            LOG.log(System.Logger.Level.WARNING, "A frame of the server could not be handled: " + e, e);
+                        }
                     }
                 }
                 webSocket.request(1);

@@ -3,8 +3,8 @@
 A log of which model verified which commits. The rules are in `CLAUDE.md`, the reason is in `DESIGN.md` → Code base and
 style → Who wrote and who verified the code.
 
-**Verified up to:** nothing yet. The first verification has to go over the whole code (nothing before the log was recorded).
-Every commit after that line (`git log <hash>..HEAD`) is unverified.
+**Verified up to:** `af4ccb0` (the first, whole-code verification; the parts that were only swept are named in its notes and
+still want a line-by-line read). Every commit after that line (`git log <hash>..HEAD`) is unverified.
 
 **Latest commit when the log started:** `6dad9e5`
 
@@ -16,6 +16,7 @@ tests were run, what was fixed. The fix commits made during a verification are p
 
 | Date | Verified by | Commits | Notes |
 |------|-------------|---------|-------|
+| 2026-11-21 | `claude-opus-5-5` | everything up to `af4ccb0` (whole code) | Read in full: the API and node endpoint, the node protocol records in use, the chat turn and its steps, NodeService/NodeSession, all domain services and repositories, entities, summaries, web tools, bodies and animations (SpringBones, ModelCapabilities, conversion, Blender, joim/joia containers), extensions, jobs, workspace tasks, and the node core (ServerClient, NodeSocket, settings, tools, clipboard, notifications, PartStaging, renderer server). The tts package was diffed against Marginalia's audiobook plugin it was copied from and its Joi parts read. Swept, not read line by line: the Vaadin UI (HTML/JS injection, uploads, raw-id lookups, admin gating, threads; the chat deletion and summarize paths read), the JavaFX app (threads, processes), the converter scripts, the frontend and renderer JS, the YAML/JSON schemas (SchemaContractTest), the SQL and Spring XML (booted by the tests). Fixed: duplicate node tool names; NodeSession.markClosed never called; StoreStep/SpeechStep listener errors skipping later listeners and leaking clips; web task drain race; distinct switch_body names; Summarizer get(-1) on an empty list; Blender timeout that never applied (hung Blender held the lock); FBX path from an archive not confined to the work folder; node cache file named by an unchecked server sha256; node socket stopped reading after a frame error; cycles in a VRM node tree (loops, stack overflow); VrmaFiles/UnityMaterial throwing on malformed input; a lost part batch in the node never told; a doc naming a missing class. Open, for the user: readers other than direct and the web/TTS "local" options let a non-admin reach the server's network (F6, F10, F10b); same-named bodies; a deleted assistant with a connected node. Tests run: 10 server classes (121 tests) and joi-node (58), all pass. |
 
 ## Written by (secondary)
 

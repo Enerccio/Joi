@@ -241,6 +241,10 @@ public class ServerClient {
      * @param progress the bytes so far, as they come (may be null)
      */
     public Path download(Download file, LongConsumer progress) throws IOException, InterruptedException {
+        if (file.sha256() == null || !file.sha256().matches("[0-9a-fA-F]{64}")) {
+            // it names the file in the cache: anything but a hash could lead out of it
+            throw new IOException("The server gave no SHA-256 for " + file.url());
+        }
         Path cache = settings.cache();
         Files.createDirectories(cache);
         String extension = file.url().replaceAll(".*/", "").replaceAll("[^a-z]", "");

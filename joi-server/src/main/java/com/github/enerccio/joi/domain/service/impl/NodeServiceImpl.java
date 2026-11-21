@@ -149,11 +149,15 @@ public class NodeServiceImpl implements NodeService, InitializingBean, Disposabl
         logs = chatService.watchLogs(this::sendLog);
         tools = chatService.addEventListener(TurnEvents.COLLECT_TOOLS, (event, chain) -> {
             List<FunctionDefinition> functions = new ArrayList<>();
+            // two nodes of hers with the same name would offer the same function twice, which a model API refuses: the first wins
+            Set<String> names = new HashSet<>();
             for (NodeSession session : sessions(event.getJoi().getId())) {
                 for (ToolDefinition tool : session.tools()) {
                     FunctionDefinition function = function(session, tool);
-                    if (function != null) {
+                    if (function != null && names.add(function.getName())) {
                         functions.add(function);
+                    } else if (function != null) {
+                        log.warn("Node {}: the tool {} is left out, another node of hers has the same name", session.name(), tool.name());
                     }
                 }
             }
@@ -214,6 +218,7 @@ public class NodeServiceImpl implements NodeService, InitializingBean, Disposabl
             return;
         }
         session.close(1000, "Closed");
+        session.markClosed();
         if (session.welcomed()) {
             registered.remove(key(session), session);
         }

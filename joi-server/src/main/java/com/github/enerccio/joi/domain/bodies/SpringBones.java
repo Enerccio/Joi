@@ -75,7 +75,7 @@ public final class SpringBones {
         for (int i = 0; i < nodes.size(); i++) {
             for (JsonElement child : array(nodes.get(i), "children")) {
                 int c = child.getAsInt();
-                if (c >= 0 && c < nodes.size()) {
+                if (c >= 0 && c < nodes.size() && !above(c, i)) {
                     parent[c] = i;
                 }
             }
@@ -280,18 +280,35 @@ public final class SpringBones {
 
     // --- the chains
 
+    /**
+     * Whether the node is the other one or above it, by the parents known so far: a child that is would make the nodes
+     * go round in a circle (a broken file, an imported one), and every walk up the parents would never end.
+     */
+    private boolean above(int node, int other) {
+        for (int n = other, steps = 0; n >= 0 && steps <= parent.length; n = parent[n], steps++) {
+            if (n == node) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     /** The straight runs of bones from the node down, each a spring (at least two bones: the last one is its tip). */
     private List<List<Integer>> springs(int node, Set<Integer> stops) {
         List<List<Integer>> springs = new ArrayList<>();
-        build(node, stops, springs);
+        build(node, stops, springs, new HashSet<>());
         return springs;
     }
 
-    private void build(int node, Set<Integer> stops, List<List<Integer>> springs) {
+    /** @param seen the nodes walked already: a file whose nodes go round in a circle (an imported one) must not hang */
+    private void build(int node, Set<Integer> stops, List<List<Integer>> springs, Set<Integer> seen) {
+        if (!seen.add(node)) {
+            return;
+        }
         List<Integer> children = kids(node, stops);
         if (holder(node)) {
             for (int child : children) {
-                build(child, stops, springs);
+                build(child, stops, springs, seen);
             }
             return;
         }
@@ -300,12 +317,12 @@ public final class SpringBones {
         while (true) {
             joints.add(current);
             List<Integer> next = kids(current, stops);
-            if (next.size() == 1 && !holder(next.get(0))) {
+            if (next.size() == 1 && !holder(next.get(0)) && seen.add(next.get(0))) {
                 current = next.get(0);
                 continue;
             }
             for (int child : next) {
-                build(child, stops, springs);
+                build(child, stops, springs, seen);
             }
             break;
         }

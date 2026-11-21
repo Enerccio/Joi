@@ -223,7 +223,8 @@ public class BodyTools implements InitializingBean, DisposableBean {
         ObjectNode properties = schema.putObject("properties");
         var names = properties.putObject("body").put("type", "string").put("description", "The body to move into, as in your bodies.")
                 .putArray("enum");
-        bodies.forEach(other -> names.add(StringUtils.defaultIfBlank(other.getName(), "unnamed")));
+        // two bodies of one name are one value: a schema's enum lists each once (the first of them is the one moved into)
+        bodies.stream().map(other -> StringUtils.defaultIfBlank(other.getName(), "unnamed")).distinct().forEach(names::add);
         schema.putArray("required").add("body");
         return FunctionDefinition.dynamic(SWITCH_BODY, "Moves you into another of your bodies, the way you choose: use it when you feel "
                 + "like it, and when the user asks and you agree. The change is made at once and the user sees it; you keep what you "

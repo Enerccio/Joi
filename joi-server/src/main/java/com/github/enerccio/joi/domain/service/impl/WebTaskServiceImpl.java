@@ -423,6 +423,15 @@ public class WebTaskServiceImpl implements WebTaskService, InitializingBean, Dis
         } finally {
             running.remove(joiId);
         }
+        // a task queued after the loop looked for the last time, while this one still ran, was left by its own drain
+        try {
+            Joi joi = joiService.find(joiId);
+            if (joi != null && !joi.isDeleted() && first(joi) != null) {
+                next(joiId);
+            }
+        } catch (Exception e) {
+            log.warn("The tasks of the assistant were not looked at: {}", e.getMessage(), e);
+        }
     }
 
     private JoiTask first(Joi joi) throws Exception {
