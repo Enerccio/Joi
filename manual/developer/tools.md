@@ -5,6 +5,7 @@ order: 740
 covers:
   - joi-server/src/main/java/com/github/enerccio/joi/domain/tools
   - joi-server/src/main/java/com/github/enerccio/joi/domain/web
+verified: b6f812e
 ---
 
 # Server tools
