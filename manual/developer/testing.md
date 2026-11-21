@@ -5,7 +5,7 @@ order: 690
 covers:
   - joi-server/src/test
   - joi-node/src/test
-verified: b6f812e
+verified: ed86d8f
 ---
 
 # Testing

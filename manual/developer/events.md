@@ -4,7 +4,7 @@ icon: bell
 order: 730
 covers:
   - joi-server/src/main/java/com/github/enerccio/joi/domain/events
-verified: b6f812e
+verified: ed86d8f
 ---
 
 # Events

@@ -7,7 +7,7 @@ covers:
   - tools/retype_build.sh
   - tools/check_dev_docs.py
   - joi-node/src/main/java/com/github/enerccio/joi/node/fx/NodeShots.java
-verified: 7570558
+verified: ed86d8f
 ---
 
 # Screenshots and the manual

@@ -6,7 +6,7 @@ covers:
   - pom.xml
   - joi-node/pom.xml
   - CLAUDE.md
-verified: b6f812e
+verified: ed86d8f
 ---
 
 # Building

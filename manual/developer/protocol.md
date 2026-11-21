@@ -5,7 +5,7 @@ order: 760
 covers:
   - joi-protocol/src/main/resources/joi-protocol
   - joi-protocol/src/main/java/com/github/enerccio/joi/protocol
-verified: b6f812e
+verified: ed86d8f
 ---
 
 # The protocol
