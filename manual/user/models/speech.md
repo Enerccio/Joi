@@ -12,6 +12,8 @@ actor**.
 
 ## A TTS model
 
+![The TTS Models tab](../../images/tts-models.png)
+
 Open **Models → TTS Models** and press **Add TTS model**. A TTS model is one speech server.
 
 | Field | Meaning |
@@ -27,6 +29,8 @@ Open **Models → TTS Models** and press **Add TTS model**. A TTS model is one s
 **Test Connection** takes the GPU lock and asks the server whether the model is loaded. Nothing is spoken.
 
 ## A voice actor
+
+![The Voice Actors tab](../../images/voice-actors.png)
 
 Open **Voice Actors** and press **Add voice actor**. A voice actor is a voice plus a description.
 

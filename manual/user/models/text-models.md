@@ -10,6 +10,8 @@ Open **Models → Text Models** and press **Add model** (the pencil edits, the c
 
 ## The fields
 
+![The dialog of a text model](../../images/text-model-dialog.png)
+
 | Field | Meaning |
 |---|---|
 | **Type** | *OpenAI Compatible*: any server that speaks the OpenAI chat protocol |

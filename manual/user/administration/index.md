@@ -21,7 +21,11 @@ Administrators have an **Administration** button under the tabs, which opens a p
 | **Cleanup** | permanently removes deleted objects |
 | **Resource Files** | the files of the data folder |
 
+![The API access tab](../../images/admin-api-access.png)
+
 ## GPU locks
+
+![The GPUs tab](../../images/admin-gpus.png)
 
 A GPU holds one thing at a time. A **lock** says how to fill it: **acquire steps** run in order before the first job of the lock, **release
 steps** run when a job of another lock needs the GPU (or with *Unload now*), and **steps before every job** run each time. Steps
@@ -33,6 +37,8 @@ jobs of one lock run side by side: a lock whose start-up loads the conversation 
 room by themselves.
 
 ## Backups
+
+![The Database Backups tab](../../images/admin-backups.png)
 
 **Database Backups** shows the database size and its backups. Create one by hand, set **Create backups automatically** with a
 cron **Schedule** (`0 3 * * *` is every day at 3:00) and **Keep scheduled backups** (0 keeps all; manual backups are never deleted).

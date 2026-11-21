@@ -28,10 +28,14 @@ Every prompt sent to a model is a template: the master system template, the conv
 appearance, outfit and part prompts, the web task and task event prompts, and the texts of the events she is told. An empty
 field uses the built-in text. See [Persona and personality](jois/persona.md).
 
+![The Prompts tab](../images/settings-prompts.png)
+
 ## Personalities and Moods
 
 The lists of built-in and your own personalities and moods, with **Add personality** and **Add mood**, edit, **Clone** and **Reset to
 the default**. A row says whether it is built-in, changed or your own. See [Persona and personality](jois/persona.md).
+
+![The Personalities tab](../images/settings-personalities.png)
 
 ## Access
 

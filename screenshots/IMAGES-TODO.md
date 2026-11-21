@@ -10,17 +10,17 @@ Status: `[ ]` to take, `[x]` taken and published, `[-]` dropped (why).
 
 | | Picture | Page | Flow | Shows |
 |---|---|---|---|---|
-| [ ] | `settings-prompts` | settings.md | `shoot-settings` | User Settings, Prompts tab |
-| [ ] | `settings-personalities` | settings.md, jois/persona.md | `shoot-settings` | Personalities tab with the built-in ones |
-| [ ] | `settings-moods` | jois/persona.md | `shoot-settings` | Moods tab |
-| [ ] | `settings-access` | access.md | `shoot-settings` | Access tab |
-| [ ] | `settings-tools` | tools/index.md | `shoot-settings` | Tools tab: permissions and the web search panel |
-| [ ] | `admin-gpus` | administration/index.md | `shoot-settings` | Administration, GPUs |
-| [ ] | `admin-api-access` | administration/index.md | `shoot-settings` | Administration, API access |
-| [ ] | `admin-backups` | administration/index.md | `shoot-settings` | Administration, Database Backups |
-| [ ] | `tts-models` | models/speech.md | `shoot-settings` | Models → TTS Models |
-| [ ] | `voice-actors` | models/speech.md | `shoot-settings` | Models → Voice Actors |
-| [ ] | `text-model-dialog` | models/text-models.md | `shoot-settings` | the dialog of a text model |
+| [x] | `settings-prompts` | settings.md | `shoot-settings` | User Settings, Prompts tab |
+| [x] | `settings-personalities` | settings.md, jois/persona.md | `shoot-settings` | Personalities tab with the built-in ones |
+| [x] | `settings-moods` | jois/persona.md | `shoot-settings` | Moods tab |
+| [x] | `settings-access` | access.md | `shoot-settings` | Access tab |
+| [x] | `settings-tools` | tools/index.md | `shoot-settings` | Tools tab: permissions and the web search panel |
+| [x] | `admin-gpus` | administration/index.md | `shoot-settings` | Administration, GPUs |
+| [x] | `admin-api-access` | administration/index.md | `shoot-settings` | Administration, API access |
+| [x] | `admin-backups` | administration/index.md | `shoot-settings` | Administration, Database Backups |
+| [x] | `tts-models` | models/speech.md | `shoot-settings` | Models → TTS Models |
+| [x] | `voice-actors` | models/speech.md | `shoot-settings` | Models → Voice Actors |
+| [x] | `text-model-dialog` | models/text-models.md | `shoot-settings` | the dialog of a text model |
 | [ ] | `joi-templates` | jois/persona.md | `shoot-joi` | her dialog, Templates tab |
 | [ ] | `joi-memories-empty` | jois/memory.md | `shoot-joi` | her dialog, Memories tab, one memory added by hand and open |
 | [ ] | `joi-animations` | animations/animations.md | `shoot-joi` | her dialog, Animations tab |

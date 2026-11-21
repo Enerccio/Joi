@@ -25,6 +25,10 @@ or her personality is an [event](events.md): she is told, and can react in her o
 
 **Personality** is who she is, and stays. **Mood** is how she is today.
 
+![The Personalities tab of User Settings](../../images/settings-personalities.png)
+
+![The Moods tab of User Settings](../../images/settings-moods.png)
+
 The built-in personalities are *Neutral assistant*, *Warm companion*, *Cheerful*, *Sarcastic*, *Kuudere*, *Dandere*, *Tsundere* and
 *Yandere*. A personality changes her tone and banter, never what she does: it does not make her refuse an approval or hold
 back help.
