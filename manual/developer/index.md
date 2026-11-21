@@ -9,14 +9,33 @@ covers:
 
 # Developer guide
 
-For people who build Joi from source, change it, write a node, or call its API. The pages are written against the code
-and carry the commit they were last checked against.
+For people who build Joi from source, change it, write a node, or call its API. The pages are written against the code and
+carry the commit they were last checked against (`tools/check_dev_docs.py` lists the pages whose code changed since).
 
-!!!warning This page is a stub
-It lists what the page will cover. The text is not written yet.
-!!!
+`DESIGN.md` at the root of the repository is the design and the source of truth for decisions; these pages describe what the
+code does.
 
-## This page will cover
+## The modules
 
-- The modules and how they fit.
-- Where to start for each kind of change.
+| Module | What it is |
+|---|---|
+| `joi-protocol` | the public API: JSON Schemas, `openapi.yaml`, `asyncapi.yaml`, the `.joim` and `.joia` containers, and the Java records that follow them. Gson only |
+| `joi-server` | the server (the WAR): the LLM tool loop, memory, moods, bodies, events, the API and the Vaadin UI |
+| `joi-node` | the reference node: server client, node socket, avatar director, the terminal node and the JavaFX app with its renderer |
+| `marginalia/` | a git submodule of Marginalia; only its platform module is used |
+| `manual/`, `screenshots/` | this manual and the scripted environment that takes its pictures |
+
+## Where to start
+
+| You want to | Read |
+|---|---|
+| build and run it | [Building](building.md) |
+| see how the pieces fit | [Architecture](architecture.md) and [Project structure](project-structure.md) |
+| change the UI | [The UI](ui.md) |
+| change how she answers | [A chat turn](chat-turn.md) |
+| add a server tool | [Server tools](tools.md) |
+| touch models, outfits or animations | [Bodies and models](bodies.md) |
+| change what she is told | [Events](events.md) |
+| call the API or write a node | [The protocol](protocol.md) and [Writing a node](nodes.md) |
+| write tests | [Testing](testing.md) |
+| retake the pictures of the manual | [Screenshots and the manual](screenshots-and-manual.md) |
