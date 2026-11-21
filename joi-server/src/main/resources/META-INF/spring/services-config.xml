@@ -245,6 +245,8 @@
     <bean class="com.github.enerccio.joi.domain.service.impl.WebToolSettingsServiceImpl" />
     <!-- what she asks of the web becomes a task of the stronger model; the user answers an ask in her dialog or through the API -->
     <bean class="com.github.enerccio.joi.domain.service.impl.WebTaskServiceImpl" />
+    <!-- writes the summaries of the conversation: after a pause, when it grows, a day, a week, a month, a year -->
+    <bean class="com.github.enerccio.joi.domain.service.impl.SummarizerServiceImpl" />
 
     <!-- the 3D models of the user, what bodies are made of; their files are resources -->
     <bean id="modelRepository" class="com.github.enerccio.joi.domain.repository.impl.JpaModelRepository">

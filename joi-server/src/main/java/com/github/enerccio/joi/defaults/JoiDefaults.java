@@ -29,8 +29,14 @@ public class JoiDefaults {
     /** When a new day starts for the daily mood roll and the day summary (a late night still counts as the same day). */
     public static final String DAY_BOUNDARY = "04:00";
 
-    /** Minutes without interaction after which the live conversation steps back to active. */
+    /** Minutes without interaction after which the conversation so far is summarized (0 turns it off). */
     public static final int PAUSE_MINUTES = 45;
+
+    /** When the summary of the past week, month or year may be made on the first day of the next one. */
+    public static final String SUMMARY_TIME = "05:00";
+
+    /** The tokens of unsummarized messages after which she summarizes the oldest of them, when she does so on her own. */
+    public static final int AUTO_SUMMARY_TOKENS = 16000;
 
     private static final JoiDefaults ENGLISH = new JoiDefaults();
 
@@ -85,6 +91,10 @@ Your personality and mood change how you sound, never what you do: you always he
 ===== WHAT YOU REMEMBER =====
 Things you remember from earlier conversations. Use them when they matter, as you would remember them; don't recite them. If a memory seems outdated, ask.
 {{.}}{{/memories}}
+{{#summaries}}
+===== WHAT HAPPENED BEFORE =====
+Summaries of what you and {{user}} went through earlier, the oldest first. They stand where the conversation was; the messages below start after them. Use them to remember, as you would remember it; don't recite them.
+{{.}}{{/summaries}}
 {{#conversations}}
 ===== OTHER OPEN THREADS =====
 Conversations that are still open besides this one:
@@ -106,7 +116,7 @@ This is how you sound when you speak aloud:
     /** Summarizes a conversation when it becomes a record ({@code SummaryTemplateData}). */
     public String summaryPrompt() {
         return """
-Summarize the following conversation between {{user}} and {{char}} for {{char}}'s memory. It will replace the conversation in later prompts.
+Summarize the following conversation between {{user}} and {{char}} for {{char}}'s memory. It took place {{span}}. It will replace the conversation in later prompts.
 
 - Write in the third person, past tense, in plain short sentences.
 - Keep what matters later: decisions, promises and things {{char}} said she would do, open questions, plans with dates, what {{user}} asked for and how it ended, the mood of the conversation.
@@ -132,6 +142,44 @@ Write the summary of {{day}} for {{char}}'s memory from the summaries of the con
 ===== CONVERSATIONS OF THE DAY =====
 {{summaries}}
 """;
+    }
+
+    /** Rolls the summaries of a week up into the week summary ({@code PeriodSummaryTemplateData}). */
+    public String weekSummaryPrompt() {
+        return period("week");
+    }
+
+    /** Rolls the summaries of a month up into the month summary ({@code PeriodSummaryTemplateData}). */
+    public String monthSummaryPrompt() {
+        return period("month");
+    }
+
+    /** Rolls the summaries of a year up into the year summary ({@code PeriodSummaryTemplateData}). */
+    public String yearSummaryPrompt() {
+        return period("year");
+    }
+
+    private static String period(String unit) {
+        return """
+Write the summary of the %s {{period}} for {{char}}'s memory from the summaries below of what {{char}} and {{user}} went through in it.
+
+- Third person, past tense, plain short sentences, in the order things happened.
+- Keep what still matters: decisions, promises and open tasks, plans with dates, what changed between {{char}} and {{user}}, how {{user}} was doing. Drop what no longer matters.
+- Keep names, numbers and dates exact.
+- Let the length follow the %s: shorter than the summaries together, never padded.
+
+===== SUMMARIES =====
+{{summaries}}
+""".formatted(unit, unit);
+    }
+
+    /** What she is told when a summary was made ({@code SummaryEventTemplateData}). */
+    public String summaryEvent() {
+        return """
+[Memory] {{kind}} was summarized ({{span}}), and the summary now stands in your memory in place of the messages. It reads:
+{{digest}}
+
+You may say a word about it if it matters: something you promised, or something that is still open. Don't read it out.""";
     }
 
     /** Pulls the facts worth remembering out of a conversation ({@code FactsTemplateData}). */

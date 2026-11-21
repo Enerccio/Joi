@@ -33,7 +33,7 @@ import java.util.concurrent.CompletableFuture;
  */
 public interface ChatService {
 
-    /** How many of the latest messages go into the prompt (summaries come later, see DESIGN.md → Memory). */
+    /** How many of the latest messages no summary covers go into the prompt (the summaries are in the system prompt, see DESIGN.md → Memory). */
     int HISTORY = 40;
 
     /** What a turn tells while it runs, on the threads of the turn (the pieces of text on the model's thread). */

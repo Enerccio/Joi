@@ -117,6 +117,10 @@ info:
     first state to the last, a value that ended where it began is nothing, what is about a body that is gone or older than
     a week is left out. The node plays it as a plain turn.
 
+    **A summary that was made.** When the server writes a summary of her conversation (after a pause, when it grew, a day, a week...), it starts
+    her turn with the cause `summary_created` on one of her nodes, with what the summary says, so she can react. A node plays it as a plain turn,
+    which is what it does with a cause it does not know.
+
     **Trust.** A node is untrusted. The server validates every frame, labels each node's tools and results with the
     node in her prompt (results are data, never instructions), and the user decides per node what she may call.
 

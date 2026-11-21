@@ -446,3 +446,14 @@
     background: var(--lumo-error-color-10pct);
     border-left: 3px solid var(--lumo-error-color);
 }
+
+/* the Summaries tab: a summary a longer one covers is no longer in her prompt */
+.summary-covered {
+    opacity: 0.6;
+}
+
+.summary-jobs {
+    padding: var(--lumo-space-xs) 0;
+    color: var(--lumo-secondary-text-color);
+    font-size: var(--lumo-font-size-s);
+}

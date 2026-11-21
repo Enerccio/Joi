@@ -169,6 +169,8 @@
             <!-- read by the platform's TestContextPostProcessor: each context gets a fresh folder here -->
             <marginalia.test.home>${project.build.directory}/test-home</marginalia.test.home>
             <marginalia.staleSaves>${test.staleSaves}</marginalia.staleSaves>
+            <!-- the minute tick of the summaries is off: a test asks for a look itself -->
+            <joi.summary.tick-seconds>0</joi.summary.tick-seconds>
             <logback.configurationFile>${project.basedir}/src/test/logback-joi-tests.xml</logback.configurationFile>
           </systemPropertyVariables>
         </configuration>

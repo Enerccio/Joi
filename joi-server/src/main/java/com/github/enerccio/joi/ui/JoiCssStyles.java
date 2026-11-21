@@ -49,6 +49,11 @@ public final class JoiCssStyles {
     /** The row above the transcript: the hint and the delete of the checked messages. */
     public static final String CHAT_TOOLBAR = "chat-toolbar";
 
+    /** A summary no longer shown to her: a longer one covers its time. */
+    public static final String SUMMARY_COVERED = "summary-covered";
+    /** The queue of the summaries above the list of the Summaries tab. */
+    public static final String SUMMARY_JOBS = "summary-jobs";
+
     /** The grid of the Memories tab. */
     public static final String MEMORY_GRID = "memory-grid";
     /** The fields of a memory, opened under its row. */

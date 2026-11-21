@@ -12,6 +12,7 @@ import com.github.enerccio.joi.tts.model.Actor;
 import com.github.enerccio.joi.tts.model.TtsModel;
 import com.github.enerccio.joi.ui.dialogs.JoiDialog;
 import com.github.enerccio.joi.ui.widgets.RoleModels;
+import com.github.enerccio.joi.ui.widgets.SummaryFields;
 import com.github.enerccio.marginalia.CssStyles;
 import com.github.enerccio.marginalia.domain.model.impl.AI;
 import com.github.enerccio.marginalia.domain.service.AIService;
@@ -69,6 +70,7 @@ public class JoiAboutPart implements JoiDialogPart {
     private final Map<TextLLMType, ComboBox<AI>> modelBoxes = new LinkedHashMap<>();
     private Select<TtsModel> ttsModelSelect;
     private Select<Actor> voiceActorSelect;
+    private SummaryFields summaryFields;
     /** Her persona as stored last: what a change is compared with. */
     private JoiService.Persona before;
     /** True while {@link #load} fills the fields: their changes are not the user's. */
@@ -109,6 +111,8 @@ public class JoiAboutPart implements JoiDialogPart {
         voiceActorSelect.setItemLabelGenerator(actor -> actor == null ? "" : actor.getName());
         voiceActorSelect.setEmptySelectionAllowed(true);
 
+        summaryFields = new SummaryFields().create();
+
         Span inherited = new Span(loc.getValue(J_L.HELP_JOI_INHERITED));
         inherited.addClassName(CssStyles.HINT_TEXT);
         Span events = new Span(loc.getValue(J_L.HELP_JOI_PERSONA_EVENTS));
@@ -122,6 +126,7 @@ public class JoiAboutPart implements JoiDialogPart {
         // the voice on a row of its own
         form.setColspan(modelBoxes.get(TextLLMType.AUXILIARY), 2);
         form.add(ttsModelSelect, voiceActorSelect);
+        summaryFields.addTo(form);
         form.addClassName(CssStyles.FORM_PADDING_BOTTOM);
 
         for (HasValue<?, ?> field : fields()) {
@@ -149,6 +154,7 @@ public class JoiAboutPart implements JoiDialogPart {
         List<HasValue<?, ?>> fields = new ArrayList<>(List.of(nameField, userNameField, personalitySelect));
         fields.addAll(modelBoxes.values());
         fields.addAll(List.of(ttsModelSelect, voiceActorSelect));
+        fields.addAll(summaryFields.fields());
         return fields;
     }
 
@@ -190,6 +196,8 @@ public class JoiAboutPart implements JoiDialogPart {
             inheritedChoice(voiceActorSelect, userActor == null ? "" : userActor.getName());
             voiceActorSelect.setValue(find(actors, Actor::getId, joi.getVoiceActor()));
 
+            summaryFields.load(joi, setting, ais, RoleModels.find(ais, joi.getChatModel() != null ? joi.getChatModel() : setting.getChatModel()));
+
             before = joiService.persona(joi);
         } finally {
             loading = false;
@@ -223,6 +231,7 @@ public class JoiAboutPart implements JoiDialogPart {
         joi.setAuxiliaryModel(idOf(modelBoxes.get(TextLLMType.AUXILIARY).getValue()));
         joi.setTtsModel(ttsModelSelect.getValue() == null ? null : ttsModelSelect.getValue().getId());
         joi.setVoiceActor(voiceActorSelect.getValue() == null ? null : voiceActorSelect.getValue().getId());
+        summaryFields.save(joi);
         dialog.saveAbout(before);
         try {
             before = joiService.persona(dialog.getJoi());
@@ -247,6 +256,10 @@ public class JoiAboutPart implements JoiDialogPart {
 
     public Select<Personality> getPersonalitySelect() {
         return personalitySelect;
+    }
+
+    public SummaryFields getSummaryFields() {
+        return summaryFields;
     }
 
     public ComboBox<AI> getModelBox(TextLLMType type) {

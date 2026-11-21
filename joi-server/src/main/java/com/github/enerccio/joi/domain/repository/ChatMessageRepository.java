@@ -21,6 +21,9 @@ public interface ChatMessageRepository extends ExtendableRepository<ChatMessage>
     /** The last {@code limit} exchanges (no notes of the system), oldest first: what the model is given. */
     List<ChatMessage> findLatestExchanges(Joi joi, int limit) throws Exception;
 
+    /** The last {@code limit} exchanges (no notes of the system) sent at or after {@code since}, oldest first. */
+    List<ChatMessage> findLatestExchangesSince(Joi joi, Date since, int limit) throws Exception;
+
     /**
      * The {@code limit} messages before the message (sent earlier, or at the same time and stored earlier), oldest
      * first: the earlier page of a transcript that shows the message first.

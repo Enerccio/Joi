@@ -86,6 +86,11 @@ public class NodeServiceImpl implements NodeService, InitializingBean, Disposabl
     public static final String PART_SWITCHED = "part_switched";
     /** The cause of the turn about a task of hers that ended (a search, a page): the node plays it as a plain turn. */
     public static final String TASK_ENDED = "task_ended";
+    /**
+     * The cause of her turn about a summary that was made (a node that does not know it plays a plain turn): the messages of
+     * that turn do not make a summary of their own.
+     */
+    public static final String SUMMARY_CREATED = "summary_created";
     /** The cause of her turn about what happened while no node of hers was connected (since 1.7). */
     public static final String EVENTS_WAITED = "events_waited";
     /** The tool she decides on the user's requests to change her parts with ({@code PART_REQUEST_EVENT}). */
@@ -699,6 +704,7 @@ public class NodeServiceImpl implements NodeService, InitializingBean, Disposabl
             }
             // a turn that is only about tasks that ended has that cause; about what waited, that one; else it is the usual one
             String cause = pending.stream().allMatch(item -> TASK_ENDED.equals(item.cause())) ? TASK_ENDED
+                    : pending.stream().allMatch(item -> SUMMARY_CREATED.equals(item.cause())) ? SUMMARY_CREATED
                     : pending.stream().allMatch(item -> item.cause() != null) ? EVENTS_WAITED : PART_SWITCHED;
             session.told(asked, turn);
             session.send(NodeMessage.TURN, null, null, new TurnStart(turn, cause));

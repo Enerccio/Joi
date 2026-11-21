@@ -14,7 +14,9 @@ public enum TextLLMType {
     /** The conversation itself: fast first token, short turns, simple tools. */
     CHAT(J_L.ENUM_TEXT_LLM_TYPE_CHAT),
     /** The heavy role: long tool loops, planning, research, what {@code delegate} hands over. */
-    DEEP_REASONING(J_L.ENUM_TEXT_LLM_TYPE_DEEP_REASONING);
+    DEEP_REASONING(J_L.ENUM_TEXT_LLM_TYPE_DEEP_REASONING),
+    /** Writes the summaries of the conversation (a day, a week, a month, a year); a long text read, a short one written. */
+    SUMMARY(J_L.ENUM_TEXT_LLM_TYPE_SUMMARY);
 
     private final J_L label;
 

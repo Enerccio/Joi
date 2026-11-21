@@ -23,6 +23,10 @@ public class ChatTemplateData extends JoiTemplateData {
     @JoiTemplateDescription(loc = J_L.DESC_TEMPLATE_MEMORIES)
     private String memories;
 
+    /** The summaries of what happened before the messages of the prompt, the oldest first. */
+    @JoiTemplateDescription(loc = J_L.DESC_TEMPLATE_PAST_SUMMARIES)
+    private String summaries;
+
     /** Short summaries of the other active conversations. */
     @JoiTemplateDescription(loc = J_L.DESC_TEMPLATE_CONVERSATIONS)
     private String conversations;
@@ -77,6 +81,14 @@ public class ChatTemplateData extends JoiTemplateData {
 
     public void setMemories(String memories) {
         this.memories = memories;
+    }
+
+    public String getSummaries() {
+        return summaries;
+    }
+
+    public void setSummaries(String summaries) {
+        this.summaries = summaries;
     }
 
     public String getConversations() {

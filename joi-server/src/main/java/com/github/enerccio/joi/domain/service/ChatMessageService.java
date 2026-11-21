@@ -24,6 +24,12 @@ public interface ChatMessageService extends ExtendableService<ChatMessage, ChatM
     List<ChatMessage> findLatestExchanges(Joi joi, int limit) throws Exception;
 
     /**
+     * The last {@code limit} exchanges sent at or after {@code since} (what no summary covers), without the notes of the
+     * system: what the model is given. Oldest first.
+     */
+    List<ChatMessage> findLatestExchangesSince(Joi joi, Date since, int limit) throws Exception;
+
+    /**
      * The {@code limit} messages before the message (sent earlier, or at the same time and stored earlier), oldest
      * first: the earlier page of a transcript that shows the message first.
      */

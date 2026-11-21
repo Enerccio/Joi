@@ -42,10 +42,11 @@ Status: `[ ]` to take, `[x]` taken and published, `[-]` dropped (why).
 | [x] | `node-chat` | node/javafx.md | `node-chat` (needs `08-conversation`) | the JavaFX node with her body and the chat |
 | [x] | `node-controls` | node/javafx.md | `node-chat` | the controls panel, Her parts |
 | [x] | `node-approval` | node/approvals.md | `node-chat` | the dialog of a task that waits |
+| [ ] | `joi-summaries` | jois/summaries.md | `08-conversation` | her Summaries tab: a part of a day, a day, a week and the one a week covers dimmed (needs a rule for the summary prompts in `llm/rules.mjs`) |
 | [x] | `node-looking-glass-tuning` | node/looking-glass.md | `node-chat` | the tuning pane of the Looking Glass |
 
 ## Rules for these
 
 * The fake model writes what the flow needs: add rules to `llm/rules.mjs`, or queue an answer with `POST /_queue`.
 * A picture of the node needs her body in the node's cache: the node flow connects first, then waits for her body.
-* Do not take a picture that would show something that is not there: the Summaries tab and the Looking Glass display itself are not taken.
+* Do not take a picture that would show something that is not there: the Looking Glass display itself is not taken.

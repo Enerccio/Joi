@@ -28,11 +28,12 @@ Tabs on the left; every change is stored at once; **Exit** closes the dialog.
 
 | Tab | What it is for |
 |---|---|
-| **About** | her name, what she calls you, her personality, her three models, her voice. See [Persona and personality](persona.md) |
+| **About** | her name, what she calls you, her personality, her models, her voice. See [Persona and personality](persona.md) |
 | **Bodies** | the bodies she can be in. See [Bodies of an assistant](../bodies/bodies.md) |
 | **Animations** | what she plays asleep, falling asleep, waking up, idle and talking. See [Animations of an assistant](../animations/animations.md) |
 | **Templates** | her prompts. See [Persona and personality](persona.md) |
 | **Memories** | what she remembers. See [Memory](memory.md) |
+| **Summaries** | what she remembers of the past, newest first. See [Summaries](summaries.md) |
 | **Chats** | her conversation as a transcript. See [Chats](chats.md) |
 | **Tasks** | what she started with her tools and what waits for your answer. See [Tasks and approvals](tasks.md) |
 

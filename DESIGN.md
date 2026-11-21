@@ -275,6 +275,22 @@ the window as a PNG with `Node.snapshot`, so it needs no screen recording permis
 window does open. Of the Looking Glass only its controls are shown, never the display. The model in the pictures is Saiki
 (CC BY-SA, credited on the manual's credits page); the purchased test avatars never appear.
 
+### Who wrote and who verified the code
+
+The point is cost: running the strongest model for all of the writing is expensive, and reviewing is cheaper than
+writing. A cheaper model writes the code, and the strongest one reads it later, in batches, on the user's request. The
+longer the wait, the more later commits build on a mistake, so the user verifies at the end of a feature, not rarely. The
+repository keeps a log of it:
+[verification.md](verification.md) at the root. It is mainly a log of verifications: a line saying up to which commit the
+code is verified and a table with one row per verification (date, the model id that verified, the commits it checked, notes
+on how). A commit that is not in it is simply unverified, and the next verification goes over all of them. A verification
+runs only when the user asks for it; it reads the code around each diff, fixes what it finds, and its own fix commits belong
+to its row. A row is a record that a model reviewed the commits, not a proof; the notes say how deep the review went.
+Verified history is never rebased or squashed, since the hashes would point at nothing. The log starts at the last commit before it existed, so the first
+verification has to go over the whole code. Who wrote a commit is secondary: an optional table of hash and model id,
+filled in a later change by the model that made the commit (a commit cannot contain its own hash). The rules are in
+`CLAUDE.md`. The model id is not written into commit messages.
+
 **Open — sharing code with Marginalia.** Joi needs what Marginalia's `TODO.VN.md` calls layer 1, the platform: entity
 base, security and users, AI / Protocol / Usage and the inference implementations, `function` / `tool` /
 `structured`, GPU locks, jobs, templates, the generic UI widgets. It does not need the narrative core. Options:
@@ -497,9 +513,10 @@ run by `ChatServiceImpl`). Marginalia's agent runner is not used.
   - **The memories that fit a message come after it.** The ones whose keywords were said (`MemoryService.recalled`)
     are added to the current message from the template `RECALLED_MEMORIES`, in that prompt only: they change with
     every message, so they are not in the system prompt.
-  - **Still open:** the history is the latest `ChatService.HISTORY` messages, so once it is full its first message
-    drops out with every turn and the prefix moves; summaries in place of old messages (see Memory) must come in
-    steps, not one a turn, for the cache to keep.
+  - **The history starts where the summaries end (built).** Her summaries are in the system prompt (`{{#summaries}}`,
+    `SummarizerService.prompt`) and the history is the latest `ChatService.HISTORY` messages **no summary covers**
+    (`findLatestExchangesSince`). A summary comes in steps: after a pause, or when the unsummarized messages pass the limit
+    and then only the oldest half of them, never one a turn, so the prefix the cache keeps moves rarely.
 - **Warming the cache (designed, not built).** With the prompt stable, a request that generates nothing and only
   reads the prompt (llama.cpp `n_predict: 0`, with the prompt cache on) can be sent right after something changes the
   stable part (a memory approved or edited, a summary written, a mood, a personality or a body changed), so the next
@@ -926,7 +943,8 @@ In between, several can be **active** at once:
 
 - **After a pause** (e.g. 30–60 min without interaction) the live conversation steps back to active; when it becomes
   a record, the heavy model, in the background, writes its summary and pulls out facts for memory. Pauses and the day
-  boundary are the natural seams, so they are the main triggers.
+  boundary are the natural seams, so they are the main triggers. (The summary after a pause is built, see
+  **Summaries, built** below; the facts and the threads are not.)
 - **Records are history, not context.** Editing a closed conversation only changes the record; its summary is not
   rewritten unless you ask ("re-summarize" in the UI, optional).
 - **Recall by search:** Joi gets a tool to search past conversations (full text + semantic over turns and summaries,
@@ -949,6 +967,45 @@ UI — nothing is deleted):
   conversation's recent raw turns; anything older comes in through the search tool.
 - Editing the **live** conversation changes what the next prompt is built from. A turn can be **pinned** to stay
   verbatim (a promise, an exact instruction).
+
+**Summaries, built (`SummarizerService`, `domain/summary`; developer page `manual/developer/summaries.md`).**
+- **Types and times.** A summary is a day, a week, a month or a year; her day runs from the day boundary (04:00) to the next one, a week
+  from Monday's. A summary made from messages is a **part of a day** (`Summary.partial`): after a pause, when the conversation
+  grew, or by hand. When a day ends its parts become **one** day summary through the day prompt (one part alone only takes the whole day, no
+  model is asked) and the parts are soft-deleted.
+- **When (`SummaryPlan`, pure).** After a pause (`pauseMinutes`, the chain assistant → user → 45; 0 is off) when no task of hers is open;
+  when the unsummarized messages pass `autoSummaryTokens` (the setting `autoSummary`, at most the context of the chat model; tokens are
+  characters / 4): the oldest are summarized until about half is left; a day that ended; a week, a month and a year that ended, at the time
+  of day the user set for each (`weeklySummaryTime`, `monthlySummaryTime`, `yearlySummaryTime`, 05:00 by default), **never the one that is going on, and only
+  when a day summary of the time after it exists**: at any time there is at least one day summary. A month waits for its weeks, a year for its months.
+- **A reaction to a summary makes no summary.** The messages of the turn that tells her about one (`node.summary_created`) do not count as
+  something to summarize, or it would go on for ever.
+- **The model** is the *Summary* role (`TextLLMType.SUMMARY`, `summaryModel` along the chain), else auxiliary, deep reasoning, chat.
+- **The queue (`SummaryQueue`).** A lane per model: for a model with a GPU lock the lane of the **GPU**, with as many jobs at once as the
+  model with the fewest connections on it (and the lock's limit) allows; any other model has a lane of its own per user and its connections. The jobs of
+  one assistant never run side by side and run in the order days, weeks, months, years. The platform's gate and GPU lock still apply to each request.
+- **She is told** (`SUMMARY_EVENT`, the cause `summary_created`, the event `summary.created`): every summary a model wrote is an event with its text,
+  through a node, or queued until one connects.
+- **The user** reads and deletes the summaries in her Summaries tab, and in the Chats tab checks a message and presses **Summarize**: all the
+  messages from the end of the last summary to the last one checked are summarized, with no gap.
+- **Planned: the sources of a summary, and how to look into them.**
+  - **A message knows it was summarized.** `ChatMessage` gets a flag (a column, since the prompt and the queries read it) saying that a summary
+    covers it, and which one: a link to the summary of the lowest rank that was made from it (the part of a day). A deleted summary clears the flag
+    of the messages it covered, so they are summarized again, as they are today. The flag is not what the prompt's history uses (that is the end of the
+    last summary); it is for the user: the Chats tab marks a summarized message, and a manual summary never offers it.
+  - **The sources are kept.** A part of a day merged into a day summary is no longer soft-deleted but **kept as a source** of the day: a summary has
+    a list of the summaries it was made from (`Summary.sources`, the uuids), and the prompt still shows only the longest one (`SummaryCoverage`
+    already hides the covered ones). Kept sources stay out of the Summaries list at the top level.
+  - **The drill-down in the Summaries tab.** A summary opens: a week shows its days, a day its parts, a part its messages, each level
+    one dialog (or one expanded level) deeper, so the user can go from a year down to the words that were said ("recursive": every summary
+    can be entered until the messages show). The messages level is a read-only transcript like the Chats tab's, with its own **Delete** for
+    the messages.
+  - **Deleting is an explicit choice.** Summarized messages are never deleted with a summary: deleting a summary asks what to do with what it
+    was made from (keep the sources, which become top-level again and are shown in the prompt, or delete them too, down to the messages
+    only when the user says so). Deleting messages from the dialog asks too, and says that the summary that holds their words stays.
+  - **Not built yet:** the flag, the kept sources and the dialogs; today a merged part is soft-deleted and the messages have no mark.
+- **Not built:** the rolling summary of a live conversation that outgrows the prompt budget (`ROLLING`), facts pulled out of a conversation when
+  it is summarized, search of the summaries by a tool, privacy mode: a summary made of private messages (`privateMode` is stored) is still shown to every model.
 
 ### Moods
 
@@ -1422,6 +1479,13 @@ The first real node is a desktop app in JavaFX (`joi-node`). What it does, in or
 
 While she waits she plays one of her **idle** animations (another each time), while she speaks one of her **talking**
 ones; falling asleep and asleep come from her dialog too (`AvatarDirector`).
+
+**A home directory of its own (planned).** Everything the node keeps (`node.json`, `credentials.json`, the cache, the JCEF unpack, the policy
+and audit files, the Looking Glass Chrome profile) lives under one directory, `~/.joi-client` today. The node takes a flag
+`--joi-home-dir <path>` and the environment variable `JOI_HOME_DIR` to put it somewhere else; the flag wins over the variable, the variable
+over `JOI_CLIENT` (the old name, kept as an alias), and that over the default. The reason: a development node and the personal one, side by side
+on one machine, each with its own login, cache and settings, once the main app is done. Nothing in the node may build a path from the user's home
+by itself: every path goes through `NodeSettings`. Each home keeps its own pairing, so the two nodes can talk to different servers.
 
 **Built (stub):** `joi-node` holds the server client (`ServerClient`: login, device grant, her, her body, the
 downloads), the node WebSocket (`NodeSocket`), what her body plays in each state (`AvatarDirector`, tested), the

@@ -45,6 +45,12 @@ public final class JoiEvents {
      */
     public static final String TASK_ENDED = "task.ended";
 
+    /**
+     * A summary was made (payload: {@code summary}, its uuid; {@code type}: {@code day}, {@code week}, {@code month} or
+     * {@code year}; {@code partial}: a part of a day made from messages). The text has the summary, so she can react.
+     */
+    public static final String SUMMARY_CREATED = "summary.created";
+
     private JoiEvents() {
     }
 }

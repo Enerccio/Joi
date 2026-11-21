@@ -54,7 +54,9 @@ Who hooks in: her memories in the prompt, the server tools (`remember`, `recall`
 A model reuses the work it did on a prompt only up to the first token that differs from the last one. So the prompt changes as late and as
 seldom as it can:
 
-- The **system prompt** is the same from turn to turn: no clock, and of her memories only the important ones, oldest first.
+- The **system prompt** is the same from turn to turn: no clock, and of her memories only the important ones, oldest first. Her
+  summaries (`SummarizerService.prompt`, the section `{{#summaries}}`) are in it too and change only when a summary is made; the history
+  of the prompt is the latest messages **no summary covers** (`ChatMessageService.findLatestExchangesSince` the end of the last summary).
 - When a message was said is **in the message**: a line from the template `MESSAGE_STAMP` (made by `MessageStamps`, put only in the prompt, never
   stored) comes before a message of the user or an event for the first message of the prompt, after a pause of 10 minutes or more, and when
   the day changes.

@@ -38,6 +38,14 @@ public class JpaChatMessageRepository extends JpaExtendableRepository<ChatMessag
     }
 
     @Override
+    public List<ChatMessage> findLatestExchangesSince(Joi joi, Date since, int limit) throws Exception {
+        List<ChatMessage> latest = new ArrayList<>(entityManager.createQuery("SELECT m FROM ChatMessage m WHERE m.deleted = false AND m.joi = :joi AND m.type <> :log AND m.sentAt >= :since ORDER BY m.sentAt DESC, m.id DESC", ChatMessage.class)
+                .setParameter("joi", joi).setParameter("log", ChatMessageType.LOG).setParameter("since", since).setMaxResults(limit).getResultList());
+        Collections.reverse(latest);
+        return latest;
+    }
+
+    @Override
     public List<ChatMessage> findBefore(Joi joi, ChatMessage first, int limit) throws Exception {
         List<ChatMessage> earlier = new ArrayList<>(entityManager.createQuery("SELECT m FROM ChatMessage m WHERE m.deleted = false AND m.joi = :joi "
                         + "AND (m.sentAt < :sentAt OR (m.sentAt = :sentAt AND m.id < :id)) ORDER BY m.sentAt DESC, m.id DESC", ChatMessage.class)

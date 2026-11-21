@@ -11,6 +11,18 @@ public class SummaryTemplateData extends JoiTemplateData {
     @JoiTemplateDescription(loc = J_L.DESC_TEMPLATE_CONVERSATION)
     private String conversation;
 
+    /** When the conversation took place, as dates and times. */
+    @JoiTemplateDescription(loc = J_L.DESC_TEMPLATE_SPAN)
+    private String span;
+
+    public String getSpan() {
+        return span;
+    }
+
+    public void setSpan(String span) {
+        this.span = span;
+    }
+
     public String getConversation() {
         return conversation;
     }

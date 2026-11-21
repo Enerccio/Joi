@@ -5,9 +5,11 @@ import com.github.enerccio.joi.domain.chat.ChatService;
 import com.github.enerccio.joi.domain.chat.ToolUsage;
 import com.github.enerccio.joi.domain.chat.turn.TurnControllerEvent.Registration;
 import com.github.enerccio.joi.domain.chat.turn.TurnInput;
+import com.github.enerccio.joi.domain.collections.ChatMessageType;
 import com.github.enerccio.joi.domain.model.impl.ChatMessage;
 import com.github.enerccio.joi.domain.model.impl.Joi;
 import com.github.enerccio.joi.domain.service.ChatMessageService;
+import com.github.enerccio.joi.domain.service.SummarizerService;
 import com.github.enerccio.joi.loc.J_L;
 import com.github.enerccio.joi.ui.JoiCssStyles;
 import com.github.enerccio.joi.ui.widgets.LongText;
@@ -18,6 +20,7 @@ import com.github.enerccio.marginalia.loc.Localization;
 import com.github.enerccio.marginalia.ui.dialogs.ConfirmDialog;
 import com.github.enerccio.marginalia.ui.JavascriptLibrary;
 import com.github.enerccio.marginalia.ui.widgets.LazyLoadIndicator;
+import com.github.enerccio.marginalia.ui.widgets.Notification;
 import com.github.enerccio.marginalia.ui.widgets.ScrollPanel;
 import com.github.enerccio.marginalia.utils.UIUtils;
 import com.vaadin.flow.component.Component;
@@ -72,6 +75,9 @@ public class JoiChatsPart implements JoiDialogPart {
     @Autowired
     private ChatService chatService;
 
+    @Autowired
+    private SummarizerService summarizerService;
+
     private final DateFormat format = DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT);
     private VerticalLayout layout;
     private ScrollPanel panel;
@@ -88,6 +94,7 @@ public class JoiChatsPart implements JoiDialogPart {
     private Long anchor;
     private Div toolbar;
     private Button deleteSelectedButton;
+    private Button summarizeButton;
     /** What was asked for and has no reply yet, by turn, oldest first: shown below the transcript, and its card. */
     private final Map<String, Waiting> waiting = new LinkedHashMap<>();
     private Registration watching;
@@ -119,7 +126,10 @@ public class JoiChatsPart implements JoiDialogPart {
         deleteSelectedButton = new Button(loc.getValue(L.LABEL_DELETE_SELECTED), Solid.TRASH.create(), e -> deleteChecked());
         deleteSelectedButton.setThemeName("error");
         deleteSelectedButton.setEnabled(false);
-        toolbar = new Div(hint, deleteSelectedButton);
+        summarizeButton = new Button(loc.getValue(J_L.LABEL_SUMMARIZE_CHECKED), Solid.COMPRESS.create(), e -> summarizeChecked());
+        summarizeButton.setTooltipText(loc.getValue(J_L.MSG_CHATS_SUMMARIZE_HINT));
+        summarizeButton.setEnabled(false);
+        toolbar = new Div(hint, summarizeButton, deleteSelectedButton);
         toolbar.addClassName(JoiCssStyles.CHAT_TOOLBAR);
 
         layout = new VerticalLayout(empty, toolbar, panel);
@@ -375,8 +385,65 @@ public class JoiChatsPart implements JoiDialogPart {
 
     private void checkedChanged() {
         deleteSelectedButton.setEnabled(!checked.isEmpty());
+        summarizeButton.setEnabled(!checked.isEmpty());
         deleteSelectedButton.setText(checked.isEmpty() ? loc.getValue(L.LABEL_DELETE_SELECTED)
                 : loc.getValue(L.LABEL_DELETE_SELECTED) + " (" + checked.size() + ")");
+    }
+
+    /**
+     * Summarizes the checked messages. A summary never leaves a gap: it starts where the one before it ended, so all the
+     * messages from there to the last one checked are checked too (the ones that are summarized already are not), and the
+     * user is asked about that range before it is queued. Cancelled, the selection is as it was.
+     */
+    private void summarizeChecked() {
+        try {
+            ChatMessage last = null;
+            for (ChatMessage message : shown) {
+                if (checked.contains(message.getId()) && message.getType() != ChatMessageType.LOG) {
+                    last = message;
+                }
+            }
+            if (last == null) {
+                return;
+            }
+            List<ChatMessage> range = summarizerService.rangeUpTo(joi, last);
+            if (range.isEmpty()) {
+                Notification.warning(loc.getValue(J_L.MSG_SUMMARY_NOTHING));
+                return;
+            }
+            Set<Long> before = new LinkedHashSet<>(checked);
+            Set<Long> wanted = new LinkedHashSet<>();
+            range.forEach(m -> wanted.add(m.getId()));
+            for (ChatMessage message : shown) {
+                setChecked(message.getId(), wanted.contains(message.getId()));
+            }
+            checkedChanged();
+            ChatMessage through = last;
+            ConfirmDialog.show(String.format(loc.getValue(J_L.MSG_CONFIRM_SUMMARIZE), range.size(), format.format(range.getFirst().getSentAt()),
+                    format.format(range.getLast().getSentAt())), () -> summarize(through), () -> restoreChecked(before));
+        } catch (Exception e) {
+            UIUtils.internalServerError(loc, e);
+        }
+    }
+
+    private void summarize(ChatMessage last) {
+        try {
+            summarizerService.summarize(joi, last);
+            new ArrayList<>(checked).forEach(id -> setChecked(id, false));
+            checkedChanged();
+            Notification.success(loc.getValue(J_L.MSG_SUMMARY_QUEUED));
+        } catch (IllegalArgumentException | IllegalStateException e) {
+            Notification.warning(e.getMessage());
+        } catch (Exception e) {
+            UIUtils.internalServerError(loc, e);
+        }
+    }
+
+    private void restoreChecked(Set<Long> before) {
+        for (ChatMessage message : shown) {
+            setChecked(message.getId(), before.contains(message.getId()));
+        }
+        checkedChanged();
     }
 
     private void deleteChecked() {
@@ -552,6 +619,33 @@ public class JoiChatsPart implements JoiDialogPart {
     /** The ids of the checked messages, for tests. */
     Set<Long> getChecked() {
         return checked;
+    }
+
+    /** Presses Summarize, then confirms (true) or cancels (false) the question, for tests. */
+    void summarizeForTest(boolean confirm) {
+        ChatMessage last = null;
+        for (ChatMessage message : shown) {
+            if (checked.contains(message.getId())) {
+                last = message;
+            }
+        }
+        try {
+            List<ChatMessage> range = summarizerService.rangeUpTo(joi, last);
+            Set<Long> before = new LinkedHashSet<>(checked);
+            Set<Long> wanted = new LinkedHashSet<>();
+            range.forEach(m -> wanted.add(m.getId()));
+            for (ChatMessage message : shown) {
+                setChecked(message.getId(), wanted.contains(message.getId()));
+            }
+            checkedChanged();
+            if (confirm) {
+                summarize(last);
+            } else {
+                restoreChecked(before);
+            }
+        } catch (Exception e) {
+            throw new IllegalStateException(e);
+        }
     }
 
     /** Deletes the checked messages as the confirmed button does, for tests. */

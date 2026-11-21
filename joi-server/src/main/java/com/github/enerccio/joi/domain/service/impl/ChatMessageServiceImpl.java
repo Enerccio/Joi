@@ -105,6 +105,12 @@ public class ChatMessageServiceImpl extends ExtendableServiceImpl<ChatMessage, C
 
     @Override
     @CommonTxReadOnly
+    public List<ChatMessage> findLatestExchangesSince(Joi joi, Date since, int limit) throws Exception {
+        return getRepository().findLatestExchangesSince(joi, since, limit);
+    }
+
+    @Override
+    @CommonTxReadOnly
     public List<ChatMessage> findBefore(Joi joi, ChatMessage first, int limit) throws Exception {
         return getRepository().findBefore(joi, first, limit);
     }

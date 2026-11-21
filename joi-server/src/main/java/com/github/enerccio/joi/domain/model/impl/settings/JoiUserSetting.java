@@ -180,6 +180,57 @@ public class JoiUserSetting extends BaseUserSetting implements PersonaAttributes
     @Transient
     private Integer pauseMinutes;
 
+    /** The AI that writes summaries (marked Summary), null for none: the small-jobs model is used then, see {@code SummaryModels}. */
+    @ExtendedAttribute
+    @Transient
+    @CleanupReference(value = Policy.WEAK, target = AI.class)
+    private Long summaryModel;
+
+    /** Whether she summarizes the oldest messages on her own when the unsummarized ones pass {@link #autoSummaryTokens}; null for the next link. */
+    @ExtendedAttribute
+    @Transient
+    private Boolean autoSummary;
+
+    /** The tokens of unsummarized messages after which she summarizes the oldest of them (at most the context of her chat model); null for the next link. */
+    @ExtendedAttribute
+    @Transient
+    private Integer autoSummaryTokens;
+
+    /** When the summary of the past week may be made on the first day of the next one ({@code HH:mm}), blank for the next link. */
+    @ExtendedAttribute
+    @Transient
+    private String weeklySummaryTime;
+
+    /** When the summary of the past month may be made on the first day of the next one ({@code HH:mm}), blank for the next link. */
+    @ExtendedAttribute
+    @Transient
+    private String monthlySummaryTime;
+
+    /** When the summary of the past year may be made on the first day of the next one ({@code HH:mm}), blank for the next link. */
+    @ExtendedAttribute
+    @Transient
+    private String yearlySummaryTime;
+
+    /** Rolls the summaries of a week up into the week summary ({@code PeriodSummaryTemplateData}). */
+    @ExtendedAttribute
+    @Transient
+    private String weekSummaryPrompt;
+
+    /** Rolls the summaries of a month up into the month summary ({@code PeriodSummaryTemplateData}). */
+    @ExtendedAttribute
+    @Transient
+    private String monthSummaryPrompt;
+
+    /** Rolls the summaries of a year up into the year summary ({@code PeriodSummaryTemplateData}). */
+    @ExtendedAttribute
+    @Transient
+    private String yearSummaryPrompt;
+
+    /** What she is told when a summary was made ({@code SummaryEventTemplateData}). */
+    @ExtendedAttribute
+    @Transient
+    private String summaryEvent;
+
     public String getAssistantName() {
         return assistantName;
     }
@@ -352,6 +403,86 @@ public class JoiUserSetting extends BaseUserSetting implements PersonaAttributes
 
     public void setPauseMinutes(Integer pauseMinutes) {
         this.pauseMinutes = pauseMinutes;
+    }
+
+    public Long getSummaryModel() {
+        return summaryModel;
+    }
+
+    public void setSummaryModel(Long summaryModel) {
+        this.summaryModel = summaryModel;
+    }
+
+    public Boolean getAutoSummary() {
+        return autoSummary;
+    }
+
+    public void setAutoSummary(Boolean autoSummary) {
+        this.autoSummary = autoSummary;
+    }
+
+    public Integer getAutoSummaryTokens() {
+        return autoSummaryTokens;
+    }
+
+    public void setAutoSummaryTokens(Integer autoSummaryTokens) {
+        this.autoSummaryTokens = autoSummaryTokens;
+    }
+
+    public String getWeeklySummaryTime() {
+        return weeklySummaryTime;
+    }
+
+    public void setWeeklySummaryTime(String weeklySummaryTime) {
+        this.weeklySummaryTime = weeklySummaryTime;
+    }
+
+    public String getMonthlySummaryTime() {
+        return monthlySummaryTime;
+    }
+
+    public void setMonthlySummaryTime(String monthlySummaryTime) {
+        this.monthlySummaryTime = monthlySummaryTime;
+    }
+
+    public String getYearlySummaryTime() {
+        return yearlySummaryTime;
+    }
+
+    public void setYearlySummaryTime(String yearlySummaryTime) {
+        this.yearlySummaryTime = yearlySummaryTime;
+    }
+
+    public String getWeekSummaryPrompt() {
+        return weekSummaryPrompt;
+    }
+
+    public void setWeekSummaryPrompt(String weekSummaryPrompt) {
+        this.weekSummaryPrompt = weekSummaryPrompt;
+    }
+
+    public String getMonthSummaryPrompt() {
+        return monthSummaryPrompt;
+    }
+
+    public void setMonthSummaryPrompt(String monthSummaryPrompt) {
+        this.monthSummaryPrompt = monthSummaryPrompt;
+    }
+
+    public String getYearSummaryPrompt() {
+        return yearSummaryPrompt;
+    }
+
+    public void setYearSummaryPrompt(String yearSummaryPrompt) {
+        this.yearSummaryPrompt = yearSummaryPrompt;
+    }
+
+    public String getSummaryEvent() {
+        return summaryEvent;
+    }
+
+    public void setSummaryEvent(String summaryEvent) {
+        this.summaryEvent = summaryEvent;
     }
 
     @Override

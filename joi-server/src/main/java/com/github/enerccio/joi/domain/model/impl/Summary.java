@@ -39,6 +39,24 @@ public class Summary extends ExtendableEntity {
     @Column(nullable = false)
     private boolean privateMode;
 
+    /**
+     * Made from messages and still to be rolled into its day: a part of a day (after a pause, when the conversation grew
+     * or by hand). The day's summary, the week's and the rest are made from other summaries and are not partial.
+     */
+    @ExtendedAttribute
+    @Transient
+    private Boolean partial;
+
+    /** Why it was made: {@code quiet}, {@code auto}, {@code manual} or {@code roll}; null for none. */
+    @ExtendedAttribute
+    @Transient
+    private String origin;
+
+    /** How many messages it was made from, null when it was made from summaries. */
+    @ExtendedAttribute
+    @Transient
+    private Integer messageCount;
+
     @ExtendedAttribute
     @Fulltextable
     @Transient
@@ -103,6 +121,30 @@ public class Summary extends ExtendableEntity {
 
     public void setPrivateMode(boolean privateMode) {
         this.privateMode = privateMode;
+    }
+
+    public boolean isPartial() {
+        return Boolean.TRUE.equals(partial);
+    }
+
+    public void setPartial(boolean partial) {
+        this.partial = partial ? Boolean.TRUE : null;
+    }
+
+    public String getOrigin() {
+        return origin;
+    }
+
+    public void setOrigin(String origin) {
+        this.origin = origin;
+    }
+
+    public Integer getMessageCount() {
+        return messageCount;
+    }
+
+    public void setMessageCount(Integer messageCount) {
+        this.messageCount = messageCount;
     }
 
     public String getSummary() {

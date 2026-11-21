@@ -1033,4 +1033,19 @@ class NodeServiceTest extends PlatformTestBase {
         node.next("done");
         assertThat(chatMessageService.findLatest(joi, 1).getFirst().getInput()).contains("The answer.");
     }
+
+    @Test
+    void aSummaryThatWasMadeIsToldAsATurnOfItsOwnKindSoItsAnswerMakesNoSummary() throws Exception {
+        llm.enqueue(MockLLMResponse.text("Noted, thank you."));
+        Node node = connect("Bearer " + token);
+        node.hello("n1", "desk", joi.getUuid(), "1.5");
+        node.next("welcome");
+        node.manifest(1);
+        assertThat(nodeService.tell(joi, "[Memory] the day was summarized.", "summary_created")).isTrue();
+        assertThat(node.next("turn").getAsJsonObject("data").get("cause").getAsString()).isEqualTo("summary_created");
+        node.next("done");
+        // the stored message is marked, which is how the next summary knows it only answers one
+        ChatMessage told = chatMessageService.findLatest(joi, 1).getFirst();
+        assertThat(told.getEventKind()).isEqualTo("node.summary_created");
+    }
 }

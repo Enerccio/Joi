@@ -10,7 +10,7 @@ import com.github.enerccio.joi.ui.dialogs.joi.JoiBodiesPart;
 import com.github.enerccio.joi.ui.dialogs.joi.JoiChatsPart;
 import com.github.enerccio.joi.ui.dialogs.joi.JoiMemoriesPart;
 import com.github.enerccio.joi.ui.dialogs.joi.JoiDialogPart;
-import com.github.enerccio.joi.ui.dialogs.joi.JoiNothingYetPart;
+import com.github.enerccio.joi.ui.dialogs.joi.JoiSummariesPart;
 import com.github.enerccio.joi.ui.dialogs.joi.JoiTasksPart;
 import com.github.enerccio.joi.ui.dialogs.joi.JoiTemplatesPart;
 import com.github.enerccio.marginalia.CssStyles;
@@ -37,7 +37,7 @@ import java.util.Map;
  *     <li>About: her name, what she calls the user, her personality, the models of the roles and her voice;</li>
  *     <li>Bodies: her bodies and the one she is in ({@link JoiBodiesPart});</li>
  *     <li>Templates: her prompts;</li>
- *     <li>Memories, Summaries: empty for now;</li>
+ *     <li>Summaries: what she remembers of the past, newest first (see {@link JoiSummariesPart});</li>
  *     <li>Chats: her conversation, read only ({@link JoiChatsPart}).</li>
  * </ul>
  * An empty field is not set: the user's setting is used, shown greyed out.
@@ -58,6 +58,7 @@ public class JoiDialog extends Dialog {
     private final Map<JoiDialogPart, Component> parts = new LinkedHashMap<>();
     private JoiAboutPart aboutPart;
     private JoiTemplatesPart templatesPart;
+    private JoiSummariesPart summariesPart;
     private JoiChatsPart chatsPart;
     private JoiMemoriesPart memoriesPart;
     private JoiBodiesPart bodiesPart;
@@ -85,7 +86,7 @@ public class JoiDialog extends Dialog {
         aboutPart = new JoiAboutPart(this);
         templatesPart = new JoiTemplatesPart(this);
         for (JoiDialogPart part : List.of(aboutPart, bodiesPart = new JoiBodiesPart(), animationsPart = new JoiAnimationsPart(this), templatesPart, memoriesPart = new JoiMemoriesPart(),
-                new JoiNothingYetPart(J_L.LABEL_SUMMARIES), chatsPart = new JoiChatsPart(), tasksPart = new JoiTasksPart())) {
+                summariesPart = new JoiSummariesPart(), chatsPart = new JoiChatsPart(), tasksPart = new JoiTasksPart())) {
             Component content = part.create();
             parts.put(part, content);
             tabs.add(loc.getValue(part.caption()), content);
@@ -179,6 +180,11 @@ public class JoiDialog extends Dialog {
 
     public JoiChatsPart getChatsPart() {
         return chatsPart;
+    }
+
+    /** The Summaries tab, for tests. */
+    public JoiSummariesPart getSummariesPart() {
+        return summariesPart;
     }
 
     /** The Bodies tab, for tests. */

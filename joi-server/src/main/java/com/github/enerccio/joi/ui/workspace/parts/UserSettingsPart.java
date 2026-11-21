@@ -21,6 +21,7 @@ import com.github.enerccio.joi.ui.dialogs.PersonalityDialog;
 import com.github.enerccio.joi.ui.dialogs.SystemPromptPreviewDialog;
 import com.github.enerccio.joi.ui.widgets.PromptAreas;
 import com.github.enerccio.joi.ui.widgets.RoleModels;
+import com.github.enerccio.joi.ui.widgets.SummaryFields;
 import com.github.enerccio.joi.ui.workspace.WorkspacePart;
 import com.github.enerccio.marginalia.CssStyles;
 import com.github.enerccio.marginalia.UIConstants;
@@ -111,7 +112,7 @@ public class UserSettingsPart implements WorkspacePart {
     private Select<TtsModel> ttsModelSelect;
     private Select<Actor> voiceActorSelect;
     private TimePicker dayBoundaryPicker;
-    private IntegerField pauseField;
+    private SummaryFields summaryFields;
     private final Map<JoiPromptField, TextAreaPopoverComponent> promptAreas = new EnumMap<>(JoiPromptField.class);
     private Grid<Personality> personalityGrid;
     private Grid<Mood> moodGrid;
@@ -221,17 +222,14 @@ public class UserSettingsPart implements WorkspacePart {
         dayBoundaryPicker.setPlaceholder(JoiDefaults.DAY_BOUNDARY);
         dayBoundaryPicker.setClearButtonVisible(true);
 
-        pauseField = new IntegerField(loc.getValue(J_L.LABEL_PAUSE_MINUTES));
-        pauseField.setMin(1);
-        pauseField.setStepButtonsVisible(true);
-        pauseField.setPlaceholder(String.valueOf(JoiDefaults.PAUSE_MINUTES));
-        pauseField.setHelperText(loc.getValue(J_L.HELP_PAUSE_MINUTES));
+        summaryFields = new SummaryFields().create();
 
         FormLayout form = new FormLayout();
         form.setResponsiveSteps(new FormLayout.ResponsiveStep("0", 1), new FormLayout.ResponsiveStep("40em", 2));
         form.add(assistantNameField, userNameField, personalitySelect);
         modelBoxes.values().forEach(form::add);
-        form.add(ttsModelSelect, voiceActorSelect, dayBoundaryPicker, pauseField);
+        form.add(ttsModelSelect, voiceActorSelect, dayBoundaryPicker);
+        summaryFields.addTo(form);
         form.addClassName(CssStyles.FORM_PADDING_BOTTOM);
         return form;
     }
@@ -405,7 +403,8 @@ public class UserSettingsPart implements WorkspacePart {
     private List<HasValue<?, ?>> trackedFields() {
         List<HasValue<?, ?>> fields = new ArrayList<>(List.of(assistantNameField, userNameField, personalitySelect));
         fields.addAll(modelBoxes.values());
-        fields.addAll(List.of(ttsModelSelect, voiceActorSelect, dayBoundaryPicker, pauseField));
+        fields.addAll(List.of(ttsModelSelect, voiceActorSelect, dayBoundaryPicker));
+        fields.addAll(summaryFields.fields());
         fields.addAll(promptAreas.values());
         return fields;
     }
@@ -491,7 +490,7 @@ public class UserSettingsPart implements WorkspacePart {
         voiceActorSelect.setValue(find(actors, Actor::getId, setting.getVoiceActor()));
 
         dayBoundaryPicker.setValue(parseTime(setting.getDayBoundary()));
-        pauseField.setValue(setting.getPauseMinutes());
+        summaryFields.load(setting, null, ais, RoleModels.find(ais, setting.getChatModel()));
 
         for (JoiPromptField field : JoiPromptField.values()) {
             TextAreaPopoverComponent area = promptAreas.get(field);
@@ -565,7 +564,7 @@ public class UserSettingsPart implements WorkspacePart {
             setting.setTtsModel(ttsModelSelect.getValue() == null ? null : ttsModelSelect.getValue().getId());
             setting.setVoiceActor(voiceActorSelect.getValue() == null ? null : voiceActorSelect.getValue().getId());
             setting.setDayBoundary(dayBoundaryPicker.getValue() == null ? null : dayBoundaryPicker.getValue().toString());
-            setting.setPauseMinutes(pauseField.getValue());
+            summaryFields.save(setting);
             for (JoiPromptField field : JoiPromptField.values()) {
                 field.setOfUser(setting, promptAreas.get(field).getValue());
             }
@@ -611,6 +610,10 @@ public class UserSettingsPart implements WorkspacePart {
 
     ComboBox<AI> getModelBox(TextLLMType type) {
         return modelBoxes.get(type);
+    }
+
+    SummaryFields getSummaryFields() {
+        return summaryFields;
     }
 
     TextAreaPopoverComponent getPromptArea(JoiPromptField field) {

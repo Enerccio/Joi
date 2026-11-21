@@ -31,16 +31,19 @@ Every event that went in a merge is marked handled with the one that is told.
 ## The kinds
 
 `persona.renamed`, `persona.user_renamed`, `persona.personality`, `persona.voice` (only after she has chatted: before that it is the initial setup);
-`body.switched`, `body.part_switched`, `body.outfit_changed`, `body.added`, `body.described`; `task.finished`, `task.failed`, `task.denied`; and the
+`body.switched`, `body.part_switched`, `body.outfit_changed`, `body.added`, `body.described`; `task.finished`, `task.failed`, `task.denied`; `summary.created`
+(a summary was made, see [Summaries](summaries.md)); and the
 events a node starts: `node.first_boot`, `node.connected`, `node.looking_glass_entered`, `node.looking_glass_exited`, `node.server_restarted`,
 `node.part_switched`.
 
 ## Causes of a turn started by the server
 
 A turn the server starts has a cause, sent to the node in the `turn` frame: `first_boot`, `connected`, `looking_glass_entered`,
-`looking_glass_exited`, `part_switched`, `server_restarted`, `events_waited`, `task_ended`. Each has a template that the user can change
+`looking_glass_exited`, `part_switched`, `server_restarted`, `events_waited`, `task_ended`, `summary_created`. Each has a template that the user can change
 (`JoiPromptField.FIRST_BOOT_EVENT`, `CONNECTED_EVENT`, `LOOKING_GLASS_ENTERED_EVENT`, `LOOKING_GLASS_EXITED_EVENT`, `SERVER_RESTARTED_EVENT`, `PART_REQUEST_EVENT`,
-`TASK_EVENT`) and is stored as an event message.
+`TASK_EVENT`, `SUMMARY_EVENT`) and is stored as an event message. The message of a `summary_created` turn is stored with the kind `node.summary_created`: the
+summaries skip it when they decide whether a conversation has anything to summarize, or her reaction to a summary would be summarized, and
+that reaction told again, for ever.
 
 Changes made on a node reach the server's `NodeSession`, which gathers what it has not told her yet: after the last event it waits 1.5 s, and while a turn of
 hers runs it waits for the turn to end, then starts one turn whose input has the text of every event, one per line, in order.

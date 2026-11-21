@@ -36,8 +36,13 @@ replaced by the exchange when her reply is stored. The turns of one assistant ru
 A message has a trash button. Or check messages and delete them together; shift-click checks a range. A deleted message is
 gone from what she is shown next time: the prompt is built from the stored history on every turn.
 
+## Summarizing
+
+Check a message and press **Summarize** to have the messages up to it written down as a summary. All the messages since the last
+summary are checked too, so there is no gap, and you are asked first. See [Summaries](summaries.md).
+
 ## What she is shown
 
-Each turn she gets her system prompt, the latest messages of the history, and, in front of a message after a pause or on a
+Each turn she gets her system prompt (with her [summaries](summaries.md) of what is older), the latest messages no summary covers, and, in front of a message after a pause or on a
 new day, a line with the date and time it was said. She is told the time that way and not in the system prompt, so the
 prompt stays the same from turn to turn and the model can reuse its work on it.

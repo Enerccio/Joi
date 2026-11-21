@@ -141,4 +141,48 @@ public interface PersonaAttributes {
     Integer getPauseMinutes();
 
     void setPauseMinutes(Integer pauseMinutes);
+
+    /** The AI that writes summaries, null when not set. */
+    Long getSummaryModel();
+
+    void setSummaryModel(Long summaryModel);
+
+    /** Whether she summarizes the oldest messages on her own when too many are unsummarized, null when not set. */
+    Boolean getAutoSummary();
+
+    void setAutoSummary(Boolean autoSummary);
+
+    /** The tokens of unsummarized messages after which she does, null when not set. */
+    Integer getAutoSummaryTokens();
+
+    void setAutoSummaryTokens(Integer autoSummaryTokens);
+
+    /** The time ({@code HH:mm}) the summary of the past week is made, blank when not set. */
+    String getWeeklySummaryTime();
+
+    void setWeeklySummaryTime(String weeklySummaryTime);
+
+    String getMonthlySummaryTime();
+
+    void setMonthlySummaryTime(String monthlySummaryTime);
+
+    String getYearlySummaryTime();
+
+    void setYearlySummaryTime(String yearlySummaryTime);
+
+    String getWeekSummaryPrompt();
+
+    void setWeekSummaryPrompt(String weekSummaryPrompt);
+
+    String getMonthSummaryPrompt();
+
+    void setMonthSummaryPrompt(String monthSummaryPrompt);
+
+    String getYearSummaryPrompt();
+
+    void setYearSummaryPrompt(String yearSummaryPrompt);
+
+    String getSummaryEvent();
+
+    void setSummaryEvent(String summaryEvent);
 }

@@ -15,7 +15,9 @@ import com.github.enerccio.joi.domain.templates.PartRequestTemplateData;
 import com.github.enerccio.joi.domain.templates.TaskEventTemplateData;
 import com.github.enerccio.joi.domain.templates.WebTaskTemplateData;
 import com.github.enerccio.joi.domain.templates.SelfImageTemplateData;
+import com.github.enerccio.joi.domain.templates.SummaryEventTemplateData;
 import com.github.enerccio.joi.domain.templates.SummaryTemplateData;
+import com.github.enerccio.joi.domain.templates.PeriodSummaryTemplateData;
 import com.github.enerccio.marginalia.domain.templates.TemplateData;
 import org.apache.commons.lang3.StringUtils;
 
@@ -34,6 +36,14 @@ public enum JoiPromptField {
             JoiDefaults::summaryPrompt),
     DAY_SUMMARY_PROMPT("daySummaryPrompt", DaySummaryTemplateData.class, PersonaAttributes::getDaySummaryPrompt,
             PersonaAttributes::setDaySummaryPrompt, JoiDefaults::daySummaryPrompt),
+    WEEK_SUMMARY_PROMPT("weekSummaryPrompt", PeriodSummaryTemplateData.class, PersonaAttributes::getWeekSummaryPrompt,
+            PersonaAttributes::setWeekSummaryPrompt, JoiDefaults::weekSummaryPrompt),
+    MONTH_SUMMARY_PROMPT("monthSummaryPrompt", PeriodSummaryTemplateData.class, PersonaAttributes::getMonthSummaryPrompt,
+            PersonaAttributes::setMonthSummaryPrompt, JoiDefaults::monthSummaryPrompt),
+    YEAR_SUMMARY_PROMPT("yearSummaryPrompt", PeriodSummaryTemplateData.class, PersonaAttributes::getYearSummaryPrompt,
+            PersonaAttributes::setYearSummaryPrompt, JoiDefaults::yearSummaryPrompt),
+    SUMMARY_EVENT("summaryEvent", SummaryEventTemplateData.class, PersonaAttributes::getSummaryEvent,
+            PersonaAttributes::setSummaryEvent, JoiDefaults::summaryEvent),
     FACTS_PROMPT("factsPrompt", FactsTemplateData.class, PersonaAttributes::getFactsPrompt, PersonaAttributes::setFactsPrompt,
             JoiDefaults::factsPrompt),
     BODY_PROMPT("bodyPrompt", BodyTemplateData.class, PersonaAttributes::getBodyPrompt, PersonaAttributes::setBodyPrompt,

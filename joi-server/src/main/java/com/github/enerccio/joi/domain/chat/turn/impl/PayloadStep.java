@@ -5,6 +5,7 @@ import com.github.enerccio.joi.domain.chat.MessageStamps;
 import com.github.enerccio.joi.domain.model.impl.Joi;
 import com.github.enerccio.joi.domain.persona.JoiPromptField;
 import com.github.enerccio.joi.domain.service.MemoryService;
+import com.github.enerccio.joi.domain.service.SummarizerService;
 import com.github.enerccio.joi.domain.templates.RecalledMemoriesTemplateData;
 import com.github.enerccio.joi.domain.chat.turn.TurnController;
 import com.github.enerccio.joi.domain.chat.turn.TurnEvents;
@@ -22,7 +23,7 @@ import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 
-/** Her system prompt, the latest messages ({@link ChatService#HISTORY}) and what the user said. */
+/** Her system prompt, the latest messages no summary covers ({@link ChatService#HISTORY}) and what the user said. */
 public class PayloadStep extends TurnStepBase {
 
     @Autowired
@@ -33,6 +34,9 @@ public class PayloadStep extends TurnStepBase {
 
     @Autowired
     private MemoryService memoryService;
+
+    @Autowired
+    private SummarizerService summarizerService;
 
     /** How many memories that fit what was said are added to it at most. */
     private static final int RECALLED = 10;
@@ -45,7 +49,8 @@ public class PayloadStep extends TurnStepBase {
         List<LLMChatMessage> payload = new ArrayList<>();
         payload.add(LLMChatMessage.of(LLMRole.SYSTEM, system));
         // one more than the prompt holds: the message before the first one decides whether that one gets a time line
-        List<ChatMessage> window = chatMessageService.findLatestExchanges(joi, ChatService.HISTORY + 1);
+        // what a summary covers is in her system prompt instead, so the history starts where the summaries end
+        List<ChatMessage> window = chatMessageService.findLatestExchangesSince(joi, summarizerService.coveredUpTo(joi), ChatService.HISTORY + 1);
         Date previous = null;
         if (window.size() > ChatService.HISTORY) {
             previous = window.getFirst().getSentAt();
