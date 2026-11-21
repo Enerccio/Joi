@@ -7,7 +7,7 @@ covers:
   - joi-server/src/main/java/com/github/enerccio/joi/domain/service/SummarizerService.java
   - joi-server/src/main/java/com/github/enerccio/joi/domain/service/impl/SummarizerServiceImpl.java
   - joi-server/src/main/java/com/github/enerccio/joi/domain/service/impl/SummaryServiceImpl.java
-verified: ed86d8f
+verified: 7c29655
 ---
 
 # Summaries

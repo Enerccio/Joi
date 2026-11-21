@@ -5,7 +5,7 @@ order: 770
 covers:
   - joi-server/src/main/java/com/github/enerccio/joi/domain
   - joi-server/src/main/resources/META-INF/spring
-verified: ed86d8f
+verified: 7c29655
 ---
 
 # Project structure

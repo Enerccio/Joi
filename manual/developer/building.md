@@ -9,7 +9,7 @@ covers:
   - Dockerfile
   - docker-compose.yml
   - docker-entrypoint.sh
-verified: 7084150
+verified: 7c29655
 ---
 
 # Building

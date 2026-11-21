@@ -8,6 +8,7 @@ covers:
   - joi-server/src/main/java/com/github/enerccio/joi/ui/jobs
   - joi-server/src/main/java/com/github/enerccio/joi/ui/main/JoiJobsView.java
   - joi-server/src/main/java/com/github/enerccio/joi/ui/main/JoiServlet.java
+verified: 7c29655
 ---
 
 # Jobs
