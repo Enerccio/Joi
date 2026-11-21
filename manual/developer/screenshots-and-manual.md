@@ -7,7 +7,7 @@ covers:
   - tools/retype_build.sh
   - tools/check_dev_docs.py
   - joi-node/src/main/java/com/github/enerccio/joi/node/fx/NodeShots.java
-verified: b6f812e
+verified: 7570558
 ---
 
 # Screenshots and the manual
@@ -41,7 +41,9 @@ bin/publish.sh --dry ; bin/publish.sh            # compare / copy out/*.png to m
 bin/shoot-some.sh 01-admin shoot-workspace.mjs   # restore a state and run only those flows
 ```
 
-The chain (`bin/chain.txt`) lists each step: a flow and the snapshot taken after it. Rules: one state per picture; never use real data; after a flow fails
+The chain (`bin/chain.txt`) lists each step: a flow and the snapshot taken after it. It ends with the clips and animations made from `tmp/animations`
+(`08-animations`) and a conversation with a memory and a task that waits (`09-conversation`, which needs the fake model). Flows that only look
+(`shoot-settings`, `shoot-joi`, `shoot-model`) run on any late step, `node-chat` on `09-conversation`, and `bin/crop-node.sh` cuts two pictures out of the node's windows. Rules: one state per picture; never use real data; after a flow fails
 restore the step; coordinates are for 1920x932 and a control's text beats a coordinate; look at the pictures with your own eyes before publishing.
 
 ## The node's screenshot mode
