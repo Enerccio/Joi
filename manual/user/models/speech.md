@@ -24,7 +24,7 @@ Open **Models → TTS Models** and press **Add TTS model**. A TTS model is one s
 | **Timeout**, **Audio format**, **Speed**, **CFG weight**, **Chunk size** | speech defaults |
 | **Precision** (Higgs) | fp32 is the safe choice |
 
-**Test** takes the GPU lock and asks the server whether the model is loaded. Nothing is spoken.
+**Test Connection** takes the GPU lock and asks the server whether the model is loaded. Nothing is spoken.
 
 ## A voice actor
 

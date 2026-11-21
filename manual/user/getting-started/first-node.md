@@ -29,13 +29,13 @@ list, the last one first. Press **Connect**.
 How the node signs in depends on the server:
 
 - On a development server (`mvn jetty:run`) with no authentication it needs nothing.
-- Otherwise it pairs by the **device grant**: it shows a code like `WDJB-MJHT` and a link. Open the link in the server's UI
+- Leave the token field empty and the node pairs by the **device grant**: it shows a code like `WDJB-MJHT` and a link. Open the link in the server's UI
   after you sign in, or open **User Settings → Access → Connect a device** and type the code, then press **Approve**. The
   node goes on by itself.
-- Or it asks for a **token**: make one in **User Settings → Access → Create token** and paste it. See
+- Or type a **token** into the field: make one in **User Settings → Access → Create token**. See
   [Access tokens](../access.md).
 
-The server and its pairing are remembered. **Forget this server** (in the Joi menu) removes them.
+The server and its pairing are remembered. The **Forget this server** button on the same screen removes them.
 
 ## Choose her
 
