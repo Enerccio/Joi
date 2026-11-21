@@ -10,7 +10,7 @@ order: 990
 
 - JDK 25 or newer. Set `JAVA_HOME` to it for Maven.
 - Maven 3.9 and Git, to build from source.
-- Node.js 20 or newer is downloaded by the build for the production bundle of the web UI.
+- Network access for the first build, which fetches the web UI's packages for the production bundle.
 
 ## Get the source and build
 

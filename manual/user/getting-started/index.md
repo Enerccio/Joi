@@ -23,7 +23,7 @@ Then give her a body in [Bodies](../bodies/index.md), a voice in [Speech](../mod
 |---|---|
 | Java 25 or newer | running the server and the nodes |
 | Maven 3.9 | building from source |
-| A text model server | her thinking: any OpenAI compatible endpoint (llama.cpp, LM Studio, Ollama, vLLM, OpenRouter, a hosted API) or an Anthropic or Google model |
+| A text model server | her thinking: any OpenAI compatible endpoint (llama.cpp, LM Studio, Ollama, vLLM, OpenRouter, or a hosted API that speaks that protocol) |
 | A speech server (optional) | her voice: Chatterbox-TTS-Server, or ComfyUI with Higgs Audio v3 |
 | Blender with the VRM add-on (optional) | converting FBX avatars and FBX or BVH animations; not needed for models that are already VRM |
 | Google Chrome (optional) | showing her on a Looking Glass |
