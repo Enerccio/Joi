@@ -21,12 +21,12 @@ Status: `[ ]` to take, `[x]` taken and published, `[-]` dropped (why).
 | [x] | `tts-models` | models/speech.md | `shoot-settings` | Models → TTS Models |
 | [x] | `voice-actors` | models/speech.md | `shoot-settings` | Models → Voice Actors |
 | [x] | `text-model-dialog` | models/text-models.md | `shoot-settings` | the dialog of a text model |
-| [ ] | `joi-templates` | jois/persona.md | `shoot-joi` | her dialog, Templates tab |
-| [ ] | `joi-memories-empty` | jois/memory.md | `shoot-joi` | her dialog, Memories tab, one memory added by hand and open |
-| [ ] | `joi-animations` | animations/animations.md | `shoot-joi` | her dialog, Animations tab |
-| [ ] | `model-toggles` | bodies/models.md, bodies/appearance.md | `shoot-model` | the model dialog: expressions and the toggle rows |
-| [ ] | `model-spring-bones` | bodies/spring-bones.md | `shoot-model` | the Spring bones panel |
-| [ ] | `outfit-dialog` | bodies/outfits.md | `shoot-model` | the outfit dialog |
+| [x] | `joi-templates` | jois/persona.md | `shoot-joi` | her dialog, Templates tab |
+| [-] | `joi-memories-empty` | jois/memory.md | `shoot-joi` | her dialog, Memories tab, one memory added by hand and open | (dropped: `joi-memories` in the conversation step shows the tab with memories)
+| [-] | `joi-animations` | animations/animations.md | `shoot-joi` | her dialog, Animations tab | (dropped: `joi-animations-roles` shows the tab with the roles chosen)
+| [x] | `model-toggles` | bodies/models.md, bodies/appearance.md | `shoot-model` | the model dialog: expressions and the toggle rows |
+| [-] | `model-spring-bones` | bodies/spring-bones.md | `shoot-model` | the Spring bones panel | (dropped: the panel is shown for a converted model only, the demo model is an uploaded VRM)
+| [-] | `outfit-dialog` | bodies/outfits.md | `shoot-model` | the outfit dialog | (dropped: `outfit-school-uniform` and the other outfit pictures show the dialog)
 
 ## With a new state
 

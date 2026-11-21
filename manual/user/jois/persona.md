@@ -51,6 +51,8 @@ You manage both in **User Settings → Personalities** and **Moods**:
 
 ## Templates: every prompt can be changed
 
+![The Templates tab of her dialog](../../images/joi-templates.png)
+
 Every prompt sent to a model is a template you can edit: her **master system template**, the memory prompts, the body section,
 the appearance, outfit and part prompts, the web task prompt, and the texts of the events she is told. They are in two
 places: **User Settings → Prompts** (yours, for all assistants) and her **Templates** tab (hers alone). Empty falls back to

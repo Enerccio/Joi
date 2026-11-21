@@ -49,6 +49,8 @@ the add-on guesses), maps visemes and blinking from VRChat names, and the moods 
 
 ## What it can do
 
+![The expressions and the toggles of a model](../../images/model-toggles.png)
+
 Read from the VRM, under **What it can do**:
 
 - **Expressions**: moods, blink, visemes, look and custom ones that move something. Each is a button that tries it on the preview.
