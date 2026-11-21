@@ -30,7 +30,7 @@ When you implement a feature or a fix, update the docs that describe it: the use
 - its own server on port 8099 with its own data folder (`screenshots/.data/joi`), never `~/.joi`;
 - a fake inference server on port 8098 that answers by rules (`llm/rules.mjs`), so there is no model, key or network;
 - headless Google Chrome driven by Playwright for the server's UI;
-- the JavaFX node in a screenshot mode, driven by commands on port 8097, with its own settings folder (`.data/joi-client`);
+- the JavaFX node in a screenshot mode, driven by commands on port 8097, with its own settings folder, a temporary one (`$TMPDIR/joi-shots-client`, `SHOT_NODE_HOME`), never `~/.joi-client` or `~/.joi-dev-client`;
 - step snapshots of the data folder, so a picture is taken from a named state.
 
 ```bash

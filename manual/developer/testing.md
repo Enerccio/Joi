@@ -36,6 +36,7 @@ registered on the turn must be unregistered after the test: the chat service is 
 | `api` | the HTTP API (`JoiApiTest`, `BodyApiTest`), every answer checked against the schemas |
 | `domain` | services, the turn, the web tools (against fake servers: `FakeWeb`), events, conversion (`ModelConversionTest` and `AnimationConversionTest` need Blender) |
 | `domain/node` | `NodeServiceTest` drives the node WebSocket through a fake transport, checking every frame against the schemas |
+| `domain/summary` | the pure logic of the summaries (`SummaryDaysTest`, `SummaryPlanTest`, `SummaryQueueTest`): no database, no clock. `SummarizerTest` in `domain/service` runs the whole thing with the fake model; the minute tick is off in tests (`joi.summary.tick-seconds` 0), so a test calls `check(joi)` |
 | `ui` | dialogs and parts, driven without a browser |
 
 `SchemaContractTest` in `joi-protocol` checks the records, the enums and the AsyncAPI document against each other.

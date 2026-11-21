@@ -180,8 +180,12 @@ Don't add adult content from avatar packages to anything (the converter drops it
   in `verification.md` for every commit of yours since the last row (`git log` shows them), and commit that file with the rest. The row
   of the commit you are making now waits for the next one. Only commits you made yourself; skip a commit that only touched
   `verification.md`. Do not put the model id into commit messages.
-- When you implement a feature or fix, update the docs that describe it: user docs in `manual/user`, developer docs in
-  `manual/developer` (and the picture flows in `screenshots/flows` when a screen changed).
+- **Docs are part of the feature:** when a feature or fix is implemented and its tests pass, write the docs before you
+  report it done or commit it: user docs in `manual/user`, developer docs in `manual/developer` (and the picture flows
+  in `screenshots/flows` when a screen changed). Then run `python3 tools/check_dev_docs.py` and review every page it lists
+  for the code you touched: update what changed, add the new code to a page's `covers`, and write a page for a new
+  subsystem. Stamp the pages (`--stamp`) in a commit of their own after the commit that holds the code, never before the
+  review. A feature without its docs is not finished.
 - **Files go through the disk, not memory:** uploads stream into a file (`UploadHandler.toFile`), downloads and what
   the client or a node gets stream from a file (`DownloadHandler.forFile`), exports and imports are written and read
   as streams through temp files on disk. Models, images and archives can be large: never read a whole file into a

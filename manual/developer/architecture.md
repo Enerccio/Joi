@@ -26,7 +26,7 @@ joi-server ("brain")                                joi-node ("ears, hands, face
 ## The server
 
 A Java 25 WAR on Marginalia's platform (see `MARGINALIA.md`): Spring wired in XML with no Spring Boot, Hibernate on SQLite with Flyway,
-and Vaadin Flow for the UI with no separate REST API for it. It owns everything: the conversation, her memories, her bodies, the
+and Vaadin Flow for the UI with no separate REST API for it. It owns everything: the conversation, her memories and summaries, her bodies, the
 converted models, animations, speech, and the permission to use tools. It runs the model calls, so the same server serves any
 number of nodes.
 

@@ -908,6 +908,34 @@ A per-conversation switch for when the topic should not leave the house while an
 - **Switching mid-conversation** applies from that point on: what was already sent to an external provider can't be
   taken back, so the UI offers to start a fresh private thread instead. Each turn records which provider saw it.
 
+**Not built at all yet:** no switch, no flag on a message, no "local" mark on a model. The summaries are built without it
+(see Memory → Summaries), so they will need the design below when the mode comes.
+
+**Summaries in privacy mode (designed, not built): two tracks, not tainting.**
+
+- A summary that has any private source is not simply marked private: one private chat would make that day, week, month
+  and year private, and an external model would lose a week for one conversation. Instead each assistant has **two
+  tracks**. The **public track** is made only of public messages and public summaries; the **private track** of private
+  messages and private summaries. Roll-ups (day → week → month → year) stay inside their track. A public summary can never
+  hold private text, because private text never reaches it: nothing has to be filtered at read time.
+- **What marks it:** a flag on each message (the mode when it was sent, so switching in the middle works) and a flag on
+  each summary (its track). Both are extended attributes: no migration, so the V1 freeze does not affect them.
+- **The planner** (`SummaryPlan`, pure) and the queue take the track as a parameter and see only that track's messages and
+  summaries; "at least one day summary" and "covered up to" are per track. The private track has jobs only when private
+  messages exist.
+- **Who writes it:** a private-track job runs only on a model marked **local** (a flag on the text model, like "On my own
+  network" on a web source). With no local model, or when the user chose not to summarize private conversations, the private
+  track is not written and those messages age out of the prompt.
+- **Who reads it:** a turn on an external model gets the public track and the public history only; a turn on a local model
+  gets both. The prompt (`SummarizerService.prompt`, `findLatestExchangesSince`, `PrepareStep`) asks for the turn's model's
+  view, and "covered up to" is per track, so there is no gap where private messages were.
+- **Events:** the `summary.created` event of a private summary carries no digest text and is itself marked private, or its
+  stored message could reach an external model.
+- **The manual Summarize button** summarizes the selection per track: a selection of both kinds makes one summary in each.
+- **UI:** a lock on private messages and private summaries; a summary shows its track.
+- **Open:** whether an external model should see a marker ("a private conversation happened here"). Default no: it hides the
+  content but shows that something was hidden.
+
 ### Memory
 
 1. **Facts** — short, editable entries with their source, activated by keywords or embeddings (Marginalia's lorebook
@@ -1892,6 +1920,13 @@ with avatars whose shaders match the installed Poiyomi.
 4. The avatar renderer on the Go, the states (idle, listening, thinking, speaking), approval cards in 3D; bodies and
    self-image.
 5. Deeper OS actions, long-term memory, MCP, proactive events.
+
+**The first production version** (decided 2026-11-21) is the server with text chat, the avatar, memory and the summaries.
+Before it: the node's `--joi-home-dir` / `JOI_HOME_DIR`, a deployment guide (TLS behind a reverse proxy, the data folder,
+backups and a restore test), the Flyway V1 freeze (later changes are V2 and up) and the first full verification pass
+(`verification.md`). **After it,** because each is an addition and none changes the server's schema: the node's harness
+(it is only more tools in the manifest; ship it whole, with its ALLOW / ASK / DENY policy and audit), voice in (audio in is
+a new minor version of the protocol), and the privacy mode (not built at all yet; see Privacy mode).
 
 ## Open decisions
 

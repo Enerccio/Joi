@@ -29,6 +29,7 @@ See the [Developer guide](index.md). The server's Java is under `com.github.ener
 | `domain.bodies`, `.animations` | models, capabilities, appearance, outfits, spring bones, animation steps |
 | `domain.tools`, `domain.web` | server tools and their permissions; web search and page reading |
 | `domain.events`, `domain.node` | queued events and their merge; a node's session |
+| `domain.summary` | the pure logic of the summaries: her days, what is due, the queue (see [Summaries](summaries.md)) |
 | `tts` | speech backends (Chatterbox, Higgs in ComfyUI), TTS models, voice actors, audio |
 | `ui` | the Vaadin UI (see [The UI](ui.md)) |
 | `loc` | the texts: `J_L` and `JoiLocalizationBundleEN` |
@@ -43,7 +44,7 @@ All are owned by the user, and each belongs to an assistant where it makes sense
 | `Joi` | an assistant; her settings (`PersonaAttributes`), wake word and today's mood |
 | `ChatMessage` | one exchange: an input of type User, Event or Log, and her response with reasoning, tool calls, model, tokens and timings |
 | `MessagePrompt` | the prompt sent for a message, deflated |
-| `Summary` | a summary of a time |
+| `Summary` | a summary of a time: a day, a week, a month or a year, or a part of a day (see [Summaries](summaries.md)) |
 | `Memory` | a fact with importance, keywords, approval and the message it came from |
 | `JoiTask`, `JoiTaskMessage` | a task she started and its transcript |
 | `QueuedEvent` | an event that waits for a connected node |
