@@ -4,7 +4,9 @@ import glob, os, re, subprocess
 root = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..')
 repo = os.path.join(root, '..')
 # the state a flow runs on: a chain flow starts from the step before it (bin/chain.txt), the shooting flows as bin/shoot-all.sh says
-state = {'shoot-workspace': 'any step from 01-admin (the last one)', 'node-first-start': '01-admin, a node that was never started'}
+state = {'shoot-workspace': 'any step from 01-admin (the last one)', 'node-first-start': '01-admin, a node that was never started',
+         'shoot-settings': 'any step from 07-body (the last one)', 'shoot-joi': 'any step from 07-body (the last one)',
+         'shoot-model': 'any step from 07-body (the last one)', 'node-chat': 'step 09-conversation, the fake model, a node that was never started'}
 prev = '00-empty'
 for line in open(os.path.join(root, 'bin', 'chain.txt'), encoding='utf-8'):
     if not line.strip() or line.startswith('#'): continue
@@ -26,6 +28,9 @@ for flow in sorted(glob.glob(os.path.join(root, 'flows', '*.mjs'))):
 # pictures whose names a flow builds in a loop (the pattern above does not see them)
 for n in ('outfit-school-uniform', 'outfit-light', 'outfit-cold-day'):
     rows[n] = '06-body'
+# cropped from the node's pictures by bin/crop-node.sh
+for n in ('node-controls', 'node-looking-glass-tuning'):
+    rows[n] = 'node-chat'
 def used(name):
     out = subprocess.run(['grep', '-rl', 'images/%s.png' % name, os.path.join(repo, 'manual'), '--include=*.md'],
                          capture_output=True, text=True).stdout.split()

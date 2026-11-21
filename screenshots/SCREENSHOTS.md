@@ -52,8 +52,9 @@ development server on 8090 is not in the way. The URL is `http://127.0.0.1:8099`
 
 The chain (`bin/chain.txt`, each step a flow and a snapshot): the first start (`01-admin`), the Saiki model uploaded (`02-saiki`), two
 text models (`03-models`), the assistant (`04-joi`), the user's default models (`05-user-models`), how she looks in Saiki
-(`06-appearance`) and her body with three outfits (`07-body`). Planned: a few animations from `tmp/animations`, a conversation, a
-task that waits for approval.
+(`06-appearance`), her body with three outfits (`07-body`), eight clips converted from `tmp/animations` with five animations and her
+roles (`08-animations`), and two exchanges, one of which made a memory and a page task that waits for approval (`09-conversation`;
+the fake model must run). `bin/crop-node.sh` cuts two pictures of the node out of the windows `node-chat` takes.
 
 The fake model **writes what a multimodal model would**: it never looks at a picture, a rule answers by the text of the prompt
 (`llm/rules.mjs`, the words are in `dataset/saiki.mjs`): the appearance (`self-image`: JSON with the description and a name for each
@@ -155,48 +156,49 @@ are taken, with the node's own commands, never the display.
 
 | Picture | Flow | State | Used in |
 |---|---|---|---|
-| `admin.png` | `shoot-workspace` | any step from 01-admin (the last one) | - |
-| `appearance-applied.png` | `05-appearance` | step 05-user-models | - |
-| `appearance-proposal.png` | `05-appearance` | step 05-user-models | - |
-| `appearance-snapshots.png` | `05-appearance` | step 05-user-models | - |
-| `body-dialog.png` | `06-body` | step 06-appearance | - |
+| `admin.png` | `shoot-workspace` | any step from 01-admin (the last one) | manual/user/administration/index.md |
+| `appearance-applied.png` | `05-appearance` | step 05-user-models | manual/user/bodies/appearance.md |
+| `appearance-proposal.png` | `05-appearance` | step 05-user-models | manual/user/bodies/appearance.md |
+| `appearance-snapshots.png` | `05-appearance` | step 05-user-models | manual/user/bodies/appearance.md |
+| `body-dialog.png` | `06-body` | step 06-appearance | manual/user/bodies/bodies.md, manual/user/bodies/outfits.md |
+| `clip-dialog.png` | `07-animations` | step 07-body | manual/user/animations/clips.md |
 | `first-start.png` | `00-first-start` | step 00-empty | manual/user/getting-started/first-start.md |
-| `joi-about.png` | `03-joi` | step 03-models | - |
-| `joi-bodies.png` | `06-body` | step 06-appearance | - |
+| `joi-about.png` | `03-joi` | step 03-models | manual/user/getting-started/first-assistant.md |
+| `joi-animations-roles.png` | `07-animations` | step 07-body | manual/user/animations/animations.md |
+| `joi-bodies.png` | `06-body` | step 06-appearance | manual/user/bodies/bodies.md |
+| `joi-chats.png` | `08-conversation` | step 08-animations | manual/user/jois/chats.md |
 | `joi-create.png` | `03-joi` | step 03-models | - |
+| `joi-memories.png` | `08-conversation` | step 08-animations | manual/user/jois/memory.md |
+| `joi-tasks-waiting.png` | `08-conversation` | step 08-animations | manual/user/jois/tasks.md |
+| `joi-templates.png` | `shoot-joi` | any step from 07-body (the last one) | manual/user/jois/persona.md |
 | `login.png` | `00-first-start` | step 00-empty | manual/user/getting-started/first-start.md |
-| `model-dialog.png` | `01-model-saiki` | step 01-admin | - |
-| `models-text.png` | `02-text-models` | step 02-saiki | - |
+| `model-dialog.png` | `01-model-saiki` | step 01-admin | manual/user/bodies/models.md |
+| `model-spring-bones.png` | `shoot-model` | any step from 07-body (the last one) | - |
+| `model-toggles.png` | `shoot-model` | any step from 07-body (the last one) | manual/user/bodies/models.md |
+| `models-text.png` | `02-text-models` | step 02-saiki | manual/user/getting-started/first-assistant.md |
 | `node-after-connect.png` | `node-first-start` | 01-admin, a node that was never started | - |
+| `node-approval.png` | `node-chat` | step 09-conversation, the fake model, a node that was never started | - |
+| `node-chat.png` | `node-chat` | step 09-conversation, the fake model, a node that was never started | manual/user/node/javafx.md |
+| `node-controls.png` | `node-chat` | step 09-conversation, the fake model, a node that was never started | manual/user/node/javafx.md |
 | `node-joi-menu.png` | `node-first-start` | 01-admin, a node that was never started | - |
-| `node-server.png` | `node-first-start` | 01-admin, a node that was never started | - |
+| `node-looking-glass-tuning.png` | `node-chat` | step 09-conversation, the fake model, a node that was never started | manual/user/node/looking-glass.md |
+| `node-server.png` | `node-first-start` | 01-admin, a node that was never started | manual/user/getting-started/first-node.md |
 | `outfit-cold-day.png` | `06-body` | step 06-appearance | - |
 | `outfit-light.png` | `06-body` | step 06-appearance | - |
-| `outfit-school-uniform.png` | `06-body` | step 06-appearance | - |
-| `settings-general.png` | `04-user-settings` | step 04-joi | - |
+| `outfit-school-uniform.png` | `06-body` | step 06-appearance | manual/user/bodies/outfits.md |
+| `settings-general.png` | `04-user-settings` | step 04-joi | manual/user/settings.md |
 | `tab-animations.png` | `shoot-workspace` | any step from 01-admin (the last one) | - |
+| `tab-animations-library.png` | `07-animations` | step 07-body | manual/user/animations/animations.md, manual/user/animations/index.md |
 | `tab-bodies.png` | `shoot-workspace` | any step from 01-admin (the last one) | - |
-| `tab-bodies-saiki.png` | `01-model-saiki` | step 01-admin | - |
+| `tab-bodies-saiki.png` | `01-model-saiki` | step 01-admin | manual/user/bodies/index.md |
 | `tab-clips.png` | `shoot-workspace` | any step from 01-admin (the last one) | - |
-| `tab-jois.png` | `shoot-workspace` | any step from 01-admin (the last one) | - |
-| `tab-jois-joi.png` | `03-joi` | step 03-models | - |
-| `tab-models.png` | `shoot-workspace` | any step from 01-admin (the last one) | - |
-| `tab-trash.png` | `shoot-workspace` | any step from 01-admin (the last one) | - |
+| `tab-clips-library.png` | `07-animations` | step 07-body | manual/user/animations/clips.md, manual/user/animations/index.md |
+| `tab-jois.png` | `shoot-workspace` | any step from 01-admin (the last one) | manual/user/jois/index.md |
+| `tab-jois-joi.png` | `03-joi` | step 03-models | manual/user/getting-started/first-assistant.md, manual/user/jois/index.md |
+| `tab-models.png` | `shoot-workspace` | any step from 01-admin (the last one) | manual/user/models/index.md |
+| `tab-trash.png` | `shoot-workspace` | any step from 01-admin (the last one) | manual/user/trash.md |
 | `tab-user-settings.png` | `shoot-workspace` | any step from 01-admin (the last one) | - |
+| `text-model-dialog.png` | `shoot-settings` | any step from 07-body (the last one) | manual/user/models/text-models.md |
+| `tts-models.png` | `shoot-settings` | any step from 07-body (the last one) | manual/user/models/speech.md |
+| `voice-actors.png` | `shoot-settings` | any step from 07-body (the last one) | manual/user/models/speech.md |
 | `workspace.png` | `shoot-workspace` | any step from 01-admin (the last one) | manual/user/getting-started/first-start.md |
-
-## Rules of the game
-
-1. **One state per picture.** A flow that changes data must be a step of the chain (and then a snapshot follows). A flow that
-   only looks may be run on any state, but the pictures of a page must come from the state the table names.
-2. **Never use the real data.** All data is in `.data/`; the scripts use ports 8099, 8098 and 8097. Do not point them to
-   `~/.joi` or `~/.joi-client`.
-3. **After a flow fails**, the data may be half changed: `bin/restore.sh <step>` and run it again. `_fail*.png` in `out/` shows
-   the page (or the node's window) at the failure.
-4. **Fields of Vaadin.** `fill()` of `lib/shot.mjs` sends a `change` event and types a password field key by key (a password
-   field only synchronizes from real key presses). Combo boxes are picked with `pick()`, Vaadin `Select` with `pickSelect()`.
-   Dialogs are `vaadin-dialog[opened]`; `snapDialog()` takes the n-th smallest one.
-5. **Coordinates** are for 1920x932. Prefer a control's text or icon to a coordinate: a layout change then does not break a flow.
-6. After a flow that was changed: run it from the step before it (`bin/rebuild.sh <step before>`), look at the pictures with
-   your own eyes, then `bin/publish.sh`, `tools/retype_build.sh` (see `CLAUDE.md`) and update the table above.
-7. A picture that shows the model shows Saiki, and the credits page says so.

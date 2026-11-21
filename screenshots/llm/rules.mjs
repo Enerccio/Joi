@@ -40,10 +40,17 @@ const greeting = {
   reply: 'Hello! I am here. How was your day?',
 };
 
+// the node's connect: the greeting event of the server ("[Event: ... is back with you ...]")
+const welcomeBack = {
+  name: 'welcome-back',
+  when: ctx => ctx.last.includes('is back with you'),
+  reply: 'Welcome back! The page you gave me is still waiting for your approval, whenever you like.',
+};
+
 const fallback = {
   name: 'default',
   when: () => true,
   reply: 'I hear you. Tell me more.',
 };
 
-export default [selfImage, outfitImage, greeting, fallback];
+export default [selfImage, outfitImage, welcomeBack, greeting, fallback];

@@ -11,10 +11,20 @@ on() { "$SHOT_ROOT/bin/restore.sh" "$1" >/dev/null; curl -s -X POST "localhost:$
 on 01-admin
 run shoot-workspace.mjs
 
-# the JavaFX node (its screenshot mode, a window opens): the flows node-*.mjs, each on a node that was never started
-for flow in node-*.mjs; do
-  "$SHOT_ROOT/bin/start-node.sh" --fresh >/dev/null || exit 1
-  run "$flow"
-  "$SHOT_ROOT/bin/stop-node.sh" >/dev/null
-done
+# the JavaFX node (its screenshot mode, a window opens), on a node that was never started: the first start needs the empty server
+"$SHOT_ROOT/bin/start-node.sh" --fresh >/dev/null || exit 1
+run node-first-start.mjs
+"$SHOT_ROOT/bin/stop-node.sh" >/dev/null
+
+# the flows that only look, on the last step of the chain
+on 09-conversation
+run shoot-settings.mjs
+run shoot-joi.mjs
+run shoot-model.mjs
+
+# the node with her body and the chat: needs the conversation step and the fake model; its crops are made by bin/crop-node.sh
+"$SHOT_ROOT/bin/start-node.sh" --fresh >/dev/null || exit 1
+run node-chat.mjs
+"$SHOT_ROOT/bin/stop-node.sh" >/dev/null
+"$SHOT_ROOT/bin/crop-node.sh"
 echo done

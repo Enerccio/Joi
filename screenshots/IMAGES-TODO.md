@@ -39,10 +39,10 @@ Status: `[ ]` to take, `[x]` taken and published, `[-]` dropped (why).
 | [x] | `joi-chats` | jois/chats.md | `08-conversation` (`09-conversation`) | her Chats tab with an exchange, reasoning and tools used |
 | [x] | `joi-memories` | jois/memory.md | `08-conversation` | her Memories tab with a memory she wrote |
 | [x] | `joi-tasks-waiting` | jois/tasks.md | `08-conversation` | her Tasks tab with a search that waits for approval |
-| [ ] | `node-chat` | node/javafx.md | `node-chat` (needs `08-conversation`) | the JavaFX node with her body and the chat |
-| [ ] | `node-controls` | node/javafx.md | `node-chat` | the controls panel, Her parts |
-| [ ] | `node-approval` | node/approvals.md | `node-chat` | the dialog of a task that waits |
-| [ ] | `node-looking-glass-tuning` | node/looking-glass.md | `node-chat` | the tuning pane of the Looking Glass |
+| [x] | `node-chat` | node/javafx.md | `node-chat` (needs `08-conversation`) | the JavaFX node with her body and the chat |
+| [x] | `node-controls` | node/javafx.md | `node-chat` | the controls panel, Her parts |
+| [x] | `node-approval` | node/approvals.md | `node-chat` | the dialog of a task that waits |
+| [x] | `node-looking-glass-tuning` | node/looking-glass.md | `node-chat` | the tuning pane of the Looking Glass |
 
 ## Rules for these
 

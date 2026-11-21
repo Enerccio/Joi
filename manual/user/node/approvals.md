@@ -11,6 +11,8 @@ connected. The first answer, from anywhere, wins: the others take the question b
 
 ## The JavaFX node
 
+![The dialog of a task that waits](../../images/node-approval.png)
+
 A dialog shows the title of the task, the tool and what it does, what she asked for and the page. Press:
 
 - **Approve**: this task runs.
