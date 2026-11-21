@@ -4,7 +4,7 @@ icon: sync
 order: 750
 covers:
   - joi-server/src/main/java/com/github/enerccio/joi/domain/chat
-verified: 7c29655
+verified: d71f903
 ---
 
 # A chat turn
@@ -50,7 +50,7 @@ cancelled with the turn. `ChatService.running()` lists the turns that wait or ru
 `AFTER_CLEANUP` comes for every turn with its outcome (`TurnOutcome`).
 
 Who hooks in: her memories in the prompt, the server tools (`remember`, `recall`, `play_animation`, `change_body_part`, `list_outfits`,
-`set_outfit`, `list_bodies`, `switch_body`, `web_search`, `fetch_page`) and the nodes' tools and approvals (`NodeService` registers a
+`set_outfit`, `list_bodies`, `switch_body`, `web_search`, `fetch_page`, `list_workspace_files`, `offer_file_to_clipboard`) and the nodes' tools and approvals (`NodeService` registers a
 `COLLECT_TOOLS` listener).
 
 ## The prompt is built for the model's cache

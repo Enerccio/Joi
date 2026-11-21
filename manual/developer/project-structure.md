@@ -5,7 +5,7 @@ order: 770
 covers:
   - joi-server/src/main/java/com/github/enerccio/joi/domain
   - joi-server/src/main/resources/META-INF/spring
-verified: 7c29655
+verified: d71f903
 ---
 
 # Project structure
@@ -23,13 +23,14 @@ See the [Developer guide](index.md). The server's Java is under `com.github.ener
 | `domain.model.impl` | the entities (below) |
 | `domain.repository`, `.impl` | repository interfaces and their `Jpa*Repository` classes |
 | `domain.service`, `.impl` | service interfaces and `*ServiceImpl` |
-| `domain.chat`, `.turn` | the chat service, the steps and events of a turn, her functions (`MemoryTools`, `BodyTools`, `AnimationTools`, `WebTools`) |
+| `domain.chat`, `.turn` | the chat service, the steps and events of a turn, her functions (`MemoryTools`, `BodyTools`, `AnimationTools`, `WebTools`, `WorkspaceTools`) |
 | `domain.persona` | `JoiPromptField`, personalities, moods and the attributes of an assistant |
 | `domain.templates` | the data of every prompt template (`*TemplateData`) |
 | `domain.bodies`, `.animations` | models, capabilities, appearance, outfits, spring bones, animation steps |
 | `domain.tools`, `domain.web` | server tools and their permissions; web search and page reading |
 | `domain.events`, `domain.node` | queued events and their merge; a node's session |
 | `extensions`, `domain.extensions` | the API of Joi's extensions and what they registered (see [Extensions](extensions.md)) |
+| `domain.workspace` | `TaskWorkspace`: the temporary files tasks write for an assistant (see [Server tools](tools.md)) |
 | `domain.jobs` | the names of the work logged as jobs (see [Jobs](jobs.md)) |
 | `domain.summary` | the pure logic of the summaries: her days, what is due, the queue (see [Summaries](summaries.md)) |
 | `tts` | speech backends (Chatterbox, Higgs in ComfyUI), TTS models, voice actors, audio |

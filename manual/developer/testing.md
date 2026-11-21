@@ -5,7 +5,7 @@ order: 690
 covers:
   - joi-server/src/test
   - joi-node/src/test
-verified: 7c29655
+verified: d71f903
 ---
 
 # Testing
@@ -37,6 +37,7 @@ registered on the turn must be unregistered after the test: the chat service is 
 | `domain` | services, the turn, the web tools (against fake servers: `FakeWeb`), events, conversion (`ModelConversionTest` and `AnimationConversionTest` need Blender) |
 | `domain/node` | `NodeServiceTest` drives the node WebSocket through a fake transport, checking every frame against the schemas |
 | `ui/jobs` | `AssistantsRunsTest`: what the assistants do now (the second list of `/jobs`); the job log is checked in `ChatTurnTest` and `SummarizerTest` with `Jobs.addSink` (never `Jobs.reset()`) |
+| `domain/workspace` | `TaskWorkspaceTest`: names, limits, expiry; the task writing a file is in `WebTasksTest`, the clipboard offer through a fake node in `NodeServiceTest` |
 | `domain/extensions` | `JoiExtensionsTest`: an extension of Joi (a proxy) through the loader; no OSGi framework in tests (profile `test`) |
 | `domain/summary` | the pure logic of the summaries (`SummaryDaysTest`, `SummaryPlanTest`, `SummaryQueueTest`): no database, no clock. `SummarizerTest` in `domain/service` runs the whole thing with the fake model (also: a summary is a job); the minute tick is off in tests (`joi.summary.tick-seconds` 0), so a test calls `check(joi)` |
 | `ui` | dialogs and parts, driven without a browser |
