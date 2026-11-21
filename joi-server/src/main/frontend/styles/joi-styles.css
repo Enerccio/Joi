@@ -452,6 +452,10 @@
     opacity: 0.6;
 }
 
+.summary-panel {
+    overflow-y: auto;
+}
+
 .summary-jobs {
     padding: var(--lumo-space-xs) 0;
     color: var(--lumo-secondary-text-color);

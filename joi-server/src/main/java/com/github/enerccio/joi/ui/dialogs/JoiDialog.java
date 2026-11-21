@@ -29,6 +29,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Consumer;
 
 /**
  * One assistant ({@link Joi}), after Marginalia's manuscript dialog: the tabs on the left, each a {@link JoiDialogPart}
@@ -129,10 +130,13 @@ public class JoiDialog extends Dialog {
         return joi;
     }
 
-    /** Stores the assistant after a change of a part. */
-    public void save() {
+    /**
+     * Stores a change of a part, applied to her as stored now ({@link JoiService#update}): her turns may have saved her
+     * since the dialog read her (her mood of the day).
+     */
+    public void save(Consumer<Joi> change) {
         try {
-            joiService.save(joi);
+            joi = joiService.update(joi, change);
             reload();
         } catch (Exception e) {
             UIUtils.internalServerError(loc, e);
@@ -140,11 +144,12 @@ public class JoiDialog extends Dialog {
     }
 
     /**
-     * Stores the assistant after a change of her About, queuing an event for each change of her persona (see
+     * Stores a change of her About like {@link #save}, queuing an event for each change of her persona (see
      * {@link JoiService#saveAbout}).
      */
-    public List<QueuedEvent> saveAbout(JoiService.Persona before) {
+    public List<QueuedEvent> saveAbout(JoiService.Persona before, Consumer<Joi> change) {
         try {
+            joi = joiService.update(joi, change);
             List<QueuedEvent> events = joiService.saveAbout(joi, before);
             reload();
             return events;

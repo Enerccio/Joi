@@ -117,8 +117,8 @@ public class JoiTemplatesPart implements JoiDialogPart {
             } else {
                 TemplateHints.showWarnings(loc, area, null);
             }
-            field.setOf(dialog.getJoi(), area.getValue());
-            dialog.save();
+            String value = area.getValue();
+            dialog.save(joi -> field.setOf(joi, value));
         } catch (Exception e) {
             UIUtils.internalServerError(loc, e);
         }

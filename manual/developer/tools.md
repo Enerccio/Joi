@@ -64,7 +64,9 @@ rounds). `WebSearchClient` calls the sources (`DDGS`, `SEARXNG`, `GOOGLE`, `BRAV
 - One `HttpClient` per source, from the common proxy (HTTP(S) only: the JDK client has no SOCKS) or the source's own.
 - A status that is not 2xx is a failure of that source with its status and a trimmed message.
 - In local-only mode only the sources and readers marked `local` run; nothing is guessed from the URL.
-- Fetched content is data, not instructions. Direct reads refuse addresses of the server's own network unless the option allows them (`PageFetcher.checkReachable`, checked again at each redirect).
+- Fetched content is data, not instructions. Direct reads refuse addresses of the server's own network unless the option allows them (`PageFetcher.checkReachable`, checked again at each redirect). A user's or an assistant's
+  own options allow them only when the administrator's do (`WebToolSettingsService.privateAllowed`; their `allowPrivate` is ignored when saved,
+  read and tested otherwise).
 
 The prompt of the task and the three event texts are templates (`JoiPromptField`s).
 

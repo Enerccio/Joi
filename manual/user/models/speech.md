@@ -20,7 +20,7 @@ Open **Models → TTS Models** and press **Add TTS model**. A TTS model is one s
 |---|---|
 | **TTS model** | the kind: *Chatterbox Turbo* (English, sound tags), *Chatterbox* (English, exaggeration), *Chatterbox Multilingual* (23 languages) or *Higgs Audio v3 in ComfyUI* (emotions and sounds; its license is non-commercial) |
 | **Address** | the base address: Chatterbox-TTS-Server (for example `http://localhost:8004`) or ComfyUI (`http://localhost:8188`) |
-| **The server is on this machine or on my network** | allows local addresses; leave it off for a server in the cloud |
+| **The server is on this machine or on my network** | allows local addresses; leave it off for a server in the cloud. Shown to a user who is not an administrator only when Administration → **App settings** allows it |
 | **Speech model** | the model the server must have loaded |
 | **GPU lock** | the lock of the GPU the server runs on; every request waits its turn and the lock's start-up steps load the server first |
 | **Timeout**, **Audio format**, **Speed**, **CFG weight**, **Chunk size** | speech defaults |
@@ -34,7 +34,7 @@ Open **Models → TTS Models** and press **Add TTS model**. A TTS model is one s
 
 Open **Voice Actors** and press **Add voice actor**. A voice actor is a voice plus a description.
 
-- **Voice**: a reference clip (one of your audio resources, or a new upload) or a voice file of the speech server.
+- **Voice**: a reference clip (one of your audio resources, or a new upload: a WAV or MP3 of up to 20 MB) or a voice file of the speech server.
 - **A voice for a mood or a language**: add more voices for a mood (a whisper, a shout) or a language (a clip that speaks
   Japanese). The language wins over the mood; without a voice for them the main voice speaks.
 - **Description**: how the voice sounds, in words ("low and warm, a little husky"). She reads it: it is in her prompt, and she is

@@ -529,6 +529,28 @@ class JoiApiTest extends PlatformTestBase {
     }
 
     @Test
+    void anOlderCopyEditedInHerDialogKeepsHerMoodOfTheDay() throws Exception {
+        Joi edited = joiService.find(joi.getId());
+        useModel();
+        llm.reply("Hi.");
+        call("POST", "/api/v1/jois/" + joi.getUuid() + "/chat", "Bearer " + token, "{\"text\": \"Hi\"}");
+        String mood = joiService.find(joi.getId()).getMood();
+        assertThat(mood).isNotNull();
+
+        // the dialog read her before the turn and changes her through update
+        joiService.update(edited, j -> j.setWakeWord("hey there"));
+        Joi stored = joiService.find(joi.getId());
+        assertThat(stored.getMood()).isEqualTo(mood);
+        assertThat(stored.getWakeWord()).isEqualTo("hey there");
+
+        // and a turn holding a copy from before the edit writes only the mood
+        joiService.saveMood(edited, "other", new java.util.Date());
+        stored = joiService.find(joi.getId());
+        assertThat(stored.getWakeWord()).isEqualTo("hey there");
+        assertThat(stored.getMood()).isEqualTo("other");
+    }
+
+    @Test
     void aNoteIsInTheHistoryAsALogEntry() throws Exception {
         useModel();
         llm.reply("Hi.");

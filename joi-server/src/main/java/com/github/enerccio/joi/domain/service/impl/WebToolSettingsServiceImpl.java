@@ -68,14 +68,33 @@ public class WebToolSettingsServiceImpl implements WebToolSettingsService {
     @CommonTxReadOnly
     public Pages pages(Joi joi) throws Exception {
         Config found = permissionService.config(joi, ServerTool.FETCH_PAGE);
-        return pages(found.metadata(), found.from());
+        return confined(pages(found.metadata(), found.from()), found.from());
+    }
+
+    @Override
+    @CommonTxReadOnly
+    public boolean privateAllowed() throws Exception {
+        ToolMetadata admin = metadataService.find(ToolScope.APP, null, ServerTool.FETCH_PAGE);
+        return admin != null && admin.hasConfig() && PageConfig.from(admin.config()).allowPrivate();
+    }
+
+    /** The options of a place below the administrator's without the private addresses the administrator does not allow. */
+    private Pages confined(Pages pages, ToolScope from) throws Exception {
+        if (from == ToolScope.APP || !pages.config().allowPrivate() || privateAllowed()) {
+            return pages;
+        }
+        return new Pages(pages.config().withoutPrivate(), pages.from(), pages.token(), pages.proxyAuth());
+    }
+
+    private PageConfig confined(PageConfig config, ToolScope scope) throws Exception {
+        return scope == ToolScope.APP || !config.allowPrivate() || privateAllowed() ? config : config.withoutPrivate();
     }
 
     @Override
     @CommonTxReadOnly
     public Pages pagesIn(ToolScope scope, Joi joi) throws Exception {
         ToolMetadata metadata = metadataService.find(scope, joi, ServerTool.FETCH_PAGE);
-        return pages(metadata != null && metadata.hasConfig() ? metadata : null, scope);
+        return confined(pages(metadata != null && metadata.hasConfig() ? metadata : null, scope), scope);
     }
 
     private Pages pages(ToolMetadata metadata, ToolScope from) {
@@ -98,7 +117,7 @@ public class WebToolSettingsServiceImpl implements WebToolSettingsService {
     @Override
     @CommonTx
     public void savePages(ToolScope scope, Joi joi, PageConfig config, Map<String, String> secrets) throws Exception {
-        save(scope, joi, ServerTool.FETCH_PAGE, config.toJson(), Set.of(PageConfig.TOKEN_SECRET, WebSearchConfig.PROXY_SECRET), secrets);
+        save(scope, joi, ServerTool.FETCH_PAGE, confined(config, scope).toJson(), Set.of(PageConfig.TOKEN_SECRET, WebSearchConfig.PROXY_SECRET), secrets);
     }
 
     @Override
@@ -135,7 +154,7 @@ public class WebToolSettingsServiceImpl implements WebToolSettingsService {
             throws Exception, WebException {
         Pages saved = pagesIn(scope, joi);
         Search search = searchIn(scope, joi);
-        return new PageFetcher(config, StringUtils.defaultIfBlank(typedToken, saved.token()),
+        return new PageFetcher(confined(config, scope), StringUtils.defaultIfBlank(typedToken, saved.token()),
                 StringUtils.defaultIfBlank(typedProxyAuth, saved.proxyAuth()), search.config().userAgent()).fetch(url);
     }
 

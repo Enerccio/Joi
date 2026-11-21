@@ -45,6 +45,11 @@ public record PageConfig(PageSourceType type, String url, boolean local, String 
         return new PageConfig(null, null, false, null, 0, 0, false);
     }
 
+    /** The same options without {@link #allowPrivate}: what a user's own options are when the administrator's do not allow it. */
+    public PageConfig withoutPrivate() {
+        return allowPrivate ? new PageConfig(type, url, local, proxy, timeoutSeconds, maxChars, false) : this;
+    }
+
     /** The JSON to keep. */
     public JsonObject toJson() {
         return GSON.toJsonTree(this).getAsJsonObject();

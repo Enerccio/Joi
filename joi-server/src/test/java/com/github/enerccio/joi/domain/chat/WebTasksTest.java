@@ -414,6 +414,10 @@ class WebTasksTest extends PlatformTestBase {
     @Test
     void aPageAskedForIsReadAndNothingIsSearched() throws Exception {
         try (FakeWebSupport.Web web = FakeWebSupport.start(FakeWebSupport.html("<html><head><title>Notes</title></head><body><main><p>The meeting is at noon.</p></main></body></html>"))) {
+            // the fake site is on localhost: the administrator allows the server's own network, so the user's own options may
+            loginAdmin();
+            settings.savePages(ToolScope.APP, null, new PageConfig(PageSourceType.DIRECT, null, false, null, 5, 0, true), Map.of());
+            loginAs(me);
             settings.savePages(ToolScope.USER, null, new PageConfig(PageSourceType.DIRECT, null, false, null, 5, 0, true), Map.of());
             permission(ServerTool.FETCH_PAGE, ToolPermission.ALLOW);
             String page = web.url() + "/notes";

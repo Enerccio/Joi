@@ -53,6 +53,13 @@ public interface WebToolSettingsService {
     Pages pages(Joi joi) throws Exception;
 
     /**
+     * Whether the administrator's {@code fetch_page} options let pages be read from the server's own network. Only then
+     * can a user's (or an assistant's) own options allow it: otherwise their {@code allowPrivate} is ignored, when
+     * saved, read and tested.
+     */
+    boolean privateAllowed() throws Exception;
+
+    /**
      * Keeps the options in a place ({@code joi} only for {@link ToolScope#JOI}). {@code secrets} are changes: a name
      * with no entry stays as it is, a blank value removes it, any other sets it. The keys of sources that are no longer
      * in the options are removed.

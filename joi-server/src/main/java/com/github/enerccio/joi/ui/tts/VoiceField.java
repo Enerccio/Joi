@@ -26,6 +26,9 @@ import java.util.List;
  */
 public class VoiceField extends CustomField<String> {
 
+    /** A voice clip is a few seconds of speech: kept in memory while it is read, so its size is capped. */
+    static final int MAX_CLIP_BYTES = 20 * 1024 * 1024;
+
     private final VoiceChoices choices;
     private final ComboBox<String> box = new ComboBox<>();
     private final Runnable reload = this::reloadItems;
@@ -60,11 +63,18 @@ public class VoiceField extends CustomField<String> {
                 TtsLog.get().warn("The clip could not be added: {}", e.getMessage(), e);
                 Notification.error(loc.getValue(J_L.MSG_CLIP_NOT_ADDED).formatted(e.getMessage()));
             }
-        });
+        }) {
+            @Override
+            public long getFileSizeMax() {
+                // the server's own limit: the client's setMaxFileSize below only spares the user a useless upload
+                return MAX_CLIP_BYTES;
+            }
+        };
         Upload upload = new Upload(handler);
         upload.setAcceptedFileTypes("audio/wav", "audio/x-wav", "audio/mpeg", ".wav", ".mp3");
         upload.setDropAllowed(false);
         upload.setMaxFiles(1);
+        upload.setMaxFileSize(MAX_CLIP_BYTES);
         upload.setUploadButton(new Button(loc.getValue(J_L.LABEL_ADD_CLIP), Solid.UPLOAD.create()));
 
         HorizontalLayout row = new HorizontalLayout(box, upload);

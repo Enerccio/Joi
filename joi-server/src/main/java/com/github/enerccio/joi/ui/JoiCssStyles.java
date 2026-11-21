@@ -53,6 +53,7 @@ public final class JoiCssStyles {
     public static final String SUMMARY_COVERED = "summary-covered";
     /** The queue of the summaries above the list of the Summaries tab. */
     public static final String SUMMARY_JOBS = "summary-jobs";
+    public static final String SUMMARY_PANEL = "summary-panel";
 
     /** The grid of the Memories tab. */
     public static final String MEMORY_GRID = "memory-grid";

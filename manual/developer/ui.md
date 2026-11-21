@@ -16,12 +16,14 @@ The UI is Vaadin Flow in Java, calling services directly: there is no REST API b
 
 After the login `ui/workspace/JoiWorkspace` shows tabs of `WorkspacePart`s, with their state kept by `WorkspaceAutosave`. The parts are in
 `ui/workspace/parts`: `JoisPart`, `BodiesPart`, `AnimationsPart` (Clips), `AnimationPacksPart` (Animations), `AIPart` (Models),
-`TrashPart`, `UserSettingsPart` and `AdminPart` (tabs: users, GPUs, API access, tools, extensions (`ui/extensions/ExtensionsPanel`), jobs (the platform's
+`TrashPart`, `UserSettingsPart` and `AdminPart` (tabs: users, GPUs, app settings (`ui/settings/AppSettingsPanel`: `JoiAppSettings` in the platform's `AppSettings` under `joi_app`, through `JoiAppSettingsService`), API access, tools, extensions (`ui/extensions/ExtensionsPanel`), jobs (the platform's
 `JobsPanel`), database backups, cleanup, resource files). The tabs the loaded extensions add come after the settings (`ExtensionTab`, see
 [Extensions](extensions.md)). `/jobs` is `ui/main/JoiJobsView` with `ui/jobs/AssistantsRunsGrid` (see [Jobs](jobs.md)).
 
 The assistant's dialog is `ui/dialogs/JoiDialog`, with a `JoiDialogPart` for each tab: `JoiAboutPart`, `JoiBodiesPart`,
-`JoiAnimationsPart`, `JoiTemplatesPart`, `JoiMemoriesPart`, `JoiChatsPart` (with the Summarize button), `JoiSummariesPart` and `JoiTasksPart`. The settings of the
+`JoiAnimationsPart`, `JoiTemplatesPart`, `JoiMemoriesPart`, `JoiChatsPart` (with the Summarize button), `JoiSummariesPart` and `JoiTasksPart`. A part stores
+its change with `JoiDialog.save(change)` (or `saveAbout(before, change)`), which applies it to her as stored now: her turns save her
+mood while the dialog is open. The settings of the
 summaries are one widget, `ui/widgets/SummaryFields`, shared by the assistant's About tab and the user's settings (the chain assistant → user → default). Other dialogs: `ModelDialog`, `BodyDialog`,
 `OutfitDialog`, `AnimationDialog`, `AnimationPackDialog`, `TtsModelDialog`, `JoiAIDialog`, `PersonalityDialog`, `MoodDialog`.
 Panels: `ui/bodies` (`AppearancePanel`, `SpringBonesPanel`, `ToggleGroupsPanel`, `ModelViewer`, `ClipPreview`), `ui/tools`, `ui/access`.

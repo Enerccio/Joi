@@ -110,9 +110,8 @@ public class JoiAnimationsPart implements JoiDialogPart {
         if (filling) {
             return;
         }
-        Joi joi = dialog.getJoi();
-        joi.setAnimationRoleSet(change.apply(joi.animationRoleSet().existing(library.keySet())));
-        dialog.save();
+        Set<String> existing = Set.copyOf(library.keySet());
+        dialog.save(joi -> joi.setAnimationRoleSet(change.apply(joi.animationRoleSet().existing(existing))));
     }
 
     @Override

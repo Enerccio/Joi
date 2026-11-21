@@ -89,6 +89,8 @@ public class WebSearchPanel {
     private IntegerField pageTimeout;
     private IntegerField pageMaxChars;
     private Checkbox pageAllowPrivate;
+    /** Whether the administrator allows the server's own network; below the administrator the box is shown only then. */
+    private boolean privateAllowed;
     private TextField testUrl;
     private Span testResult;
 
@@ -206,7 +208,7 @@ public class WebSearchPanel {
         pageLocal.setVisible(reader);
         pageProxy.setVisible(!reader);
         pageProxyAuth.setVisible(!reader);
-        pageAllowPrivate.setVisible(!reader);
+        pageAllowPrivate.setVisible(!reader && (scope == ToolScope.APP || privateAllowed));
     }
 
     /** Shows what the place keeps (the defaults when it keeps nothing). */
@@ -217,6 +219,7 @@ public class WebSearchPanel {
     private void load() throws Exception {
         Search search = settings.searchIn(scope, null);
         Pages pages = settings.pagesIn(scope, null);
+        privateAllowed = scope == ToolScope.APP || settings.privateAllowed();
         sources.clear();
         sources.addAll(search.config().sources());
         secretChanges.clear();

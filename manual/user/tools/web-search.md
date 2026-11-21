@@ -52,6 +52,7 @@ own network** marks it as local.
 
 For the last two give the **Address of the reader** and, if needed, its **Token**. **Characters of a page given to the model**
 cuts long pages (20000). **Direct reads may reach addresses of the server's own network** is off by default, so a page she is
-led to cannot send the server to localhost or your network. **Test a page** reads an address and shows what came back.
+led to cannot send the server to localhost or your network. A user can turn it on in their own settings only when the administrator's
+settings have it on; otherwise the box is not shown to them and it is ignored. **Test a page** reads an address and shows what came back.
 
 Fetching is anonymous, never with the cookies of your browser.

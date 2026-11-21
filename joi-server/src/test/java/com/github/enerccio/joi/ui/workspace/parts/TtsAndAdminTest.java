@@ -1,6 +1,9 @@
 package com.github.enerccio.joi.ui.workspace.parts;
 
+import com.github.enerccio.joi.domain.service.JoiAppSettingsService;
 import com.github.enerccio.joi.domain.service.TtsService;
+import com.github.enerccio.joi.domain.settings.JoiAppSettings;
+import com.github.enerccio.marginalia.domain.security.model.User;
 import com.github.enerccio.joi.tts.ServerCheck;
 import com.github.enerccio.joi.tts.model.Actor;
 import com.github.enerccio.joi.tts.model.TtsModel;
@@ -45,6 +48,9 @@ class TtsAndAdminTest extends PlatformTestBase {
 
     @Autowired
     private GpuService gpuService;
+
+    @Autowired
+    private JoiAppSettingsService appSettingsService;
 
     /** The UI of the test, held strongly (the current UI is a weak reference). */
     private UI ui;
@@ -193,6 +199,48 @@ class TtsAndAdminTest extends PlatformTestBase {
         assertThat(audio).isNotEmpty();
         assertThat(calls).contains("/tts");
         assertThat(lastTtsBody).contains("\"text\":\"Hello.\"").contains("Emily.wav");
+    }
+
+    @Test
+    void aUserCallsALocalServerOnlyWhenTheAppSettingsAllowIt() throws Exception {
+        try {
+            User user = login();
+            // the fake server is on 127.0.0.1: marked local, but the administrator has not allowed it for users
+            TtsModel model = saveModel("Mine", null);
+            assertThat(ttsService.findModel(model.getId()).isLocal()).isFalse();
+            assertThat(new TtsModelDialog(model)).satisfies(dialog -> {
+                dialog.create();
+                assertThat(dialog.getLocalBox().isVisible()).isFalse();
+            });
+            model.setLocal(true);
+            TtsModel local = model;
+            assertThat(ttsService.test(local)).failsWithin(30, TimeUnit.SECONDS).withThrowableThat().withMessageContaining("local");
+            assertThat(calls).isEmpty();
+
+            loginAdmin();
+            AdminPart admin = new AdminPart();
+            admin.create();
+            admin.getAppSettingsPanel().getUsersMayUseLocalServers().setValue(true);
+            admin.getAppSettingsPanel().save();
+            assertThat(appSettingsService.get().usersMayUseLocalServers()).isTrue();
+
+            loginAs(user);
+            assertThat(ttsService.test(local).get(30, TimeUnit.SECONDS).modelLoaded()).isTrue();
+            TtsModelDialog dialog = new TtsModelDialog(local);
+            dialog.create();
+            assertThat(dialog.getLocalBox().isVisible()).isTrue();
+        } finally {
+            loginAdmin();
+            appSettingsService.save(JoiAppSettings.DEFAULT);
+        }
+    }
+
+    @Test
+    void onlyAdministratorsWriteTheAppSettings() throws Exception {
+        login();
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> appSettingsService.save(new JoiAppSettings(true)))
+                .isInstanceOf(SecurityException.class);
+        assertThat(appSettingsService.get()).isEqualTo(JoiAppSettings.DEFAULT);
     }
 
     @Test

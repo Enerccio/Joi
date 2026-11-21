@@ -78,6 +78,29 @@ public class JoiServiceImpl extends ExtendableServiceImpl<Joi, JoiRepository> im
 
     @Override
     @CommonTx
+    public Joi update(Joi joi, java.util.function.Consumer<Joi> change) throws Exception {
+        Joi stored = find(joi.getId());
+        if (stored == null) {
+            throw new IllegalArgumentException("No assistant " + joi.getId());
+        }
+        change.accept(stored);
+        return save(stored);
+    }
+
+    @Override
+    @CommonTx
+    public Joi saveMood(Joi joi, String mood, java.util.Date since) throws Exception {
+        Joi saved = update(joi, stored -> {
+            stored.setMood(mood);
+            stored.setMoodSince(since);
+        });
+        joi.setMood(mood);
+        joi.setMoodSince(since);
+        return saved;
+    }
+
+    @Override
+    @CommonTx
     public List<QueuedEvent> saveAbout(Joi joi, Persona before) throws Exception {
         Joi saved = save(joi);
         List<QueuedEvent> events = new ArrayList<>();

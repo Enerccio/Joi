@@ -282,8 +282,8 @@ writing. A cheaper model writes the code, and the strongest one reads it later, 
 longer the wait, the more later commits build on a mistake, so the user verifies at the end of a feature, not rarely. The
 repository keeps a log of it:
 [verification.md](verification.md) at the root. It is mainly a log of verifications: a line saying up to which commit the
-code is verified and a table with one row per verification (date, the model id that verified, the commits it checked, notes
-on how). A commit that is not in it is simply unverified, and the next verification goes over all of them. A verification
+code is verified and a table with one row per verification (date, the model id that verified, the reasoning level it ran at,
+the commits it checked, notes on how). A commit that is not in it is simply unverified, and the next verification goes over all of them. A verification
 runs only when the user asks for it; it reads the code around each diff, fixes what it finds, and its own fix commits belong
 to its row. A row is a record that a model reviewed the commits, not a proof; the notes say how deep the review went.
 Verified history is never rebased or squashed, since the hashes would point at nothing. The log starts at the last commit before it existed, so the first
@@ -344,6 +344,10 @@ check) is in [MARGINALIA.md](MARGINALIA.md).
 - **API access (built):** User Settings → Access lists the user's tokens and devices (created, expires, last used,
   revoke), with *Create token* and *Connect a device*; Administration → API access chooses what is offered and how long
   OAuth tokens live. See The node protocol.
+- **App settings (built):** Administration → App settings holds what the administrator decides for everybody
+  (`JoiAppSettings`, in the platform's `AppSettings` under `joi_app`). For now one option: whether users who are not
+  administrators may mark a TTS model as local (the server then calls localhost and private addresses for them). Off by
+  default; administrators always may. Otherwise the box is hidden and the flag ignored when saved, tested and spoken.
 
   An empty field is not set: the User Settings are used, and shown greyed out (the placeholder). A change of her name,
   the user's name or her personality is an **event** for her (`QueuedEvent`, kinds `persona.renamed`,
@@ -902,6 +906,8 @@ small wrapper: `POST {url}` with `{"url": url}`, answer `{"content": markdown}`,
 **Other options:** `proxy`, `timeoutSeconds` (20), `maxResults` (8), `language`, `safeSearch`, `userAgent`.
 **The chain of the search's own settings** is the permission's without the ceiling: the user's own if they have any
 (they replace the administrator's as a whole; *Use the administrator's* takes it back), else the administrator's.
+One thing is not replaced: direct reads reach the server's own network (`allowPrivate`) from a user's or an assistant's
+options only when the administrator's allow it; otherwise the box is hidden and the flag ignored when saved, read and tested.
 **Privacy mode:** only sources marked `local` (a flag on the source and on the page source, nothing guessed from the
 URL) run, the others are refused with a message.
 

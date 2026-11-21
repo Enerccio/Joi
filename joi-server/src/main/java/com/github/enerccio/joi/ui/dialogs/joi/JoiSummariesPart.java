@@ -81,7 +81,7 @@ public class JoiSummariesPart implements JoiDialogPart {
         layout = new VerticalLayout(hint, jobs, empty, list);
         layout.setSizeFull();
         layout.setPadding(false);
-        layout.getStyle().set("overflow-y", "auto");
+        layout.addClassName(JoiCssStyles.SUMMARY_PANEL);
         layout.addAttachListener(e -> watch(e.getUI()));
         layout.addDetachListener(e -> unwatch());
         return layout;

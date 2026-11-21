@@ -62,6 +62,11 @@ Spring XML in `src/main/resources/META-INF/spring`: `application-config.xml`, `c
 `datasources-config.xml` and `services-config.xml`. A new service or repository needs its bean there. Transactions are `@CommonTx` and
 `@CommonTxReadOnly`. Ownership is checked through `findForUser`, never by raw ids.
 
+A save writes the whole row. An entity held from earlier (a dialog's copy, the assistant a turn read at its start) is changed through
+its service's `update(entity, change)`, which reads it fresh and applies the change in one write transaction: `JoiService.update`, and
+`JoiService.saveMood` for her mood of the day. Saving the old copy would put back what was saved since. The platform's `StaleSaves` logs
+such a save in production and fails it in the tests.
+
 ## Style
 
 Follow Marginalia (see its `CLAUDE.md` and `manual/developer`): 4 spaces, no Lombok, records for small result types, javadoc that explains

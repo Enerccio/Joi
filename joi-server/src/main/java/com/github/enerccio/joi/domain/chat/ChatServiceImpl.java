@@ -265,9 +265,7 @@ public class ChatServiceImpl implements ChatService, InitializingBean, Disposabl
             return current;
         }
         Mood rolled = personaService.rollMood(random);
-        joi.setMood(rolled.key());
-        joi.setMoodSince(AppClock.now());
-        joiService.save(joi);
+        joiService.saveMood(joi, rolled.key(), AppClock.now());
         return rolled;
     }
 

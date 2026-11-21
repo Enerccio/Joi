@@ -75,7 +75,8 @@ public class OutfitDialog extends Dialog {
     /** The box of each toggle of the model, by the toggle's id. */
     private final Map<String, Checkbox> toggles = new LinkedHashMap<>();
     /** The renders the viewer sent, until it says they are all there. */
-    private final Map<String, byte[]> pendingShots = new LinkedHashMap<>();
+    // filled by the upload requests of the snapshots
+    private final Map<String, byte[]> pendingShots = new java.util.concurrent.ConcurrentHashMap<>();
     private boolean previewShown;
 
     /**

@@ -45,4 +45,14 @@ public interface JoiService extends ExtendableService<Joi, JoiRepository> {
      * @return the events queued, empty when none
      */
     List<QueuedEvent> saveAbout(Joi joi, Persona before) throws Exception;
+
+    /**
+     * Changes her as stored now: reads her fresh, applies {@code change} and saves her, in one write transaction. The way to
+     * change her from a copy read earlier (a dialog, a turn), so what was saved since (her mood of the day, the user's edit)
+     * is not put back.
+     */
+    Joi update(Joi joi, java.util.function.Consumer<Joi> change) throws Exception;
+
+    /** Writes her mood of the day through {@link #update}, and onto {@code joi} too. */
+    Joi saveMood(Joi joi, String mood, java.util.Date since) throws Exception;
 }

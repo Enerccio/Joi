@@ -210,6 +210,8 @@ public class JoiLocalizationBundleEN extends TextBundleBase<J_L> {
         setValue(J_L.LABEL_CONNECT_DEVICE, "Connect a device");
         setValue(J_L.LABEL_TOKEN, "Token");
         setValue(J_L.LABEL_API_ACCESS, "API access");
+        setValue(J_L.LABEL_APP_SETTINGS, "App settings");
+        setValue(J_L.LABEL_USERS_MAY_USE_LOCAL_SERVERS, "Users may use servers on this machine or the local network");
         setValue(J_L.LABEL_ALLOW_TOKENS, "Tokens");
         setValue(J_L.LABEL_ALLOW_OAUTH, "OAuth (devices)");
         setValue(J_L.LABEL_ACCESS_TOKEN_MINUTES, "OAuth access token lifetime (minutes)");
@@ -470,6 +472,8 @@ public class JoiLocalizationBundleEN extends TextBundleBase<J_L> {
         setValue(J_L.HELP_JOI_INHERITED, "Empty fields use your User Settings, shown greyed out.");
         setValue(J_L.HELP_JOI_PERSONA_EVENTS, "Once you have talked, she is told when her name, your name or her personality changes.");
         setValue(J_L.HELP_ACTOR_DESCRIPTION, "How the voice sounds, in words (\"low and warm, a little husky\"). The assistant reads it: she is told when it becomes her voice, and it is in her system prompt.");
+        setValue(J_L.HELP_APP_SETTINGS, "What you decide for everybody on this installation.");
+        setValue(J_L.HELP_USERS_MAY_USE_LOCAL_SERVERS, "Off: users who are not administrators cannot mark a TTS model as local, so the server never calls localhost or private addresses for them. Administrators always can.");
         setValue(J_L.HELP_API_ACCESS, "How nodes and other clients may sign in to the API (joi-protocol). Turning a way off stops its tokens and devices at once; turning it on again brings them back.");
         setValue(J_L.HELP_NO_AUTH, "No authentication is on in the configuration (joi.api.no-auth): a call without credentials acts as %s. Only for development and localhost setups.");
         setValue(J_L.HELP_USER_ACCESS, "The tokens and devices that may use the API as you. The API is at %s.");
@@ -703,7 +707,7 @@ public class JoiLocalizationBundleEN extends TextBundleBase<J_L> {
         setValue(J_L.LABEL_PAGE_PROXY, "Proxy for direct reads (http://host:port)");
         setValue(J_L.LABEL_PAGE_MAX_CHARS, "Characters of a page given to the model");
         setValue(J_L.LABEL_PAGE_ALLOW_PRIVATE, "Direct reads may reach addresses of the server's own network");
-        setValue(J_L.HELP_PAGE_ALLOW_PRIVATE, "Off: a page she is led to cannot send the server to localhost or the local network.");
+        setValue(J_L.HELP_PAGE_ALLOW_PRIVATE, "Off: a page she is led to cannot send the server to localhost or the local network. Users can turn it on for themselves only when the administrator's options have it on.");
         setValue(J_L.LABEL_TEST_PAGE, "Test a page");
         setValue(J_L.LABEL_TEST_PAGE_URL, "Address of a page");
         setValue(J_L.LABEL_TASKS, "Tasks");

@@ -148,6 +148,17 @@ public class TtsModel implements Cloneable {
         return copy;
     }
 
+    /** A copy that is not local: the private addresses are refused for it. */
+    public TtsModel withoutLocal() {
+        try {
+            TtsModel copy = (TtsModel) super.clone();
+            copy.local = false;
+            return copy;
+        } catch (CloneNotSupportedException e) {
+            throw new IllegalStateException(e);
+        }
+    }
+
     /** A copy that asks the server for this format. */
     public TtsModel withFormat(String format) {
         try {

@@ -1,5 +1,6 @@
 package com.github.enerccio.joi.domain.service.impl;
 
+import com.github.enerccio.joi.domain.service.JoiAppSettingsService;
 import com.github.enerccio.joi.domain.service.TtsService;
 import com.github.enerccio.joi.tts.*;
 import com.github.enerccio.joi.tts.audio.AudioKind;
@@ -54,6 +55,9 @@ public class TtsServiceImpl implements TtsService {
     @Autowired(required = false)
     private GpuService gpuService;
 
+    @Autowired
+    private JoiAppSettingsService appSettingsService;
+
     private final Gson gson = new Gson();
 
     @Override
@@ -94,7 +98,8 @@ public class TtsServiceImpl implements TtsService {
 
     @Override
     public void saveModel(TtsModel model) throws Exception {
-        change(settings -> settings.putModel(model));
+        TtsModel stored = confined(model);
+        change(settings -> settings.putModel(stored));
     }
 
     @Override
@@ -176,12 +181,14 @@ public class TtsServiceImpl implements TtsService {
 
     @Override
     public SpeechBackend createBackend(TtsModel model) {
+        model = confined(model);
         String key = reveal(model.getProtectedApiKey());
         return model.isHiggs() ? new HiggsComfyBackend(model, key) : new ChatterboxBackend(model, key);
     }
 
     @Override
-    public CompletableFuture<ServerCheck.Result> test(TtsModel model) {
+    public CompletableFuture<ServerCheck.Result> test(TtsModel asGiven) {
+        TtsModel model = confined(asGiven);
         String key = reveal(model.getProtectedApiKey());
         return inBackground(() -> {
             try (GpuLease _ = lease(model)) {
@@ -220,6 +227,24 @@ public class TtsServiceImpl implements TtsService {
                 return backend.synthesize(request, () -> false);
             }
         });
+    }
+
+    /**
+     * The model as the current user may use it: marked local only when the administrator lets them have the server call
+     * its own network ({@link JoiAppSettingsService#localServersAllowed}); otherwise the private addresses are refused.
+     * When that can't be told, it is not allowed.
+     */
+    private TtsModel confined(TtsModel model) {
+        if (model == null || !model.isLocal()) {
+            return model;
+        }
+        boolean allowed;
+        try {
+            allowed = appSettingsService.localServersAllowed();
+        } catch (Exception e) {
+            allowed = false;
+        }
+        return allowed ? model : model.withoutLocal();
     }
 
     /** The GPU lock of the model, taken with {@code {{model}}} for its steps; none when it has no lock. */

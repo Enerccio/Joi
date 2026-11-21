@@ -135,6 +135,28 @@ class WebToolSettingsTest extends PlatformTestBase {
     }
 
     @Test
+    void aUserReachesTheServersNetworkOnlyWhenTheAdministratorAllowsIt() throws Exception {
+        PageConfig mine = new PageConfig(PageSourceType.DIRECT, null, false, null, 5, 0, true);
+        settings.savePages(ToolScope.USER, null, mine, Map.of());
+        assertThat(settings.privateAllowed()).isFalse();
+        assertThat(settings.pages(joi).config().allowPrivate()).isFalse();
+        assertThat(settings.pagesIn(ToolScope.USER, null).config().allowPrivate()).isFalse();
+        // nor the assistant's own
+        settings.savePages(ToolScope.JOI, joi, mine, Map.of());
+        assertThat(settings.pages(joi).config().allowPrivate()).isFalse();
+        // nor a test of the page reader
+        assertThatThrownBy(() -> settings.testPage(ToolScope.USER, null, mine, null, null, "http://127.0.0.1:9/"))
+                .hasMessageContaining("own network");
+
+        loginAdmin();
+        settings.savePages(ToolScope.APP, null, mine, Map.of());
+        loginAs(me);
+        assertThat(settings.privateAllowed()).isTrue();
+        settings.savePages(ToolScope.JOI, joi, mine, Map.of());
+        assertThat(settings.pages(joi).config().allowPrivate()).isTrue();
+    }
+
+    @Test
     void onlyAdministratorsWriteTheAdministratorsOptions() throws Exception {
         assertThatThrownBy(() -> settings.saveSearch(ToolScope.APP, null, config(null), Map.of())).isInstanceOf(SecurityException.class);
         assertThatThrownBy(() -> settings.savePages(ToolScope.APP, null, PageConfig.from(null), Map.of())).isInstanceOf(SecurityException.class);

@@ -222,17 +222,17 @@ public class JoiAboutPart implements JoiDialogPart {
     }
 
     private void save() {
-        Joi joi = dialog.getJoi();
-        joi.setAssistantName(StringUtils.defaultIfBlank(nameField.getValue().strip(), null));
-        joi.setUserName(StringUtils.defaultIfBlank(userNameField.getValue().strip(), null));
-        joi.setPersonality(personalitySelect.getValue() == null ? null : personalitySelect.getValue().key());
-        joi.setChatModel(idOf(modelBoxes.get(TextLLMType.CHAT).getValue()));
-        joi.setReasoningModel(idOf(modelBoxes.get(TextLLMType.DEEP_REASONING).getValue()));
-        joi.setAuxiliaryModel(idOf(modelBoxes.get(TextLLMType.AUXILIARY).getValue()));
-        joi.setTtsModel(ttsModelSelect.getValue() == null ? null : ttsModelSelect.getValue().getId());
-        joi.setVoiceActor(voiceActorSelect.getValue() == null ? null : voiceActorSelect.getValue().getId());
-        summaryFields.save(joi);
-        dialog.saveAbout(before);
+        dialog.saveAbout(before, joi -> {
+            joi.setAssistantName(StringUtils.defaultIfBlank(nameField.getValue().strip(), null));
+            joi.setUserName(StringUtils.defaultIfBlank(userNameField.getValue().strip(), null));
+            joi.setPersonality(personalitySelect.getValue() == null ? null : personalitySelect.getValue().key());
+            joi.setChatModel(idOf(modelBoxes.get(TextLLMType.CHAT).getValue()));
+            joi.setReasoningModel(idOf(modelBoxes.get(TextLLMType.DEEP_REASONING).getValue()));
+            joi.setAuxiliaryModel(idOf(modelBoxes.get(TextLLMType.AUXILIARY).getValue()));
+            joi.setTtsModel(ttsModelSelect.getValue() == null ? null : ttsModelSelect.getValue().getId());
+            joi.setVoiceActor(voiceActorSelect.getValue() == null ? null : voiceActorSelect.getValue().getId());
+            summaryFields.save(joi);
+        });
         try {
             before = joiService.persona(dialog.getJoi());
         } catch (Exception e) {

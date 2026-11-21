@@ -1,6 +1,7 @@
 package com.github.enerccio.joi.ui.dialogs;
 
 import com.flowingcode.vaadin.addons.fontawesome.FontAwesome.Solid;
+import com.github.enerccio.joi.domain.service.JoiAppSettingsService;
 import com.github.enerccio.joi.domain.service.TtsService;
 import com.github.enerccio.joi.loc.J_L;
 import com.github.enerccio.joi.tts.http.Http;
@@ -50,6 +51,9 @@ public class TtsModelDialog extends Dialog {
     @Autowired
     private TtsService ttsService;
 
+    @Autowired
+    private JoiAppSettingsService appSettingsService;
+
     private final TtsModel model;
     private Runnable onSave = () -> {
     };
@@ -89,6 +93,15 @@ public class TtsModelDialog extends Dialog {
         } : onSave;
     }
 
+    /** Whether the current user may mark a server local; when that can't be told, they may not. */
+    private boolean localAllowed() {
+        try {
+            return appSettingsService.localServersAllowed();
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
     public void create() {
         setHeaderTitle(loc.getValue(J_L.LABEL_TTS_MODEL));
         setWidth("min(48em, 95vw)");
@@ -126,6 +139,8 @@ public class TtsModelDialog extends Dialog {
 
         localBox = new Checkbox(loc.getValue(J_L.LABEL_SERVER_IS_LOCAL), model.isLocal());
         localBox.setHelperText(loc.getValue(J_L.HELP_SERVER_IS_LOCAL));
+        // only when the administrator lets this user have the server call its own network (Administration → App settings)
+        localBox.setVisible(localAllowed());
 
         gpuLock = new GpuLockSelect();
         gpuLock.setLockUuid(model.getGpuLock());
@@ -273,6 +288,10 @@ public class TtsModelDialog extends Dialog {
     }
 
     /** The name field, for tests. */
+    public Checkbox getLocalBox() {
+        return localBox;
+    }
+
     public TextField getNameField() {
         return nameField;
     }

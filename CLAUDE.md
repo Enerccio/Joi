@@ -175,7 +175,8 @@ Don't add adult content from avatar packages to anything (the converter drops it
   who verified the code). A commit that is not in it is simply unverified. Verify only when the user asks: review every
   commit after the "Verified up to" line (the whole code while it says "nothing yet"), reading the code around each diff,
   not only the diff; fix what you find, add a row to Verifications (date, `<your model id>` as the environment reports it,
-  e.g. `claude-sonnet-5-5`, the commits checked, notes: what you read, whether you ran the tests, what you fixed) and
+  e.g. `claude-sonnet-5-5`, your reasoning level as the environment reports it (`CLAUDE_EFFORT`, e.g. `medium`; say so if it is
+  not reported), the commits checked, notes: what you read, whether you ran the tests, what you fixed) and
   move "Verified up to" to the newest of them. Your own fix commits belong to that row and may be included in "Verified
   up to". Never mark a commit as verified without really reviewing it. Never rebase or squash verified history. "Written by"
   is secondary, but follow it every time: **always write one commit behind.** A commit cannot contain its own hash, so the row of

@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
   The platform's services that joi-server uses (the platform ships no Spring XML, see MARGINALIA.md). Taken from the
-  platform's test wiring (Marginalia's platform/src/test/resources/META-INF/spring/test-application-config.xml), so it
-  has no OSGi and no runtime instrumentation: no plugins (Claude and Gemini providers) yet. Joi's own services go
-  below the platform's.
+  platform's test wiring (Marginalia's platform/src/test/resources/META-INF/spring/test-application-config.xml), with
+  no runtime instrumentation. The OSGi framework of the extensions (the Claude, Gemini and Grok providers) is in
+  extensions-config.xml. Joi's own services go below the platform's.
 -->
 <beans xmlns="http://www.springframework.org/schema/beans"
        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
@@ -308,6 +308,8 @@
         <property name="repository" ref="accessTokenRepository" />
     </bean>
     <bean class="com.github.enerccio.joi.domain.service.impl.ApiAccessServiceImpl" />
+    <!-- the administrator's settings of the installation (Administration → App settings) -->
+    <bean class="com.github.enerccio.joi.domain.service.impl.JoiAppSettingsServiceImpl" />
     <bean class="com.github.enerccio.joi.domain.service.impl.DeviceAuthorizationServiceImpl" />
     <!-- a chat turn: its steps, in the order of TurnStepType (see ChatService) -->
     <bean class="com.github.enerccio.joi.domain.chat.ChatServiceImpl">
