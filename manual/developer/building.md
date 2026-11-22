@@ -17,7 +17,7 @@ covers:
   - .github/workflows/server.yml
   - .github/workflows/test.yml
   - .github/dependabot.yml
-verified: 6c61caa
+verified: 77d8718
 ---
 
 # Building
@@ -127,7 +127,7 @@ columns and sets the checksum; `--dry-run` only reports).
 ## The iOS app
 
 `mvn -o -Pswift,ios verify -pl joi-ios -am` builds the app for the Simulator (Xcode and XcodeGen, macOS only; the profile `ios` adds the module, `swift` writes the
-protocol's Swift package); it also builds the node's renderer page with npm (offline, like the node) into `joi-ios/App/Renderer`. See [The iOS app](ios-app.md#building-with-maven).
+protocol's Swift package); it also builds the node's renderer page with npm (offline, like the node) into `joi-ios/App/Renderer`. The Simulator build is signed ad hoc (the Keychain needs a signature's entitlements). See [The iOS app](ios-app.md#building-with-maven).
 
 ## The protocol in Swift
 

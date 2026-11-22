@@ -5,7 +5,7 @@ order: 700
 covers:
   - joi-server/src/main/java/com/github/enerccio/joi/ui
   - joi-server/src/main/java/com/github/enerccio/joi/loc
-verified: 7236ba1
+verified: 77d8718
 ---
 
 # The UI
@@ -26,7 +26,7 @@ its change with `JoiDialog.save(change)` (or `saveAbout(before, change)`), which
 mood while the dialog is open. The settings of the
 summaries are one widget, `ui/widgets/SummaryFields`, shared by the assistant's About tab and the user's settings (the chain assistant → user → default). Other dialogs: `ModelDialog`, `BodyDialog`,
 `OutfitDialog`, `AnimationDialog`, `AnimationPackDialog`, `TtsModelDialog`, `JoiAIDialog`, `PersonalityDialog`, `MoodDialog`.
-Panels: `ui/bodies` (`AppearancePanel`, `SpringBonesPanel`, `ToggleGroupsPanel`, `ModelViewer`, `ClipPreview`), `ui/tools`, `ui/access` (its list shows a `LOCAL` token as "This computer").
+Panels: `ui/bodies` (`AppearancePanel`, `SpringBonesPanel`, `ToggleGroupsPanel`, `ModelViewer`, `ClipPreview`), `ui/tools`, `ui/access` (its list shows a `LOCAL` token as "This computer"; *Pair a phone* is `PairPhoneDialog`: a QR code (ZXing, a data-URI PNG) of `joi://pair?server=...&offer=...`, the server address editable because a phone cannot reach `localhost`, and a poll of the UI every 1.5 s that approves the device that came with the offer, as the user of the screen: `DeviceAuthorizationService.waitingForOffer` and `approve`).
 
 ## Rules
 

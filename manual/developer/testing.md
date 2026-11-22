@@ -5,7 +5,7 @@ order: 690
 covers:
   - joi-server/src/test
   - joi-node/src/test
-verified: 7236ba1
+verified: 77d8718
 ---
 
 # Testing
@@ -36,7 +36,8 @@ registered on the turn must be unregistered after the test: the chat service is 
 | Folder | What |
 |---|---|
 | `crud` | every entity's repository and ownership |
-| `api` | the HTTP API (`JoiApiTest`, `BodyApiTest`), every answer checked against the schemas |
+| `api` | the HTTP API (`JoiApiTest`, `BodyApiTest`), every answer checked against the schemas; the pairing offers are in `JoiApiTest` |
+| `ui/access` | `PairPhoneDialogTest`: the link of the QR code, the check that approves the device of the offer |
 | `domain` | services, the turn, the web tools (against fake servers: `FakeWeb`), events, conversion (`ModelConversionTest` and `AnimationConversionTest` need Blender) |
 | `domain/node` | `NodeServiceTest` drives the node WebSocket through a fake transport, checking every frame against the schemas |
 | `ui/jobs` | `AssistantsRunsTest`: what the assistants do now (the second list of `/jobs`); the job log is checked in `ChatTurnTest` and `SummarizerTest` with `Jobs.addSink` (never `Jobs.reset()`) |
