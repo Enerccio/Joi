@@ -20,6 +20,7 @@ run node-first-start.mjs
 on 09-conversation
 run shoot-settings.mjs
 run shoot-joi.mjs
+run shoot-moods.mjs
 run shoot-model.mjs
 
 # the node with her body and the chat: needs the conversation step and the fake model; its crops are made by bin/crop-node.sh

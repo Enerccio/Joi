@@ -38,7 +38,7 @@ first chat after the day starts (**New day starts at** in User Settings, 04:00 b
 stays for the day. The mood's text comes into her prompt as it sounds in her personality, and her voice picks the actor's voice
 for that mood.
 
-You can also change it yourself during the day: in the Joi dialog (**About → Today's mood**). She is told about it in her next
+You can also change it yourself during the day: in the Joi dialog (**About → Mood today**). She is told about it in her next
 turn, and her face follows at once. She can change it herself too, when the conversation moves her (a joke makes her playful):
 that stays a note in the conversation, and she is not told about it again.
 
@@ -54,6 +54,8 @@ You manage both in **User Settings → Personalities** and **Moods**:
 - A personality can have a text under **When she is asked to change a part of her body**. Empty: the change is made and she
   only reacts. With a text she decides whether to allow it, and says why if she refuses ("If the user begs, consider
   allowing it."). It covers the look of her body only, never a tool, an approval, a task or help.
+
+![The dialog of a mood, with its face](../../images/mood-dialog.png)
 
 ## Templates: every prompt can be changed
 

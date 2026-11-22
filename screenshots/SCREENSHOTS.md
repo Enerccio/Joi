@@ -163,7 +163,7 @@ are taken, with the node's own commands, never the display.
 | `body-dialog.png` | `06-body` | step 06-appearance | manual/user/bodies/bodies.md, manual/user/bodies/outfits.md |
 | `clip-dialog.png` | `07-animations` | step 07-body | manual/user/animations/clips.md |
 | `first-start.png` | `00-first-start` | step 00-empty | manual/user/getting-started/first-start.md |
-| `joi-about.png` | `03-joi` | step 03-models | manual/user/getting-started/first-assistant.md |
+| `joi-about.png` | `shoot-moods` | any step from 07-body (the last one) | manual/user/getting-started/first-assistant.md |
 | `joi-animations-roles.png` | `07-animations` | step 07-body | manual/user/animations/animations.md |
 | `joi-bodies.png` | `06-body` | step 06-appearance | manual/user/bodies/bodies.md |
 | `joi-chats.png` | `08-conversation` | step 08-animations | manual/user/jois/chats.md |
@@ -176,8 +176,9 @@ are taken, with the node's own commands, never the display.
 | `model-spring-bones.png` | `shoot-model` | any step from 07-body (the last one) | - |
 | `model-toggles.png` | `shoot-model` | any step from 07-body (the last one) | manual/user/bodies/models.md |
 | `models-text.png` | `02-text-models` | step 02-saiki | manual/user/getting-started/first-assistant.md |
+| `mood-dialog.png` | `shoot-moods` | any step from 07-body (the last one) | manual/user/jois/persona.md |
 | `node-after-connect.png` | `node-first-start` | 01-admin, a node that was never started | - |
-| `node-approval.png` | `node-chat` | step 09-conversation, the fake model, a node that was never started | - |
+| `node-approval.png` | `node-chat` | step 09-conversation, the fake model, a node that was never started | manual/user/node/approvals.md |
 | `node-chat.png` | `node-chat` | step 09-conversation, the fake model, a node that was never started | manual/user/node/javafx.md |
 | `node-controls.png` | `node-chat` | step 09-conversation, the fake model, a node that was never started | manual/user/node/javafx.md |
 | `node-joi-menu.png` | `node-first-start` | 01-admin, a node that was never started | - |
@@ -187,6 +188,7 @@ are taken, with the node's own commands, never the display.
 | `outfit-light.png` | `06-body` | step 06-appearance | - |
 | `outfit-school-uniform.png` | `06-body` | step 06-appearance | manual/user/bodies/outfits.md |
 | `settings-general.png` | `04-user-settings` | step 04-joi | manual/user/settings.md |
+| `settings-moods.png` | `shoot-moods` | any step from 07-body (the last one) | manual/user/jois/persona.md |
 | `tab-animations.png` | `shoot-workspace` | any step from 01-admin (the last one) | - |
 | `tab-animations-library.png` | `07-animations` | step 07-body | manual/user/animations/animations.md, manual/user/animations/index.md |
 | `tab-bodies.png` | `shoot-workspace` | any step from 01-admin (the last one) | - |

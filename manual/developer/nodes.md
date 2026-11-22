@@ -131,7 +131,7 @@ it on at the start. The layer has three inputs, the first that says something wi
 being played, from its `.joia`), **her state's eyes** (`eyes`: `{eyes: "auto"|"closed", ease}`) and **her mood** (`mood`: `{mood, expression, weight, eyes}`, the server's `mood` frame as it is: the mood's face is its own setting, so the page has no table
 and a mood of the user's works). The messages `eyes` and `mood` are kept and sent again to a page that opens
 later (`RendererServer.eyes` / `mood`); the node says them from the director: `AvatarPane.state` (sleeping: closed in 0.4 s, falling asleep: closed over 3 s,
-waking up: open over 1.5 s, else open) and the `mood` frame (`NodeSocket.Listener.mood`, sent after the manifest and on each change of her mood: the Today's mood box, her `set_mood`, the roll). The iOS app does the same (`ChatModel.state`, `RendererBridge.setEyes` / `setMood`).
+waking up: open over 1.5 s, else open) and the `mood` frame (`NodeSocket.Listener.mood`, sent after the manifest and on each change of her mood: the Mood today box, her `set_mood`, the roll). The iOS app does the same (`ChatModel.state`, `RendererBridge.setEyes` / `setMood`).
 
 What the layer does: the lids go to the target (closed 1, half 0.55) with an exponential ease; while the eyes are `auto` a blink (0.2 s, one in five a double) comes every 2 to 6 s on the
 `blink` expression; the emotion expressions (`happy`, `angry`, `sad`, `relaxed`, `surprised`) fade to their weights over about a second (three-vrm applies the models' own

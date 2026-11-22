@@ -5,7 +5,7 @@ root = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..')
 repo = os.path.join(root, '..')
 # the state a flow runs on: a chain flow starts from the step before it (bin/chain.txt), the shooting flows as bin/shoot-all.sh says
 state = {'shoot-workspace': 'any step from 01-admin (the last one)', 'node-first-start': '01-admin, a node that was never started',
-         'shoot-settings': 'any step from 07-body (the last one)', 'shoot-joi': 'any step from 07-body (the last one)',
+         'shoot-settings': 'any step from 07-body (the last one)', 'shoot-joi': 'any step from 07-body (the last one)', 'shoot-moods': 'any step from 07-body (the last one)',
          'shoot-model': 'any step from 07-body (the last one)', 'node-chat': 'step 09-conversation, the fake model, a node that was never started'}
 prev = '00-empty'
 for line in open(os.path.join(root, 'bin', 'chain.txt'), encoding='utf-8'):

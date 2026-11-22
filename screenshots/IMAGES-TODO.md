@@ -12,7 +12,8 @@ Status: `[ ]` to take, `[x]` taken and published, `[-]` dropped (why).
 |---|---|---|---|---|
 | [x] | `settings-prompts` | settings.md | `shoot-settings` | User Settings, Prompts tab |
 | [x] | `settings-personalities` | settings.md, jois/persona.md | `shoot-settings` | Personalities tab with the built-in ones |
-| [x] | `settings-moods` | jois/persona.md | `shoot-settings` | Moods tab |
+| [x] | `settings-moods` | jois/persona.md | `shoot-settings`, `shoot-moods` | Moods tab |
+| [x] | `mood-dialog` | jois/persona.md | `shoot-moods` | the dialog of a built-in mood with its face: expression, strength, eyes |
 | [x] | `settings-access` | access.md | `shoot-settings` | Access tab |
 | [x] | `settings-tools` | tools/index.md | `shoot-settings` | Tools tab: permissions and the web search panel |
 | [x] | `admin-gpus` | administration/index.md | `shoot-settings` | Administration, GPUs |

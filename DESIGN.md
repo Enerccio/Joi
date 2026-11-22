@@ -1122,7 +1122,7 @@ UI — nothing is deleted):
 - **Built:** the face of a mood is part of the `Mood` (`MoodFace`: an expression, its weight and the eyes; the built-in ten have one, the
   user sets it per mood in User Settings → Moods, **none** turns it off, a mood of the user's own has none until it is given one:
   `MoodSetting.expression / expressionWeight / eyes`). `ChatService.changeMood(joi, key, byUser)` is the one place a mood changes: it saves it, writes a
-  note in the conversation, pushes it to the nodes (the `mood` frame) and, when the **user** changed it (the Today's mood box of the Joi dialog) and she has
+  note in the conversation, pushes it to the nodes (the `mood` frame) and, when the **user** changed it (the Mood today box of the Joi dialog) and she has
   chatted, queues the event `mood.changed` (told to her in her next turn, merged along the chain from → to). `set_mood` (`MoodTools`, offered to every
   turn, the enum is the moods' names) is her own choice: no consent, no event.
 - Open: whether the conversation should tilt the mood or only the UI and Joi's own tool change it.

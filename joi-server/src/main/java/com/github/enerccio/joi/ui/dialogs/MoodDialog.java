@@ -121,9 +121,11 @@ public class MoodDialog extends Dialog {
         expressions.add(MoodFace.NONE);
         expressions.addAll(AnimationFace.EXPRESSIONS);
         expressionSelect.setItems(expressions);
-        expressionSelect.setItemLabelGenerator(this::expressionText);
+        // the empty choice shows what the mood has without the user's setting
+        String builtInExpression = face.expression() == null ? MoodFace.NONE : face.expression();
+        expressionSelect.setItemLabelGenerator(v -> expressionText(v == null ? builtInExpression : v));
         expressionSelect.setEmptySelectionAllowed(true);
-        expressionSelect.setEmptySelectionCaption(expressionText(face.expression() == null ? MoodFace.NONE : face.expression()));
+        expressionSelect.setEmptySelectionCaption(expressionText(builtInExpression));
         expressionSelect.setValue(own.getExpression());
 
         strengthField = new NumberField(loc.getValue(J_L.LABEL_MOOD_EXPRESSION_STRENGTH));
@@ -140,9 +142,10 @@ public class MoodDialog extends Dialog {
         eyes.add(MoodFace.OPEN);
         eyes.addAll(MoodFace.EYES);
         eyesSelect.setItems(eyes);
-        eyesSelect.setItemLabelGenerator(this::eyesText);
+        String builtInEyes = face.eyes() == null ? MoodFace.OPEN : face.eyes();
+        eyesSelect.setItemLabelGenerator(v -> eyesText(v == null ? builtInEyes : v));
         eyesSelect.setEmptySelectionAllowed(true);
-        eyesSelect.setEmptySelectionCaption(eyesText(face.eyes() == null ? MoodFace.OPEN : face.eyes()));
+        eyesSelect.setEmptySelectionCaption(eyesText(builtInEyes));
         eyesSelect.setValue(own.getEyes());
 
         HorizontalLayout faceRow = new HorizontalLayout(expressionSelect, strengthField, eyesSelect);
