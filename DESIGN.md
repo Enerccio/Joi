@@ -558,6 +558,30 @@ run by `ChatServiceImpl`). Marginalia's agent runner is not used.
   hosted caches expire in minutes). Where the disk caches are ported, it saves the cache after it, so a server that
   starts is warm too.
 
+- **A turn that fails after some rounds is kept (built).** A round can fail after earlier ones answered (the 12B looping after a tool result until its
+  token budget, a model server error): her words had streamed to the clients and a function had run (a clipboard offer, a part switched), so dropping the
+  turn made the conversation disagree with what the user saw and did, and she forgot what she had done. Now the turn goes to STORE before its cleanup when it has
+  words or calls (`ChatServiceImpl.keepWhatHappened`): the message is stored with her words and calls so far, the speech is skipped, a `LOG` note
+  `turn.failed` says why (the clients get it as a `log` frame; it is never given to the model), and the turn still **ends as a failure** (the caller's future fails,
+  the node gets `error`, the outcome is `FAILED`, `TurnProperties.PARTIAL`). A turn stopped by the user, or failed before anything happened, still stores nothing.
+  Left: a failure in the first round still drops the user's message from the chats view (the note says why).
+- **No round after a gesture (built).** After the calls of a round the model normally gets another round to read the results (`CallToolsStep` goes back to
+  INFERENCE). A round that has already said its words and made only calls whose result says nothing (`ToolEffects.needsNoAnswer`: `play_animation`,
+  `set_mood`, a node's `notify`; all succeeded) ends the turn instead: the extra round has nothing to add, and it is where the 12B looped until its budget. A call
+  whose outcome she should react to (a clipboard offer the user may refuse, a body part, a search, `recall`) keeps its round: the words of the round before were written
+  without the result.
+- **Messages sent while she is busy (designed 2026-11-22, not built).** The turns of one assistant run one at a time, so a message typed while she
+  is still working has nowhere to go. It is not sent and it does not interrupt her. Two parts:
+  - **She tells the client that she is busy.** The server sends a state frame (`busy`: she is thinking, calling a tool, waiting for an approval,
+    speaking; and idle again) for every turn, also the ones the server started itself (events, greetings, task results), which no client asked
+    for. Today a client knows it only for the turn it started. The avatar's thinking pose and the input of every client follow it.
+  - **The client holds what the user writes meanwhile, as unsent.** In the text field and in the chat the message shows as *unsent* (it can be
+    edited or taken back), and it is sent as one turn when she is idle again (`done`, `error`, or the `busy` frame saying she is idle). Several
+    unsent messages go together as one, in order, so she answers all of it once. The user's own **stop** (or speaking over her, the barge-in)
+    still ends her turn at once and sends what is held. The server also refuses a message that arrives while a turn runs, with an error that
+    says so, so a client that does not hold messages gets a clear answer and not a lost one.
+  - **Open:** whether speech heard while she thinks is held like text or counts as barge-in; whether held messages of two clients are merged.
+
 ### Persona
 
 Default stance: **the meta view.** Joi knows what she is — an AI assistant running on your server, speaking through
@@ -713,6 +737,38 @@ switches back only once. States: `QUEUED`, `RUNNING`, `WAITING` (an approval), `
 use the conversation model or a third cheap one.
 
 A task of the web tools can also write files into her workspace (see Server tools → Her workspace).
+
+**Agent tasks (designed 2026-11-22, not built).** `delegate` is a task of kind `agent`: a **loop of the Deep-reasoning model** with tools, in the background,
+for work that is more than one call (research over several pages, a file or a piece of code made in her workspace, planning). Same `JoiTask`, same queue and
+states, so everything the web tasks have carries over: it starts only after the reply that started it is spoken (one GPU swap), a transcript in
+`JoiTaskMessage`, approval cards in the Tasks tab and on the nodes, cancel, notes in the conversation, the result as an event message she reports in her
+own voice, the thinking pose meanwhile. What is new:
+- **The runner.** `WebTaskServiceImpl.execute` does one fixed job with one model call. The model call, the transcript and the report move into a runner
+  (`AgentTaskService`) that loops: a round of the model, the calls it made, until a round has none. Limits per task, all settings: rounds, wall-clock time,
+  tokens; at a limit the model must answer in text with what it has (as the chat turn does after `MAX_FUNCTION_ROUNDS`). A user's cancel stops it between rounds
+  and inside a call that can be stopped. One agent runs at a time per assistant (the queue already does this); the conversation turns are not blocked while it
+  is queued, only the GPU is.
+- **`delegate`** (a `ServerTool` with the usual chain assistant → user → administrator; off by default). Arguments: the **goal** and the **context** she chooses
+  to give (the agent does not see the conversation, so what it needs is in the goal; it cannot be talked to while it runs). The answer is at once: "on it".
+  Templates (each a `JoiPromptField`): the agent's instructions, the framing of its goal, and what she is told when it ends.
+- **Its tools.** Chosen by the tool permissions, never everything she has. Version one: `web_search`, `fetch_page` (called inside the loop, not as nested tasks),
+  `recall`, and the workspace (read, write, list; the files stay in her workspace and she can offer them with `offer_file_to_clipboard`). **Never inside an
+  agent:** `delegate` (no recursion), `remember`, `set_mood`, outfits, body and animation tools, `switch_body` (an agent does not change her or her memory;
+  she decides what to keep when it reports). **Node tools** (files, shell, `<node>__<tool>`) are version two, and only through the node's own harness: its
+  ALLOW / ASK / DENY and its audit apply as for her, an ASK is a card for the user, and the loop waits (`WAITING`) as long as it takes.
+- **Untrusted content.** An agent reads the web, so everything it fetched is data, marked as such in its prompt. While it holds web tools it has **no write
+  tools on a node**, or every one is ASK whatever the policy says; the combination of reading the web and acting on a machine is the dangerous one.
+- **Result.** It can be large, so it uses *A task's result is in the prompt once* (above), which agents need first: shown in full in the next prompt, then
+  a short note, and `fetch_result` brings it back. The agent's own last message is the result; the files it wrote are listed with it.
+- **Progress.** A short note per round in the conversation (a log message, never given to the model: "Agent: read 3 pages, writing the summary"), shown on the
+  nodes as the web tasks are; the Tasks tab shows the transcript live and has a stop button.
+- **Models and cost.** The role is Deep reasoning (a remote API or a local model that takes the GPU in turns); the user sees the model's name and the limits in
+  the Tasks tab and in the tool's options. Nothing runs without the user's permission of the tool; "always approve" works as for `web_search`.
+- **Order of work.** (1) the runner with the loop, limits and transcript, tested with the fake model's tool-call scripts; (2) `delegate` and its templates,
+  the tool permission, the report and the result-once flag; (3) the safe tool set; (4) the Tasks tab (transcript, stop) and the protocol (a task kind and its
+  progress in 1.x, additions only); (5) node tools through the harness. Steps 1 to 4 need no schema change beyond extended attributes on `JoiTask`.
+- **Open:** whether agents may run in parallel when the models are on different GPUs; whether the user can answer an agent that asks a question (a task
+  state `ASKING`) instead of it finishing with the question; whether the round limits depend on the task's stated size.
 
 **A task's result is in the prompt once (designed, not built).** What a task brings back can be huge (a website of
 25k tokens read for her), and it should not weigh on every later prompt. So the result message is shown to the model in
@@ -1369,8 +1425,9 @@ UI — nothing is deleted):
     what the user hears. The renderer page decodes each piece of speech (Web Audio) and makes a track, a frame every 20 ms with the weights of
     the five VRM visemes (`aa ih ou ee oh`): the loudness says how far the mouth opens, the first two formants (linear prediction) say
     which vowel it is, consonants open it a little. The node tells the page `speech` (the piece, before it plays), `speech-start` (it plays
-    now) and `speech-stop`, and the page runs the mouth on a clock from `speech-start`, so the node's own player (on macOS `afplay`, which
-    cannot be tapped) is untouched and the Java node and the iOS app share the code (`joi-lipsync.js`, `<joi-model-viewer>.setMouth`). The
+    now, with `at`: the wall-clock time its sound began) and `speech-stop`, and the page runs the mouth on a clock from `speech-start`'s `at` (not from the moment it reads the
+    message: a page that draws the Looking Glass's many views or analyses another piece reads it late), so the node's own player (a wav piece through an open Java Sound
+    line, `LineOutput`; `afplay`, which cannot be tapped, for the rest on macOS) is untouched and the Java node and the iOS app share the code (`joi-lipsync.js`, `<joi-model-viewer>.setMouth`). The
     mouth is applied after the animation mixer, so a clip does not take it over. A model without the viseme expressions speaks with a still
     mouth. **Next:** a jaw-bone fallback for such models, a mood that shapes the mouth (a smile while she talks), and a mouth for the
     Looking Glass tuning panel's own preview. See `manual/developer/nodes.md` → Her mouth.
@@ -1933,10 +1990,10 @@ in User Settings → Access → *Connect a device*; the tokens in the Keychain);
 **Build: Maven drives all of it**, as it does the desktop app. Two steps, both behind profiles so that a normal build never
 writes into the source tree or needs Xcode:
 
-- `-Pswift` in `joi-protocol`: `mvn -o -Pswift test -pl joi-protocol` generates the Swift package
+- `-Pswift` in `joi-protocol`: `mvn -Pswift test -pl joi-protocol` generates the Swift package
   (`exec:java` on `SwiftGenerator` at `process-test-classes`), runs the Java tests, then `swift test` on the package
   (`exec:exec`; the Command Line Tools are enough, with the Testing framework passed in `swift.test.flags`, or plain with Xcode). Built and tried: the 76 Swift tests pass.
-- `-Pios` (a module `joi-ios`, `pom` packaging, after `joi-protocol` in the reactor; **built**, with `-Pswift` for the protocol's package): `mvn -o -Pswift,ios verify -pl joi-ios -am`
+- `-Pios` (a module `joi-ios`, `pom` packaging, after `joi-protocol` in the reactor; **built**, with `-Pswift` for the protocol's package): `mvn -Pswift,ios verify -pl joi-ios -am`
   generates, runs `swift test`, `xcodebuild test` on a Simulator, `xcodebuild archive`; `-exportArchive` for the `.ipa` and the
   TestFlight upload are opt-in (they need signing). The version is Maven's (`tools/version_from_tag.sh`), passed as
   `MARKETING_VERSION`; the signing team and the profile come from properties or the environment, never from the POM. The Xcode
@@ -2178,6 +2235,7 @@ with avatars whose shaders match the installed Poiyomi.
 4. The avatar renderer on the Go, the states (idle, listening, thinking, speaking), approval cards in 3D; bodies and
    self-image.
 5. Deeper OS actions, long-term memory, MCP, proactive events.
+6. Agent tasks (`delegate`): a loop of the heavy model in the background, server-side tools first, node tools through the harness later (see Model roles → Agent tasks).
 
 **The first production version** (decided 2026-11-21) is the server with text chat, the avatar, memory and the summaries.
 Before it: the node's `--joi-home-dir` / `JOI_HOME_DIR` (built), a deployment guide and the Docker image (`Dockerfile`, written 2026-11-21, not yet
@@ -2204,4 +2262,5 @@ extension JARs and the image; `desktop.yml`: the app per platform). Built; the W
 - ~~Renderer for the Go: VRM / three.js or Unity~~ — three.js + VRM (Unity spike: about 6 fps and broken materials, see
   [Unity path](#unity-path)).
 - Whether the conversation tilts the mood.
+- **Agents:** node tools in the first version or only server-side tools (the design says server-side first); agents in parallel; whether an agent may ask the user a question (see Agent tasks).
 - Getting Looking Glass WebXR mode to start in Chrome.
