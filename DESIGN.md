@@ -1353,8 +1353,17 @@ UI — nothing is deleted):
     jump, dance, idle variants), proposed by the LLM from a preview and reviewed by the user. Bodies can also bring
     clips of their own (their toggle / effect animations).
   - **Layers:** a base idle loop (several, chosen by mood), gestures on top (upper body masked, so a wave doesn't
-    stop the breathing), additive head motion, facial expressions and lip sync separately. Small motions — nodding,
+    stop the breathing), additive head motion, facial expressions and lip sync separately (**lip sync built**, below). Small motions — nodding,
     shaking the head, looking at you or away — are procedural and need no clip.
+  - **Lip sync (built):** her mouth is read from her **voice**, not from the text: no TTS server gives phoneme timings, and the sound is
+    what the user hears. The renderer page decodes each piece of speech (Web Audio) and makes a track, a frame every 20 ms with the weights of
+    the five VRM visemes (`aa ih ou ee oh`): the loudness says how far the mouth opens, the first two formants (linear prediction) say
+    which vowel it is, consonants open it a little. The node tells the page `speech` (the piece, before it plays), `speech-start` (it plays
+    now) and `speech-stop`, and the page runs the mouth on a clock from `speech-start`, so the node's own player (on macOS `afplay`, which
+    cannot be tapped) is untouched and the Java node and the iOS app share the code (`joi-lipsync.js`, `<joi-model-viewer>.setMouth`). The
+    mouth is applied after the animation mixer, so a clip does not take it over. A model without the viseme expressions speaks with a still
+    mouth. **Next:** a jaw-bone fallback for such models, a mood that shapes the mouth (a smile while she talks), and a mouth for the
+    Looking Glass tuning panel's own preview. See `manual/developer/nodes.md` → Her mouth.
   - **Both ways:** Joi plays them with a tool (`play_animation`, listing what fits the active body and shot), e.g. waves
     hello, shrugs, dances when asked; you trigger them from the UI or a Stream Deck key and she is told.
     **Built (her side):** `play_animation` (`domain/chat/AnimationTools`) is offered to every turn when her active body

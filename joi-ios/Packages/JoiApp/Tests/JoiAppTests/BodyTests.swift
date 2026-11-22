@@ -116,6 +116,18 @@ enum Files {
         #expect(step["rotation"] == .array([.double(0), .double(1), .double(0), .double(0)]) && step["blend"] == .double(0.5))
     }
 
+    @Test func herVoiceIsSentForHerMouthAndNotKept() {
+        let (bridge, sent) = bridge()
+        bridge.speech(2, AudioChunk(index: 0, text: "Hi", mimeType: "audio/wav", data: Data([1, 2, 3])))
+        bridge.speechStarted(2)
+        bridge.speechStopped()
+        #expect(sent.types() == ["speech", "speech-start", "speech-stop"])
+        #expect(object(sent.messages[0])["data"] == .string("AQID") && object(sent.messages[0])["index"] == .int(2))
+        sent.messages = []
+        bridge.pageReady()
+        #expect(!sent.types().contains { $0.hasPrefix("speech") })
+    }
+
     @Test func aClipPlayedByTwoStepsIsSentOnce() {
         let wave = JoiaAnimation(uuid: "wave", steps: [JoiaStep(clip: "c1"), JoiaStep(clip: "c2"), JoiaStep(clip: "c1")])
         let (bridge, sent) = bridge([wave])

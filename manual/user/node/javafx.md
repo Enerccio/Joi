@@ -46,6 +46,11 @@ ends.
 - **On the Looking Glass** moves her onto a Looking Glass display: see [The Looking Glass](looking-glass.md).
 - Messages of the system show as notes in the chat.
 
+Her mouth follows her voice: while a piece of speech plays she opens and shapes it to the vowels in the sound (the five visemes of the
+VRM, `aa`, `ih`, `ou`, `ee` and `oh`), and it closes when she stops or is talked over. This needs a body whose model has those expressions
+(a model converted from a VRChat avatar has them); one without them speaks with a still mouth. The mouth is read from the sound itself,
+so it needs nothing from the speech server and works with any voice.
+
 When she waits she plays one of her idle animations, another each time; while she speaks, one of her talking ones. She plays
 the animation she picks herself once on top.
 

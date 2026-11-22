@@ -156,7 +156,15 @@ public final class AppModel {
                           joi: joi.id, parts: [.tools, .audioOut])
         let link = NodeConnection(url: await client.nodeSocket, hello: hello, manifest: Manifest(version: 1, os: "ios", tools: []),
                                   authorizer: { try await client.authorization() })
-        let model = ChatModel(joiID: joi.id, joiName: joi.name, history: client, link: link, speech: Self.makeSpeech(),
+        let speech = Self.makeSpeech()
+        if let player = speech as? SpeechPlayer {
+            // her mouth follows her voice: the page reads each piece and is told when it plays
+            let bridge = avatar.bridge
+            player.onQueued = { number, chunk in bridge.speech(number, chunk) }
+            player.onStarted = { number in bridge.speechStarted(number) }
+            player.onStopped = { bridge.speechStopped() }
+        }
+        let model = ChatModel(joiID: joi.id, joiName: joi.name, history: client, link: link, speech: speech,
                               player: avatar.bridge, roles: roles)
         model.onServerEvent = { [weak model, weak avatar] name in
             // the server tells that her body or her settings changed

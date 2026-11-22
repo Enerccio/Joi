@@ -141,6 +141,21 @@ class AvatarPane extends BorderPane {
         });
     }
 
+    /** A piece of her voice is coming: the page reads her mouth from it. */
+    void speech(long number, String base64) {
+        renderer.speech(number, base64);
+    }
+
+    /** The piece plays now. */
+    void speechStarted(long number) {
+        renderer.speechStarted(number);
+    }
+
+    /** Her speech is over or stopped. */
+    void speechStopped() {
+        renderer.speechStopped();
+    }
+
     void play(String id, boolean loop) {
         animation.setText(id == null ? "(rest pose)" : names.getOrDefault(id, id) + (loop ? " ⟲" : ""));
         long played = renderer.play(id, loop);

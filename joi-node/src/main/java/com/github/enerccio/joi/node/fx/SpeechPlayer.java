@@ -13,6 +13,8 @@ import java.nio.file.Path;
 import java.util.ArrayDeque;
 import java.util.Base64;
 import java.util.Queue;
+import java.util.function.BiConsumer;
+import java.util.function.LongConsumer;
 
 /**
  * Her speech: the pieces of a reply played one after another as they come, each a whole file (written to a temp file
@@ -27,7 +29,12 @@ class SpeechPlayer {
     /** How long a finished player is kept before it is disposed. */
     private static final double RETIRE_SECONDS = 2;
 
-    private final Queue<Path> queue = new ArrayDeque<>();
+    /** A piece waiting to play: its number (the renderer's mouth reads the same piece by it) and its file. */
+    private record Piece(long number, Path file) {
+    }
+
+    private final Queue<Piece> queue = new ArrayDeque<>();
+    private long numbers;
     private static final boolean MAC = System.getProperty("os.name", "").toLowerCase().contains("mac");
 
     private MediaPlayer playing;
@@ -37,6 +44,27 @@ class SpeechPlayer {
     private boolean busy;
     private Runnable onEnded = () -> {
     };
+    private BiConsumer<Long, AudioChunk> onQueued = (number, chunk) -> {
+    };
+    private LongConsumer onStarted = number -> {
+    };
+    private Runnable onStopped = () -> {
+    };
+
+    /** A piece came, before it plays: the number it is played under, and the piece (her mouth reads it from the sound). */
+    void setOnQueued(BiConsumer<Long, AudioChunk> onQueued) {
+        this.onQueued = onQueued;
+    }
+
+    /** The piece of that number plays now. */
+    void setOnStarted(LongConsumer onStarted) {
+        this.onStarted = onStarted;
+    }
+
+    /** Her speech is over or was stopped: nothing plays. */
+    void setOnStopped(Runnable onStopped) {
+        this.onStopped = onStopped;
+    }
 
     void setOnEnded(Runnable onEnded) {
         this.onEnded = onEnded;
@@ -48,7 +76,9 @@ class SpeechPlayer {
             Path file = Files.createTempFile("joi-speech", extension);
             Files.write(file, Base64.getDecoder().decode(chunk.data()));
             file.toFile().deleteOnExit();
-            queue.add(file);
+            long number = ++numbers;
+            queue.add(new Piece(number, file));
+            onQueued.accept(number, chunk);
             if (!busy) {
                 next();
             }
@@ -63,6 +93,7 @@ class SpeechPlayer {
     /** Stops her speech (she was talked over). */
     void stop() {
         queue.clear();
+        onStopped.run();
         busy = false;
         if (process != null) {
             Process stopped = process;
@@ -92,14 +123,17 @@ class SpeechPlayer {
     }
 
     private void next() {
-        Path file = queue.poll();
-        if (file == null) {
+        Piece piece = queue.poll();
+        if (piece == null) {
             playing = null;
             busy = false;
+            onStopped.run();
             onEnded.run();
             return;
         }
+        Path file = piece.file();
         busy = true;
+        onStarted.accept(piece.number());
         if (MAC) {
             nextWithProcess(file);
             return;

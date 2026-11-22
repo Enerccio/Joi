@@ -7,15 +7,20 @@
 // {type: "toggles", toggles: [{mesh, key, hides, shown}]} shows and hides the parts of her model (set again once it loads).
 // In the iOS app (WKWebView) there is no node server: the app calls window.joiReceive(message) with the same messages and takes
 // what the page says through webkit.messageHandlers.joi ({type: "ready"} when it is loaded, {type: "loaded"} when her model is there, then "ended" and "error" as below).
+// {type: "speech", index, data} (a piece of her voice, a wav or mp3 file in Base64: read for her mouth), {type: "speech-start", index}
+// (that piece plays now, by the node's own player) and {type: "speech-stop"} (her speech ended or was stopped): her mouth follows her voice (joi-lipsync.js).
 // With ?looking-glass the page renders her for the Looking Glass whose calibration the node serves (looking-glass.js);
 // {type: "tuning", tuning} changes how (the node's tuning panel).
 import './generated/joi-model-viewer.js';
 import {lookingGlassRenderer} from './looking-glass.js';
+import {analyzeFile, MouthPlayer} from './generated/joi-lipsync.js';
 
 const viewer = document.getElementById('viewer');
 let playing = null;
 let tuning = null;
 let toggles = [];
+const mouth = new MouthPlayer();
+let mouthOpen = false;
 
 if (new URLSearchParams(location.search).has('looking-glass')) {
   document.body.classList.add('looking-glass');
@@ -71,8 +76,33 @@ viewer.addEventListener('animation-error', event => {
   }
 });
 
+/** Her mouth follows the voice: every frame while a piece plays, and once more to close it when it is over. */
+function mouthLoop() {
+  const weights = mouth.weights();
+  const open = weights.aa + weights.ih + weights.ou + weights.ee + weights.oh > 0.001;
+  if (open || mouthOpen) {
+    viewer.setMouth(open ? weights : null);
+    mouthOpen = open;
+  }
+  requestAnimationFrame(mouthLoop);
+}
+requestAnimationFrame(mouthLoop);
+
+function speech(message) {
+  const text = atob(message.data);
+  const bytes = new Uint8Array(text.length);
+  for (let i = 0; i < text.length; i++) {
+    bytes[i] = text.charCodeAt(i);
+  }
+  analyzeFile(bytes.buffer)
+    .then(track => mouth.add(message.index, track))
+    .catch(error => console.log('joi renderer: no mouth for piece ' + message.index + ': ' + (error && error.message || error)));
+}
+
 function receive(message) {
-  console.log('joi renderer: ' + message.type + (message.id !== undefined ? ' ' + message.id : ''));
+  if (message.type !== 'speech') {
+    console.log('joi renderer: ' + message.type + (message.id !== undefined ? ' ' + message.id : ''));
+  }
   switch (message.type) {
     case 'model':
       if (viewer.getAttribute('src') !== message.src) {
@@ -95,6 +125,15 @@ function receive(message) {
       if (viewer.renderFrame && viewer.renderFrame.tune) {
         viewer.renderFrame.tune(tuning);
       }
+      break;
+    case 'speech':
+      speech(message);
+      break;
+    case 'speech-start':
+      mouth.start(message.index);
+      break;
+    case 'speech-stop':
+      mouth.stop();
       break;
     case 'stop':
       playing = null;

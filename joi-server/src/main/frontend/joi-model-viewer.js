@@ -14,6 +14,8 @@
 // where it starts, and blended in from the step before over some seconds; the animation can start again after its
 // last step. setRotationTool(index) shows rings to turn a step (-1 hides them); "step-rotated" ({index, x, y, z, w})
 // fires when the mouse lets go of them.
+// setMouth({aa, ih, ou, ee, oh}) sets the weights of the five visemes (her mouth while she speaks, from her voice: joi-lipsync.js);
+// they are applied each frame after the animation, so a clip does not take them over; null gives the mouth back.
 // finishAnimation() lets a looping step end its round and the rest play once; stopAnimation() puts her back at rest;
 // setAnimationPaused(paused) pauses; setFrozen(frozen) freezes her altogether (the animation, the sway, the spring bones:
 // the node's page does it while the server is gone). It fires "animation-started" ({duration} of one round), "animation-step"
@@ -139,6 +141,7 @@ class JoiModelViewer extends HTMLElement {
       this._mixer.update(delta);
     }
     if (this._vrm) {
+      this._applyMouth();
       if (this._sway) {
         this._swayTime = (this._swayTime || 0) + delta;
         this._swayPose(1);
@@ -301,6 +304,27 @@ class JoiModelViewer extends HTMLElement {
       return vrm.scene;
     }
     return gltf.scene;
+  }
+
+  /** The weights of the visemes {aa, ih, ou, ee, oh} to show from now on (null: none, the animation's own). */
+  setMouth(weights) {
+    this._mouth = weights || null;
+    if (!weights) {
+      this._applyMouth(true);
+    }
+  }
+
+  /** Writes the mouth into the expressions, after the mixer and before the model updates (a model without a viseme ignores it). */
+  _applyMouth(clear) {
+    const manager = this._vrm && this._vrm.expressionManager;
+    if (!manager || (!this._mouth && !clear)) {
+      return;
+    }
+    for (const name of ['aa', 'ih', 'ou', 'ee', 'oh']) {
+      if (manager.getExpression(name)) {
+        manager.setValue(name, this._mouth ? Math.min(1, Math.max(0, this._mouth[name] || 0)) : 0);
+      }
+    }
   }
 
   /** Sets a VRM expression (others are set back to 0 when exclusive). */

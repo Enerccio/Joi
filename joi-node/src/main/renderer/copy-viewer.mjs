@@ -8,3 +8,5 @@ const here = dirname(fileURLToPath(import.meta.url));
 mkdirSync(resolve(here, 'src/generated'), {recursive: true});
 copyFileSync(resolve(here, '../../../../joi-server/src/main/frontend/joi-model-viewer.js'),
   resolve(here, 'src/generated/joi-model-viewer.js'));
+copyFileSync(resolve(here, '../../../../joi-server/src/main/frontend/joi-lipsync.js'),
+  resolve(here, 'src/generated/joi-lipsync.js'));

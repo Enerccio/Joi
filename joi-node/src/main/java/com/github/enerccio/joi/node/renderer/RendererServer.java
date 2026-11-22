@@ -111,6 +111,31 @@ public class RendererServer implements AutoCloseable {
         broadcast(message);
     }
 
+    /**
+     * A piece of her voice is coming (before it plays): the page reads her mouth from the sound. Not kept for pages that open later.
+     *
+     * @param number the number the piece plays under ({@link #speechStarted})
+     * @param base64 the file of the piece (wav or mp3), Base64
+     */
+    public void speech(long number, String base64) {
+        JsonObject message = message("speech");
+        message.addProperty("index", number);
+        message.addProperty("data", base64);
+        broadcast(message);
+    }
+
+    /** The piece of that number plays now: her mouth moves from here on. */
+    public void speechStarted(long number) {
+        JsonObject message = message("speech-start");
+        message.addProperty("index", number);
+        broadcast(message);
+    }
+
+    /** Her speech is over or was stopped: her mouth closes. */
+    public void speechStopped() {
+        broadcast(message("speech-stop"));
+    }
+
     /** The server is gone ({@code true}) or back: the pages freeze her and show her in gray, or let her go on. */
     public synchronized void offline(boolean offline) {
         JsonObject message = message("offline");

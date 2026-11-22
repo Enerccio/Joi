@@ -771,6 +771,10 @@ public class JoiNodeApp extends Application {
         clipMenu.setDisable(false);
         chat.history(loaded.history());
         SpeechPlayer speech = new SpeechPlayer();
+        // her mouth follows her voice: the page reads each piece and is told when it plays
+        speech.setOnQueued((number, chunk) -> avatarPane.speech(number, chunk.data()));
+        speech.setOnStarted(avatarPane::speechStarted);
+        speech.setOnStopped(avatarPane::speechStopped);
         AvatarDirector director = new AvatarDirector(new AvatarDirector.Avatar() {
             @Override
             public void play(String animation, boolean loop) {

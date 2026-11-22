@@ -130,6 +130,21 @@ import JoiClient
         }
     }
 
+    /// A piece of her voice is coming (before it plays): the page reads her mouth from the sound. Not kept for a page that opens later.
+    public func speech(_ number: Int, _ chunk: AudioChunk) {
+        broadcast(Self.message("speech", ["index": .int(number), "data": .string(chunk.data.base64EncodedString())]))
+    }
+
+    /// The piece of that number plays now: her mouth moves from here on.
+    public func speechStarted(_ number: Int) {
+        broadcast(Self.message("speech-start", ["index": .int(number)]))
+    }
+
+    /// Her speech is over or was stopped: her mouth closes.
+    public func speechStopped() {
+        broadcast(Self.message("speech-stop"))
+    }
+
     /// The page tells that her model is there.
     public func modelLoaded() {
         onDrawn?(true)

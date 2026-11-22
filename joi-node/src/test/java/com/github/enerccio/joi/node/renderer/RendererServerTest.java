@@ -134,6 +134,27 @@ class RendererServerTest {
     }
 
     @Test
+    void herVoiceGoesToThePagesOpenForHerMouth() throws Exception {
+        BlockingQueue<JsonObject> open = events();
+        Thread.sleep(300);
+        server.speech(3, "UklGRg==");
+        server.speechStarted(3);
+        server.speechStopped();
+        JsonObject piece = open.poll(5, TimeUnit.SECONDS);
+        assertThat(piece.get("type").getAsString()).isEqualTo("speech");
+        assertThat(piece.get("index").getAsLong()).isEqualTo(3);
+        assertThat(piece.get("data").getAsString()).isEqualTo("UklGRg==");
+        JsonObject started = open.poll(5, TimeUnit.SECONDS);
+        assertThat(started.get("type").getAsString()).isEqualTo("speech-start");
+        assertThat(started.get("index").getAsLong()).isEqualTo(3);
+        assertThat(open.poll(5, TimeUnit.SECONDS).get("type").getAsString()).isEqualTo("speech-stop");
+
+        // her voice is not kept for a page that opens later
+        BlockingQueue<JsonObject> later = events();
+        assertThat(later.poll(500, TimeUnit.MILLISECONDS)).isNull();
+    }
+
+    @Test
     void thatTheServerIsGoneGoesToThePagesOpenAndToOnesOpenedLater() throws Exception {
         BlockingQueue<JsonObject> open = events();
         Thread.sleep(300);

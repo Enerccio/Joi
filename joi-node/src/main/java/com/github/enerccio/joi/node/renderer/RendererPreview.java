@@ -7,7 +7,8 @@ import java.nio.file.Path;
 
 /**
  * The renderer page with a body from files, without a server: for development. Prints the page's address; reads
- * {@code play <animation uuid> [loop]} and {@code stop} from the standard input.
+ * {@code play <animation uuid> [loop]}, {@code stop} and {@code speak <a wav or mp3 file>} (her mouth follows it, played by nothing: the
+ * page's mouth runs on the clock) from the standard input.
  * <p>
  * {@code java ... RendererPreview <her .joim> <her .joia> <a folder to unpack into>}
  */
@@ -20,11 +21,16 @@ public final class RendererPreview {
             body.animations().forEach(animation -> System.out.println(animation.uuid() + " " + animation.name()));
             server.show(body);
             System.out.println(server.url());
+            long piece = 0;
             BufferedReader in = new BufferedReader(new InputStreamReader(System.in, StandardCharsets.UTF_8));
             for (String line; (line = in.readLine()) != null; ) {
                 String[] words = line.strip().split("\\s+");
                 if (words[0].equals("play") && words.length > 1) {
                     System.out.println("playing " + server.play(words[1], words.length > 2 && words[2].equals("loop")));
+                } else if (words[0].equals("speak") && words.length > 1) {
+                    server.speech(++piece, java.util.Base64.getEncoder().encodeToString(java.nio.file.Files.readAllBytes(Path.of(words[1]))));
+                    Thread.sleep(300);
+                    server.speechStarted(piece);
                 } else if (words[0].equals("stop")) {
                     server.play(null, true);
                 }

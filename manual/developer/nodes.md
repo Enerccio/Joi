@@ -6,6 +6,7 @@ covers:
   - joi-node/src/main/java/com/github/enerccio/joi/node
   - joi-server/src/main/java/com/github/enerccio/joi/domain/node
   - joi-server/src/main/java/com/github/enerccio/joi/api/NodeEndpoint.java
+  - joi-server/src/main/frontend/joi-lipsync.js
 verified: 0f75532
 ---
 
@@ -75,7 +76,7 @@ can't handle is logged and the socket reads on.
 | `local/UnixHttp`, `local/UnixWebSocket` | HTTP/1.1 and the node WebSocket over a Unix domain socket (the JDK's clients cannot connect to one): see below |
 | `LocalMode`, `NodeInstance` | `--local <socket>` / `--web <url>` (or `JOI_LOCAL_SOCKET`, `JOI_WEB_URL`), the lock `node.lock` of one node per home |
 | `JoiNodeCli` | the node in a terminal: the smallest complete example |
-| `renderer/` | her body's files unpacked (`BodyFiles`) and served to the renderer page (`RendererServer`), the page's source in `src/main/renderer` (its native mode, where the app calls the page and the page posts back, is for the iOS app: see [The iOS app](ios-app.md)) |
+| `renderer/` | her body's files unpacked (`BodyFiles`) and served to the renderer page (`RendererServer`, which also tells the page about her voice: see *Her mouth* below), the page's source in `src/main/renderer` (its native mode, where the app calls the page and the page posts back, is for the iOS app: see [The iOS app](ios-app.md)) |
 | `fx/` | the JavaFX app: `JoiNodeApp`, `AvatarPane`, `ControlsPane`, `SpeechPlayer`, the Chromium host and the Looking Glass |
 
 Start with `JoiNodeCli`: it logs in (token, device grant or none), picks her, downloads her body into the cache, connects, chats, answers the questions of tasks and
@@ -101,3 +102,23 @@ looks at the same lock (`NodeInstance.running` is the model of the check it make
 `allow` of the clipboard tool copies without showing the text: what lands on a clipboard is pasted into a terminal or a form later, and the text can come from a web page through a task, so it is the user's informed choice (off by default, `ask` is the recommended one, the docs warn). The terminal node asks with `/yes` and `/no`, the JavaFX node with a dialog that shows the text (`askClipboard`), and copies on the JavaFX thread. `offer_to_clipboard(text, title?)` takes up to 100 000 characters (`ClipboardOffers.MAX_TEXT`, the same as a file of the server's workspace).
 
 The server can call a node's tool itself, not only through her function `<node>__<tool>`: `NodeService.sessionsWithTool` lists the nodes that offer it (the one with a turn running first) and `NodeService.callTool` runs it, with the turn id and the same timeout and cancellation. `offer_file_to_clipboard` (see [Server tools](tools.md)) is built on that.
+
+## Her mouth
+
+The mouth is read from the sound, in the renderer page, so the Java node and the iOS app share one implementation and the speech servers need to tell nothing (none of
+them gives phoneme timings). The player of the node plays the audio itself (on macOS `afplay` in a process of its own, so the page cannot tap it); the page gets three
+messages, all of them transient (not sent again to a page that opens later): `speech` (`index`, `data`: a piece, wav or mp3, in Base64, before it plays), `speech-start`
+(`index`: that piece plays now) and `speech-stop` (her speech is over or was stopped). The node numbers the pieces itself (`SpeechPlayer`: the numbers of the server's
+`audio.index` start again at 0 in each turn); `AvatarPane` hands the three calls to `RendererServer.speech`, `speechStarted` and `speechStopped`.
+
+`joi-server/src/main/frontend/joi-lipsync.js` (copied into the renderer page's `generated/` by `copy-viewer.mjs`, like the viewer) reads a piece: the file is decoded with Web
+Audio (`OfflineAudioContext.decodeAudioData`), and `analyze` gives a track, one frame every 20 ms with the weights of the five VRM visemes. The loudness (RMS, against the
+loudest part of the piece) says how far the mouth opens; the first two formants (linear prediction of the pre-emphasized sound, the first two peaks of its envelope) say
+which vowel it is, as the distance to the centers of the five vowels; a consonant (the weight of the spectrum above 3.5 kHz) opens it a little and keeps the vowel. The track is
+smoothed in time. `MouthPlayer` plays the tracks against a clock: `speech-start` sets the clock (plus `delay`, 60 ms for a player that takes a moment to start), and a track
+that was not ready by then joins in late. The page's loop gives `<joi-model-viewer>.setMouth(weights)` each frame, which writes the weights into the model's expressions after the
+animation mixer and before the model updates, so a clip's own expression tracks do not take the mouth over; `setMouth(null)` gives it back. A model without the expressions is
+left alone.
+
+Tests: the messages (`RendererServerTest`, `RendererBridgeTests`). The analyzer was tried on synthetic vowels (a pulse train through three resonators: all five were found) and on
+a macOS voice (`say`), and the page with `RendererPreview`'s `speak <wav>` command and a body from the cache, which moves the mouth without a server or a player.

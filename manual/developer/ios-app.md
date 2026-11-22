@@ -59,6 +59,9 @@ The app's own code, so that it builds and is tested on the Mac: SwiftUI and the 
   started, `turn`, makes its own), `reply` setting the whole text, `audio` handed to the `SpeechPlaying` (`SpeechPlayer`: `AVAudioPlayer` one piece after the
   other), the status of the connection (`connecting`, `connected`, `reconnecting`, `offline`) and a note when a turn is cut off by a lost connection. It needs
   `NodeLink` and `HistorySource` (which `NodeConnection` and `JoiClient` are), so its tests have neither server nor socket.
+- **Her mouth.** The page reads it from her voice (see *Her mouth* in [Writing a node](nodes.md)). `SpeechPlayer` numbers the pieces it plays and has `onQueued`, `onStarted` and
+  `onStopped`; `AppModel` hands them to `RendererBridge.speech`, `speechStarted` and `speechStopped`, which send the `speech`, `speech-start` and `speech-stop` messages (the
+  piece's bytes in Base64; not kept for a page that opens later).
 - **Her body.** `AvatarModel` loads it: `GET .../body`, her `.joim` and `.joia` downloaded into the caches folder (`joi-body`, by hash; what she wore before is
   cleaned away), unpacked in `BodyFiles` (a folder `<hash>-joim` with `model.vrm`, a folder `<hash>-joia` with `<index>.vrma`, each with the marker `.unpacked`) off the main
   thread, and shown. The server's `event` named `body` loads it again, `joi` reads her animation roles again (`ChatModel.onServerEvent`, wired in `AppModel`). The page is the
