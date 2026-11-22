@@ -6,7 +6,7 @@ covers:
   - joi-node/src/main/java/com/github/enerccio/joi/node
   - joi-server/src/main/java/com/github/enerccio/joi/domain/node
   - joi-server/src/main/java/com/github/enerccio/joi/api/NodeEndpoint.java
-verified: 7236ba1
+verified: 0f75532
 ---
 
 # Writing a node
