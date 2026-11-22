@@ -30,13 +30,18 @@ JDK, set `JAVA_HOME` to a 25+ one. Build offline (`-o`) when the dependencies ar
 The root is `joi-parent`: `marginalia/marginalia/platform` (from the submodule), `joi-protocol`, `joi-server` and `joi-node`.
 
 ```bash
-mvn install -DskipTests -pl marginalia/marginalia/platform   # the platform and its test-jar into ~/.m2, after each submodule bump
-mvn -N install && mvn install -DskipTests -pl joi-protocol   # the parent POM and the protocol (needed for -pl joi-server alone)
+git submodule update --init                                   # the Marginalia submodule, if not cloned with it
+mvn -N install                                                # Joi's parent POM into ~/.m2
+mvn -N install -f marginalia/pom.xml                          # Marginalia's parent POM: the platform's POM refers to it
+mvn install -DskipTests -pl marginalia/marginalia/platform,joi-protocol   # the platform (and its test-jar) and the protocol, after each submodule bump
 mvn jetty:run -pl joi-server                                  # dev mode on http://localhost:8080, data in ~/.joi (JOI_DATA)
 mvn package -pl joi-server -Pproduction                       # the WAR with the production frontend bundle
 mvn test -pl joi-server -Dtest=JoiContextTest                 # the classes you touched
 mvn test -pl joi-node                                         # the node's core and its terminal client
 ```
+
+On a new machine the two parent POMs come first: without Marginalia's (`marginalia-parent`) in `~/.m2`, Maven cannot
+resolve the installed platform. The workflows do the same.
 
 `-pl joi-server -am` also builds the platform first; its tests are skipped by `-Dtest=...` with
 `-Dsurefire.failIfNoSpecifiedTests=false`. The platform's own tests belong to Marginalia: do not run them from here.

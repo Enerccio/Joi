@@ -22,9 +22,13 @@ Clone with the submodules, because Joi builds on the platform of Marginalia, whi
 ```bash
 git clone --recurse-submodules https://github.com/Enerccio/Joi
 cd Joi
-mvn install -DskipTests -pl marginalia/marginalia/platform
-mvn -N install && mvn install -DskipTests -pl joi-protocol
+mvn -N install
+mvn -N install -f marginalia/pom.xml
+mvn install -DskipTests -pl marginalia/marginalia/platform,joi-protocol
 ```
+
+The first two commands install the parent POMs, Joi's and Marginalia's. The platform's POM refers to Marginalia's parent, so
+on a new machine the build fails without it. If you cloned without the submodules, run `git submodule update --init` first.
 
 ## Start it
 

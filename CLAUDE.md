@@ -27,8 +27,8 @@ Maven reactor at the root (`joi-parent`): `marginalia/marginalia/platform` (from
 JDK 25+, Maven 3.9. Clone with `git clone --recurse-submodules` (or `git submodule update --init`).
 
 ```bash
-mvn install -DskipTests -pl marginalia/marginalia/platform   # the platform and its test-jar into ~/.m2, after each submodule bump
-mvn -N install && mvn install -DskipTests -pl joi-protocol   # the parent POM and the protocol into ~/.m2 (for -pl joi-server alone)
+mvn -N install && mvn -N install -f marginalia/pom.xml       # Joi's and Marginalia's parent POMs into ~/.m2 (a new machine needs both)
+mvn install -DskipTests -pl marginalia/marginalia/platform,joi-protocol   # the platform (and test-jar) and the protocol, after each submodule bump
 mvn test -pl joi-server -Dtest=JoiContextTest                 # joi-server's tests (the classes you touched)
 mvn jetty:run -pl joi-server                                  # dev mode on http://localhost:8080, data in ~/.joi (JOI_DATA)
 mvn package -pl joi-server -Pproduction                       # the WAR with the production frontend bundle

@@ -461,3 +461,9 @@
     color: var(--lumo-secondary-text-color);
     font-size: var(--lumo-font-size-s);
 }
+
+.pair-qr {
+    background: white;
+    padding: 8px;
+    border-radius: 8px;
+}

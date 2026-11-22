@@ -3,6 +3,7 @@ package com.github.enerccio.joi.ui.access;
 import com.github.enerccio.joi.api.ApiConfiguration;
 import com.github.enerccio.joi.domain.service.DeviceAuthorizationService;
 import com.github.enerccio.joi.loc.J_L;
+import com.github.enerccio.joi.ui.JoiCssStyles;
 import com.github.enerccio.marginalia.CssStyles;
 import com.github.enerccio.marginalia.loc.L;
 import com.github.enerccio.marginalia.loc.Localization;
@@ -83,7 +84,7 @@ public class PairPhoneDialog extends Dialog {
         qr = new Image();
         qr.setWidth(QR_SIZE + "px");
         qr.setHeight(QR_SIZE + "px");
-        qr.getStyle().set("background", "white").set("padding", "8px").set("border-radius", "8px");
+        qr.addClassName(JoiCssStyles.PAIR_QR);
         serverField = new TextField(loc.getValue(J_L.LABEL_PHONE_SERVER));
         serverField.setHelperText(loc.getValue(J_L.HELP_PHONE_SERVER));
         serverField.setWidthFull();

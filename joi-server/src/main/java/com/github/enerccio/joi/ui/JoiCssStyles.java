@@ -122,4 +122,6 @@ public final class JoiCssStyles {
     public static final String TASK_ERROR = "task-error";
     /** The head of a step of the transcript: its number, model and tokens. */
     public static final String TASK_STEP_HEAD = "task-step-head";
+    /** The QR code of Pair a phone: on white, so a camera reads it in the dark theme too. */
+    public static final String PAIR_QR = "pair-qr";
 }
