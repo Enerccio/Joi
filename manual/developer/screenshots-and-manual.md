@@ -8,7 +8,7 @@ covers:
   - tools/check_dev_docs.py
   - joi-node/src/main/java/com/github/enerccio/joi/node/fx/NodeShots.java
   - joi-node/src/main/java/com/github/enerccio/joi/node/fx/ShotCommands.java
-verified: a86e400
+verified: da3bc3c
 ---
 
 # Screenshots and the manual

@@ -5,7 +5,7 @@ order: 790
 covers:
   - DESIGN.md
   - pom.xml
-verified: a86e400
+verified: da3bc3c
 ---
 
 # Architecture
