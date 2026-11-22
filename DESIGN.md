@@ -1782,29 +1782,150 @@ When a model with vision is available, the node can give Joi images of what you 
   pieces); it grows only when the model is swapped inside the server (`/api/unload`, another model), so its lock steps
   only ensure or stop the container.
 
-### Mobile companion node (ideas)
+### Mobile companion node (iOS planned, Android ideas)
 
-A phone (iPhone / Android) as another node on the same protocol, with its own manifest and its own harness.
+A phone (iPhone / Android) as another node on the same protocol, with its own manifest and its own harness. The iOS
+app is planned (below, nothing built yet); the rest of this section is what any phone node could do.
 
-- **Talking on the go:** push-to-talk in the app; hands-free through the OS (iOS: Siri with App Intents / Shortcuts —
-  "Siri, ask Joi…", no third-party wake word in the background; Android: a foreground service can run the same VAD +
-  wake word pipeline, at a battery cost). Replies as speech (TTS streamed from the server) and text.
+- **Talking on the go:** push-to-talk in the app, and hands-free (iOS: see *Voice on iOS*; Android: a foreground service
+  can run the same VAD + wake word pipeline, at a battery cost). Replies as speech (TTS streamed from the server) and text.
 - **Her face:** the active body in 2D / 3D in the app (VRM in a WebView or a native renderer), and **AR** (ARKit /
   ARCore) to place her on the desk or the table. The same body state, toggles and outfits as everywhere else.
 - **Approvals:** the phone as the approval device for ASK cards from any node (a push notification with Approve /
   Deny), with Face ID / fingerprint for the sensitive ones — a physical, local confirmation the harness can require.
 - **Context and events:** location (arriving home, leaving work), calendar, the phone's own notifications as an event
-  source (Android can read them with a NotificationListenerService; iOS cannot), photos / camera on request ("what is
-  this?"), share sheet into Joi.
+  source (Android can read them with a NotificationListenerService; iOS cannot, its Shortcuts automations are the
+  event source instead), photos / camera on request ("what is this?"), share sheet into Joi.
 - **Tools on the phone:** reminders, alarms, messages / calls through the OS (always ASK), Shortcuts on iOS as a
   user-extensible tool set.
 - **Connection:** pairing by scanning a QR code from the Vaadin UI; reaching the home server from outside through a
   VPN (WireGuard / Tailscale) or a relay — never an open port. Offline: queue the request, or a small on-device model
   for trivial answers.
 - **Watch:** quick voice and approvals from the wrist.
-- **Tech:** Android can share the Java/Kotlin protocol module; iOS is Swift, with the protocol types generated from
-  joi-protocol's JSON schemas. (The Looking Glass Unity plugin also targets iPhone 15/16 Pro, so a phone could drive
-  the Go.)
+- **Android:** can share the Java / Kotlin protocol module (or Kotlin generated from the schemas the way the Swift is,
+  see below). The Looking Glass Unity plugin also targets iPhone 15/16 Pro, so a phone could drive the Go.
+
+#### The iOS app (plan, 2026-11-22)
+
+A **native Swift app**, `joi-ios/` (an Xcode project outside the Maven reactor). The Java node cannot run on iOS. A web node
+(a PWA speaking the same WebSocket) was considered and dropped: it cannot run Shortcuts or App Intents, cannot use the
+OS tools, and cannot run in the background, which is what makes a phone node worth having. Nothing in the server has
+to change for it: it is a node like any other (`hello.kind` is `phone`), and the small server additions are listed under
+*Stages*.
+
+**The protocol in Swift is generated from the schemas.** The JSON Schemas are the source of truth (the Java records follow
+them, `SchemaContractTest` checks that), so the Swift types come from the same schemas, not from the Java records, and
+cannot drift from them:
+
+- A small generator in `joi-protocol` (`SwiftGenerator`, plain Java and Gson, no new dependency) reads
+  `schemas/*.schema.json` and writes a Swift package, `joi-ios/Packages/JoiProtocol`. The schemas use few features
+  (`$ref`, `enum`, `items`, `oneOf` of `null` and a `$ref`, a `type` that is a list with `null`, `format: date-time`,
+  `pattern`), so it is a few hundred lines, not a code generator product.
+- What it writes: a `Codable` struct per object schema (the `description` becomes the doc comment; a nullable or absent
+  property is an `Optional`; `date-time` is `Date`), a `String` enum per enum with an **unknown case** so a value from a
+  newer server (minor versions only add things) does not fail the decode, `Frame` with the `NodeMessage` types and a
+  typed decode of `data` by `type`, and the constants (the protocol version, the patterns of ids and names).
+- The generated files **are checked in**, with a "generated, do not edit" header, because an Xcode build does not run Maven.
+  A test in `joi-protocol` generates them in memory and fails when the files in `joi-ios` differ, so a schema change
+  without a regeneration breaks the build. The script is `tools/generate_swift.sh` (a Maven profile runs the same
+  class).
+- **Contract fixtures:** the valid samples that `SchemaContractTest` already builds are written as JSON files into the
+  package's tests, and the Swift tests decode and re-encode every one of them. That catches a fault of the generator
+  itself, not only a drift of the schemas.
+- The HTTP calls (`openapi.yaml`) and the WebSocket (`asyncapi.yaml`) are not generated at first: a thin client by
+  hand (`URLSession`, `URLSessionWebSocketTask`) sits on the generated types. A generated client (Apple's
+  swift-openapi-generator) is possible later and is a download to ask about. The same generator could write Kotlin
+  for Android.
+
+**Voice on iOS, in order of what to try:**
+
+1. **A Vocal Shortcut** (iOS 18+, Settings → Accessibility → Vocal Shortcuts): the user trains a phrase, "Hey Joi" or
+   any other, and binds it to a shortcut that runs the app's *Listen* intent. The system listens, so the app has no
+   background microphone, no orange dot of its own and no battery cost of its own. It is set up by the user, on each
+   phone, by hand (the app shows a guide); a new name for her means training again; it is slower than "Hey Siri" (say it,
+   wait) and reviews report mixed reliability.
+2. **A Siri phrase:** "Hey Siri, Joi" (the app's App Shortcut phrases contain its name; the user can add any phrase
+   in Shortcuts). Siri hears it and runs the intent, her own answer is not used. "Hey Siri" itself cannot be replaced
+   in the app, only by the Vocal Shortcut.
+3. **Not by voice:** the Action Button, Back Tap, a Control Center or Lock Screen control (iOS 18), a widget. All run the same
+   intents.
+4. **Our own always-listening mode** (a later stage, off by default): the audio background mode and a keyword spotter,
+   **sherpa-onnx** (the node's choice too: VAD, keyword spotting and streaming ASR, an iOS build exists; the wake word is
+   text, so a rename needs no training). Picovoice's Porcupine is an optional backend (better accuracy and power, but a
+   proprietary engine with an AccessKey, a free tier for non-commercial use, and a trained file per phrase, which fits
+   a renamable wake word badly). The cost is the mic indicator being on, interruptions (a call, Siri, another app
+   taking the mic: iOS does not let an app start the microphone again from the background, so it recovers when it can
+   and says when it cannot), and the battery; the app gates it (only on the charger, on the home Wi-Fi, in a Focus).
+   A side effect in its favour: the process stays alive, so the WebSocket does too.
+
+Speech to text on the phone is Apple's recognizer (`SFSpeechRecognizer` / `SpeechAnalyzer`, on the device) or sherpa-onnx;
+`say` carries text, so no audio goes up. Her voice comes down as `audio` frames and plays through `AVAudioEngine`
+(the `stop` frame is barge-in; voice processing I/O for the echo).
+
+**Shortcuts, both ways:**
+
+- **The user calls Joi (App Intents):** *Ask Joi* (text in, her answer out; runs in the background without opening the app,
+  so it works when the phone is locked), *Tell Joi* (an event for her, no answer needed), *Listen* (opens the app and its
+  conversation session), *Approve / Deny* the waiting card. They appear in Shortcuts, in Siri, on the Action Button and
+  in Back Tap. **Personal automations** (arrive home, leave work, the charger, a Focus, an alarm) call *Tell Joi*: this is the
+  phone's event source on iOS. An `AudioRecordingIntent` (iOS 18, starts recording from the background with a Live
+  Activity) might give *Listen* without opening the app: to try.
+- **Joi calls the user's shortcuts (node tools):** the only public way is the URL scheme
+  `shortcuts://x-callback-url/run-shortcut?name=…&input=text&text=…&x-success=joi://result?id=…`, and Shortcuts returns the
+  text output through `x-success`. iOS has no call that lists the user's shortcuts, so the user registers each one in the
+  app (the name, a description she reads, whether it takes input) and each is one manifest tool,
+  `phone__shortcut_<name>`, ASK by default, with a new manifest when the list changes. An app can open another app only
+  from the foreground: when she calls one in the background the app shows a local notification and the user's tap runs it.
+  Shortcuts takes the screen for a moment and the socket may drop meanwhile, so a pending call and its result have to
+  survive a reconnect (check what `Resume` covers).
+- Where Apple has a framework (reminders in EventKit, location, notifications, the clipboard) a direct node tool is more
+  reliable than a shortcut. Shortcuts is for what has no API: HomeKit scenes, other apps, the user's own routines.
+
+**Her body:** the renderer page of the node (`joi-node/src/main/renderer`, three.js + three-vrm, the server's
+`joi-model-viewer.js`) in a `WKWebView`, driven by `evaluateJavaScript` and a script message handler instead of the
+server-sent events the node uses; the `.joim` / `.joia` by hash into the app's folder, unpacked as `BodyFiles` does
+(in Swift, or by the page). A native renderer (RealityKit / SceneKit) would mean doing the expressions, spring bones,
+toggles and VRMA again, so only AR may ask for it.
+
+**Staying connected:** a suspended app loses its socket. It reconnects with `hello.resumed` when it wakes. While the
+listening session runs the app stays alive. Without it, events and approvals for a closed app need APNs, which a
+self-hosted server cannot send by itself (a small relay with the owner's key, or a build with the user's own key): not
+for the first version, which works while the app is open and uses local notifications for a short time after it goes
+to the background.
+
+**Pairing and reaching the server:** the device grant as it is (the app shows the code and the link, the user approves
+in User Settings → Access → *Connect a device*; the tokens in the Keychain); a QR code of that link in the UI is a
+small server addition. ATS needs TLS (the local network needs the permission and an exemption); from outside, a VPN
+(Tailscale / WireGuard).
+
+**Build: Maven drives all of it**, as it does the desktop app. Two steps, both behind profiles so that a normal build never
+writes into the source tree or needs Xcode:
+
+- `-Pswift` in `joi-protocol`: `mvn -o -Pswift test -pl joi-protocol` generates the Swift package
+  (`exec:java` on `SwiftGenerator` at `process-test-classes`), runs the Java tests, then `swift test` on the package
+  (`exec:exec`; the Command Line Tools are enough, with the Testing framework passed in `swift.test.flags`, or plain with Xcode). Built and tried: the 76 Swift tests pass.
+- `-Pios` (a module `joi-ios`, `pom` packaging, after `joi-protocol` in the reactor; **not built yet**): `mvn -o -Pios verify -pl joi-ios -am`
+  generates, runs `swift test`, `xcodebuild test` on a Simulator, `xcodebuild archive`; `-exportArchive` for the `.ipa` and the
+  TestFlight upload are opt-in (they need signing). The version is Maven's (`tools/version_from_tag.sh`), passed as
+  `MARKETING_VERSION`; the signing team and the profile come from properties or the environment, never from the POM. The Xcode
+  project stays the source of truth for the app's settings, and opens and builds in Xcode without Maven (the generated Swift
+  is checked in). It needs Xcode, so macOS only; the profile says so when `xcodebuild` is missing. Plain `exec`; Ant is not
+  needed (antrun would only copy the `.ipa` into `target/`, as `joi-desktop` does). CI is a macOS job, `ios.yml`.
+
+**Stages:**
+
+1. The generator and the Swift package with its fixtures (**built**: `SwiftGenerator`, `joi-ios/Packages/JoiProtocol`); pairing, text chat, streamed replies, her speech, her body
+   in the WebView (proves the protocol with a node that is not Java).
+2. The App Intents (*Ask*, *Tell*, *Listen*, approvals), the Vocal Shortcut guide, push-to-talk with on-device speech
+   to text, the registered-shortcut tools, `notify` and the first native tools; approval cards.
+3. The always-listening mode (a battery measurement on a real phone first), reconnect-safe tool calls, the APNs relay,
+   AR, the Watch.
+
+**To try in the first spike, on a real phone** (the Simulator has no Siri and no real audio session): whether the Vocal
+Shortcut works on the lock screen and what it needs to open the app; `AudioRecordingIntent`; the shortcut URL round
+trip and what the socket does meanwhile; whether `Resume` covers a tool result after a reconnect; the speed of the
+VRM in `WKWebView` on the phones in use; what sherpa-onnx costs in battery. Distribution: an Apple Developer account
+(TestFlight or a long-lived install; a free one signs for 7 days).
 
 ### Browser companion extension (idea)
 
@@ -2036,7 +2157,12 @@ a new minor version of the protocol), and the privacy mode (not built at all yet
 **Packaging** (2026-11-22): the desktop app (`joi-desktop`, see *The desktop app* under Node) and the GitHub builds (`server.yml`: the WAR, the
 extension JARs and the image; `desktop.yml`: the app per platform). Built; the Windows and Linux builds are tried by the CI only.
 
+**The iOS app** (planned 2026-11-22, see *Mobile companion node*): a native Swift node, its protocol types generated from the JSON Schemas; stage 1 is the generator, pairing, chat, speech and her body in a WebView. Not part of the first production version.
+
 ## Open decisions
+
+- **iOS:** whether the Vocal Shortcut is reliable enough for "Hey Joi" (else our own always-listening mode); how a self-hosted
+  server reaches APNs (a relay, or the user's own key); whether `Resume` covers a tool result after a reconnect.
 
 - **Which binary JSON** for the export container's JSONB sections (CBOR, BSON, Smile...): one with a streaming
   reader and writer in Java and in the renderer's language.

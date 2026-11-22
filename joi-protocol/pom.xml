@@ -62,4 +62,54 @@
       </plugin>
     </plugins>
   </build>
+  <profiles>
+    <!-- The iOS app's protocol: the Swift package written from the schemas, and its tests (see DESIGN.md, the iOS app).
+         mvn -o -Pswift test -pl joi-protocol          generates, runs the Java tests, then `swift test`
+         mvn -o -Pswift process-test-classes -pl joi-protocol    generates only
+         Not in the normal build: that must not write into the source tree. SwiftGeneratorTest fails when the files in Git are stale. -->
+    <profile>
+      <id>swift</id>
+      <properties>
+        <swift.package>${project.basedir}/../joi-ios/Packages/JoiProtocol</swift.package>
+        <swift.test.flags></swift.test.flags>
+      </properties>
+      <build>
+        <plugins>
+          <plugin>
+            <groupId>org.codehaus.mojo</groupId>
+            <artifactId>exec-maven-plugin</artifactId>
+            <version>3.5.0</version>
+            <executions>
+              <execution>
+                <id>swift-generate</id>
+                <phase>process-test-classes</phase>
+                <goals>
+                  <goal>java</goal>
+                </goals>
+                <configuration>
+                  <mainClass>com.github.enerccio.joi.protocol.swift.SwiftGenerator</mainClass>
+                  <classpathScope>test</classpathScope>
+                  <arguments>
+                    <argument>${swift.package}</argument>
+                  </arguments>
+                </configuration>
+              </execution>
+              <execution>
+                <id>swift-test</id>
+                <phase>test</phase>
+                <goals>
+                  <goal>exec</goal>
+                </goals>
+                <configuration>
+                  <executable>swift</executable>
+                  <!-- swift.test.flags: more for swift, e.g. the Testing framework's folder with only the Command Line Tools -->
+                  <commandlineArgs>test --package-path ${swift.package} ${swift.test.flags}</commandlineArgs>
+                </configuration>
+              </execution>
+            </executions>
+          </plugin>
+        </plugins>
+      </build>
+    </profile>
+  </profiles>
 </project>

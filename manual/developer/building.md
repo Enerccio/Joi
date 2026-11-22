@@ -6,6 +6,7 @@ covers:
   - pom.xml
   - joi-node/pom.xml
   - joi-desktop/pom.xml
+  - joi-protocol/pom.xml
   - .github/workflows/desktop.yml
   - CLAUDE.md
   - Dockerfile
@@ -121,6 +122,12 @@ platform's tables. While Joi is not running in production the first migration, `
 version. A development database built from an older V1 fails Flyway's checksum: do not delete it, upgrade it with
 `python3 tools/upgrade_dev_db.py` (server stopped; it backs the database up, rebuilds it from the current V1, copies the data by shared
 columns and sets the checksum; `--dry-run` only reports).
+
+## The protocol in Swift
+
+A change of a JSON Schema (or of `asyncapi.yaml`) also changes the generated Swift package of the iOS app, which is in Git: run
+`mvn -o -Pswift process-test-classes -pl joi-protocol` and commit what it writes, else `SwiftGeneratorTest` fails. See
+[The protocol](protocol.md#the-swift-package).
 
 ## Blender and ffmpeg
 

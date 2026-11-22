@@ -74,6 +74,9 @@ with the code.
   The `.joim` and `.joia` containers (`protocol/joim`, `protocol/joia`, documented in `joim.md` and `joia.md` there;
   their sections share `joim/Sections`) are part of it too: the format and its doc
   change together.
+- `joi-ios/` — the iOS app (planned, `DESIGN.md` → The iOS app), outside the Maven reactor for now. So far `Packages/JoiProtocol`: the protocol in Swift, **generated
+  from the JSON Schemas** by `SwiftGenerator` (`joi-protocol/src/test`), checked in, kept current by `SwiftGeneratorTest`; regenerate with
+  `mvn -o -Pswift process-test-classes -pl joi-protocol` after a schema change (and `mvn -o -Pswift test -pl joi-protocol` also runs `swift test`).
 - `joi-extensions/` — the extensions that come with Joi (OSGi bundles: the model providers `anthropic`, `google-genai`, `grok`, built against the platform only), loaded from the
   extensions folder of the data folder (Administration → Extensions); the API of Joi's own extensions is `joi-server/.../extensions` (`JoiExtension`).
 - `joi-desktop/` — the desktop app, in the reactor only with the root POM's profile `desktop`: `DesktopLauncher` (JDK only: runs jetty-home with the WAR, the

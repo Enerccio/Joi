@@ -1,0 +1,7 @@
+# SwiftPM and Xcode
+.build/
+.swiftpm/
+xcuserdata/
+DerivedData/
+*.xcarchive
+*.ipa

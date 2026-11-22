@@ -5,6 +5,8 @@ order: 760
 covers:
   - joi-protocol/src/main/resources/joi-protocol
   - joi-protocol/src/main/java/com/github/enerccio/joi/protocol
+  - joi-protocol/src/test/java/com/github/enerccio/joi/protocol/swift
+  - joi-ios/Packages/JoiProtocol
 verified: 7236ba1
 ---
 
@@ -60,6 +62,29 @@ still be valid. Credentials are `AccessToken` rows (prefix and SHA-256).
 remote address is empty) and puts the answer into `ApiCall.local`, so what a caller sends cannot change it. On TCP the call is 404 `invalid_request`; before the first account
 409 `no_user`. The token acts as the user `joi.api.no-auth-user`, else the first administrator, and is not subject to the switches of tokens and OAuth in Administration.
 A client that wants to use the socket needs HTTP/1.1 and WebSocket over it: see [Writing a node](nodes.md) and [The desktop app](desktop.md).
+
+## The Swift package
+
+The iOS app (planned, see `DESIGN.md` → *The iOS app*) does not copy the protocol by hand: `joi-ios/Packages/JoiProtocol` is a Swift package whose types are
+**generated from the schemas**, not from the Java records, so it cannot drift from the source of truth.
+
+- `SwiftGenerator` (`joi-protocol/src/test`, plain Java and Gson, Jackson YAML for `asyncapi.yaml`) writes into the package's two `Generated` folders:
+  a `Codable`, `Hashable`, `Sendable` struct per object schema (a nullable or not required property is an `Optional`, `date-time` is `Date`, Base64 is
+  `Data`, a free-form object is `[String: JSONValue]`, a property that is not a plain Swift name gets a coding key); a string enum per enum schema with an
+  `unknown(String)` case, so a value of a newer server does not fail a decode; `Frames.swift` (the `NodeFrameData` of each type of frame, taken from
+  `asyncapi.yaml`, `Frame.typedData()` and a constructor per type, `Frame.say(...)`); `JoiProtocolInfo` (the constants of `JoiProtocol`); and
+  `FixtureTests.swift`, a decode and an encode of each sample of `ProtocolSamples` (the same samples `SchemaContractTest` validates).
+- A schema feature the generator does not know is an error, not a guess; the types of `NodeMessage.schema.json` and of `asyncapi.yaml` must agree.
+- By hand: `Package.swift`, `JSONValue.swift` (`JSONValue`, the coders `JoiJSON.makeDecoder()` / `makeEncoder()` with ISO 8601 dates with or without
+  fractions, `JoiProtocolError`) and the tests of what the samples do not show (`HandWrittenTests`). The tests use Swift Testing and keep Foundation out
+  of the files that import it (the Command Line Tools lack its cross-import module).
+- **The generated files are in Git**, because an Xcode build does not run Maven. `SwiftGeneratorTest` generates in memory and fails, with the command to
+  run, when a file differs or is left over; it skips itself when there is no `joi-ios` folder (a build of the server alone).
+- Regenerate and test: `mvn -o -Pswift process-test-classes -pl joi-protocol` (generate only) or `mvn -o -Pswift test -pl joi-protocol` (generate, the Java
+  tests, then `swift test`). Not in the normal build, which must not write into the source tree. With only the Command Line Tools, pass the Testing
+  framework to `swift`: `-Dswift.test.flags="-Xswiftc -F$F -Xlinker -F$F -Xlinker -rpath -Xlinker $F"` with
+  `F=/Library/Developer/CommandLineTools/Library/Developer/Frameworks` and `DEVELOPER_DIR` set to the tools' folder; with Xcode (its licence accepted) plain
+  `swift test` works.
 
 ## The containers
 
