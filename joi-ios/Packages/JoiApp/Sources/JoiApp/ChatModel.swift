@@ -298,6 +298,8 @@ public final class ChatModel: AvatarOutput {
             }
         case .animation(let play):
             director.gesture(play.animation, loop: play.loop ?? false)
+        case .mood(let mood):
+            player?.setMood(mood)
         case .event(let event):
             onServerEvent?(event.name)
         case .task(let task):
@@ -320,7 +322,6 @@ public final class ChatModel: AvatarOutput {
     }
 
     public func reply(turn: String, reply: ChatReply) {
-        if let mood = reply.mood { player?.setMood(mood) }
         withTurn(turn) { $0.text = reply.text }
     }
 

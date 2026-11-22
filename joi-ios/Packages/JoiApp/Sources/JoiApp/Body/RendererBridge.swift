@@ -10,15 +10,15 @@ import JoiClient
     func setOffline(_ offline: Bool)
     /// How her eyes are as her state says: `closed`, or `auto` (open and blinking), reached over that many seconds. An animation's own eyes win.
     func setEyes(_ eyes: String, seconds: Double)
-    /// Her mood (its key, nil for none): shown as a soft expression.
-    func setMood(_ mood: String?)
+    /// Her mood and how it shows on her face (the server's `mood` frame, nil for none): a soft expression and the eyes it gives her.
+    func setMood(_ mood: MoodState?)
     /// Called once an animation played with `play` that does not loop is over.
     var onEnded: (@MainActor () -> Void)? { get set }
 }
 
 extension AnimationPlayer {
     public func setEyes(_ eyes: String, seconds: Double) {}
-    public func setMood(_ mood: String?) {}
+    public func setMood(_ mood: MoodState?) {}
 }
 
 /// The messages of the renderer page (`joi-node/src/main/renderer/src/main.js`, its native mode) and the files it reads: the part of the
@@ -95,8 +95,17 @@ extension AnimationPlayer {
         broadcast(message)
     }
 
-    public func setMood(_ mood: String?) {
-        let message = Self.message("mood", mood.map { ["mood": .string($0)] } ?? [:])
+    public func setMood(_ mood: MoodState?) {
+        var members: [String: JSONValue] = [:]
+        if let key = mood?.mood, let mood {
+            members["mood"] = .string(key)
+            if let expression = mood.expression {
+                members["expression"] = .string(expression)
+                members["weight"] = .double(mood.weight ?? 0.5)
+            }
+            if let eyes = mood.eyes { members["eyes"] = .string(eyes) }
+        }
+        let message = Self.message("mood", members)
         moodMessage = message
         broadcast(message)
     }

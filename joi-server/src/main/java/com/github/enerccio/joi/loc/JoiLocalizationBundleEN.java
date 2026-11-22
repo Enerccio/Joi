@@ -410,6 +410,12 @@ public class JoiLocalizationBundleEN extends TextBundleBase<J_L> {
         setValue(J_L.LABEL_FACE_EXPRESSION, "Expression");
         setValue(J_L.MSG_FACE_HINT, "Her face while this animation plays. Her own: the eyes follow what she does (shut while she sleeps) and the expression follows her mood.");
         setValue(J_L.FACE_OWN, "Her own");
+        setValue(J_L.LABEL_TODAYS_MOOD, "Mood today");
+        setValue(J_L.HELP_TODAYS_MOOD, "Rolled at her first chat of the day (User Settings → Moods). A change is told to her, and she can change it herself.");
+        setValue(J_L.FACE_NONE, "None");
+        setValue(J_L.FACE_OPEN, "Open");
+        setValue(J_L.LABEL_MOOD_EXPRESSION_STRENGTH, "Strength");
+        setValue(J_L.HELP_MOOD_FACE, "How the mood shows on her face. An animation's own face and her state (shut eyes while she sleeps) win over it. An empty choice keeps the built-in one.");
         setValue(J_L.FACE_EYES_CLOSED, "Closed");
         setValue(J_L.FACE_EYES_HALF, "Half closed");
         setValue(J_L.FACE_EYES_WIDE, "Wide open");

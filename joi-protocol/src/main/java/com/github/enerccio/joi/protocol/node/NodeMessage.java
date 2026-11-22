@@ -29,6 +29,8 @@ public enum NodeMessage {
     PART_REFUSED("part_refused", Direction.TO_NODE, PartRefused.class),
     /** {@link PlayAnimation}: she plays an animation now (since 1.5), a function of hers. */
     ANIMATION("animation", Direction.TO_NODE, PlayAnimation.class),
+    /** {@link MoodState}: her mood now and how it shows on her face (since 1.10). */
+    MOOD("mood", Direction.TO_NODE, MoodState.class),
     /** {@link ChatLog}: a note in her conversation, not given to the model (since 1.6). */
     LOG("log", Direction.TO_NODE, ChatLog.class),
     /** {@link TaskInfo}: a task of hers is made or changed its status; one that {@code waits} is for the node to ask the user about (since 1.7). */

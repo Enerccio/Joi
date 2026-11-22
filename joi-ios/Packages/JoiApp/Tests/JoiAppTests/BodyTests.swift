@@ -131,11 +131,13 @@ enum Files {
     @Test func herEyesAndMoodAreSentAndSentAgainToANewPage() {
         let (bridge, sent) = bridge()
         bridge.setEyes("closed", seconds: 3)
-        bridge.setMood("happy")
+        bridge.setMood(MoodState(mood: "sleepy", name: "Sleepy", expression: "relaxed", weight: 0.3, eyes: "half"))
         bridge.setMood(nil)
         #expect(sent.types() == ["eyes", "mood", "mood"])
         #expect(object(sent.messages[0])["eyes"] == .string("closed") && object(sent.messages[0])["ease"] == .double(3))
-        #expect(object(sent.messages[1])["mood"] == .string("happy") && object(sent.messages[2])["mood"] == nil)
+        let mood = object(sent.messages[1])
+        #expect(mood["mood"] == .string("sleepy") && mood["expression"] == .string("relaxed") && mood["weight"] == .double(0.3) && mood["eyes"] == .string("half"))
+        #expect(object(sent.messages[2])["mood"] == nil)
         sent.messages = []
         bridge.pageReady()
         let again = sent.messages.filter { if case .string(let t)? = object($0)["type"] { t == "eyes" || t == "mood" } else { false } }

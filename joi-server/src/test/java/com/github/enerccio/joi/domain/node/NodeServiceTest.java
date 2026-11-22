@@ -435,7 +435,7 @@ class NodeServiceTest extends PlatformTestBase {
         resumed.next("welcome");
         resumed.manifest(1);
         resumed.frame("ping", "p1", null);
-        assertThat(resumed.next().get("type").getAsString()).isEqualTo("pong");
+        assertThat(resumed.next("pong").get("type").getAsString()).isEqualTo("pong");
         assertThat(llm.getCompletionRequests()).hasSize(2);
     }
 
@@ -458,7 +458,7 @@ class NodeServiceTest extends PlatformTestBase {
         blip.next("welcome");
         blip.manifest(1);
         blip.frame("ping", "p1", null);
-        assertThat(blip.next().get("type").getAsString()).isEqualTo("pong");
+        assertThat(blip.next("pong").get("type").getAsString()).isEqualTo("pong");
         assertThat(llm.getCompletionRequests()).hasSize(1);
 
         // a server that started since: it was down, and she is told how long and how
@@ -481,7 +481,7 @@ class NodeServiceTest extends PlatformTestBase {
         other.next("welcome");
         other.manifest(1);
         other.frame("ping", "p2", null);
-        assertThat(other.next().get("type").getAsString()).isEqualTo("pong");
+        assertThat(other.next("pong").get("type").getAsString()).isEqualTo("pong");
         assertThat(llm.getCompletionRequests()).hasSize(2);
     }
 
@@ -632,6 +632,61 @@ class NodeServiceTest extends PlatformTestBase {
         node.next("done");
         assertThat(llm.getCompletionRequests().get(4).getLastMessage().content()).contains("golden halo can be: shown, hidden");
         assertThat(bodyService.find(body.getId()).partStateMap()).containsEntry("key:Headgear/Hide Halo", "hidden");
+    }
+
+    @Test
+    void herMoodGoesToTheNodeAfterTheManifestAndOnEveryChange() throws Exception {
+        llm.enqueue(MockLLMResponse.text("Hello."), MockLLMResponse.text("Nice."));
+        joi.setMood("calm");
+        joi = joiService.save(joi);
+        Node node = connect("Bearer " + token);
+        node.hello("n1", "desk", joi.getUuid(), "1.10");
+        node.next("welcome");
+        node.manifest(1);
+        JsonObject first = node.next("mood").getAsJsonObject("data");
+        assertThat(first.get("mood").getAsString()).isEqualTo("calm");
+        assertThat(first.get("name").getAsString()).isEqualTo("Calm");
+
+        // the user changes it: the face follows at once, a note is in the conversation, no turn starts by itself
+        chatService.changeMood(joi, "happy", true);
+        assertThat(node.next("log").getAsJsonObject("data").get("text").getAsString()).contains("Happy");
+        JsonObject changed = node.next("mood").getAsJsonObject("data");
+        assertThat(changed.get("mood").getAsString()).isEqualTo("happy");
+        assertThat(changed.get("expression").getAsString()).isEqualTo("happy");
+        assertThat(joiService.find(joi.getId()).getMood()).isEqualTo("happy");
+        // the same mood again: nothing
+        chatService.changeMood(joi, "happy", true);
+        assertThat(node.frames.poll(500, TimeUnit.MILLISECONDS)).as("nothing for the same mood").isNull();
+        // a mood that does not exist is refused
+        org.junit.jupiter.api.Assertions.assertThrows(IllegalArgumentException.class, () -> chatService.changeMood(joi, "nothing", true));
+    }
+
+    @Test
+    void sheChangesHerOwnMoodWithSetMoodAndIsNotToldAboutIt() throws Exception {
+        joi.setMood("calm");
+        joi = joiService.save(joi);
+        llm.enqueue(MockLLMResponse.text("Hello."),
+                MockLLMResponse.text("Ha!").andToolCall("set_mood", "{\"mood\":\"Playful\"}"),
+                MockLLMResponse.text("Yes."));
+        Node node = connect("Bearer " + token);
+        node.hello("n1", "desk", joi.getUuid(), "1.10");
+        node.next("welcome");
+        node.manifest(1);
+        node.next("mood");
+        node.frame("say", "t1", "{\"text\": \"Hi\", \"speak\": false}");
+        node.next("done");
+        assertThat(llm.getCompletionRequests().getFirst().getRawBody()).contains("set_mood").contains("Playful");
+        node.frame("say", "t2", "{\"text\": \"Tell me a joke\", \"speak\": false}");
+        JsonObject mood = node.next("mood").getAsJsonObject("data");
+        assertThat(mood.get("mood").getAsString()).isEqualTo("playful");
+        node.next("done");
+        assertThat(joiService.find(joi.getId()).getMood()).isEqualTo("playful");
+        assertThat(llm.getCompletionRequests().get(2).getLastMessage().content()).contains("Playful");
+        // her own choice is no event
+        assertThat(queuedEventService.findWaiting(joi)).isEmpty();
+        for (JsonObject frame = node.frames.poll(800, TimeUnit.MILLISECONDS); frame != null; frame = node.frames.poll(800, TimeUnit.MILLISECONDS)) {
+            assertThat(frame.get("type").getAsString()).as("no turn about her own mood").isIn("log", "mood");
+        }
     }
 
     @Test

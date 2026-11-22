@@ -18,7 +18,7 @@
 // they are applied each frame after the animation, so a clip does not take them over; null gives the mouth back.
 // setFace({eyes, ease, mood}) turns on her face layer (off until it is called: the dialogs that try expressions need none) and says
 // how it is: eyes "auto" (open, blinking now and then, looking at the camera), "closed", "half" or "wide" (open, never blinking), reached
-// over `ease` seconds; mood the key of her mood (calm, happy... see MOODS), which shows as a soft expression and, for some, as the eyes.
+// over `ease` seconds; mood {expression, weight, eyes} (her mood's face, from the server: a soft expression and, for some moods, the eyes).
 // An animation can say better: the sequence of playSequence may have face: {eyes, expression} (expression: happy, sad, angry, relaxed
 // or surprised), which wins over her state and her mood while that animation plays (setFace(null) turns the layer off).
 // finishAnimation() lets a looping step end its round and the rest play once; stopAnimation() puts her back at rest;
@@ -53,18 +53,6 @@ const SHOTS = [
   {name: 'face-three-quarter', angle: 35, face: true}
 ];
 
-// the soft expression a mood shows, and the eyes it gives her (the lowest of what decides the eyes: the animation and her state win)
-const MOODS = {
-  calm: {expression: 'relaxed', weight: 0.5},
-  happy: {expression: 'happy', weight: 0.7},
-  playful: {expression: 'happy', weight: 0.5},
-  curious: {expression: 'surprised', weight: 0.15},
-  affectionate: {expression: 'relaxed', weight: 0.8},
-  sleepy: {expression: 'relaxed', weight: 0.3, eyes: 'half'},
-  grumpy: {expression: 'angry', weight: 0.4},
-  melancholic: {expression: 'sad', weight: 0.5},
-  excited: {expression: 'happy', weight: 0.9, eyes: 'wide'}
-};
 const EMOTIONS = ['happy', 'angry', 'sad', 'relaxed', 'surprised'];
 // how closed the lids are for each state of the eyes
 const LIDS = {closed: 1, half: 0.55};
@@ -351,12 +339,12 @@ class JoiModelViewer extends HTMLElement {
   _faceNow() {
     const face = this._face;
     const animation = this._animationFace || {};
-    const mood = MOODS[face.mood] || null;
+    const mood = face.mood || null;
     const state = face.eyes === 'auto' ? null : face.eyes;
     const animated = animation.eyes === 'auto' ? null : animation.eyes;
     const expression = animation.expression
       ? {name: animation.expression, weight: animation.weight > 0 ? animation.weight : 0.7}
-      : mood ? {name: mood.expression, weight: mood.weight} : null;
+      : mood && mood.expression ? {name: mood.expression, weight: mood.weight > 0 ? mood.weight : 0.5} : null;
     return {eyes: animated || state || (mood && mood.eyes) || 'auto', expression};
   }
 

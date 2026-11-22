@@ -1,8 +1,10 @@
 package com.github.enerccio.joi.ui.dialogs.joi;
 
+import com.github.enerccio.joi.domain.chat.ChatService;
 import com.github.enerccio.joi.domain.collections.TextLLMType;
 import com.github.enerccio.joi.domain.model.impl.Joi;
 import com.github.enerccio.joi.domain.model.impl.settings.JoiUserSetting;
+import com.github.enerccio.joi.domain.persona.Mood;
 import com.github.enerccio.joi.domain.persona.Personality;
 import com.github.enerccio.joi.domain.service.JoiService;
 import com.github.enerccio.joi.domain.service.PersonaService;
@@ -57,6 +59,9 @@ public class JoiAboutPart implements JoiDialogPart {
     private PersonaService personaService;
 
     @Autowired
+    private ChatService chatService;
+
+    @Autowired
     private AIService aiService;
 
     @Autowired
@@ -67,6 +72,7 @@ public class JoiAboutPart implements JoiDialogPart {
     private TextField nameField;
     private TextField userNameField;
     private Select<Personality> personalitySelect;
+    private Select<Mood> moodSelect;
     private final Map<TextLLMType, ComboBox<AI>> modelBoxes = new LinkedHashMap<>();
     private Select<TtsModel> ttsModelSelect;
     private Select<Actor> voiceActorSelect;
@@ -97,6 +103,21 @@ public class JoiAboutPart implements JoiDialogPart {
         personalitySelect.setEmptySelectionAllowed(true);
         personalitySelect.setHelperText(loc.getValue(J_L.HELP_PERSONALITY));
 
+        moodSelect = new Select<>();
+        moodSelect.setLabel(loc.getValue(J_L.LABEL_TODAYS_MOOD));
+        moodSelect.setItemLabelGenerator(m -> m == null ? "" : m.name());
+        moodSelect.setHelperText(loc.getValue(J_L.HELP_TODAYS_MOOD));
+        // her mood is not a part of her persona: a change is told to her (and her nodes) as it is made
+        moodSelect.addValueChangeListener(e -> {
+            if (!loading && e.getValue() != null) {
+                try {
+                    chatService.changeMood(dialog.getJoi(), e.getValue().key(), true);
+                } catch (Exception ex) {
+                    UIUtils.internalServerError(loc, ex);
+                }
+            }
+        });
+
         modelBoxes.put(TextLLMType.CHAT, modelBox(J_L.LABEL_CHAT_MODEL));
         modelBoxes.put(TextLLMType.DEEP_REASONING, modelBox(J_L.LABEL_REASONING_MODEL));
         modelBoxes.put(TextLLMType.AUXILIARY, modelBox(J_L.LABEL_AUXILIARY_MODEL));
@@ -120,8 +141,9 @@ public class JoiAboutPart implements JoiDialogPart {
 
         FormLayout form = new FormLayout();
         form.setResponsiveSteps(new FormLayout.ResponsiveStep("0", 1), new FormLayout.ResponsiveStep("40em", 2));
-        form.add(nameField, userNameField, personalitySelect);
+        form.add(nameField, userNameField, personalitySelect, moodSelect);
         form.setColspan(personalitySelect, 2);
+        form.setColspan(moodSelect, 2);
         modelBoxes.values().forEach(form::add);
         // the voice on a row of its own
         form.setColspan(modelBoxes.get(TextLLMType.AUXILIARY), 2);
@@ -178,6 +200,10 @@ public class JoiAboutPart implements JoiDialogPart {
             Personality inherited = personaService.currentPersonality();
             inheritedChoice(personalitySelect, inherited == null ? "" : inherited.name());
             personalitySelect.setValue(find(personalities, Personality::key, joi.getPersonality()));
+
+            List<Mood> moods = personaService.moods();
+            moodSelect.setItems(moods);
+            moodSelect.setValue(find(moods, Mood::key, joi.getMood()));
 
             List<AI> ais = aiService.findAllForUser();
             fillModel(TextLLMType.CHAT, ais, joi.getChatModel(), setting.getChatModel());
@@ -252,6 +278,10 @@ public class JoiAboutPart implements JoiDialogPart {
 
     public TextField getUserNameField() {
         return userNameField;
+    }
+
+    public Select<Mood> getMoodSelect() {
+        return moodSelect;
     }
 
     public Select<Personality> getPersonalitySelect() {

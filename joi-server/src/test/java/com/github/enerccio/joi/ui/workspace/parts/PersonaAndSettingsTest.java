@@ -290,6 +290,22 @@ class PersonaAndSettingsTest extends PlatformTestBase {
         mood.clickSave();
         assertThat(personaService.mood("nostalgic").weight()).isEqualTo(2);
         assertThat(personaService.mood("nostalgic").builtIn()).isFalse();
+        // its face: none until the user gives it one, then as the user set it
+        assertThat(personaService.mood("nostalgic").face().expression()).isNull();
+        MoodDialog faced = new MoodDialog("nostalgic");
+        faced.create();
+        faced.getExpressionSelect().setValue("sad");
+        faced.getStrengthField().setValue(0.8);
+        faced.clickSave();
+        assertThat(personaService.mood("nostalgic").face().expression()).isEqualTo("sad");
+        assertThat(personaService.mood("nostalgic").face().weight()).isEqualTo(0.8);
+        // a built-in mood has a face of its own, and the user can turn it off
+        assertThat(personaService.mood("happy").face().expression()).isEqualTo("happy");
+        MoodDialog happy = new MoodDialog("happy");
+        happy.create();
+        happy.getExpressionSelect().setValue("none");
+        happy.clickSave();
+        assertThat(personaService.mood("happy").face().expression()).isNull();
 
         SystemPromptPreviewDialog preview = new SystemPromptPreviewDialog(null);
         preview.create();

@@ -38,12 +38,18 @@ first chat after the day starts (**New day starts at** in User Settings, 04:00 b
 stays for the day. The mood's text comes into her prompt as it sounds in her personality, and her voice picks the actor's voice
 for that mood.
 
+You can also change it yourself during the day: in the Joi dialog (**About → Today's mood**). She is told about it in her next
+turn, and her face follows at once. She can change it herself too, when the conversation moves her (a joke makes her playful):
+that stays a note in the conversation, and she is not told about it again.
+
 You manage both in **User Settings → Personalities** and **Moods**:
 
 - Change a built-in one, or add your own (**Add personality**, **Add mood**). An empty field keeps the default. **Reset to the
   default** brings the built-in text back.
 - **Clone** copies a personality (built-in or yours) under a new key and opens it, so you can vary one without losing it.
-- For a mood: its **Roll weight** (0 never rolls it) and its **Voice delivery**. A personality can say how each mood sounds
+- For a mood: its **Roll weight** (0 never rolls it), its **Voice delivery** and its **Expression**: the soft expression her
+  face shows in it (with its **strength**), and whether her **eyes** are half closed or wide. A mood of your own has none until you
+  choose one; **None** turns off the face of a built-in mood. A personality can say how each mood sounds
   in it (**How the moods sound in this personality**); a mood it says nothing about uses the mood's own text.
 - A personality can have a text under **When she is asked to change a part of her body**. Empty: the change is made and she
   only reacts. With a text she decides whether to allow it, and says why if she refuses ("If the user begs, consider

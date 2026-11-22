@@ -29,7 +29,7 @@ changes the schema, the record and the docs together with the code.**
 
 ## Versioning
 
-`JoiProtocol.VERSION` is `major.minor` (now 1.9), sent in the handshake. A minor version only adds things; both sides ignore fields and message types they
+`JoiProtocol.VERSION` is `major.minor` (now 1.10), sent in the handshake. A minor version only adds things; both sides ignore fields and message types they
 do not know. The server supports at least the previous major version and says so when a node is too old.
 
 ## The HTTP API
@@ -55,6 +55,10 @@ is the device grant (RFC 8628): the device asks `/oauth/device_authorization` fo
 `/oauth/token` and gets an access token (`joia_...`, an hour by default) and a refresh token (`joir_...`, 90 days; each refresh gives a new pair). **No auth** is the
 configuration's (`joi.api.no-auth`): a call without credentials acts as `joi.api.no-auth-user`, else the first administrator; a credential that is sent must
 still be valid. Credentials are `AccessToken` rows (prefix and SHA-256).
+
+**Her mood (1.10).** The node frame `mood` (`MoodState`: `mood`, `name`, and the face the user has set for it: `expression`, `weight`, `eyes`; empty before her first mood) goes to a node
+after its manifest (`NodeServiceImpl.sendMood`) and again each time her mood changes (`ChatService.watchMoods`, which `NodeService` listens to: no dependency the other way). The
+node shows it on her face; the schema is `MoodState.schema.json`, the Swift type is generated.
 
 **Pairing offers (1.9).** `POST /oauth/device_authorization` takes the optional form field `pairing_offer`: the secret of the QR code the server's *Pair a phone* dialog shows
 (`joi://pair?server=...&offer=...`, built by `PairPhoneDialog`). `DeviceAuthorizationService.createOffer` makes it (in memory, ten minutes), the device gives it with its request for

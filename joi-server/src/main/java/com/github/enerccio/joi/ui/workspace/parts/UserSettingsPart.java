@@ -9,6 +9,7 @@ import com.github.enerccio.joi.defaults.JoiDefaults;
 import com.github.enerccio.joi.domain.collections.TextLLMType;
 import com.github.enerccio.joi.domain.model.impl.settings.JoiUserSetting;
 import com.github.enerccio.joi.domain.persona.JoiPromptField;
+import com.github.enerccio.joi.domain.model.impl.Joi;
 import com.github.enerccio.joi.domain.persona.Mood;
 import com.github.enerccio.joi.domain.persona.Personality;
 import com.github.enerccio.joi.domain.service.PersonaService;
@@ -88,6 +89,12 @@ public class UserSettingsPart implements WorkspacePart {
 
     @Autowired
     private PersonaService personaService;
+
+    @Autowired
+    private com.github.enerccio.joi.domain.service.JoiService joiService;
+
+    @Autowired
+    private com.github.enerccio.joi.domain.service.NodeService nodeService;
 
     @Autowired
     private SettingService settingService;
@@ -520,6 +527,10 @@ public class UserSettingsPart implements WorkspacePart {
             moodGrid.setItems(personaService.moods());
         } finally {
             loading = wasLoading;
+        }
+        // a mood's face may have changed: her nodes are told the mood as it is now
+        for (Joi joi : joiService.findAllForUser()) {
+            nodeService.mood(joi);
         }
     }
 

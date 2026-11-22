@@ -37,7 +37,7 @@ public final class QueuedEventPlan {
 
     /** The kinds that change a value from one to another: the chain of them is from the first {@code from} to the last {@code to}. */
     private static final Set<String> CHAINS = Set.of(JoiEvents.RENAMED, JoiEvents.USER_RENAMED, JoiEvents.PERSONALITY_CHANGED,
-            JoiEvents.VOICE_CHANGED, JoiEvents.BODY_SWITCHED);
+            JoiEvents.VOICE_CHANGED, JoiEvents.BODY_SWITCHED, JoiEvents.MOOD_CHANGED);
 
     /** The kinds that are about one body ({@code payload.to}): when it is gone they do not matter. */
     private static final Set<String> OF_A_BODY = Set.of(JoiEvents.PART_SWITCHED, JoiEvents.BODY_DESCRIBED, JoiEvents.OUTFIT_CHANGED);

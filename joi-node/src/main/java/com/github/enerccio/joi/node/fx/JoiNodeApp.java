@@ -770,7 +770,6 @@ public class JoiNodeApp extends Application {
         }));
         clipMenu.setDisable(false);
         chat.history(loaded.history());
-        avatarPane.mood(loaded.joi().mood());
         SpeechPlayer speech = new SpeechPlayer();
         // her mouth follows her voice: the page reads each piece and is told when it plays
         speech.setOnQueued((number, chunk) -> avatarPane.speech(number, chunk.data()));
@@ -789,9 +788,6 @@ public class JoiNodeApp extends Application {
 
             @Override
             public void reply(String turn, ChatReply reply) {
-                if (reply.mood() != null) {
-                    avatarPane.mood(reply.mood());
-                }
                 chat.herReply(turn, reply.text());
             }
 
@@ -1008,6 +1004,11 @@ public class JoiNodeApp extends Application {
             @Override
             public void partRefused(String id, com.github.enerccio.joi.protocol.node.PartRefused refusal) {
                 staging.refused(id, refusal.reason());
+            }
+
+            @Override
+            public void mood(com.github.enerccio.joi.protocol.node.MoodState mood) {
+                Platform.runLater(() -> avatarPane.mood(mood));
             }
 
             @Override

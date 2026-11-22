@@ -78,6 +78,10 @@ public class NodeSocket {
         default void task(com.github.enerccio.joi.protocol.http.TaskInfo task) {
         }
 
+        /** Her mood now and how it shows on her face (since 1.10): sent after the manifest and each time it changes. */
+        default void mood(com.github.enerccio.joi.protocol.node.MoodState mood) {
+        }
+
         /** She plays an animation of her own choice (her {@code play_animation}): see {@link AvatarDirector#gesture}. */
         default void animation(PlayAnimation animation) {
         }
@@ -584,6 +588,7 @@ public class NodeSocket {
             case PART_REFUSED -> listener.partRefused(ref, data(frame, PartRefused.class));
             case EVENT -> listener.event(data(frame, ServerEvent.class));
             case ANIMATION -> listener.animation(data(frame, PlayAnimation.class));
+            case MOOD -> listener.mood(data(frame, com.github.enerccio.joi.protocol.node.MoodState.class));
             case LOG -> listener.log(data(frame, com.github.enerccio.joi.protocol.http.ChatLog.class));
             case TASK -> listener.task(data(frame, com.github.enerccio.joi.protocol.http.TaskInfo.class));
             case TOOL_CALL -> call(data(frame, ToolCall.class));

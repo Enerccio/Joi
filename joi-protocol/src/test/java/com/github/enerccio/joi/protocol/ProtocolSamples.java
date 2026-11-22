@@ -117,6 +117,9 @@ public final class ProtocolSamples {
         out.add(new PartRefused("group:eyes", "bare", null));
         out.add(new PlayAnimation("5b1e0c4e-0000-4000-8000-000000000001", "wave", null));
         out.add(new PlayAnimation("5b1e0c4e-0000-4000-8000-000000000001", "dance", true));
+        out.add(new MoodState("happy", "Happy", "happy", 0.7, null));
+        out.add(new MoodState("sleepy", "Sleepy", "relaxed", 0.3, "half"));
+        out.add(new MoodState(null, null, null, null, null));
         out.add(new ToolUse("desk__read_file", "{\"path\":\"~/notes.md\"}", "milk, eggs", true));
         out.add(new ToolUse("desk__shell", "{}", null, false));
         out.add(new ToolCall("c1", "read_file", arguments, "t1", 60));

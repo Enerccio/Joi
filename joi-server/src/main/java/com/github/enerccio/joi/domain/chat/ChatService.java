@@ -166,4 +166,18 @@ public interface ChatService {
 
     /** Today's mood: the one she has since the day began ({@code dayBoundary}), else a new one rolled and stored. */
     Mood todaysMood(Joi joi) throws Exception;
+
+    /**
+     * Changes her mood now (it stays until the next day's roll): stored, written as a note into the conversation, sent to her
+     * nodes ({@link #watchMoods}), and, when the user changed it, queued as an event so she can react. She changes it herself
+     * with {@code set_mood}, which is her own choice and needs no event.
+     *
+     * @param key    the key of the mood
+     * @param byUser true when the user changed it, false when she chose it
+     * @throws IllegalArgumentException when there is no such mood
+     */
+    Mood changeMood(Joi joi, String key, boolean byUser) throws Exception;
+
+    /** Calls the watcher when the mood of any assistant changed (the daily roll or {@link #changeMood}); the nodes use it. */
+    Registration watchMoods(java.util.function.Consumer<Joi> watcher);
 }

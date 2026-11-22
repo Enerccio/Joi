@@ -216,21 +216,22 @@ public class PersonaServiceImpl implements PersonaService {
         for (MoodDefault builtIn : defaults().moods()) {
             MoodSetting changes = own.remove(builtIn.key());
             if (changes == null) {
-                result.add(new Mood(builtIn.key(), builtIn.name(), builtIn.prompt(), builtIn.weight(), builtIn.delivery(), true, false));
+                result.add(new Mood(builtIn.key(), builtIn.name(), builtIn.prompt(), builtIn.weight(), builtIn.delivery(), builtIn.face(), true, false));
                 continue;
             }
             boolean changed = StringUtils.isNotBlank(changes.getName()) || StringUtils.isNotBlank(changes.getPrompt())
-                    || changes.getWeight() != null || changes.getDelivery() != null;
+                    || changes.getWeight() != null || changes.getDelivery() != null || MoodFace.changes(changes);
             result.add(new Mood(builtIn.key(), StringUtils.defaultIfBlank(changes.getName(), builtIn.name()),
                     StringUtils.defaultIfBlank(changes.getPrompt(), builtIn.prompt()),
                     changes.getWeight() == null ? builtIn.weight() : Math.max(0, changes.getWeight()),
-                    changes.getDelivery() == null ? builtIn.delivery() : changes.getDelivery(), true, changed));
+                    changes.getDelivery() == null ? builtIn.delivery() : changes.getDelivery(), builtIn.face().changedBy(changes), true, changed));
         }
         List<Mood> custom = new ArrayList<>();
         for (MoodSetting mine : own.values()) {
             custom.add(new Mood(mine.getKey(), StringUtils.defaultIfBlank(mine.getName(), mine.getKey()),
                     StringUtils.defaultString(mine.getPrompt()), mine.getWeight() == null ? 1 : Math.max(0, mine.getWeight()),
-                    mine.getDelivery() == null ? com.github.enerccio.joi.tts.text.Delivery.NEUTRAL : mine.getDelivery(), false, false));
+                    mine.getDelivery() == null ? com.github.enerccio.joi.tts.text.Delivery.NEUTRAL : mine.getDelivery(),
+                    MoodFace.PLAIN.changedBy(mine), false, false));
         }
         custom.sort(Comparator.comparing(Mood::name, collator()));
         result.addAll(custom);

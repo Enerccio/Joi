@@ -24,6 +24,8 @@ import com.github.enerccio.joi.domain.node.NodeSession;
 import com.github.enerccio.joi.domain.node.NodeSession.PendingCall;
 import com.github.enerccio.joi.domain.node.NodeTransport;
 import com.github.enerccio.joi.domain.persona.JoiPromptField;
+import com.github.enerccio.joi.domain.persona.Mood;
+import com.github.enerccio.joi.domain.persona.MoodFace;
 import com.github.enerccio.joi.defaults.JoiDefaults;
 import com.github.enerccio.joi.domain.service.AccessTokenService.Principal;
 import com.github.enerccio.joi.domain.service.*;
@@ -133,6 +135,7 @@ public class NodeServiceImpl implements NodeService, InitializingBean, Disposabl
     private ScheduledExecutorService ticks;
     private Registration tools;
     private Registration logs;
+    private Registration moods;
     /** Whether the server greets a node that connected (off in tests that drive the turns themselves). */
     private volatile boolean greeting = true;
     /** How long after the last event for her the server waits for more before it tells her (the ones that come together are told together). */
@@ -147,6 +150,7 @@ public class NodeServiceImpl implements NodeService, InitializingBean, Disposabl
         });
         ticks.scheduleAtFixedRate(this::tick, 1, 1, TimeUnit.SECONDS);
         logs = chatService.watchLogs(this::sendLog);
+        moods = chatService.watchMoods(this::mood);
         tools = chatService.addEventListener(TurnEvents.COLLECT_TOOLS, (event, chain) -> {
             List<FunctionDefinition> functions = new ArrayList<>();
             // two nodes of hers with the same name would offer the same function twice, which a model API refuses: the first wins
@@ -181,6 +185,9 @@ public class NodeServiceImpl implements NodeService, InitializingBean, Disposabl
         }
         if (logs != null) {
             logs.unregister();
+        }
+        if (moods != null) {
+            moods.unregister();
         }
         if (ticks != null) {
             ticks.shutdownNow();
@@ -323,6 +330,44 @@ public class NodeServiceImpl implements NodeService, InitializingBean, Disposabl
             }
         } catch (Exception e) {
             log.warn("Node {}: the tasks that wait were not sent", session.name(), e);
+        }
+    }
+
+    @Override
+    public void mood(Joi joi) {
+        List<NodeSession> nodes = sessions(joi);
+        if (nodes.isEmpty()) {
+            return;
+        }
+        try {
+            MoodState state = moodState(joi);
+            for (NodeSession session : nodes) {
+                session.send(NodeMessage.MOOD, null, null, state);
+            }
+        } catch (Exception e) {
+            log.warn("The mood of {} was not sent to her nodes", joi.getUuid(), e);
+        }
+    }
+
+    /** Her mood and its face as the user in scope has them set. */
+    private MoodState moodState(Joi joi) throws Exception {
+        Mood mood = joi.getMood() == null ? null : personaService.mood(joi.getMood());
+        if (mood == null) {
+            return new MoodState(null, null, null, null, null);
+        }
+        MoodFace face = mood.face();
+        return new MoodState(mood.key(), mood.name(), face.expression(), face.expression() == null ? null : face.weight(), face.eyes());
+    }
+
+    /** A node that sent its manifest is told her mood. */
+    private void sendMood(NodeSession session) {
+        try (InRequestScope _ = new InRequestScope(session.attributes())) {
+            Joi joi = joiService.find(session.joiId());
+            if (joi != null) {
+                session.send(NodeMessage.MOOD, null, null, moodState(joi));
+            }
+        } catch (Exception e) {
+            log.warn("Node {}: the mood was not sent", session.name(), e);
         }
     }
 
@@ -527,6 +572,7 @@ public class NodeServiceImpl implements NodeService, InitializingBean, Disposabl
         }
         deliverWaiting(session);
         sendWaitingTasks(session);
+        sendMood(session);
     }
 
     /**

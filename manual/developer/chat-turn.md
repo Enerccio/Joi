@@ -52,7 +52,7 @@ speech and the steps after the store still run.
 
 `AFTER_CLEANUP` comes for every turn with its outcome (`TurnOutcome`).
 
-Who hooks in: her memories in the prompt, the server tools (`remember`, `recall`, `play_animation`, `change_body_part`, `list_outfits`,
+Who hooks in: her memories in the prompt, the server tools (`remember`, `recall`, `play_animation`, `set_mood`, `change_body_part`, `list_outfits`,
 `set_outfit`, `list_bodies`, `switch_body`, `web_search`, `fetch_page`, `list_workspace_files`, `offer_file_to_clipboard`) and the nodes' tools and approvals (`NodeService` registers a
 `COLLECT_TOOLS` listener).
 

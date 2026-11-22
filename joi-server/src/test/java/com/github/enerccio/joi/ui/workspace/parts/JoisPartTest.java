@@ -170,6 +170,26 @@ class JoisPartTest extends PlatformTestBase {
     }
 
     @Test
+    void aMoodChosenInTheDialogIsToldToHerOnceSheHasChatted() throws Exception {
+        Joi joi = joiService.create("Kairo");
+        // before the first word: the mood is set, nothing to tell
+        JoiDialog before = dialog(joi);
+        before.getAboutPart().getMoodSelect().setValue(before.getAboutPart().getMoodSelect().getListDataView().getItems()
+                .filter(m -> m.key().equals("calm")).findFirst().orElseThrow());
+        assertThat(joiService.find(joi.getId()).getMood()).isEqualTo("calm");
+        assertThat(queuedEventService.findWaiting(joiService.find(joi.getId()))).isEmpty();
+
+        chat(joi, 1_000L);
+        JoiDialog dialog = dialog(joiService.find(joi.getId()));
+        dialog.getAboutPart().getMoodSelect().setValue(dialog.getAboutPart().getMoodSelect().getListDataView().getItems()
+                .filter(m -> m.key().equals("grumpy")).findFirst().orElseThrow());
+        Joi stored = joiService.find(joi.getId());
+        assertThat(stored.getMood()).isEqualTo("grumpy");
+        assertThat(queuedEventService.findWaiting(stored)).extracting(QueuedEvent::getKind).containsExactly(JoiEvents.MOOD_CHANGED);
+        assertThat(queuedEventService.findWaiting(stored).getFirst().getText()).contains("Grumpy");
+    }
+
+    @Test
     void templatesStoreValidOnesOnly() throws Exception {
         Joi joi = joiService.create("Kairo");
         JoiDialog dialog = dialog(joi);

@@ -1,5 +1,6 @@
 package com.github.enerccio.joi.defaults;
 
+import com.github.enerccio.joi.domain.persona.MoodFace;
 import com.github.enerccio.joi.tts.text.Delivery;
 
 /**
@@ -10,6 +11,7 @@ import com.github.enerccio.joi.tts.text.Delivery;
  * @param prompt   the fragment that goes into the system prompt, unless the personality has its own expression of it
  * @param weight   its weight in the daily roll (0: never rolled, only set by hand or by her)
  * @param delivery how the voice reads in it (the mood voice of the voice actor, the emotion of Higgs)
+ * @param face     how it shows on her face
  */
-public record MoodDefault(String key, String name, String prompt, int weight, Delivery delivery) {
+public record MoodDefault(String key, String name, String prompt, int weight, Delivery delivery, MoodFace face) {
 }

@@ -63,10 +63,10 @@ struct FakeHistory: HistorySource {
     var played: [String] = []
     var offline = false
     var eyes: [String] = []
-    var moods: [String?] = []
+    var moods: [MoodState?] = []
     var onEnded: (@MainActor () -> Void)?
     func setEyes(_ eyes: String, seconds: Double) { self.eyes.append("\(eyes) \(seconds)") }
-    func setMood(_ mood: String?) { moods.append(mood) }
+    func setMood(_ mood: MoodState?) { moods.append(mood) }
     func play(_ animation: String?, loop: Bool) { played.append("\(animation ?? "rest")\(loop ? " loop" : "")") }
     func setOffline(_ offline: Bool) { self.offline = offline }
 }
@@ -240,6 +240,9 @@ struct FakeHistory: HistorySource {
         player.onEnded?()
         #expect(chat.messages.map(\.text) == ["I'm awake."])
         #expect(chat.avatarState == .idle)
+        // her mood, as the server says it, goes to her body
+        chat.apply(frame(nil, .mood(MoodState(mood: "happy", name: "Happy", expression: "happy", weight: 0.7))))
+        #expect(player.moods == [MoodState(mood: "happy", name: "Happy", expression: "happy", weight: 0.7)])
         // a gesture she chose
         chat.apply(frame(nil, .animation(PlayAnimation(animation: "wave"))))
         #expect(player.played.last == "wave")

@@ -111,6 +111,10 @@ one; the server treats every node the same.
     first administrator; a credential that is sent must still be valid. Turning a way off stops its credentials at
     once. Credentials are `AccessToken` rows (prefix + SHA-256, like Marginalia's API keys), listed and revoked under
     Access.
+  - **Her mood as a frame (1.10, built).** The node frame `mood` (`MoodState`: the mood's `mood` key, its `name`, the `expression` with its `weight`
+    and the `eyes`, as the user has them set) is sent after the manifest and on every change of her mood (`ChatService.watchMoods`,
+    `NodeService.mood`): the day's roll, the user's switch in the Joi dialog, her own `set_mood`, a change of the mood's face in User Settings. The
+    node follows it at once; the reply's and the info's `mood` stay as the name for the UI only.
   - **Pairing a phone by its camera (1.9, built).** User Settings → Access has *Pair a phone*: a dialog with a QR code of
     `joi://pair?server=<address>&offer=<secret>` (the address is editable: a phone cannot reach `localhost`). The phone's camera opens
     it in the app, which asks `POST /oauth/device_authorization` with the extra field `pairing_offer`. The offer
@@ -1115,6 +1119,12 @@ UI — nothing is deleted):
   still counts as the same day). During the day it changes when you switch it in the UI — pushed to the nodes in real
   time; the avatar transitions at once, speech at the next sentence, and Joi can react to the change — or through the
   conversation / Joi herself (a `set_mood` tool). Every change is logged.
+- **Built:** the face of a mood is part of the `Mood` (`MoodFace`: an expression, its weight and the eyes; the built-in ten have one, the
+  user sets it per mood in User Settings → Moods, **none** turns it off, a mood of the user's own has none until it is given one:
+  `MoodSetting.expression / expressionWeight / eyes`). `ChatService.changeMood(joi, key, byUser)` is the one place a mood changes: it saves it, writes a
+  note in the conversation, pushes it to the nodes (the `mood` frame) and, when the **user** changed it (the Today's mood box of the Joi dialog) and she has
+  chatted, queues the event `mood.changed` (told to her in her next turn, merged along the chain from → to). `set_mood` (`MoodTools`, offered to every
+  turn, the enum is the moods' names) is her own choice: no consent, no event.
 - Open: whether the conversation should tilt the mood or only the UI and Joi's own tool change it.
 
 ### Bodies (avatars)
@@ -1368,10 +1378,9 @@ UI — nothing is deleted):
     models, and her state (asleep) and mood are things only the node knows. The layer (`setFace`) blinks, shuts the lids, fades in an expression and
     points the eyes (VRM `lookAt`) at the camera with a little jitter. Three inputs, the first that says something wins: the **animation's own face**
     (`eyes`: closed / half / wide, `expression`: happy / sad / angry / relaxed / surprised, stored on the animation and in the `.joia`), **her state**
-    (shut while she sleeps, easing over a few seconds as she falls asleep and wakes up) and **her mood** (a soft expression per mood key, in the
-    viewer's `MOODS` table: calm → relaxed, happy → happy, grumpy → angry, melancholic → sad, sleepy → half closed eyes, excited → wide eyes...).
-    **Next:** moods as avatar parameters on the `Mood` itself (the table is in the page for now, built-in keys only), the node following a mood the
-    user switches in the UI at once (it follows replies and the `joi` event on iOS), more face targets (ARKit shapes), looking at the user rather than the camera.
+    (shut while she sleeps, easing over a few seconds as she falls asleep and wakes up) and **her mood** (a soft expression from the `Mood`'s own face,
+    sent in the `mood` frame: calm → relaxed, happy → happy, grumpy → angry, melancholic → sad, sleepy → half closed eyes, excited → wide eyes...; see Moods).
+    **Next:** more face targets (ARKit shapes), looking at the user rather than the camera.
   - **Both ways:** Joi plays them with a tool (`play_animation`, listing what fits the active body and shot), e.g. waves
     hello, shrugs, dances when asked; you trigger them from the UI or a Stream Deck key and she is told.
     **Built (her side):** `play_animation` (`domain/chat/AnimationTools`) is offered to every turn when her active body

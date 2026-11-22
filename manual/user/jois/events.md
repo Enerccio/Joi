@@ -24,6 +24,7 @@ its kind. She reads it as something that happened, and may answer in her own wor
 | `node.connected` | you came back to her on a node |
 | `node.looking_glass_entered`, `node.looking_glass_exited` | you moved her onto the Looking Glass or back |
 | `node.server_restarted` | a node connected again after the server was down |
+| `mood.changed` | you chose her mood in the Joi dialog (her own `set_mood` is not told to her) |
 | `node.part_switched` | you changed a part of her on a node |
 
 Changes in her setup are staged: you save, and she gets one event of what changed, not one per field.
@@ -36,6 +37,7 @@ can still react ("oh, a new outfit?"). They are merged first:
 
 - a part switched again and again is one event from the first state to the last; one that ended where it began is dropped;
 - a name, her personality or her voice changed several times is the steps in a row, or nothing if the value came back;
+- her mood changed several times is the steps in a row, or nothing if it came back;
 - a body described again, an outfit put on again: the last one;
 - an event about a body that is gone, and any older than a week, is dropped (a task's result is always told).
 

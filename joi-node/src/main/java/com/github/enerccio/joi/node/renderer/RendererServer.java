@@ -152,11 +152,22 @@ public class RendererServer implements AutoCloseable {
         broadcast(message);
     }
 
-    /** Her mood (its key, null for none): the page shows it as a soft expression. Sent to the pages open and to those that open later. */
-    public synchronized void mood(String mood) {
+    /**
+     * Her mood and how it shows on her face (the server's {@code mood} frame): the page shows the expression softly on her body
+     * (an animation's own face and her state win), and the eyes the mood gives her. A mood with no face clears it. Sent to the pages
+     * open and to those that open later.
+     */
+    public synchronized void mood(com.github.enerccio.joi.protocol.node.MoodState mood) {
         JsonObject message = message("mood");
-        if (mood != null) {
-            message.addProperty("mood", mood);
+        if (mood != null && mood.mood() != null) {
+            message.addProperty("mood", mood.mood());
+            if (mood.expression() != null) {
+                message.addProperty("expression", mood.expression());
+                message.addProperty("weight", mood.weight() == null ? 0.5 : mood.weight());
+            }
+            if (mood.eyes() != null) {
+                message.addProperty("eyes", mood.eyes());
+            }
         }
         moodMessage = GSON.toJson(message);
         broadcast(message);

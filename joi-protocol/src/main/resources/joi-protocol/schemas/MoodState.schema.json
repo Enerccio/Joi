@@ -1,0 +1,45 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Enerccio/joi/protocol/v1/MoodState.schema.json",
+  "title": "MoodState",
+  "description": "mood (since 1.10): her mood now and how it shows on her face. The server sends it when a node has sent its manifest, and each time her mood changes (the daily roll, the user switches it, she chooses it with her set_mood function, the user edits the mood). A node shows the face as a soft expression on her body; an animation's own face and her state (asleep) win over it. A node may ignore the frame.",
+  "type": "object",
+  "properties": {
+    "mood": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "The key of the mood, null before her first chat of the day."
+    },
+    "name": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Its name, for a node that shows it."
+    },
+    "expression": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "The expression on her face: happy, sad, angry, relaxed or surprised; null for none. A node ignores a value it does not know."
+    },
+    "weight": {
+      "type": [
+        "number",
+        "null"
+      ],
+      "description": "How strong the expression is, 0 to 1; null for none."
+    },
+    "eyes": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Her eyes in this mood: half (half closed) or wide (open wide, never blinking); null for open and blinking."
+    }
+  },
+  "required": []
+}

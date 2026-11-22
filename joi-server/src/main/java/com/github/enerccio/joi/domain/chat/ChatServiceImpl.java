@@ -5,6 +5,8 @@ import com.github.enerccio.joi.domain.chat.turn.*;
 import com.github.enerccio.marginalia.domain.service.job.JobStatus;
 import com.github.enerccio.joi.domain.chat.turn.TurnControllerEvent.EventChain;
 import com.github.enerccio.joi.domain.chat.turn.TurnControllerEvent.Registration;
+import com.github.enerccio.joi.domain.events.JoiEvents;
+import com.github.enerccio.joi.domain.model.impl.QueuedEvent;
 import com.github.enerccio.joi.domain.model.impl.ChatMessage;
 import com.github.enerccio.joi.domain.model.impl.Joi;
 import com.github.enerccio.joi.domain.model.impl.settings.JoiUserSetting;
@@ -62,6 +64,9 @@ public class ChatServiceImpl implements ChatService, InitializingBean, Disposabl
     private ChatMessageService chatMessageService;
 
     @Autowired
+    private com.github.enerccio.joi.domain.service.QueuedEventService queuedEventService;
+
+    @Autowired
     private AIService aiService;
 
     @Autowired
@@ -77,6 +82,7 @@ public class ChatServiceImpl implements ChatService, InitializingBean, Disposabl
     /** The turns that wait or run now, for the page of the jobs. */
     private final java.util.Set<TurnEngine> running = ConcurrentHashMap.newKeySet();
     private final List<java.util.function.Consumer<ChatMessage>> logWatchers = new CopyOnWriteArrayList<>();
+    private final List<java.util.function.Consumer<Joi>> moodWatchers = new CopyOnWriteArrayList<>();
     private final Random random = new Random();
     private ExecutorService executor;
 
@@ -266,7 +272,55 @@ public class ChatServiceImpl implements ChatService, InitializingBean, Disposabl
         }
         Mood rolled = personaService.rollMood(random);
         joiService.saveMood(joi, rolled.key(), AppClock.now());
+        moodChanged(joi);
         return rolled;
+    }
+
+    @Override
+    public Mood changeMood(Joi joi, String key, boolean byUser) throws Exception {
+        Mood target = personaService.mood(key);
+        if (target == null) {
+            throw new IllegalArgumentException("There is no mood \"" + key + "\". The moods: "
+                    + personaService.moods().stream().map(Mood::key).collect(java.util.stream.Collectors.joining(", ")));
+        }
+        Mood before = joi.getMood() == null ? null : personaService.mood(joi.getMood());
+        if (before != null && before.key().equals(key)) {
+            return target;
+        }
+        joiService.saveMood(joi, key, AppClock.now());
+        log(joi, byUser ? JoiEvents.MOOD_CHANGED : "mood.chosen",
+                "Her mood is now " + target.name() + (before == null ? "" : " (was " + before.name() + ")")
+                        + (byUser ? ": you changed it." : ": she chose it."));
+        if (byUser && chatMessageService.hasAny(joi)) {
+            com.google.gson.JsonObject payload = new com.google.gson.JsonObject();
+            payload.addProperty("from", before == null ? null : before.key());
+            payload.addProperty("to", target.key());
+            QueuedEvent event = new QueuedEvent();
+            event.setJoi(joi);
+            event.setKind(JoiEvents.MOOD_CHANGED);
+            event.setOccurredAt(AppClock.now());
+            event.setText(personaService.defaults().eventMoodChanged(before == null ? null : before.name(), target.name()));
+            event.setPayload(payload.toString());
+            queuedEventService.save(event);
+        }
+        moodChanged(joi);
+        return target;
+    }
+
+    @Override
+    public Registration watchMoods(java.util.function.Consumer<Joi> watcher) {
+        moodWatchers.add(watcher);
+        return () -> moodWatchers.remove(watcher);
+    }
+
+    private void moodChanged(Joi joi) {
+        for (java.util.function.Consumer<Joi> watcher : moodWatchers) {
+            try {
+                watcher.accept(joi);
+            } catch (Exception e) {
+                log.debug("A watcher of the mood failed", e);
+            }
+        }
     }
 
     /** When her day began: today at her day boundary, or yesterday when it is not that late yet. */

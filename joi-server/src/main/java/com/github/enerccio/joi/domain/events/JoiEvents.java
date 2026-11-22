@@ -51,6 +51,12 @@ public final class JoiEvents {
      */
     public static final String SUMMARY_CREATED = "summary.created";
 
+    /**
+     * The user changed her mood in her dialog (payload: {@code from}, {@code to}, the keys of the moods). She may react;
+     * what she chose herself with {@code set_mood} is not an event.
+     */
+    public static final String MOOD_CHANGED = "mood.changed";
+
     private JoiEvents() {
     }
 }

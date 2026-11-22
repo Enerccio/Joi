@@ -141,15 +141,23 @@ class RendererServerTest {
         BlockingQueue<JsonObject> open = events();
         Thread.sleep(300);
         server.eyes("closed", 3);
-        server.mood("happy");
+        server.mood(new com.github.enerccio.joi.protocol.node.MoodState("happy", "Happy", "happy", 0.7, "wide"));
         JsonObject eyes = open.poll(5, TimeUnit.SECONDS);
         assertThat(eyes.get("type").getAsString()).isEqualTo("eyes");
         assertThat(eyes.get("eyes").getAsString()).isEqualTo("closed");
         assertThat(eyes.get("ease").getAsDouble()).isEqualTo(3);
-        assertThat(open.poll(5, TimeUnit.SECONDS).get("mood").getAsString()).isEqualTo("happy");
+        JsonObject mood = open.poll(5, TimeUnit.SECONDS);
+        assertThat(mood.get("mood").getAsString()).isEqualTo("happy");
+        assertThat(mood.get("expression").getAsString()).isEqualTo("happy");
+        assertThat(mood.get("weight").getAsDouble()).isEqualTo(0.7);
+        assertThat(mood.get("eyes").getAsString()).isEqualTo("wide");
 
-        // a mood of none clears it, and the last ones are sent again to a page that opens later
-        server.mood(null);
+        // a mood with no face clears it, and the last ones are sent again to a page that opens later
+        server.mood(new com.github.enerccio.joi.protocol.node.MoodState("calm", "Calm", null, null, null));
+        JsonObject calm = open.poll(5, TimeUnit.SECONDS);
+        assertThat(calm.get("mood").getAsString()).isEqualTo("calm");
+        assertThat(calm.has("expression")).isFalse();
+        server.mood(new com.github.enerccio.joi.protocol.node.MoodState(null, null, null, null, null));
         assertThat(open.poll(5, TimeUnit.SECONDS).has("mood")).isFalse();
         BlockingQueue<JsonObject> later = events();
         JsonObject first = later.poll(5, TimeUnit.SECONDS);

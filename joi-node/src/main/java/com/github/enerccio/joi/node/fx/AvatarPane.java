@@ -131,8 +131,8 @@ class AvatarPane extends BorderPane {
         this.onAnimationEnded = onAnimationEnded;
     }
 
-    /** Her mood, as her reply or her info says it: the page shows it on her face. */
-    void mood(String mood) {
+    /** Her mood and its face, as the server says it ({@code mood} frame): the page shows it on her face. */
+    void mood(com.github.enerccio.joi.protocol.node.MoodState mood) {
         renderer.mood(mood);
     }
 

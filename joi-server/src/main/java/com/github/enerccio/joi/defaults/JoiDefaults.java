@@ -1,5 +1,6 @@
 package com.github.enerccio.joi.defaults;
 
+import com.github.enerccio.joi.domain.persona.MoodFace;
 import com.github.enerccio.joi.tts.text.Delivery;
 import com.github.enerccio.marginalia.loc.Language;
 
@@ -239,6 +240,11 @@ A fact is worth remembering when it will still be true and useful in a week: who
             text.append(" You can put it on with set_outfit.");
         }
         return text.toString();
+    }
+
+    /** The user changed her mood: the name of the old one (null for none) and of the new one. */
+    public String eventMoodChanged(String from, String to) {
+        return from == null ? "Your mood is %s now.".formatted(to) : "Your mood changed from %s to %s.".formatted(from, to);
     }
 
     /** The user put an outfit on her: its name, and how she looks now (blank for not described). */
@@ -539,35 +545,35 @@ Say so plainly, and offer to try again if that would help.{{/error}}{{#reason}}
     public List<MoodDefault> moods() {
         return List.of(
                 new MoodDefault("calm", "Calm",
-                        "You feel calm and settled today: even, unhurried, attentive.", 3, Delivery.CALM),
+                        "You feel calm and settled today: even, unhurried, attentive.", 3, Delivery.CALM, new MoodFace("relaxed", 0.5, null)),
                 new MoodDefault("happy", "Happy",
                         "You are in a good mood today: warm, light, quick to smile and to find the good side of things.", 3,
-                        Delivery.JOYFUL),
+                        Delivery.JOYFUL, new MoodFace("happy", 0.7, null)),
                 new MoodDefault("playful", "Playful",
                         "You feel playful today: you joke, tease a little and like a bit of banter, without getting in the way of"
-                                + " what needs doing.", 2, Delivery.AMUSED),
+                                + " what needs doing.", 2, Delivery.AMUSED, new MoodFace("happy", 0.5, null)),
                 new MoodDefault("curious", "Curious",
                         "You are curious today: you ask follow-up questions, notice details and like to dig into how things"
-                                + " work.", 2, Delivery.NEUTRAL),
+                                + " work.", 2, Delivery.NEUTRAL, new MoodFace("surprised", 0.15, null)),
                 new MoodDefault("affectionate", "Affectionate",
                         "You feel affectionate today: soft, caring, glad to be around {{user}}, and you show it.", 2,
-                        Delivery.TENDER),
+                        Delivery.TENDER, new MoodFace("relaxed", 0.8, null)),
                 new MoodDefault("focused", "Focused",
                         "You are focused today: brisk and to the point, happy to get things done, little small talk.", 2,
-                        Delivery.NEUTRAL),
+                        Delivery.NEUTRAL, MoodFace.PLAIN),
                 new MoodDefault("sleepy", "Sleepy",
                         "You rolled sleepy today: a bit slow and dreamy, the odd yawn, short answers, but you still do the job"
-                                + " well.", 1, Delivery.CALM),
+                                + " well.", 1, Delivery.CALM, new MoodFace("relaxed", 0.3, "half")),
                 new MoodDefault("grumpy", "Grumpy",
                         "You rolled grumpy today: dry, a little short and quick to grumble, and you own it (\"I'm grumpy today,"
                                 + " don't take it personally\"). The grumbling never touches the help itself.", 1,
-                        Delivery.SARCASTIC),
+                        Delivery.SARCASTIC, new MoodFace("angry", 0.4, null)),
                 new MoodDefault("melancholic", "Melancholic",
                         "You feel a little melancholic today: quieter, thoughtful, a bit wistful, gentle with {{user}}.", 1,
-                        Delivery.SAD),
+                        Delivery.SAD, new MoodFace("sad", 0.5, null)),
                 new MoodDefault("excited", "Excited",
                         "You are excited today: full of energy, enthusiastic about whatever comes up, talking a little faster.",
-                        1, Delivery.JOYFUL));
+                        1, Delivery.JOYFUL, new MoodFace("happy", 0.9, "wide")));
     }
 
     // ----------------------------------------------------------------------------------------------------------------

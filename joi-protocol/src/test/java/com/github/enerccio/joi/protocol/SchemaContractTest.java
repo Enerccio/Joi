@@ -32,7 +32,7 @@ class SchemaContractTest {
             JoiSummary.class, JoiList.class, Personality.class, Voice.class, JoiInfo.class, ChatRequest.class, Audio.class, Usage.class,
             ChatReply.class, TextDelta.class, AudioChunk.class, Done.class, ApiError.class, DeviceAuthorization.class,
             TokenResponse.class, LocalToken.class, OAuthError.class, OAuthMetadata.class, Download.class, BodyModel.class, BodyPart.class,
-            BodyToggle.class, BodyPartState.class, PartSwitch.class, PartKept.class, PartRefused.class, PlayAnimation.class,
+            BodyToggle.class, BodyPartState.class, PartSwitch.class, PartKept.class, PartRefused.class, PlayAnimation.class, MoodState.class,
             BodyAnimation.class, BodyAnimations.class, BodyInfo.class, JoiAnimations.class, Frame.class, Hello.class, Resume.class, Welcome.class, Manifest.class,
             ToolDefinition.class, Say.class, Stop.class, Display.class, ToolUse.class, ToolCall.class, ToolProgress.class, ToolResult.class,
             ToolCancel.class, Approval.class, ServerEvent.class, TurnStart.class, ChatEntry.class, ChatHistory.class,

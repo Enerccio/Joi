@@ -9,8 +9,8 @@
 // what the page says through webkit.messageHandlers.joi ({type: "ready"} when it is loaded, {type: "loaded"} when her model is there, then "ended" and "error" as below).
 // {type: "speech", index, data} (a piece of her voice, a wav or mp3 file in Base64: read for her mouth), {type: "speech-start", index}
 // (that piece plays now, by the node's own player) and {type: "speech-stop"} (her speech ended or was stopped): her mouth follows her voice (joi-lipsync.js).
-// {type: "eyes", eyes: "auto"|"closed", ease} (her state's eyes, reached over `ease` seconds) and {type: "mood", mood} (the key of her
-// mood, or none): her face layer (the viewer's setFace); an animation's own face comes in its sequence ({face: {eyes, expression}}).
+// {type: "eyes", eyes: "auto"|"closed", ease} (her state's eyes, reached over `ease` seconds) and {type: "mood", mood, expression, weight, eyes}
+// (her mood as the server's mood frame says it: the expression it shows and the eyes it gives her; just {type: "mood"} for none): her face layer (the viewer's setFace); an animation's own face comes in its sequence ({face: {eyes, expression}}).
 // With ?looking-glass the page renders her for the Looking Glass whose calibration the node serves (looking-glass.js);
 // {type: "tuning", tuning} changes how (the node's tuning panel).
 import './generated/joi-model-viewer.js';
@@ -134,7 +134,7 @@ function receive(message) {
       viewer.setFace({eyes: message.eyes, ease: message.ease});
       break;
     case 'mood':
-      viewer.setFace({mood: message.mood || null});
+      viewer.setFace({mood: message.mood ? {expression: message.expression, weight: message.weight, eyes: message.eyes} : null});
       break;
     case 'speech':
       speech(message);

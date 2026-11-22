@@ -1,7 +1,7 @@
 asyncapi: 3.0.0
 info:
   title: Joi node WebSocket
-  version: "1.9"
+  version: "1.10"
   description: |
     The live connection between a node and a Joi server: who the node is, the tools it offers and their calls, the
     user talking to her through it and her answer in text and speech, approvals, and what changes on the server. The
@@ -58,6 +58,11 @@ info:
          chooses an animation to play (her `play_animation` function, which she is asked to use often): outside any
          turn's frames, while her turn runs. The node plays it once on top of what she is doing (waiting, talking) and
          goes back to that when it is over; it ignores one it does not have in the body's `.joia`.
+       - **Her mood** (since 1.10). The server sends `mood` (a `MoodState`: the mood's key and name, and how it shows on her
+         face: `expression` happy, sad, angry, relaxed or surprised, its `weight` 0 to 1, and `eyes` half or wide) after the
+         node's manifest, and each time her mood changes: the daily roll, the user switching it in her dialog, she
+         choosing it with her `set_mood` function, the user editing the mood. The node shows it as a soft expression on
+         her body; an animation's own face and her state (shut eyes while she sleeps) win over it. It may ignore it.
        - **Notes in her conversation** (since 1.6). The server sends `log` (id, time, kind, text) when something should be
          seen in the transcript without being said to her: the user's approval of a task of hers, for one. It is not an
          exchange: it is never given to the model and does not count as her being talked to. A node shows it or ignores
@@ -149,6 +154,7 @@ channels:
       part_kept: { $ref: "#/components/messages/part_kept" }
       part_refused: { $ref: "#/components/messages/part_refused" }
       animation: { $ref: "#/components/messages/animation" }
+      mood: { $ref: "#/components/messages/mood" }
       log: { $ref: "#/components/messages/log" }
       task: { $ref: "#/components/messages/task" }
       reasoning: { $ref: "#/components/messages/reasoning" }
@@ -193,6 +199,7 @@ operations:
       - { $ref: "#/channels/node/messages/part_kept" }
       - { $ref: "#/channels/node/messages/part_refused" }
       - { $ref: "#/channels/node/messages/animation" }
+      - { $ref: "#/channels/node/messages/mood" }
       - { $ref: "#/channels/node/messages/log" }
       - { $ref: "#/channels/node/messages/task" }
       - { $ref: "#/channels/node/messages/reasoning" }
@@ -254,6 +261,10 @@ components:
       name: animation
       summary: She plays an animation now, her own choice (since 1.5)
       payload: { $ref: "#/components/schemas/animationFrame" }
+    mood:
+      name: mood
+      summary: Her mood now and how it shows on her face (since 1.10)
+      payload: { $ref: "#/components/schemas/moodFrame" }
     log:
       name: log
       summary: A note in her conversation, not given to the model (since 1.6)
@@ -377,6 +388,11 @@ components:
       allOf:
         - $ref: "schemas/Frame.schema.json"
         - properties: { type: { const: animation }, data: { $ref: "schemas/PlayAnimation.schema.json" } }
+          required: [ data ]
+    moodFrame:
+      allOf:
+        - $ref: "schemas/Frame.schema.json"
+        - properties: { type: { const: mood }, data: { $ref: "schemas/MoodState.schema.json" } }
           required: [ data ]
     logFrame:
       allOf:

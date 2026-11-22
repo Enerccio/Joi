@@ -233,7 +233,7 @@ import Testing
 
     @Test func hello1() throws {
         let json = #"""
-{"protocol":"1.9","nodeId":"6f1d-4c2a","name":"desk","kind":"desktop","software":"joi-node 0.1.0","joi":"2f0c","parts":["tools","audio-out","approvals"],"token":null,"resumed":null,"resume":null}
+{"protocol":"1.10","nodeId":"6f1d-4c2a","name":"desk","kind":"desktop","software":"joi-node 0.1.0","joi":"2f0c","parts":["tools","audio-out","approvals"],"token":null,"resumed":null,"resume":null}
 """#
         try roundTrip(Hello.self, json)
     }
@@ -371,6 +371,27 @@ import Testing
         try roundTrip(PlayAnimation.self, json)
     }
 
+    @Test func moodState1() throws {
+        let json = #"""
+{"mood":"happy","name":"Happy","expression":"happy","weight":0.7,"eyes":null}
+"""#
+        try roundTrip(MoodState.self, json)
+    }
+
+    @Test func moodState2() throws {
+        let json = #"""
+{"mood":"sleepy","name":"Sleepy","expression":"relaxed","weight":0.3,"eyes":"half"}
+"""#
+        try roundTrip(MoodState.self, json)
+    }
+
+    @Test func moodState3() throws {
+        let json = #"""
+{"mood":null,"name":null,"expression":null,"weight":null,"eyes":null}
+"""#
+        try roundTrip(MoodState.self, json)
+    }
+
     @Test func toolUse1() throws {
         let json = #"""
 {"name":"desk__read_file","arguments":"{\"path\":\"~/notes.md\"}","result":"milk, eggs","ok":true}
@@ -457,7 +478,7 @@ import Testing
 
     @Test func frame1() throws {
         let json = #"""
-{"type":"hello","id":null,"ref":null,"data":{"protocol":"1.9","nodeId":"6f1d-4c2a","name":"desk","kind":"desktop","software":"joi-node 0.1.0","joi":"2f0c","parts":["tools","audio-out","approvals"],"token":null,"resumed":null,"resume":null}}
+{"type":"hello","id":null,"ref":null,"data":{"protocol":"1.10","nodeId":"6f1d-4c2a","name":"desk","kind":"desktop","software":"joi-node 0.1.0","joi":"2f0c","parts":["tools","audio-out","approvals"],"token":null,"resumed":null,"resume":null}}
 """#
         try roundTrip(Frame.self, json)
         try typedFrame(json)
