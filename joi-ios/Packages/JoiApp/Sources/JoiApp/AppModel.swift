@@ -33,6 +33,8 @@ public final class AppModel {
 
     private enum Keys {
         static let server = "joi.server"
+        /// The server the credentials of the store were made by (they are sent to no other).
+        static let credentialsServer = "joi.credentialsServer"
         static let nodeId = "joi.nodeId"
     }
 
@@ -62,6 +64,7 @@ public final class AppModel {
         }
         store.save(Credentials())
         defaults.removeObject(forKey: Keys.server)
+        defaults.removeObject(forKey: Keys.credentialsServer)
         client = nil
         phase = .setup
     }
@@ -74,6 +77,12 @@ public final class AppModel {
             return
         }
         phase = .working("Connecting to \(server.host() ?? server.absoluteString)")
+        // the credentials are those of one server: another one (typed after an error, or in place of the one paired) would get its token
+        let owner = defaults.string(forKey: Keys.credentialsServer) ?? defaults.string(forKey: Keys.server)
+        if !Self.credentials(of: owner, serve: server) {
+            store.save(Credentials())
+            defaults.removeObject(forKey: Keys.credentialsServer)
+        }
         let client = JoiClient(server: server, store: store, clientName: "Joi on \(Self.deviceName)")
         self.client = client
         do {
@@ -85,6 +94,7 @@ public final class AppModel {
                 let grant = try await client.startDeviceGrant()
                 phase = .pairing(grant)
                 try await client.waitForApproval(grant)
+                defaults.set(server.absoluteString, forKey: Keys.credentialsServer)
             }
             phase = .working("Signing in")
             _ = try await client.me()
@@ -143,6 +153,11 @@ public final class AppModel {
 
     static func makeSpeech() -> SpeechPlaying? {
         SpeechPlayer()
+    }
+
+    /// Whether credentials made by the server `owner` (its address as kept, nil for not known) may be sent to `server`.
+    static func credentials(of owner: String?, serve server: URL) -> Bool {
+        owner == server.absoluteString
     }
 
     /// `joi.example.com` is `https://joi.example.com`; an address with its scheme is taken as it is.

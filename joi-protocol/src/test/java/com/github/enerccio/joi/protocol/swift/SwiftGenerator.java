@@ -138,7 +138,9 @@ public final class SwiftGenerator {
     private String enumSource(String name, JsonObject schema) {
         List<String> values = new ArrayList<>();
         schema.getAsJsonArray("enum").forEach(v -> values.add(v.getAsString()));
-        List<String> cases = values.stream().map(SwiftGenerator::caseName).toList();
+        // a value named unknown would clash with the case of the values not known; a keyword needs its backticks
+        List<String> cases = values.stream().map(SwiftGenerator::caseName)
+                .map(c -> c.equals("unknown") ? "unknownValue" : c).map(SwiftGenerator::identifier).toList();
         StringBuilder out = header(name);
         doc(out, "", string(schema, "description"));
         out.append("public enum ").append(name).append(": Hashable, Sendable, RawRepresentable, Codable {\n");

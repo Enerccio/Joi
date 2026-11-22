@@ -29,7 +29,10 @@ public struct AvatarView: UIViewRepresentable {
         web.backgroundColor = UIColor(red: 0.067, green: 0.067, blue: 0.078, alpha: 1)
         web.scrollView.isScrollEnabled = false
         web.scrollView.backgroundColor = web.backgroundColor
+        #if DEBUG
+        // Safari's Web Inspector on the page: in development builds only
         web.isInspectable = true
+        #endif
         context.coordinator.attach(web)
         web.load(URLRequest(url: URL(string: "\(SchemeHandler.scheme)://app/index.html")!))
         return web

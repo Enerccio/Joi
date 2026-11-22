@@ -54,7 +54,7 @@ The app's own code, so that it builds and is tested on the Mac: SwiftUI and the 
 - **`AppModel`** (`@Observable`): the phase of the app (`setup`, `working`, `pairing`, `ready`). `connect()` takes the address (`joi.example.com` is `https://...`),
   asks the server what it takes, and pairs by the device grant unless it takes no auth (a development server); the code, its link and a QR code are shown
   (`PairingView`) while `waitForApproval` polls. The address is kept only after a sign-in, and the app goes straight on to the chat the next time it starts
-  (`launch()`); the credentials are in the Keychain. The node's id is a UUID in `UserDefaults`; its name is `phone`.
+  (`launch()`); the credentials are in the Keychain, with the address of the server that made them (`joi.credentialsServer`): an app pointed at another server drops them before it calls it, so no server gets another one's token. The node's id is a UUID in `UserDefaults`; its name is `phone`.
 - **`ChatModel`**: her history, the user's words, her answer as the `text` frames come (a message per turn, found by the `ref` of the frame; a turn the server
   started, `turn`, makes its own), `reply` setting the whole text, `audio` handed to the `SpeechPlaying` (`SpeechPlayer`: `AVAudioPlayer` one piece after the
   other), the status of the connection (`connecting`, `connected`, `reconnecting`, `offline`) and a note when a turn is cut off by a lost connection. It needs

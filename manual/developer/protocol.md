@@ -71,7 +71,7 @@ The iOS app (planned, see `DESIGN.md` → *The iOS app*) does not copy the proto
 - `SwiftGenerator` (`joi-protocol/src/test`, plain Java and Gson, Jackson YAML for `asyncapi.yaml`) writes into the package's two `Generated` folders:
   a `Codable`, `Hashable`, `Sendable` struct per object schema (a nullable or not required property is an `Optional`, `date-time` is `Date`, Base64 is
   `Data`, a free-form object is `[String: JSONValue]`, a property that is not a plain Swift name gets a coding key); a string enum per enum schema with an
-  `unknown(String)` case, so a value of a newer server does not fail a decode; `Frames.swift` (the `NodeFrameData` of each type of frame, taken from
+  `unknown(String)` case, so a value of a newer server does not fail a decode (a value named `unknown` becomes `unknownValue`, a Swift keyword gets backticks); `Frames.swift` (the `NodeFrameData` of each type of frame, taken from
   `asyncapi.yaml`, `Frame.typedData()` and a constructor per type, `Frame.say(...)`); `JoiProtocolInfo` (the constants of `JoiProtocol`); and
   `FixtureTests.swift`, a decode and an encode of each sample of `ProtocolSamples` (the same samples `SchemaContractTest` validates).
 - A schema feature the generator does not know is an error, not a guess; the types of `NodeMessage.schema.json` and of `asyncapi.yaml` must agree.
