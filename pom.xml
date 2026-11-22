@@ -38,7 +38,7 @@
     <npm.mode>--offline</npm.mode>
     <npm.executable>npm</npm.executable>
     <!-- the node's JavaFX app (joi-node, profile fx) and the desktop app (joi-desktop) -->
-    <javafx.version>25</javafx.version>
+    <javafx.version>27.0.1.1</javafx.version>
     <jcef.version>152.0.6</jcef.version>
     <jcef.natives.version>jcef-17e805a+cef-152.0.6+g708dc14+chromium-152.0.7977.83</jcef.natives.version>
     <!-- which natives of Chromium (JCEF) this machine takes: me.friwi:jcef-natives-${jcef.platform}; set by the profiles below -->
