@@ -111,6 +111,13 @@ one; the server treats every node the same.
     first administrator; a credential that is sent must still be valid. Turning a way off stops its credentials at
     once. Credentials are `AccessToken` rows (prefix + SHA-256, like Marginalia's API keys), listed and revoked under
     Access.
+  - **Pairing a phone by its camera (1.9, built).** User Settings → Access has *Pair a phone*: a dialog with a QR code of
+    `joi://pair?server=<address>&offer=<secret>` (the address is editable: a phone cannot reach `localhost`). The phone's camera opens
+    it in the app, which asks `POST /oauth/device_authorization` with the extra field `pairing_offer`. The offer
+    (`DeviceAuthorizationService.createOffer`, in memory, one at a time, ten minutes, forgotten when the dialog closes) ties the waiting
+    device to that dialog, which polls for it (`waitingForOffer`) and approves it **as the user of that screen** (the approval needs the
+    user's session, so it is not done on the phone's request); the phone polls at once and gets its tokens. No code is typed. An unknown or
+    closed offer is `400 invalid_request`. The QR is drawn with ZXing core (the server's only QR code).
   - **The local door (1.8, built).** A node on the server's own machine needs no key, no pairing and no login: the server can listen on
     a **Unix domain socket** (`joi.api.local-socket`, a path; the desktop app sets it to `desktop/api.sock` in the data folder) besides its
     TCP port, and a call that comes in on it is the user's own. `POST /oauth/local` (`client_id`, `client_name` as in the device grant)
@@ -1894,8 +1901,7 @@ for the first version, which works while the app is open and uses local notifica
 to the background.
 
 **Pairing and reaching the server:** the device grant as it is (the app shows the code and the link, the user approves
-in User Settings → Access → *Connect a device*; the tokens in the Keychain); a QR code of that link in the UI is a
-small server addition. ATS needs TLS (the local network needs the permission and an exemption); from outside, a VPN
+in User Settings → Access → *Connect a device*; the tokens in the Keychain); a QR code in the server's UI (*Pair a phone*, 1.9) opens the app by the camera with no code to type (see Access). ATS needs TLS (the local network needs the permission and an exemption); from outside, a VPN
 (Tailscale / WireGuard).
 
 **Build: Maven drives all of it**, as it does the desktop app. Two steps, both behind profiles so that a normal build never

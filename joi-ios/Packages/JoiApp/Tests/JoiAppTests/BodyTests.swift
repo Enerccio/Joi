@@ -278,6 +278,26 @@ struct FakeBodySource: BodySource {
         #expect(avatar.status == .shown)
     }
 
+    @Test func theSameFilesAreNotShownAgainOnlyHerPartsAreRead() async throws {
+        let folder = try Files.folder()
+        defer { try? FileManager.default.removeItem(at: folder) }
+        let joim = folder.appendingPathComponent("x.joim")
+        try Files.joim(model: [1]).write(to: joim)
+        let avatar = AvatarModel(page: nil, cache: folder.appendingPathComponent("cache"))
+        let sent = RendererBridgeTests.Sent()
+        avatar.bridge.send = { sent.messages.append($0) }
+        var changed = info(model: true, animations: false)
+        avatar.load(from: FakeBodySource(info: changed, files: ["/api/v1/bodies/b/joim": joim]), joi: "j1")
+        await avatar.loaded()
+        #expect(sent.types() == ["model", "toggles"])
+        changed.parts = [BodyPart(id: "mesh:Hat", name: "Hat", state: "off", default: false)]
+        changed.toggles = [BodyToggle(mesh: "Hat", hides: false, shown: false)]
+        avatar.load(from: FakeBodySource(info: changed, files: ["/api/v1/bodies/b/joim": joim]), joi: "j1")
+        await avatar.loaded()
+        #expect(sent.types() == ["model", "toggles", "toggles"]) // no model again
+        #expect(avatar.parts.map(\.name) == ["Hat"])
+    }
+
     @Test func noBodyAndNoModelAreNoBody() async {
         for source in [FakeBodySource(info: nil), FakeBodySource(info: info(model: false, animations: false))] {
             let avatar = AvatarModel(page: nil)

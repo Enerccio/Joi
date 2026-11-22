@@ -25,9 +25,29 @@ public interface DeviceAuthorizationService {
      * New codes for a device.
      *
      * @param baseUrl the URL of the server as the device reaches it, for the verification page
-     * @throws IllegalStateException when the administrator turned OAuth off
+     * @param offer   the pairing offer the device scanned ({@link #createOffer}), null for none: the user's screen that showed it
+     *                finds the device ({@link #waitingForOffer}) and approves it without a code being typed
+     * @throws IllegalStateException    when the administrator turned OAuth off
+     * @throws IllegalArgumentException when the offer is not (or no longer) valid
      */
-    DeviceAuthorization start(String clientId, String clientName, String baseUrl) throws Exception;
+    DeviceAuthorization start(String clientId, String clientName, String baseUrl, String offer) throws Exception;
+
+    /** The same without an offer. */
+    default DeviceAuthorization start(String clientId, String clientName, String baseUrl) throws Exception {
+        return start(clientId, clientName, baseUrl, null);
+    }
+
+    /**
+     * A pairing offer: a secret the user's screen shows as a QR code ({@code joi://pair?...}). A device that scans it gives it with its
+     * request for codes. It lives {@value #EXPIRES_SECONDS} seconds and takes one device at a time that waits.
+     */
+    String createOffer();
+
+    /** The device that waits with the offer, null when none (yet). */
+    Request waitingForOffer(String offer);
+
+    /** The screen that showed the offer is closed: nothing can use it any more. */
+    void forgetOffer(String offer);
 
     /** The waiting device of the user code (any case, with or without the dash), null when none. */
     Request find(String userCode);

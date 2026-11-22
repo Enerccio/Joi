@@ -9,6 +9,7 @@ final class FakeLink: NodeLink, @unchecked Sendable {
     private let continuation: AsyncStream<NodeConnection.Event>.Continuation
     private let lock = NSLock()
     private var said: [String] = []
+    private var frames: [Frame] = []
     var connectError: Error?
     var sayError: Error?
     private(set) var closed = false
@@ -18,6 +19,7 @@ final class FakeLink: NodeLink, @unchecked Sendable {
     }
 
     var sentWords: [String] { lock.withLock { said } }
+    var sentFrames: [Frame] { lock.withLock { frames } }
 
     func connect() async throws -> Welcome {
         if let connectError { throw connectError }
@@ -27,6 +29,11 @@ final class FakeLink: NodeLink, @unchecked Sendable {
     func say(_ text: String, speak: Bool?, reasoning: Bool?, withEvents: Bool?) async throws -> String {
         if let sayError { throw sayError }
         return lock.withLock { said.append(text); return "t\(said.count)" }
+    }
+
+    func send(_ frame: Frame) async throws {
+        if let sayError { throw sayError }
+        lock.withLock { frames.append(frame) }
     }
 
     func close() async { closed = true }
@@ -82,7 +89,7 @@ struct FakeHistory: HistorySource {
         let chat = model(history: FakeHistory(page: page))
         await chat.start()
         #expect(chat.messages.map(\.role) == [.user, .joi, .note, .joi, .note])
-        #expect(chat.messages.map(\.text) == ["Hi", "Hello!", "node.first_boot", "I'm awake.", "Approved automatically: web_search"])
+        #expect(chat.messages.map(\.text) == ["Hi", "Hello!", "She wakes up for the first time", "I'm awake.", "Approved automatically: web_search"])
         #expect(chat.hasMoreHistory)
         #expect(chat.status == .connected)
     }
@@ -238,12 +245,77 @@ struct FakeHistory: HistorySource {
         #expect(!player.offline)
     }
 
+    /// Starts a change and waits until its frame is out; returns the answer's task and the frame's id.
+    private func startSwitch(_ chat: ChatModel) async throws -> (Task<ChatModel.PartAnswer, Never>, String) {
+        let answer = Task { await chat.switchPart("mesh:Hat", to: "off") }
+        for _ in 0..<200 where link.sentFrames.isEmpty { try await Task.sleep(for: .milliseconds(5)) }
+        let frame = try #require(link.sentFrames.last)
+        #expect(frame.type == "part")
+        return (answer, try #require(frame.id))
+    }
+
+    @Test func aPartIsPutInAnotherStateAndTheServersAnswerSaysItWasKept() async throws {
+        var kept = 0
+        let chat = model(withSpeech: false)
+        chat.onPartKept = { kept += 1 }
+        await chat.start()
+        let (answer, id) = try await startSwitch(chat)
+        #expect(chat.switchingPart == "mesh:Hat")
+        // only one at a time
+        #expect(await chat.switchPart("mesh:Shoes", to: "off") == .failed("Another change is on its way."))
+        chat.apply(frame(id, .partKept(PartKept(part: "mesh:Hat", state: "off", told: true))))
+        #expect(await answer.value == .kept(told: true))
+        #expect(chat.switchingPart == nil && kept == 1)
+        #expect(chat.messages.isEmpty)
+    }
+
+    @Test func herRefusalIsTheAnswer() async throws {
+        let chat = model(withSpeech: false)
+        await chat.start()
+        let (answer, id) = try await startSwitch(chat)
+        chat.apply(frame(id, .partRefused(PartRefused(part: "mesh:Hat", state: "off", reason: "Not in front of you."))))
+        #expect(await answer.value == .refused("Not in front of you."))
+    }
+
+    @Test func anErrorOfThePartIsNotATurnsError() async throws {
+        let chat = model(withSpeech: false)
+        await chat.start()
+        let (answer, id) = try await startSwitch(chat)
+        chat.apply(frame(id, .error(ApiError(code: "bad_message", message: "No such state"))))
+        #expect(await answer.value == .failed("No such state"))
+        #expect(chat.messages.isEmpty)
+    }
+
+    @Test func aLostConnectionEndsAChangeOfAPart() async throws {
+        let chat = model(withSpeech: false)
+        await chat.start()
+        let (answer, _) = try await startSwitch(chat)
+        chat.apply(.disconnected(code: 1006, reason: "lost"))
+        #expect(await answer.value == .failed("The connection was lost."))
+    }
+
+    @Test func eventsHaveLinesForTheUser() {
+        #expect(ChatModel.eventNote("node.connected") == "Connected")
+        #expect(ChatModel.eventNote("node.some_new_cause") == "Some new cause")
+    }
+
     @Test func aServerEventIsToldToTheApp() async {
         let chat = model(withSpeech: false)
         var names: [String] = []
         chat.onServerEvent = { names.append($0) }
         chat.apply(frame(nil, .event(ServerEvent(name: "body", at: Date()))))
         #expect(names == ["body"])
+    }
+
+    @Test func aPairingLinkHasTheServerAndTheOffer() {
+        let link = URL(string: "joi://pair?server=http%3A%2F%2F192.168.1.5%3A8080&offer=aB-_9")!
+        let pairing = AppModel.pairing(from: link)
+        #expect(pairing?.server.absoluteString == "http://192.168.1.5:8080" && pairing?.offer == "aB-_9")
+        #expect(AppModel.pairing(from: URL(string: "https://pair?server=x&offer=y")!) == nil) // not of the app
+        #expect(AppModel.pairing(from: URL(string: "joi://other?server=x&offer=y")!) == nil)
+        #expect(AppModel.pairing(from: URL(string: "joi://pair?server=joi.example.com")!) == nil) // no offer
+        #expect(AppModel.pairing(from: URL(string: "joi://pair?server=joi.example.com&offer=a%20b")!) == nil) // not a secret of the server
+        #expect(AppModel.pairing(from: URL(string: "joi://pair?server=ftp%3A%2F%2Fx&offer=y")!) == nil)
     }
 
     @Test func anAddressIsMadeIntoAnUrl() {

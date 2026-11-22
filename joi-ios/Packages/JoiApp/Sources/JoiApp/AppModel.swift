@@ -22,12 +22,17 @@ public final class AppModel {
 
     private let defaults: UserDefaults
     private let store: CredentialStore
+    private let transport: HTTPTransport
     private var client: JoiClient?
     private var task: Task<Void, Never>?
+    /// The pairing offer of a QR code scanned with the camera, for the next `run`.
+    private var offer: String?
 
-    public init(defaults: UserDefaults = .standard, store: CredentialStore = KeychainCredentialStore()) {
+    public init(defaults: UserDefaults = .standard, store: CredentialStore = KeychainCredentialStore(),
+                transport: HTTPTransport = URLSessionTransport()) {
         self.defaults = defaults
         self.store = store
+        self.transport = transport
         serverText = defaults.string(forKey: Keys.server) ?? ""
     }
 
@@ -48,7 +53,34 @@ public final class AppModel {
     /// Connects to `serverText`: pairs when the server needs it.
     public func connect() {
         task?.cancel()
+        offer = nil
         task = Task { await run() }
+    }
+
+    /// The app was opened by a link: `joi://pair?server=...&offer=...` is the QR code of the server's *Pair a phone* screen. The server
+    /// is taken as the user's (a pairing they asked for by scanning), and the server's screen approves the phone: no code to type.
+    public func open(_ url: URL) {
+        guard let pairing = Self.pairing(from: url) else { return }
+        task?.cancel()
+        if case .ready(let chat, _) = phase {
+            Task { await chat.stop() }
+        }
+        // a different server (or the same, paired again) starts from nothing
+        store.save(Credentials())
+        defaults.removeObject(forKey: Keys.server)
+        serverText = pairing.server.absoluteString
+        offer = pairing.offer
+        task = Task { await run() }
+    }
+
+    /// The server and the offer of a pairing link, nil when it is not one.
+    static func pairing(from url: URL) -> (server: URL, offer: String)? {
+        guard url.scheme?.lowercased() == "joi", url.host() == "pair",
+              let items = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems,
+              let server = items.first(where: { $0.name == "server" })?.value.flatMap(Self.url),
+              let offer = items.first(where: { $0.name == "offer" })?.value,
+              !offer.isEmpty, offer.allSatisfy({ $0.isLetter || $0.isNumber || $0 == "-" || $0 == "_" }) else { return nil }
+        return (server, offer)
     }
 
     public func cancel() {
@@ -83,7 +115,7 @@ public final class AppModel {
             store.save(Credentials())
             defaults.removeObject(forKey: Keys.credentialsServer)
         }
-        let client = JoiClient(server: server, store: store, clientName: "Joi on \(Self.deviceName)")
+        let client = JoiClient(server: server, store: store, transport: transport, clientName: "Joi on \(Self.deviceName)")
         self.client = client
         do {
             let info = try await client.info()
@@ -91,9 +123,12 @@ public final class AppModel {
                 guard info.auth.methods.contains(.oauth) else {
                     throw ServerError(status: 0, code: "no_pairing", message: "This server takes tokens only; the app pairs by the device grant (OAuth).")
                 }
-                let grant = try await client.startDeviceGrant()
-                phase = .pairing(grant)
-                try await client.waitForApproval(grant)
+                // an offer is used once: the server's screen approves the phone by it, and no code is shown to type
+                let offer = self.offer
+                self.offer = nil
+                let grant = try await client.startDeviceGrant(offer: offer)
+                phase = offer == nil ? .pairing(grant) : .working("Pairing with \(server.host() ?? server.absoluteString)")
+                try await client.waitForApproval(grant, askAtOnce: offer != nil)
                 defaults.set(server.absoluteString, forKey: Keys.credentialsServer)
             }
             phase = .working("Signing in")
@@ -134,6 +169,7 @@ public final class AppModel {
                 break
             }
         }
+        model.onPartKept = { [weak avatar] in avatar?.load(from: client, joi: joi.id) }
         avatar.load(from: client, joi: joi.id)
         Task { await model.start() }
         return (model, avatar)

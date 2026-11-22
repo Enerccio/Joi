@@ -166,8 +166,13 @@ public actor JoiClient {
     // MARK: pairing
 
     /// Asks for a code the user approves in the server's UI (User Settings → Access → Connect a device, or the link it shows).
-    public func startDeviceGrant() async throws -> DeviceAuthorization {
-        let (data, response) = try await post(JoiProtocolInfo.deviceAuthorization, ["client_id": clientID, "client_name": clientName])
+    ///
+    /// - Parameter offer: the pairing offer of a QR code the server's screen showed (Pair a phone): that screen approves the device
+    ///   by itself, so no code is typed.
+    public func startDeviceGrant(offer: String? = nil) async throws -> DeviceAuthorization {
+        var form = ["client_id": clientID, "client_name": clientName]
+        if let offer { form["pairing_offer"] = offer }
+        let (data, response) = try await post(JoiProtocolInfo.deviceAuthorization, form)
         guard response.statusCode == 200 else { throw oauthError(data, response) }
         return try decoder.decode(DeviceAuthorization.self, from: data)
     }
@@ -179,7 +184,7 @@ public actor JoiClient {
             "grant_type": JoiProtocolInfo.deviceCodeGrant, "device_code": deviceCode, "client_id": clientID,
         ])
         if response.statusCode == 200 {
-            keep(try decoder.decode(TokenResponse.self, from: data))
+            try keep(try decoder.decode(TokenResponse.self, from: data))
             return true
         }
         let error = oauthError(data, response)
@@ -190,11 +195,14 @@ public actor JoiClient {
     }
 
     /// Polls as often as the server wants (`interval`, longer after `slow_down`) until the user approves or the code ends. Cancel the task to stop.
-    public func waitForApproval(_ grant: DeviceAuthorization) async throws {
+    ///
+    /// - Parameter askAtOnce: asks before the first wait too (a pairing offer: the server approves it as soon as its screen sees the device).
+    public func waitForApproval(_ grant: DeviceAuthorization, askAtOnce: Bool = false) async throws {
         var interval = max(1, grant.interval)
         let end = now().addingTimeInterval(TimeInterval(grant.expiresIn))
+        var first = askAtOnce
         while now() < end {
-            try await Task.sleep(for: .seconds(interval))
+            if first { first = false } else { try await Task.sleep(for: .seconds(interval)) }
             do {
                 if try await pollDeviceGrant(grant.deviceCode) { return }
             } catch let error as ServerError where error.code == "slow_down" {
@@ -295,12 +303,14 @@ public actor JoiClient {
             store.save(credentials)
             throw oauthError(data, response)
         }
-        keep(try decoder.decode(TokenResponse.self, from: data))
+        try keep(try decoder.decode(TokenResponse.self, from: data))
     }
 
-    private func keep(_ tokens: TokenResponse) {
+    private func keep(_ tokens: TokenResponse) throws {
         store.save(Credentials(accessToken: tokens.accessToken, refreshToken: tokens.refreshToken,
                                accessExpires: now().addingTimeInterval(TimeInterval(tokens.expiresIn))))
+        // tokens that are not kept are no pairing: say so now, not as a 401 on the next call
+        if let failure = store.saveFailure { throw ServerError(status: 0, code: "credentials_not_kept", message: "Pairing worked, but \(failure).") }
     }
 
     private func apiError(_ data: Data, _ response: HTTPURLResponse) -> ServerError {

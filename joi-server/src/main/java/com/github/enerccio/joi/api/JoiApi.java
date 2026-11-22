@@ -718,7 +718,13 @@ public class JoiApi implements DisposableBean {
                 oauthError(sink, 400, "invalid_request", "client_id is missing");
                 return;
             }
-            DeviceAuthorization codes = deviceAuthorizationService.start(form.get("client_id"), form.get("client_name"), baseUrl(call));
+            DeviceAuthorization codes;
+            try {
+                codes = deviceAuthorizationService.start(form.get("client_id"), form.get("client_name"), baseUrl(call), form.get("pairing_offer"));
+            } catch (IllegalArgumentException e) {
+                oauthError(sink, 400, "invalid_request", e.getMessage());
+                return;
+            }
             json(sink, 200, codes);
         } else if (path.equals(JoiProtocol.TOKEN)) {
             token(form, sink);

@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Joi API
-  version: "1.8"
+  version: "1.9"
   description: |
     The HTTP API of a Joi server for nodes and other clients: the assistants of the user, chat with one of them,
     answered in text and speech, and the body she is in with the files to show it (`.joim`, `.joia`). The message shapes are the JSON Schemas in `schemas/` (the source of truth); the Java
@@ -372,6 +372,12 @@ paths:
               properties:
                 client_id: { type: string, description: "Any name of the client; public clients, no secret" }
                 client_name: { type: string, description: "The name the user sees when approving, default client_id" }
+                pairing_offer:
+                  type: string
+                  description: |
+                    The offer of a QR code the server's UI showed (Pair a phone, `joi://pair?server=...&offer=...`), since 1.9. The screen
+                    that showed it approves this device by itself, so the user types no code; the device polls `/oauth/token` as always
+                    (at once, the first time). An offer that is unknown, expired or closed is a 400 `invalid_request`.
       responses:
         "200":
           description: The codes

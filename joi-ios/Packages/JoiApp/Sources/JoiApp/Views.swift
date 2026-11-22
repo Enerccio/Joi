@@ -26,6 +26,7 @@ public struct RootView: View {
             }
         }
         .task { model.launch() }
+        .onOpenURL { model.open($0) }
     }
 }
 
@@ -92,20 +93,85 @@ struct ChatView: View {
     let avatar: AvatarModel
     let model: AppModel
     @FocusState private var focused: Bool
+    @State private var showingParts = false
 
     var body: some View {
         GeometryReader { geometry in
             if geometry.size.width > geometry.size.height {
                 HStack(spacing: 0) {
-                    AvatarPane(avatar: avatar).frame(width: geometry.size.width * 0.45)
+                    AvatarPane(avatar: avatar).frame(width: geometry.size.width * 0.45).overlay(alignment: .topTrailing) { controls }
                     ChatColumn(chat: chat, model: model, focused: $focused)
                 }
             } else {
                 VStack(spacing: 0) {
-                    AvatarPane(avatar: avatar).frame(height: geometry.size.height * (focused ? 0.25 : 0.5))
+                    AvatarPane(avatar: avatar).frame(height: geometry.size.height * (focused ? 0.25 : 0.5)).overlay(alignment: .topTrailing) { controls }
                     ChatColumn(chat: chat, model: model, focused: $focused)
                 }
                 .animation(.easeInOut(duration: 0.25), value: focused)
+            }
+        }
+        .sheet(isPresented: $showingParts) { PartsView(chat: chat, avatar: avatar) }
+    }
+
+    /// Over her body: what she wears (when she has parts to switch) and the menu.
+    private var controls: some View {
+        HStack(spacing: 14) {
+            if !avatar.parts.isEmpty {
+                Button { showingParts = true } label: { Image(systemName: "tshirt") }
+                    .accessibilityLabel("Her look")
+            }
+            Menu {
+                Button("Sign out", role: .destructive) { model.signOut() }
+            } label: { Image(systemName: "ellipsis.circle") }
+        }
+        .font(.title3)
+        .foregroundStyle(.white.opacity(0.8))
+        .padding(12)
+    }
+}
+
+/// The parts of her body the user can put in another state (take her hat off): the server keeps it, she may react, and may refuse in character.
+struct PartsView: View {
+    let chat: ChatModel
+    let avatar: AvatarModel
+    @State private var note: String?
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        NavigationStack {
+            List {
+                if let note {
+                    Text(note).font(.footnote).foregroundStyle(.secondary)
+                }
+                ForEach(avatar.parts, id: \.id) { part in
+                    if let states = part.states, states.count > 1 {
+                        Picker(part.name, selection: Binding(get: { part.state ?? "" }, set: { choose(part, $0) })) {
+                            ForEach(states, id: \.id) { Text($0.name).tag($0.id) }
+                        }
+                        .disabled(chat.switchingPart != nil)
+                    } else {
+                        LabeledContent(part.name, value: part.stateName ?? "")
+                    }
+                }
+            }
+            .navigationTitle("Her look")
+            #if os(iOS)
+            .navigationBarTitleDisplayMode(.inline)
+            #endif
+            .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } } }
+            .overlay { if chat.switchingPart != nil { ProgressView() } }
+        }
+        .presentationDetents([.medium, .large])
+    }
+
+    private func choose(_ part: BodyPart, _ state: String) {
+        guard state != part.state else { return }
+        note = nil
+        Task {
+            switch await chat.switchPart(part.id, to: state) {
+            case .kept: break // her body is read again, and the list shows what it is now
+            case .refused(let reason): note = reason.map { "She did not allow it: \($0)" } ?? "She did not allow it."
+            case .failed(let why): note = "Not changed: " + why
             }
         }
     }
@@ -180,9 +246,6 @@ struct ChatColumn: View {
                     .disabled(input.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
             }
             .padding()
-        }
-        .toolbar {
-            ToolbarItem { Button("Sign out", role: .destructive) { model.signOut() } }
         }
     }
 

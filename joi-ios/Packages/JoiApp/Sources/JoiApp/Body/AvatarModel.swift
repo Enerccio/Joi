@@ -27,11 +27,15 @@ public final class AvatarModel {
     public private(set) var status: Status = .loading("Looking for her body")
     /// Whether the page has drawn her model (it takes a moment after it is shown: the model is decoded in the page).
     public private(set) var drawn = false
+    /// The parts of her body that can be switched, each in the state it is in.
+    public private(set) var parts: [BodyPart] = []
     @ObservationIgnored public let bridge = RendererBridge()
     /// Where the renderer page is (`index.html` and its assets): a folder of the app's bundle.
     public let page: URL?
     private let cache: URL
     private var loading: Task<Void, Never>?
+    /// What is shown now (the hashes of her model's and animations' files): the same again is not shown again, only her toggles are set.
+    private var shownFiles: [String?] = []
 
     public init(page: URL?, cache: URL = AvatarModel.defaultCache) {
         self.page = page
@@ -60,7 +64,16 @@ public final class AvatarModel {
             guard let info = try await source.body(joi), let joim = info.model?.joim else {
                 bridge.show(.none)
                 drawn = false
+                parts = []
+                shownFiles = []
                 status = .none
+                return
+            }
+            parts = info.parts
+            let files = [joim.sha256, info.animations.joia?.sha256]
+            if status == .shown, files == shownFiles {
+                // the same files: what changed is her parts and her toggles
+                bridge.setToggles(info.toggles ?? [])
                 return
             }
             let cache = self.cache
@@ -74,15 +87,16 @@ public final class AvatarModel {
             try Task.checkCancellation()
             status = .loading("Unpacking")
             let joiaURL = joiaFile
-            let files = try await Task.detached { try BodyFiles.unpack(joim: joimFile, joia: joiaURL, into: cache) }.value
+            let unpacked = try await Task.detached { try BodyFiles.unpack(joim: joimFile, joia: joiaURL, into: cache) }.value
             try Task.checkCancellation()
             // what she wore before is no longer needed
             let keep = Set([joimFile, joiaFile].compactMap { $0 }.flatMap {
                 [$0.lastPathComponent, $0.deletingPathExtension().lastPathComponent + "-" + $0.pathExtension]
             })
             BodyFiles.clean(cache, keeping: keep)
-            bridge.show(files)
+            bridge.show(unpacked)
             bridge.setToggles(info.toggles ?? [])
+            shownFiles = files
             status = .shown
         } catch is CancellationError {
             return

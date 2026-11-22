@@ -562,6 +562,35 @@ class JoiApiTest extends PlatformTestBase {
     }
 
     @Test
+    void aDeviceThatScannedAPairingOfferIsFoundByTheScreenThatShowedIt() throws Exception {
+        String offer = deviceAuthorizationService.createOffer();
+        assertThat(deviceAuthorizationService.waitingForOffer(offer)).isNull();
+        Answer codes = form(JoiProtocol.DEVICE_AUTHORIZATION, "client_id=phone&client_name=Joi%20on%20a%20phone&pairing_offer=" + offer);
+        assertThat(codes.status).isEqualTo(200);
+        DeviceAuthorizationService.Request waiting = deviceAuthorizationService.waitingForOffer(offer);
+        assertThat(waiting.clientName()).isEqualTo("Joi on a phone");
+        assertThat(waiting.userCode()).isEqualTo(codes.json().get("user_code").getAsString());
+        // the screen approves it as the user, and the phone's next poll gets its tokens
+        deviceAuthorizationService.approve(waiting.userCode());
+        assertThat(deviceAuthorizationService.waitingForOffer(offer)).isNull();
+        Answer tokens = form(JoiProtocol.TOKEN, "grant_type=" + JoiProtocol.DEVICE_CODE_GRANT + "&device_code="
+                + codes.json().get("device_code").getAsString());
+        assertThat(tokens.status).isEqualTo(200);
+    }
+
+    @Test
+    void anOfferThatIsNotValidIsRefusedAndAClosedScreenForgetsIt() throws Exception {
+        Answer unknown = form(JoiProtocol.DEVICE_AUTHORIZATION, "client_id=phone&pairing_offer=nope");
+        assertThat(unknown.status).isEqualTo(400);
+        assertThat(unknown.json().get("error").getAsString()).isEqualTo("invalid_request");
+        String offer = deviceAuthorizationService.createOffer();
+        deviceAuthorizationService.forgetOffer(offer);
+        assertThat(form(JoiProtocol.DEVICE_AUTHORIZATION, "client_id=phone&pairing_offer=" + offer).status).isEqualTo(400);
+        // a code typed as before does not need an offer
+        assertThat(form(JoiProtocol.DEVICE_AUTHORIZATION, "client_id=phone").status).isEqualTo(200);
+    }
+
+    @Test
     void oauthTurnedOffIsUnavailable() throws Exception {
         loginAdmin();
         apiAccessService.save(new ApiAccess(true, false, 60, 90));

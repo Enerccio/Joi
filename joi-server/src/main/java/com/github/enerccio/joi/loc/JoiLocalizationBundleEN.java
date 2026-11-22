@@ -208,6 +208,9 @@ public class JoiLocalizationBundleEN extends TextBundleBase<J_L> {
         setValue(J_L.LABEL_CHATS, "Chats");
         setValue(J_L.LABEL_CREATE_TOKEN, "Create token");
         setValue(J_L.LABEL_CONNECT_DEVICE, "Connect a device");
+        setValue(J_L.LABEL_PAIR_PHONE, "Pair a phone");
+        setValue(J_L.LABEL_PHONE_SERVER, "Address of this server for the phone");
+        setValue(J_L.LABEL_PHONE_LINK, "The link of the code");
         setValue(J_L.LABEL_TOKEN, "Token");
         setValue(J_L.LABEL_API_ACCESS, "API access");
         setValue(J_L.LABEL_APP_SETTINGS, "App settings");
@@ -480,6 +483,9 @@ public class JoiLocalizationBundleEN extends TextBundleBase<J_L> {
         setValue(J_L.HELP_NO_AUTH, "No authentication is on in the configuration (joi.api.no-auth): a call without credentials acts as %s. Only for development and localhost setups.");
         setValue(J_L.HELP_USER_ACCESS, "The tokens and devices that may use the API as you. The API is at %s.");
         setValue(J_L.HELP_DEVICE_CODE, "The code the device shows, like WDJB-MJHT.");
+        setValue(J_L.HELP_PAIR_PHONE, "Scan the code with the phone's camera: it opens the Joi app and connects it to your account, with no code to type. Keep this window open until the phone is connected.");
+        setValue(J_L.HELP_PHONE_SERVER, "The address the phone reaches this server at: on your network, or from outside.");
+        setValue(J_L.HELP_PHONE_SERVER_LOCAL, "The phone cannot reach %s: use the address of this computer on the network (like http://192.168.1.5:8080), or the public address of the server.");
 
         // --- PLACEHOLDER ---
         setValue(J_L.PLACEHOLDER_TAGLINE, "What the voice is for, or any tag");
@@ -504,6 +510,8 @@ public class JoiLocalizationBundleEN extends TextBundleBase<J_L> {
         setValue(J_L.MSG_DEVICE_WANTS, "%s wants to use Joi as you.");
         setValue(J_L.MSG_DEVICE_APPROVED, "The device is connected.");
         setValue(J_L.MSG_DEVICE_UNKNOWN, "No device waits for this code: it may have expired.");
+        setValue(J_L.MSG_PHONE_WAITING, "Waiting for the phone to scan the code…");
+        setValue(J_L.MSG_PHONE_CONNECTED, "%s is connected.");
         setValue(J_L.MSG_API_OFF, "The administrator has turned off tokens and devices.");
         setValue(J_L.MSG_LOADING_EARLIER_MESSAGES, "Loading earlier messages…");
         setValue(J_L.MSG_NO_CHATS, "No chats yet.");

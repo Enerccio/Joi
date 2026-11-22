@@ -124,6 +124,32 @@ import JoiProtocol
         #expect(await client.signedIn)
     }
 
+    @Test func aPairingOfferIsGivenAndAskedAboutAtOnce() async throws {
+        let store = MemoryCredentialStore()
+        let http = FakeHTTP { call in
+            call.path == "/oauth/device_authorization"
+                ? (200, #"{"device_code":"dc","user_code":"WDJB-MJHT","verification_uri":"https://h/?device","verification_uri_complete":"https://h/?device=WDJB-MJHT","expires_in":600,"interval":60}"#)
+                : (200, self.tokens("a1", "r1"))
+        }
+        let client = JoiClient(server: server, store: store, transport: http)
+        let grant = try await client.startDeviceGrant(offer: "off-er_1")
+        #expect(http.recorded[0].body == "client_id=joi-ios&client_name=Joi%20iOS&pairing_offer=off-er_1")
+        // the interval is a minute, and the first ask does not wait for it
+        try await client.waitForApproval(grant, askAtOnce: true)
+        #expect(store.load().refreshToken == "r1")
+    }
+
+    @Test func tokensThatCouldNotBeKeptAreNoPairing() async throws {
+        final class Refusing: CredentialStore, @unchecked Sendable {
+            func load() -> Credentials { Credentials() }
+            func save(_ credentials: Credentials) {}
+            var saveFailure: String? { "the Keychain refused the credentials (status -34018)" }
+        }
+        let http = FakeHTTP { _ in (200, self.tokens("a1", "r1")) }
+        let client = JoiClient(server: server, store: Refusing(), transport: http)
+        await #expect(throws: ServerError.self) { try await client.pollDeviceGrant("dc") }
+    }
+
     @Test func aRefusedCodeThrows() async throws {
         let http = FakeHTTP { _ in (400, #"{"error":"access_denied","error_description":"The user said no"}"#) }
         let client = JoiClient(server: server, store: MemoryCredentialStore(), transport: http)

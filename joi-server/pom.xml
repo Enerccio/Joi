@@ -45,6 +45,13 @@
       <artifactId>joi-protocol</artifactId>
     </dependency>
 
+    <!-- the QR code of the screen that pairs a phone (Pair a phone); Apache 2.0, no dependencies -->
+    <dependency>
+      <groupId>com.google.zxing</groupId>
+      <artifactId>core</artifactId>
+      <version>3.5.1</version>
+    </dependency>
+
     <dependency>
       <groupId>com.vaadin</groupId>
       <artifactId>vaadin-dev</artifactId>

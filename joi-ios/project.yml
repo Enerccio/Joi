@@ -39,6 +39,11 @@ targets:
       properties:
         CFBundleDisplayName: Joi
         UILaunchScreen: {}
+        # the QR code of the server's Pair a phone screen: the camera opens joi://pair?server=...&offer=... in the app
+        CFBundleURLTypes:
+          - CFBundleURLName: io.github.enerccio.joi
+            CFBundleURLSchemes:
+              - joi
         UISupportedInterfaceOrientations:
           - UIInterfaceOrientationPortrait
           - UIInterfaceOrientationLandscapeLeft

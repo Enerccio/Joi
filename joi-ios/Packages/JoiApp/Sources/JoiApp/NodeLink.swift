@@ -7,6 +7,7 @@ public protocol NodeLink: Sendable {
     var events: AsyncStream<NodeConnection.Event> { get }
     func connect() async throws -> Welcome
     func say(_ text: String, speak: Bool?, reasoning: Bool?, withEvents: Bool?) async throws -> String
+    func send(_ frame: Frame) async throws
     func close() async
 }
 

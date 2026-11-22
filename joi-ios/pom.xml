@@ -14,7 +14,7 @@
       joi-protocol (-Pswift)   the Swift protocol package from the schemas, its tests (`swift test`)
       process-resources        xcodegen: Joi.xcodeproj from project.yml
       test                     `swift test` of the packages JoiClient and JoiApp (on the Mac)
-      compile                  xcodebuild: the app for the Simulator, no signing (target/DerivedData)
+      compile                  xcodebuild: the app for the Simulator, signed ad hoc (the Keychain needs the entitlements a signature carries) (target/DerivedData)
       package                  xcodebuild archive for a device, only with -Dios.skipArchive=false -Dios.team=<team id> (signing)
     The .ipa (-exportArchive) and the upload to TestFlight are not here yet. The version is ios.marketingVersion (x.y.z, CI sets it
     from the tag) and ios.buildNumber, not the POM's (a -SNAPSHOT is not a version of an app).
@@ -168,7 +168,8 @@
                 <argument>generic/platform=iOS Simulator</argument>
                 <argument>-derivedDataPath</argument>
                 <argument>${ios.derivedData}</argument>
-                <argument>CODE_SIGNING_ALLOWED=NO</argument>
+                <argument>CODE_SIGN_IDENTITY=-</argument>
+                <argument>DEVELOPMENT_TEAM=</argument>
                 <argument>MARKETING_VERSION=${ios.marketingVersion}</argument>
                 <argument>CURRENT_PROJECT_VERSION=${ios.buildNumber}</argument>
                 <argument>build</argument>

@@ -57,6 +57,7 @@ public class AccessPanel {
     private Grid<AccessToken> grid;
     private Button createButton;
     private Button connectButton;
+    private Button pairPhoneButton;
     private Span offSpan;
 
     public Component create() throws Exception {
@@ -68,6 +69,12 @@ public class AccessPanel {
         createButton = new Button(loc.getValue(J_L.LABEL_CREATE_TOKEN), Solid.PLUS.create(), e -> openCreateDialog());
         connectButton = new Button(loc.getValue(J_L.LABEL_CONNECT_DEVICE), Solid.LINK.create(), e -> {
             DeviceApprovalDialog dialog = new DeviceApprovalDialog(null, this::refreshQuietly);
+            dialog.create();
+            dialog.open();
+        });
+
+        pairPhoneButton = new Button(loc.getValue(J_L.LABEL_PAIR_PHONE), Solid.MOBILE_SCREEN.create(), e -> {
+            PairPhoneDialog dialog = new PairPhoneDialog(this::refreshQuietly);
             dialog.create();
             dialog.open();
         });
@@ -100,7 +107,7 @@ public class AccessPanel {
                 })
                 .setHeader("").setWidth(UIConstants.TOOL_COLUMN_SIZE).setFlexGrow(0);
 
-        VerticalLayout layout = new VerticalLayout(info, offSpan, new HorizontalLayout(createButton, connectButton), grid);
+        VerticalLayout layout = new VerticalLayout(info, offSpan, new HorizontalLayout(createButton, pairPhoneButton, connectButton), grid);
         layout.setWidthFull();
         refresh();
         return layout;
@@ -110,6 +117,7 @@ public class AccessPanel {
         ApiAccess access = apiAccessService.get();
         createButton.setVisible(access.tokens());
         connectButton.setVisible(access.oauth());
+        pairPhoneButton.setVisible(access.oauth());
         offSpan.setVisible(!access.tokens() && !access.oauth());
         List<AccessToken> tokens = new ArrayList<>(accessTokenService.findAllForUser());
         tokens.removeIf(AccessToken::isDeleted);
@@ -209,6 +217,10 @@ public class AccessPanel {
 
     public Button getCreateButton() {
         return createButton;
+    }
+
+    public Button getPairPhoneButton() {
+        return pairPhoneButton;
     }
 
     public Button getConnectButton() {

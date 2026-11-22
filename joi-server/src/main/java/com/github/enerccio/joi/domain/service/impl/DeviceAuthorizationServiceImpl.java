@@ -39,6 +39,8 @@ public class DeviceAuthorizationServiceImpl implements DeviceAuthorizationServic
         volatile long lastPoll;
         volatile AccessTokenService.Issued issued;
         volatile boolean denied;
+        /** The pairing offer the device came with, null for none. */
+        volatile String offer;
 
         Pending(String deviceCode, String userCode, String clientId, String clientName, long expires) {
             this.deviceCode = deviceCode;
@@ -51,9 +53,43 @@ public class DeviceAuthorizationServiceImpl implements DeviceAuthorizationServic
 
     private final Map<String, Pending> byDeviceCode = new ConcurrentHashMap<>();
     private final Map<String, Pending> byUserCode = new ConcurrentHashMap<>();
+    /** The pairing offers shown: the secret → when it expires. */
+    private final Map<String, Long> offers = new ConcurrentHashMap<>();
 
     @Override
-    public DeviceAuthorization start(String clientId, String clientName, String baseUrl) throws Exception {
+    public String createOffer() {
+        long now = now();
+        offers.values().removeIf(expires -> expires <= now);
+        if (offers.size() >= MAX_WAITING) {
+            throw new IllegalStateException("Too many offers are open");
+        }
+        byte[] secret = new byte[20];
+        RANDOM.nextBytes(secret);
+        String offer = Base64.getUrlEncoder().withoutPadding().encodeToString(secret);
+        offers.put(offer, now + EXPIRES_SECONDS * 1000);
+        return offer;
+    }
+
+    @Override
+    public Request waitingForOffer(String offer) {
+        if (offer == null) {
+            return null;
+        }
+        return byDeviceCode.values().stream().filter(p -> offer.equals(p.offer))
+                .map(p -> waiting(p.userCode)).filter(java.util.Objects::nonNull).findFirst()
+                .map(p -> new Request(display(p.userCode), p.clientId, p.clientName)).orElse(null);
+    }
+
+    @Override
+    public void forgetOffer(String offer) {
+        if (offer != null) {
+            offers.remove(offer);
+            byDeviceCode.values().stream().filter(p -> offer.equals(p.offer)).toList().forEach(p -> p.offer = null);
+        }
+    }
+
+    @Override
+    public DeviceAuthorization start(String clientId, String clientName, String baseUrl, String offer) throws Exception {
         if (!apiAccessService.get().oauth()) {
             throw new IllegalStateException("OAuth is turned off");
         }
@@ -61,6 +97,12 @@ public class DeviceAuthorizationServiceImpl implements DeviceAuthorizationServic
             throw new IllegalArgumentException("client_id is missing");
         }
         forgetExpired();
+        if (StringUtils.isNotBlank(offer)) {
+            Long expires = offers.get(offer);
+            if (expires == null || expires <= now()) {
+                throw new IllegalArgumentException("The pairing offer is not valid any more: show the QR code again");
+            }
+        }
         if (byDeviceCode.size() >= MAX_WAITING) {
             throw new IllegalStateException("Too many devices are waiting");
         }
@@ -74,6 +116,7 @@ public class DeviceAuthorizationServiceImpl implements DeviceAuthorizationServic
         String id = StringUtils.abbreviate(clientId.strip(), 100);
         String name = StringUtils.abbreviate(StringUtils.defaultIfBlank(StringUtils.strip(clientName), id), 100);
         Pending pending = new Pending(deviceCode, userCode, id, name, now() + EXPIRES_SECONDS * 1000);
+        pending.offer = StringUtils.isBlank(offer) ? null : offer;
         byDeviceCode.put(deviceCode, pending);
         byUserCode.put(userCode, pending);
         String page = baseUrl + "/?device";

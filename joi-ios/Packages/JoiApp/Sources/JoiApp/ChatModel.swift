@@ -55,6 +55,12 @@ public final class ChatModel: AvatarOutput {
     @ObservationIgnored private var director: AvatarDirector!
     /// What she is doing now (her body's state).
     public private(set) var avatarState: AvatarDirector.State = .idle
+    /// The part she is being put in another state for (its id), nil when none: one change at a time, as the node's controls lock.
+    public private(set) var switchingPart: String?
+    /// The server kept a change of a part: her body is read again.
+    @ObservationIgnored public var onPartKept: (@MainActor () -> Void)?
+    private var partWaiters: [String: CheckedContinuation<PartAnswer, Never>] = [:]
+    private var partCounter = 0
     /// The server tells that something changed (`body`, `joi`: the app loads it again).
     @ObservationIgnored public var onServerEvent: (@MainActor (String) -> Void)?
     private var eventTask: Task<Void, Never>?
@@ -73,6 +79,47 @@ public final class ChatModel: AvatarOutput {
         director = AvatarDirector(output: self, roles: roles)
         speech?.onFinished = { [weak self] in self?.director.speechEnded() }
         player?.onEnded = { [weak self] in self?.director.animationEnded() }
+    }
+
+    /// The server's answer to a part the user put in another state.
+    public enum PartAnswer: Equatable, Sendable {
+        /// Kept on her body; `told` when her reaction is still to come (her turn follows).
+        case kept(told: Bool)
+        /// Her personality let her decide, and she did not allow it.
+        case refused(String?)
+        case failed(String)
+    }
+
+    /// The user puts a part of her in another state. The server keeps it on the body (so it is the same on every node) and starts her turn
+    /// about it; the answer is the only thing that says it was kept. Only one at a time (a second one is `failed` at once), and without an
+    /// answer in 20 s it is `failed`.
+    public func switchPart(_ part: String, to state: String) async -> PartAnswer {
+        guard switchingPart == nil else { return .failed("Another change is on its way.") }
+        partCounter += 1
+        let id = "p-\(partCounter)"
+        switchingPart = part
+        let answer = await withCheckedContinuation { (continuation: CheckedContinuation<PartAnswer, Never>) in
+            partWaiters[id] = continuation
+            Task { [weak self] in
+                do {
+                    try await self?.link.send(Frame.part(PartSwitch(part: part, state: state), id: id))
+                } catch {
+                    self?.answerPart(id, .failed(Self.describe(error)))
+                }
+            }
+            Task { [weak self] in
+                try? await Task.sleep(for: .seconds(20))
+                self?.answerPart(id, .failed("The server did not answer."))
+            }
+        }
+        switchingPart = nil
+        if case .kept = answer { onPartKept?() }
+        return answer
+    }
+
+    private func answerPart(_ id: String?, _ answer: PartAnswer) {
+        guard let id, let waiter = partWaiters.removeValue(forKey: id) else { return }
+        waiter.resume(returning: answer)
     }
 
     /// The animations chosen in her dialog changed.
@@ -152,7 +199,7 @@ public final class ChatModel: AvatarOutput {
                 if let text = entry.text { out.append(ChatMessage(role: .note, text: text)) }
             default:
                 // an event she was told: what happened, and her answer to it
-                out.append(ChatMessage(role: .note, text: entry.event ?? entry.type))
+                out.append(ChatMessage(role: .note, text: eventNote(entry.event ?? entry.type)))
             }
             if let reply = entry.reply, !reply.isEmpty { out.append(ChatMessage(role: .joi, text: reply)) }
         }
@@ -194,8 +241,16 @@ public final class ChatModel: AvatarOutput {
             if let turn = incoming.ref { director.audio(turn, chunk) } else { speech?.enqueue(chunk) }
         case .done:
             director.done(incoming.ref)
+        case .partKept(let kept):
+            answerPart(incoming.ref, .kept(told: kept.told))
+        case .partRefused(let refused):
+            answerPart(incoming.ref, .refused(refused.reason))
         case .error(let error):
-            director.failed(incoming.ref, error)
+            if let ref = incoming.ref, partWaiters[ref] != nil {
+                answerPart(ref, .failed(error.message))
+            } else {
+                director.failed(incoming.ref, error)
+            }
         case .animation(let play):
             director.gesture(play.animation, loop: play.loop ?? false)
         case .event(let event):
@@ -261,9 +316,27 @@ public final class ChatModel: AvatarOutput {
 
     private func endRunningTurn(note: String) {
         director.disconnected()
+        for id in Array(partWaiters.keys) { answerPart(id, .failed("The connection was lost.")) }
         guard let turn = runningTurn else { return }
         finish(turn)
         messages.append(ChatMessage(role: .note, text: note))
+    }
+
+    /// An event the server told her (`node.first_boot`, `node.part_switched`...) as a line for the user.
+    static func eventNote(_ name: String) -> String {
+        let kind = name.hasPrefix("node.") ? String(name.dropFirst("node.".count)) : name
+        switch kind {
+        case "connected": return "Connected"
+        case "first_boot": return "She wakes up for the first time"
+        case "summary_created": return "She went over the past"
+        case "part_switched": return "Her look was changed"
+        case "task_ended": return "A task of hers ended"
+        case "looking_glass_entered": return "Moved to the Looking Glass"
+        case "looking_glass_exited": return "Back from the Looking Glass"
+        default:
+            let words = kind.replacingOccurrences(of: "_", with: " ").replacingOccurrences(of: ".", with: " ")
+            return words.prefix(1).uppercased() + words.dropFirst()
+        }
     }
 
     static func describe(_ error: Error) -> String {

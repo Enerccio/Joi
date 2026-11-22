@@ -75,15 +75,23 @@ The app's own code, so that it builds and is tested on the Mac: SwiftUI and the 
   her words, which are held back, gestures she chooses, falling asleep; her words wait for her voice when speech is on, so the chat does not run ahead of what she says). It
   drives an `AvatarOutput` (`ChatModel` is one): `play`, `text`, `reply`, `speak`, `done`, `failed`, `state`. The renderer and the speech tell back: `animationEnded`
   (`AnimationPlayer.onEnded`) and `speechEnded` (`SpeechPlaying.onFinished`, when the queue of pieces is played). `ChatModel` sends every frame of a turn through it.
+- **Pairing by camera.** The Xcode project registers the scheme `joi`; the QR code of the server's *Pair a phone* dialog is `joi://pair?server=...&offer=...`, the phone's camera
+  opens the app, and `RootView.onOpenURL` calls `AppModel.open(_:)`: the link is checked (`AppModel.pairing(from:)`: scheme, host `pair`, an `http(s)` server, an offer of letters,
+  digits, `-` and `_`), the old pairing is forgotten, and `startDeviceGrant(offer:)` gives the offer to the server, whose dialog approves the phone; the first poll is at once
+  (`waitForApproval(askAtOnce:)`) and no code is shown. Tokens that the Keychain refuses are an error at once
+  (`CredentialStore.saveFailure`), not a 401 on the next call. A Simulator build with no signature at all has no entitlements, so the Keychain says `-34018`
+  (`errSecMissingEntitlement`): the Simulator build is signed ad hoc (`CODE_SIGN_IDENTITY=-`), which is enough for the Keychain there.
 - **`Views`**: `RootView` is all the app shows. `ChatView` puts her body above the chat, half of the height (a quarter while the keyboard is up; side by side when the phone lies
-  down); the chat list stays at the end (`defaultScrollAnchor(.bottom)`). Not yet: switching her parts, approvals, tasks, the microphone, the App Intents, notes of the server
-  shown as text (`node.connected` is shown as it is).
+  down); the chat list stays at the end (`defaultScrollAnchor(.bottom)`). Over the body are two buttons: *Her look* (a sheet, `PartsView`, one picker per part she has, from
+  `AvatarModel.parts`) and a menu with *Sign out*. A change is `ChatModel.switchPart`: a `part` frame with an id, answered by `part_kept` (the body reloads), `part_refused`
+  (her words are shown in the sheet: she may decide on it, so the answer can take a whole turn of hers) or `error`. The events of the server in the chat are friendly notes
+  (`ChatModel.eventNote`: connected, first start, summary written, part switched, task ended, Looking Glass). Not yet: approvals, tasks, the microphone, the App Intents.
 
 ## The Xcode project
 
 `joi-ios/project.yml` is the source, written into `Joi.xcodeproj` by XcodeGen (`brew install xcodegen`, then `cd joi-ios && xcodegen`); the project and `App/Info.plist` are not in
 Git, so a capability or a setting is added in `project.yml`, not in Xcode. `App/JoiAppMain.swift` is the whole shell; `App/Renderer` (not in Git) is the renderer page, a folder resource of the target. The bundle id is `io.github.enerccio.joi`.
-Run in the Simulator: build with `xcodebuild -project Joi.xcodeproj -scheme Joi -destination 'generic/platform=iOS Simulator' CODE_SIGNING_ALLOWED=NO build`
+Run in the Simulator: build with `xcodebuild -project Joi.xcodeproj -scheme Joi -destination 'generic/platform=iOS Simulator' CODE_SIGN_IDENTITY=- DEVELOPMENT_TEAM= build`
 and launch the `.app` in a booted device; the Simulator reaches a server on the Mac at `127.0.0.1` (a development server on 8091 as `CLAUDE.md` describes; ATS
 allows local networking, other `http` addresses need a change in `project.yml`).
 

@@ -26,6 +26,13 @@ A device (such as the node) can pair with the **OAuth device grant** instead:
 2. Open the link after you sign in, or press **Connect a device** here and type the code.
 3. Press **Approve** (or **Deny**).
 
+## Pairing a phone with its camera
+
+Press **Pair a phone** (next to **Connect a device**): the window shows a QR code. Scan it with the phone's camera; it opens the Joi app, which
+connects to this server and is approved here by itself, so there is no code to type. Keep the window open until the phone says it is connected.
+The code carries the address of this server: if the window shows `localhost`, change it to the address the phone reaches (the computer's
+address on your network, or the server's public one). The code works once, and only while the window is open (ten minutes at most).
+
 The device then gets an access token (an hour by default) and a refresh token (90 days; each refresh gives a new pair). Revoke the
 device in the list to cut it off.
 

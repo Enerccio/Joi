@@ -29,7 +29,7 @@ changes the schema, the record and the docs together with the code.**
 
 ## Versioning
 
-`JoiProtocol.VERSION` is `major.minor` (now 1.8), sent in the handshake. A minor version only adds things; both sides ignore fields and message types they
+`JoiProtocol.VERSION` is `major.minor` (now 1.9), sent in the handshake. A minor version only adds things; both sides ignore fields and message types they
 do not know. The server supports at least the previous major version and says so when a node is too old.
 
 ## The HTTP API
@@ -55,6 +55,11 @@ is the device grant (RFC 8628): the device asks `/oauth/device_authorization` fo
 `/oauth/token` and gets an access token (`joia_...`, an hour by default) and a refresh token (`joir_...`, 90 days; each refresh gives a new pair). **No auth** is the
 configuration's (`joi.api.no-auth`): a call without credentials acts as `joi.api.no-auth-user`, else the first administrator; a credential that is sent must
 still be valid. Credentials are `AccessToken` rows (prefix and SHA-256).
+
+**Pairing offers (1.9).** `POST /oauth/device_authorization` takes the optional form field `pairing_offer`: the secret of the QR code the server's *Pair a phone* dialog shows
+(`joi://pair?server=...&offer=...`, built by `PairPhoneDialog`). `DeviceAuthorizationService.createOffer` makes it (in memory, ten minutes), the device gives it with its request for
+codes, and the dialog, polling `waitingForOffer`, approves that device as the user of the screen (the approval needs the user's session). An unknown, expired or closed offer is a
+400 `invalid_request`. The app's side is `JoiClient.startDeviceGrant(offer:)` and `AppModel.open(_:)`.
 
 **The local door (1.8).** `POST /oauth/local` (`{client_id, client_name}`, answer `LocalToken`: `access_token` `joil_...`, `token_type`, `expires_in`; one token per
 `client_id` is reused, kind `LOCAL`) gives a token with no credentials, but only on the server's **Unix domain socket** (`joi.api.local-socket`, a path):

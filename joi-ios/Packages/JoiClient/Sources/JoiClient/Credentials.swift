@@ -31,6 +31,12 @@ public struct Credentials: Codable, Hashable, Sendable {
 public protocol CredentialStore: Sendable {
     func load() -> Credentials
     func save(_ credentials: Credentials)
+    /// Why the last `save` failed, nil when it did not (the Keychain refuses an app that was built without its entitlements).
+    var saveFailure: String? { get }
+}
+
+extension CredentialStore {
+    public var saveFailure: String? { nil }
 }
 
 public final class MemoryCredentialStore: CredentialStore, @unchecked Sendable {
@@ -55,6 +61,9 @@ public final class MemoryCredentialStore: CredentialStore, @unchecked Sendable {
 public final class KeychainCredentialStore: CredentialStore, @unchecked Sendable {
     private let service: String
     private let account: String
+    private let failure = LockedBox<String?>(nil)
+
+    public var saveFailure: String? { failure.value }
 
     public init(service: String = "joi", account: String = "credentials") {
         self.service = service
@@ -83,6 +92,20 @@ public final class KeychainCredentialStore: CredentialStore, @unchecked Sendable
         var add = query
         add[kSecValueData as String] = data
         add[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly
-        SecItemAdd(add as CFDictionary, nil)
+        let status = SecItemAdd(add as CFDictionary, nil)
+        failure.value = status == errSecSuccess ? nil : "the Keychain refused the credentials (status \(status))"
+    }
+}
+
+/// A value read and written from any thread.
+final class LockedBox<Value>: @unchecked Sendable {
+    private let lock = NSLock()
+    private var stored: Value
+
+    init(_ value: Value) { stored = value }
+
+    var value: Value {
+        get { lock.withLock { stored } }
+        set { lock.withLock { stored = newValue } }
     }
 }
