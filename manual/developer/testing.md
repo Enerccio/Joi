@@ -38,7 +38,7 @@ registered on the turn must be unregistered after the test: the chat service is 
 | `crud` | every entity's repository and ownership |
 | `api` | the HTTP API (`JoiApiTest`, `BodyApiTest`), every answer checked against the schemas; the pairing offers are in `JoiApiTest` |
 | `ui/access` | `PairPhoneDialogTest`: the link of the QR code, the check that approves the device of the offer |
-| `domain` | services, the turn, the web tools (against fake servers: `FakeWeb`), events, conversion (`ModelConversionTest` and `AnimationConversionTest` need Blender) |
+| `domain` | services, the turn (`ChatTurnTest`, also a turn that fails after some rounds and a round skipped after a gesture), the web tools (against fake servers: `FakeWeb`), events, conversion (`ModelConversionTest` and `AnimationConversionTest` need Blender), the speech call's one more try (`service/impl/TtsLeaseRetryTest`: which failures of a lock step are tried again) |
 | `domain/node` | `NodeServiceTest` drives the node WebSocket through a fake transport, checking every frame against the schemas (also the `mood` frame after the manifest, a mood change by the user and `set_mood`) |
 | `ui/jobs` | `AssistantsRunsTest`: what the assistants do now (the second list of `/jobs`); the job log is checked in `ChatTurnTest` and `SummarizerTest` with `Jobs.addSink` (never `Jobs.reset()`) |
 | `domain/workspace` | `TaskWorkspaceTest`: names, limits, expiry; the task writing a file is in `WebTasksTest`, the clipboard offer through a fake node in `NodeServiceTest` |
@@ -46,7 +46,7 @@ registered on the turn must be unregistered after the test: the chat service is 
 | `domain/summary` | the pure logic of the summaries (`SummaryDaysTest`, `SummaryPlanTest`, `SummaryQueueTest`): no database, no clock. `SummarizerTest` in `domain/service` runs the whole thing with the fake model (also: a summary is a job); the minute tick is off in tests (`joi.summary.tick-seconds` 0), so a test calls `check(joi)` |
 | `ui` | dialogs and parts, driven without a browser |
 
-`joi-node`'s tests: `renderer/RendererServerTest` runs the renderer's server against a fake page (the play message with its face, her eyes and mood, her voice for the mouth), `local/UnixSocketTest` runs `UnixHttp` and `UnixWebSocket` against a server of its own on a Unix socket, `ServerClientLocalTest` the local sign-in against a fake one,
+`joi-node`'s tests: `renderer/RendererServerTest` runs the renderer's server against a fake page (the play message with its face, her eyes and mood, her voice for the mouth), `fx/LineOutputTest` runs her voice's output line on fake lines (a healthy one, one on a device that is gone, a stop while it is stuck), `local/UnixSocketTest` runs `UnixHttp` and `UnixWebSocket` against a server of its own on a Unix socket, `ServerClientLocalTest` the local sign-in against a fake one,
 `LocalModeTest` and `NodeInstanceTest` (with a second JVM that holds the lock). `joi-desktop`'s `DesktopLauncherTest` (the launcher's options, places and Jetty base) runs with
 `mvn test -Pfx,desktop -pl joi-desktop`, which needs `joi-server` (the WAR) and `joi-node` installed in `~/.m2` (it is part of `package` in the reactor, and `-DskipTests` there skips it).
 
