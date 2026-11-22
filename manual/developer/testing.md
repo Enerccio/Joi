@@ -45,6 +45,10 @@ registered on the turn must be unregistered after the test: the chat service is 
 | `domain/summary` | the pure logic of the summaries (`SummaryDaysTest`, `SummaryPlanTest`, `SummaryQueueTest`): no database, no clock. `SummarizerTest` in `domain/service` runs the whole thing with the fake model (also: a summary is a job); the minute tick is off in tests (`joi.summary.tick-seconds` 0), so a test calls `check(joi)` |
 | `ui` | dialogs and parts, driven without a browser |
 
+`joi-node`'s tests: `local/UnixSocketTest` runs `UnixHttp` and `UnixWebSocket` against a server of its own on a Unix socket, `ServerClientLocalTest` the local sign-in against a fake one,
+`LocalModeTest` and `NodeInstanceTest` (with a second JVM that holds the lock). `joi-desktop`'s `DesktopLauncherTest` (the launcher's options, places and Jetty base) runs with
+`mvn test -Pfx,desktop -pl joi-desktop`, which needs `joi-server` (the WAR) and `joi-node` installed in `~/.m2` (it is part of `package` in the reactor, and `-DskipTests` there skips it).
+
 `SchemaContractTest` in `joi-protocol` checks the records, the enums and the AsyncAPI document against each other.
 
 The platform's own tests belong to Marginalia: do not run them from here.

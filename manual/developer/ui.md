@@ -26,7 +26,7 @@ its change with `JoiDialog.save(change)` (or `saveAbout(before, change)`), which
 mood while the dialog is open. The settings of the
 summaries are one widget, `ui/widgets/SummaryFields`, shared by the assistant's About tab and the user's settings (the chain assistant → user → default). Other dialogs: `ModelDialog`, `BodyDialog`,
 `OutfitDialog`, `AnimationDialog`, `AnimationPackDialog`, `TtsModelDialog`, `JoiAIDialog`, `PersonalityDialog`, `MoodDialog`.
-Panels: `ui/bodies` (`AppearancePanel`, `SpringBonesPanel`, `ToggleGroupsPanel`, `ModelViewer`, `ClipPreview`), `ui/tools`, `ui/access`.
+Panels: `ui/bodies` (`AppearancePanel`, `SpringBonesPanel`, `ToggleGroupsPanel`, `ModelViewer`, `ClipPreview`), `ui/tools`, `ui/access` (its list shows a `LOCAL` token as "This computer").
 
 ## Rules
 

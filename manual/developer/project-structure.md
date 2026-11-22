@@ -53,7 +53,7 @@ All are owned by the user, and each belongs to an assistant where it makes sense
 | `QueuedEvent` | an event that waits for a connected node |
 | `Model`, `Body` | a 3D model and a body made of models |
 | `Animation`, `AnimationPack` | a clip and an animation (steps of clips) |
-| `AccessToken` | a token or a device of the API |
+| `AccessToken` | a token or a device of the API (kind `TOKEN`, `OAUTH`, or `LOCAL`: the node of the desktop app on the server's socket) |
 | `ToolMetadata` | the settings of one tool in one place of the chain |
 
 ## Wiring
