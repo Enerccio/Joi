@@ -131,7 +131,19 @@ class AvatarPane extends BorderPane {
         this.onAnimationEnded = onAnimationEnded;
     }
 
+    /** Her mood, as her reply or her info says it: the page shows it on her face. */
+    void mood(String mood) {
+        renderer.mood(mood);
+    }
+
     void state(AvatarDirector.State next) {
+        // her eyes follow what she does: shut while she sleeps (slowly as she falls asleep), open again as she wakes up
+        switch (next) {
+            case SLEEPING -> renderer.eyes("closed", 0.4);
+            case FALLING_ASLEEP -> renderer.eyes("closed", 3);
+            case WAKING_UP -> renderer.eyes("auto", 1.5);
+            default -> renderer.eyes("auto", 0.25);
+        }
         state.setText(switch (next) {
             case IDLE -> "waiting";
             case SLEEPING -> "asleep";

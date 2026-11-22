@@ -406,6 +406,18 @@ public class JoiLocalizationBundleEN extends TextBundleBase<J_L> {
         setValue(J_L.LABEL_ANIMATION_STEPS, "Steps");
         setValue(J_L.LABEL_CLIP, "Clip");
         setValue(J_L.LABEL_LOOP_ANIMATION, "Loop the whole animation");
+        setValue(J_L.LABEL_FACE_EYES, "Eyes");
+        setValue(J_L.LABEL_FACE_EXPRESSION, "Expression");
+        setValue(J_L.MSG_FACE_HINT, "Her face while this animation plays. Her own: the eyes follow what she does (shut while she sleeps) and the expression follows her mood.");
+        setValue(J_L.FACE_OWN, "Her own");
+        setValue(J_L.FACE_EYES_CLOSED, "Closed");
+        setValue(J_L.FACE_EYES_HALF, "Half closed");
+        setValue(J_L.FACE_EYES_WIDE, "Wide open");
+        setValue(J_L.FACE_EXPRESSION_HAPPY, "Happy");
+        setValue(J_L.FACE_EXPRESSION_SAD, "Sad");
+        setValue(J_L.FACE_EXPRESSION_ANGRY, "Angry");
+        setValue(J_L.FACE_EXPRESSION_RELAXED, "Relaxed");
+        setValue(J_L.FACE_EXPRESSION_SURPRISED, "Surprised");
         setValue(J_L.LABEL_PLAY_ANIMATION, "Play");
         setValue(J_L.LABEL_FINISH_ANIMATION, "Finish");
         setValue(J_L.LABEL_REMOVE_FROM_PACK, "Remove the step");

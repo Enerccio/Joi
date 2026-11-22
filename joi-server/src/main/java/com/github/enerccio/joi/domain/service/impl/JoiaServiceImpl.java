@@ -90,7 +90,8 @@ public class JoiaServiceImpl implements JoiaService {
                 steps.add(new JoiaMetadata.Step(clip.getUuid(), s.loop(), s.speedOrDefault(), s.inPlace(), s.reverse(),
                         s.rotation(), s.blend()));
             }
-            exported.add(new JoiaMetadata.Animation(stored.getUuid(), stored.getName(), stored.getDescription(), stored.getLoop(), steps));
+            exported.add(new JoiaMetadata.Animation(stored.getUuid(), stored.getName(), stored.getDescription(), stored.getLoop(), steps,
+                    stored.getEyes(), stored.getExpression()));
         }
         JoiaMetadata meta = new JoiaMetadata(exported, new ArrayList<>(clips.values()), null);
         List<File> clipFiles = new ArrayList<>();
@@ -235,6 +236,8 @@ public class JoiaServiceImpl implements JoiaService {
                 pack.setName(animation.name());
                 pack.setDescription(animation.description());
                 pack.setLoop(animation.loop());
+                pack.setEyes(animation.eyes());
+                pack.setExpression(animation.expression());
                 pack.setStepList(steps);
                 animations.add(packService.save(pack));
             }

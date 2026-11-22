@@ -1,6 +1,7 @@
 package com.github.enerccio.joi.ui.dialogs;
 
 import com.flowingcode.vaadin.addons.fontawesome.FontAwesome.Solid;
+import com.github.enerccio.joi.domain.animations.AnimationFace;
 import com.github.enerccio.joi.domain.animations.AnimationStep;
 import com.github.enerccio.joi.domain.animations.StepRotation;
 import com.github.enerccio.joi.domain.model.impl.Animation;
@@ -31,6 +32,7 @@ import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.component.textfield.NumberField;
 import com.vaadin.flow.component.textfield.TextArea;
+import com.vaadin.flow.component.select.Select;
 import com.vaadin.flow.component.textfield.TextField;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -68,6 +70,8 @@ public class AnimationPackDialog extends Dialog {
     private TextField nameField;
     private TextArea descriptionField;
     private Checkbox loopField;
+    private Select<String> eyesField;
+    private Select<String> expressionField;
     private MultiSelectComboBox<Animation> choice;
     private Button addButton;
     private Span emptyLibrary;
@@ -124,6 +128,23 @@ public class AnimationPackDialog extends Dialog {
             playAll();
         });
 
+        eyesField = faceSelect(J_L.LABEL_FACE_EYES, AnimationFace.EYES, pack.getEyes(), value -> switch (value) {
+            case "closed" -> J_L.FACE_EYES_CLOSED;
+            case "half" -> J_L.FACE_EYES_HALF;
+            default -> J_L.FACE_EYES_WIDE;
+        });
+        expressionField = faceSelect(J_L.LABEL_FACE_EXPRESSION, AnimationFace.EXPRESSIONS, pack.getExpression(), value -> switch (value) {
+            case "happy" -> J_L.FACE_EXPRESSION_HAPPY;
+            case "sad" -> J_L.FACE_EXPRESSION_SAD;
+            case "angry" -> J_L.FACE_EXPRESSION_ANGRY;
+            case "relaxed" -> J_L.FACE_EXPRESSION_RELAXED;
+            default -> J_L.FACE_EXPRESSION_SURPRISED;
+        });
+        HorizontalLayout face = new HorizontalLayout(eyesField, expressionField);
+        face.setWidthFull();
+        Span faceHint = new Span(loc.getValue(J_L.MSG_FACE_HINT));
+        faceHint.addClassName(CssStyles.HINT_TEXT);
+
         H4 stepsTitle = new H4(loc.getValue(J_L.LABEL_ANIMATION_STEPS));
         Span hint = new Span(loc.getValue(J_L.MSG_ANIMATION_PACK_HINT));
         hint.addClassName(CssStyles.HINT_TEXT);
@@ -162,7 +183,7 @@ public class AnimationPackDialog extends Dialog {
         createRotationPanel();
         steps.addItemDoubleClickListener(e -> openClip(e.getItem().clip()));
 
-        VerticalLayout sidebar = new VerticalLayout(nameField, descriptionField, loopField, stepsTitle, hint, adding, emptyLibrary, steps,
+        VerticalLayout sidebar = new VerticalLayout(nameField, descriptionField, loopField, face, faceHint, stepsTitle, hint, adding, emptyLibrary, steps,
                 rotationPanel);
         sidebar.setPadding(false);
         sidebar.addClassName(JoiCssStyles.MODEL_SIDEBAR);
@@ -376,6 +397,30 @@ public class AnimationPackDialog extends Dialog {
         preview.playStep(shown.indexOf(step), step);
     }
 
+    /**
+     * A choice of the face this animation forces: "her own" (empty), or one of the values.
+     *
+     * @param label  the label
+     * @param values the values to choose from
+     * @param value  what the animation has now, null for her own
+     * @param text   the text of a value
+     */
+    private Select<String> faceSelect(J_L label, List<String> values, String value, java.util.function.Function<String, J_L> text) {
+        Select<String> select = new Select<>();
+        select.setLabel(loc.getValue(label));
+        List<String> items = new ArrayList<>();
+        items.add("");
+        items.addAll(values);
+        select.setItems(items);
+        select.setItemLabelGenerator(item -> item.isEmpty() ? loc.getValue(J_L.FACE_OWN) : loc.getValue(text.apply(item)));
+        select.setValue(value == null ? "" : value);
+        select.addValueChangeListener(e -> {
+            storePack(false);
+            playAll();
+        });
+        return select;
+    }
+
     /** Plays the whole animation (no step chosen in the table). */
     private void playAll() {
         filling = true;
@@ -385,6 +430,8 @@ public class AnimationPackDialog extends Dialog {
             filling = false;
         }
         showRotation();
+        // what the fields say, not the saved animation: a value taken out does not clear the field of the one saved before
+        preview.setFace(StringUtils.defaultIfBlank(eyesField.getValue(), null), StringUtils.defaultIfBlank(expressionField.getValue(), null));
         preview.playSequence(shown, pack.loops());
     }
 
@@ -441,6 +488,8 @@ public class AnimationPackDialog extends Dialog {
             stored.setName(name);
             stored.setDescription(StringUtils.defaultIfBlank(descriptionField.getValue(), null));
             stored.setLoop(Boolean.TRUE.equals(loopField.getValue()) ? true : null);
+            stored.setEyes(eyesField.getValue());
+            stored.setExpression(expressionField.getValue());
             stored.setPreviewBodyId(preview == null ? null : preview.getBodySelect().getValue());
             pack = packService.save(stored);
             updateTitle();
@@ -507,6 +556,16 @@ public class AnimationPackDialog extends Dialog {
     /** The description field, for tests. */
     public TextArea getDescriptionField() {
         return descriptionField;
+    }
+
+    /** The eyes field, for tests. */
+    public Select<String> getEyesField() {
+        return eyesField;
+    }
+
+    /** The expression field, for tests. */
+    public Select<String> getExpressionField() {
+        return expressionField;
     }
 
     /** Whether the animation starts again after its last step, for tests. */

@@ -63,6 +63,8 @@ class JoiaTest extends PlatformTestBase {
         jacks.setName("Greeting");
         jacks.setDescription("You greet.");
         jacks.setLoop(true);
+        jacks.setEyes("closed");
+        jacks.setExpression("happy");
         jacks.setStepList(List.of(new AnimationStep(wave.getUuid(), false, 1, true, false),
                 new AnimationStep(bow.getUuid(), true, 1.5, false, true, StepRotation.fromDegrees(0, 90, 0), 0.5),
                 new AnimationStep(wave.getUuid(), false, 1, false, false)));
@@ -117,6 +119,9 @@ class JoiaTest extends PlatformTestBase {
         assertThat(meta.clip(wave.getUuid()).size()).isEqualTo(animationService.file(wave).length());
         JoiaMetadata.Animation greeting = meta.animations().getFirst();
         assertThat(greeting.loop()).isTrue();
+        assertThat(greeting.eyes()).isEqualTo("closed");
+        assertThat(greeting.expression()).isEqualTo("happy");
+        assertThat(meta.animations().get(1).eyes()).isNull();
         assertThat(greeting.steps()).extracting(JoiaMetadata.Step::clip).containsExactly(wave.getUuid(), bow.getUuid(), wave.getUuid());
         assertThat(greeting.steps().get(1).speed()).isEqualTo(1.5);
         assertThat(greeting.steps()).extracting(JoiaMetadata.Step::reverse).containsExactly(false, true, false);
@@ -134,6 +139,8 @@ class JoiaTest extends PlatformTestBase {
         AnimationPack greeting = imported(again, "Greeting");
         assertThat(greeting.clipUuids()).containsExactly(wave.getUuid(), bow.getUuid(), wave.getUuid());
         assertThat(greeting.loops()).isTrue();
+        assertThat(greeting.getEyes()).isEqualTo("closed");
+        assertThat(greeting.getExpression()).isEqualTo("happy");
         assertThat(greeting.steps().get(1).speed()).isEqualTo(1.5);
         assertThat(greeting.steps()).extracting(AnimationStep::reverse).containsExactly(false, true, false);
         assertThat(greeting.steps().get(1).rotation()).isEqualTo(StepRotation.fromDegrees(0, 90, 0));

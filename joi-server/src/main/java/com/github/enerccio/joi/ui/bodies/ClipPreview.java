@@ -260,6 +260,11 @@ public class ClipPreview extends VerticalLayout {
         }
     }
 
+    /** The face the animations played from now on show (see {@link ModelViewer#setAnimationFace}). */
+    public void setFace(String eyes, String expression) {
+        viewer.setAnimationFace(eyes, expression);
+    }
+
     /** Plays the whole animation: its steps in order, starting again after the last when it loops. */
     public void playSequence(List<AnimationPackService.Step> steps, boolean loop) {
         try {

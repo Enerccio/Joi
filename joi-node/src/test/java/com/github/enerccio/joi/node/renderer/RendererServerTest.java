@@ -43,7 +43,7 @@ class RendererServerTest {
         JoiaMetadata meta = new JoiaMetadata(
                 List.of(new JoiaMetadata.Animation(WAVE, "Wave", null, false, List.of(
                         new JoiaMetadata.Step(CLIP, true, 1, false, false, null, 0),
-                        new JoiaMetadata.Step(CLIP, false, 2, true, true, List.of(0d, 0d, 0d, 1d), 0.5)))),
+                        new JoiaMetadata.Step(CLIP, false, 2, true, true, List.of(0d, 0d, 0d, 1d), 0.5)), "closed", "sad")),
                 List.of(new JoiaMetadata.Clip(CLIP, "wave", null, List.of(), false, false, 1d, "wave.vrma", null, null, 1d,
                         List.of(), false, null, null)), null);
         Path joia = temp.resolve("anims.joia");
@@ -75,6 +75,9 @@ class RendererServerTest {
         assertThat(second.get("blend").getAsDouble()).isEqualTo(0.5);
         // played once: the looping step does not loop
         assertThat(sequence.getAsJsonArray("steps").get(0).getAsJsonObject().get("loop").getAsBoolean()).isFalse();
+        // the face the animation forces goes with its sequence
+        assertThat(sequence.getAsJsonObject("face").get("eyes").getAsString()).isEqualTo("closed");
+        assertThat(sequence.getAsJsonObject("face").get("expression").getAsString()).isEqualTo("sad");
 
         assertThat(get(server.url().resolve("body/clip/" + CLIP + ".vrma")).body()).isEqualTo("clip bytes");
 
@@ -131,6 +134,29 @@ class RendererServerTest {
         JsonObject later = events().poll(5, TimeUnit.SECONDS);
         assertThat(later.get("type").getAsString()).isEqualTo("toggles");
         assertThat(later.getAsJsonArray("toggles").get(0).getAsJsonObject().get("shown").getAsBoolean()).isTrue();
+    }
+
+    @Test
+    void herEyesAndMoodGoToThePagesOpenAndToOnesOpenedLater() throws Exception {
+        BlockingQueue<JsonObject> open = events();
+        Thread.sleep(300);
+        server.eyes("closed", 3);
+        server.mood("happy");
+        JsonObject eyes = open.poll(5, TimeUnit.SECONDS);
+        assertThat(eyes.get("type").getAsString()).isEqualTo("eyes");
+        assertThat(eyes.get("eyes").getAsString()).isEqualTo("closed");
+        assertThat(eyes.get("ease").getAsDouble()).isEqualTo(3);
+        assertThat(open.poll(5, TimeUnit.SECONDS).get("mood").getAsString()).isEqualTo("happy");
+
+        // a mood of none clears it, and the last ones are sent again to a page that opens later
+        server.mood(null);
+        assertThat(open.poll(5, TimeUnit.SECONDS).has("mood")).isFalse();
+        BlockingQueue<JsonObject> later = events();
+        JsonObject first = later.poll(5, TimeUnit.SECONDS);
+        JsonObject second = later.poll(5, TimeUnit.SECONDS);
+        assertThat(first.get("type").getAsString()).isEqualTo("eyes");
+        assertThat(second.get("type").getAsString()).isEqualTo("mood");
+        assertThat(second.has("mood")).isFalse();
     }
 
     @Test

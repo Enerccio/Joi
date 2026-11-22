@@ -150,7 +150,8 @@ public final class AppModel {
             throw ServerError(status: 0, code: "no_joi", message: "The server has no assistant yet.")
         }
         // the animations chosen for her: what her body does while she sleeps, waits and speaks
-        let roles = try? await client.joi(joi.id).animations
+        let info = try? await client.joi(joi.id)
+        let roles = info?.animations
         let avatar = AvatarModel(page: Self.rendererPage)
         let hello = Hello(protocol: JoiProtocolInfo.nodeVersion, nodeId: nodeId, name: "phone", kind: "phone", software: "joi-ios 0.1",
                           joi: joi.id, parts: [.tools, .audioOut])
@@ -166,13 +167,18 @@ public final class AppModel {
         }
         let model = ChatModel(joiID: joi.id, joiName: joi.name, history: client, link: link, speech: speech,
                               player: avatar.bridge, roles: roles)
+        avatar.bridge.setMood(info?.mood)
         model.onServerEvent = { [weak model, weak avatar] name in
             // the server tells that her body or her settings changed
             switch name {
             case "body":
                 avatar?.load(from: client, joi: joi.id)
             case "joi":
-                Task { model?.setRoles(try? await client.joi(joi.id).animations) }
+                Task {
+                    let info = try? await client.joi(joi.id)
+                    model?.setRoles(info?.animations)
+                    avatar?.bridge.setMood(info?.mood)
+                }
             default:
                 break
             }

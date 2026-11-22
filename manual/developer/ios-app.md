@@ -62,6 +62,9 @@ The app's own code, so that it builds and is tested on the Mac: SwiftUI and the 
 - **Her mouth.** The page reads it from her voice (see *Her mouth* in [Writing a node](nodes.md)). `SpeechPlayer` numbers the pieces it plays and has `onQueued`, `onStarted` and
   `onStopped`; `AppModel` hands them to `RendererBridge.speech`, `speechStarted` and `speechStopped`, which send the `speech`, `speech-start` and `speech-stop` messages (the
   piece's bytes in Base64; not kept for a page that opens later).
+- **Her face.** Her eyes and her mood are messages to the page like the mouth (see *Her face* in [Writing a node](nodes.md)): `ChatModel.state` sets her eyes from her state
+  (`AnimationPlayer.setEyes`), a reply's `mood` and the mood in her info (also read again on the server's `joi` event) set her mood (`setMood`); `RendererBridge` sends `eyes` and `mood`
+  and sends them again to a page that opens later, and puts an animation's `eyes` and `expression` (`JoiaAnimation`) into the `face` of its sequence.
 - **Her body.** `AvatarModel` loads it: `GET .../body`, her `.joim` and `.joia` downloaded into the caches folder (`joi-body`, by hash; what she wore before is
   cleaned away), unpacked in `BodyFiles` (a folder `<hash>-joim` with `model.vrm`, a folder `<hash>-joia` with `<index>.vrma`, each with the marker `.unpacked`) off the main
   thread, and shown. The server's `event` named `body` loads it again, `joi` reads her animation roles again (`ChatModel.onServerEvent`, wired in `AppModel`). The page is the

@@ -320,6 +320,7 @@ public final class ChatModel: AvatarOutput {
     }
 
     public func reply(turn: String, reply: ChatReply) {
+        if let mood = reply.mood { player?.setMood(mood) }
         withTurn(turn) { $0.text = reply.text }
     }
 
@@ -338,6 +339,13 @@ public final class ChatModel: AvatarOutput {
 
     public func state(_ state: AvatarDirector.State) {
         avatarState = state
+        // her eyes follow what she does: shut while she sleeps (slowly as she falls asleep), open again as she wakes up
+        switch state {
+        case .sleeping: player?.setEyes("closed", seconds: 0.4)
+        case .fallingAsleep: player?.setEyes("closed", seconds: 3)
+        case .wakingUp: player?.setEyes("auto", seconds: 1.5)
+        default: player?.setEyes("auto", seconds: 0.25)
+        }
     }
 
     /// Her message of that turn (made when a frame comes first, as after a turn the server started).

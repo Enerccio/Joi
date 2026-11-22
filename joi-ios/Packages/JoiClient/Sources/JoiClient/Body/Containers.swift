@@ -167,12 +167,18 @@ public struct JoiaAnimation: Codable, Hashable, Sendable {
     public var name: String?
     public var loop: Bool?
     public var steps: [JoiaStep]?
+    /// How her eyes are while it plays: `closed`, `half` or `wide`; none for her own.
+    public var eyes: String?
+    /// The face it shows: `happy`, `sad`, `angry`, `relaxed` or `surprised`; none for her mood's.
+    public var expression: String?
 
-    public init(uuid: String, name: String? = nil, loop: Bool? = nil, steps: [JoiaStep]? = nil) {
+    public init(uuid: String, name: String? = nil, loop: Bool? = nil, steps: [JoiaStep]? = nil, eyes: String? = nil, expression: String? = nil) {
         self.uuid = uuid
         self.name = name
         self.loop = loop
         self.steps = steps
+        self.eyes = eyes
+        self.expression = expression
     }
 }
 

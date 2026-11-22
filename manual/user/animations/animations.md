@@ -34,6 +34,11 @@ the step**.
 **Loop the whole animation** starts it again after its last step until it is finished: clips that do not loop on their own, a
 wave and a nod, again and again.
 
+**Eyes** and **Expression** set her face while the animation plays. **Her own** leaves them to her: her eyes follow what she does (shut while she
+sleeps, open and blinking otherwise) and her mood shows as a soft expression. **Closed**, **Half closed** and **Wide open** (open, never
+blinking) set her eyes; **Happy**, **Sad**, **Angry**, **Relaxed** and **Surprised** show that expression instead of her mood's. The preview shows them
+at once. They need a model with the matching expressions (a model converted from a VRChat avatar has them): the eyes use its `blink`.
+
 A step chosen in the table, or in the strip of steps under the preview (the step that plays is marked, with its rounds), plays
 alone. **Play** plays the animation, **Finish** ends a looping step so the next ones play. "Jumping jacks" is a start once, the
 jumps looping, a stop once. A clip added to an animation appends its description to the animation's, on a line of its own.

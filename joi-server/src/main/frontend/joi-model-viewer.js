@@ -16,6 +16,11 @@
 // fires when the mouse lets go of them.
 // setMouth({aa, ih, ou, ee, oh}) sets the weights of the five visemes (her mouth while she speaks, from her voice: joi-lipsync.js);
 // they are applied each frame after the animation, so a clip does not take them over; null gives the mouth back.
+// setFace({eyes, ease, mood}) turns on her face layer (off until it is called: the dialogs that try expressions need none) and says
+// how it is: eyes "auto" (open, blinking now and then, looking at the camera), "closed", "half" or "wide" (open, never blinking), reached
+// over `ease` seconds; mood the key of her mood (calm, happy... see MOODS), which shows as a soft expression and, for some, as the eyes.
+// An animation can say better: the sequence of playSequence may have face: {eyes, expression} (expression: happy, sad, angry, relaxed
+// or surprised), which wins over her state and her mood while that animation plays (setFace(null) turns the layer off).
 // finishAnimation() lets a looping step end its round and the rest play once; stopAnimation() puts her back at rest;
 // setAnimationPaused(paused) pauses; setFrozen(frozen) freezes her altogether (the animation, the sway, the spring bones:
 // the node's page does it while the server is gone). It fires "animation-started" ({duration} of one round), "animation-step"
@@ -47,6 +52,23 @@ const SHOTS = [
   {name: 'face-front', angle: 0, face: true},
   {name: 'face-three-quarter', angle: 35, face: true}
 ];
+
+// the soft expression a mood shows, and the eyes it gives her (the lowest of what decides the eyes: the animation and her state win)
+const MOODS = {
+  calm: {expression: 'relaxed', weight: 0.5},
+  happy: {expression: 'happy', weight: 0.7},
+  playful: {expression: 'happy', weight: 0.5},
+  curious: {expression: 'surprised', weight: 0.15},
+  affectionate: {expression: 'relaxed', weight: 0.8},
+  sleepy: {expression: 'relaxed', weight: 0.3, eyes: 'half'},
+  grumpy: {expression: 'angry', weight: 0.4},
+  melancholic: {expression: 'sad', weight: 0.5},
+  excited: {expression: 'happy', weight: 0.9, eyes: 'wide'}
+};
+const EMOTIONS = ['happy', 'angry', 'sad', 'relaxed', 'surprised'];
+// how closed the lids are for each state of the eyes
+const LIDS = {closed: 1, half: 0.55};
+const BLINK_SECONDS = 0.2;
 
 class JoiModelViewer extends HTMLElement {
 
@@ -141,6 +163,7 @@ class JoiModelViewer extends HTMLElement {
       this._mixer.update(delta);
     }
     if (this._vrm) {
+      this._updateFace(delta);
       this._applyMouth();
       if (this._sway) {
         this._swayTime = (this._swayTime || 0) + delta;
@@ -306,6 +329,131 @@ class JoiModelViewer extends HTMLElement {
     return gltf.scene;
   }
 
+  /**
+   * Turns her face layer on and says how it is: {eyes, ease, mood} (any of them may be left out to keep it). Null turns it off and
+   * gives the face back to the model.
+   */
+  setFace(face) {
+    if (!face) {
+      this._face = null;
+      this._clearFace();
+      return;
+    }
+    const was = this._face || {eyes: 'auto', ease: 0.25, mood: null};
+    this._face = {
+      eyes: face.eyes === undefined ? was.eyes : face.eyes || 'auto',
+      ease: face.ease > 0 ? face.ease : face.ease === undefined ? was.ease : 0.05,
+      mood: face.mood === undefined ? was.mood : face.mood || null
+    };
+  }
+
+  /** What decides her face now: the animation's face, else her state's eyes, else her mood's. */
+  _faceNow() {
+    const face = this._face;
+    const animation = this._animationFace || {};
+    const mood = MOODS[face.mood] || null;
+    const state = face.eyes === 'auto' ? null : face.eyes;
+    const animated = animation.eyes === 'auto' ? null : animation.eyes;
+    const expression = animation.expression
+      ? {name: animation.expression, weight: animation.weight > 0 ? animation.weight : 0.7}
+      : mood ? {name: mood.expression, weight: mood.weight} : null;
+    return {eyes: animated || state || (mood && mood.eyes) || 'auto', expression};
+  }
+
+  /** Runs the face layer: the lids (and blinking), the expression, where she looks. */
+  _updateFace(delta) {
+    const vrm = this._vrm;
+    if (!this._face || !vrm) {
+      return;
+    }
+    const manager = vrm.expressionManager;
+    const now = this._faceNow();
+    const state = this._faceState || (this._faceState = {lid: 0, pulse: -1, next: 2, time: 0, emotions: {}, gaze: null, gazeNext: 0});
+
+    // the lids go to where the eyes say, over the ease
+    const tau = Math.max(0.02, this._face.ease / 3);
+    const target = LIDS[now.eyes] || 0;
+    state.lid += (target - state.lid) * (1 - Math.exp(-delta / tau));
+
+    // a blink now and then while the eyes are free (one in five is a double)
+    state.time += delta;
+    if (now.eyes === 'auto' && state.pulse < 0 && state.time >= state.next) {
+      state.pulse = 0;
+      state.next = state.time + (Math.random() < 0.2 ? 0.35 : 2.2 + Math.random() * 3.8);
+    }
+    let blink = state.lid;
+    if (state.pulse >= 0) {
+      state.pulse += delta / BLINK_SECONDS;
+      const shape = state.pulse < 0.35 ? state.pulse / 0.35 : Math.max(0, 1 - (state.pulse - 0.35) / 0.65);
+      blink = Math.max(blink, shape);
+      if (state.pulse >= 1) {
+        state.pulse = -1;
+      }
+    }
+
+    // the expression and the ones before it fade over a second or so
+    const rate = 1 - Math.exp(-delta / 0.25);
+    for (const name of EMOTIONS) {
+      const goal = now.expression && now.expression.name === name ? now.expression.weight : 0;
+      const current = state.emotions[name] || 0;
+      state.emotions[name] = current + (goal - current) * rate;
+    }
+
+    if (manager) {
+      if (manager.getExpression('blink')) {
+        manager.setValue('blink', Math.min(1, blink));
+      }
+      for (const name of EMOTIONS) {
+        if (manager.getExpression(name)) {
+          manager.setValue(name, state.emotions[name]);
+        }
+      }
+    }
+
+    // her eyes follow the camera, a little unsteadily; shut, they look at nothing
+    if (vrm.lookAt) {
+      if (now.eyes === 'closed') {
+        if (vrm.lookAt.target) {
+          vrm.lookAt.target = null;
+          vrm.lookAt.reset();
+        }
+      } else {
+        if (!state.gaze) {
+          state.gaze = new THREE.Object3D();
+          state.offset = new THREE.Vector3();
+          state.goal = new THREE.Vector3();
+          this._scene.add(state.gaze);
+        }
+        if (state.time >= state.gazeNext) {
+          state.gazeNext = state.time + 0.6 + Math.random() * 1.9;
+          state.goal.set((Math.random() - 0.5) * 0.24, (Math.random() - 0.5) * 0.14 - (now.eyes === 'half' ? 0.12 : 0), 0);
+        }
+        state.offset.lerp(state.goal, 1 - Math.exp(-delta / 0.08));
+        state.gaze.position.copy(this._camera.position).add(state.offset);
+        state.gaze.updateMatrixWorld(true);
+        vrm.lookAt.target = state.gaze;
+      }
+    }
+  }
+
+  /** Gives the lids, the emotions and the eyes back to the model (the face layer was turned off). */
+  _clearFace() {
+    const vrm = this._vrm;
+    const manager = vrm && vrm.expressionManager;
+    if (manager) {
+      for (const name of ['blink', ...EMOTIONS]) {
+        if (manager.getExpression(name)) {
+          manager.setValue(name, 0);
+        }
+      }
+    }
+    if (vrm && vrm.lookAt && vrm.lookAt.target) {
+      vrm.lookAt.target = null;
+      vrm.lookAt.reset();
+    }
+    this._faceState = null;
+  }
+
   /** The weights of the visemes {aa, ih, ou, ee, oh} to show from now on (null: none, the animation's own). */
   setMouth(weights) {
     this._mouth = weights || null;
@@ -361,6 +509,10 @@ class JoiModelViewer extends HTMLElement {
       return;
     }
     this._animation = {steps, loop: !!sequence.loop};
+    this._animationFace = sequence.face || null;
+    if (sequence.face && !this._face) {
+      this.setFace({});
+    }
     this._animationPaused = false;
     if (this._vrm) {
       this._startAnimation();
@@ -382,6 +534,7 @@ class JoiModelViewer extends HTMLElement {
   /** Stops the animation and puts her back at rest. */
   stopAnimation() {
     this._animation = null;
+    this._animationFace = null;
     this._animationId = (this._animationId || 0) + 1;
     this._stopMixer();
   }

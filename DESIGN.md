@@ -1364,6 +1364,14 @@ UI — nothing is deleted):
     mouth is applied after the animation mixer, so a clip does not take it over. A model without the viseme expressions speaks with a still
     mouth. **Next:** a jaw-bone fallback for such models, a mood that shapes the mouth (a smile while she talks), and a mouth for the
     Looking Glass tuning panel's own preview. See `manual/developer/nodes.md` → Her mouth.
+  - **Her face (built):** eyes and expression are a **layer of the viewer, not part of the clips**: a clip is body motion and one clip serves many
+    models, and her state (asleep) and mood are things only the node knows. The layer (`setFace`) blinks, shuts the lids, fades in an expression and
+    points the eyes (VRM `lookAt`) at the camera with a little jitter. Three inputs, the first that says something wins: the **animation's own face**
+    (`eyes`: closed / half / wide, `expression`: happy / sad / angry / relaxed / surprised, stored on the animation and in the `.joia`), **her state**
+    (shut while she sleeps, easing over a few seconds as she falls asleep and wakes up) and **her mood** (a soft expression per mood key, in the
+    viewer's `MOODS` table: calm → relaxed, happy → happy, grumpy → angry, melancholic → sad, sleepy → half closed eyes, excited → wide eyes...).
+    **Next:** moods as avatar parameters on the `Mood` itself (the table is in the page for now, built-in keys only), the node following a mood the
+    user switches in the UI at once (it follows replies and the `joi` event on iOS), more face targets (ARKit shapes), looking at the user rather than the camera.
   - **Both ways:** Joi plays them with a tool (`play_animation`, listing what fits the active body and shot), e.g. waves
     hello, shrugs, dances when asked; you trigger them from the UI or a Stream Deck key and she is told.
     **Built (her side):** `play_animation` (`domain/chat/AnimationTools`) is offered to every turn when her active body

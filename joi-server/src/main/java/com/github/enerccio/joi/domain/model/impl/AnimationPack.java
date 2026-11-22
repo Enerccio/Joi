@@ -1,5 +1,6 @@
 package com.github.enerccio.joi.domain.model.impl;
 
+import com.github.enerccio.joi.domain.animations.AnimationFace;
 import com.github.enerccio.joi.domain.animations.AnimationStep;
 import com.github.enerccio.marginalia.domain.model.ExtendableEntity;
 import com.github.enerccio.marginalia.domain.traits.CleanupReference;
@@ -42,6 +43,16 @@ public class AnimationPack extends ExtendableEntity {
     @ExtendedAttribute
     @Transient
     private Boolean loop;
+
+    /** How her eyes are while it plays (one of {@code AnimationFace.EYES}); null for her own. */
+    @ExtendedAttribute
+    @Transient
+    private String eyes;
+
+    /** The expression it shows (one of {@code AnimationFace.EXPRESSIONS}); null for her mood's. */
+    @ExtendedAttribute
+    @Transient
+    private String expression;
 
     /** The body the clips are previewed on, null for none chosen yet. */
     @ExtendedAttribute
@@ -102,6 +113,22 @@ public class AnimationPack extends ExtendableEntity {
     /** Whether it starts again after its last step. */
     public boolean loops() {
         return Boolean.TRUE.equals(loop);
+    }
+
+    public String getEyes() {
+        return eyes;
+    }
+
+    public void setEyes(String eyes) {
+        this.eyes = AnimationFace.eyes(eyes);
+    }
+
+    public String getExpression() {
+        return expression;
+    }
+
+    public void setExpression(String expression) {
+        this.expression = AnimationFace.expression(expression);
     }
 
     public Long getPreviewBodyId() {

@@ -128,6 +128,31 @@ enum Files {
         #expect(!sent.types().contains { $0.hasPrefix("speech") })
     }
 
+    @Test func herEyesAndMoodAreSentAndSentAgainToANewPage() {
+        let (bridge, sent) = bridge()
+        bridge.setEyes("closed", seconds: 3)
+        bridge.setMood("happy")
+        bridge.setMood(nil)
+        #expect(sent.types() == ["eyes", "mood", "mood"])
+        #expect(object(sent.messages[0])["eyes"] == .string("closed") && object(sent.messages[0])["ease"] == .double(3))
+        #expect(object(sent.messages[1])["mood"] == .string("happy") && object(sent.messages[2])["mood"] == nil)
+        sent.messages = []
+        bridge.pageReady()
+        let again = sent.messages.filter { if case .string(let t)? = object($0)["type"] { t == "eyes" || t == "mood" } else { false } }
+        #expect(again.count == 2 && object(again[1])["mood"] == nil)
+    }
+
+    @Test func anAnimationsFaceGoesWithItsSequence() {
+        let sleeping = JoiaAnimation(uuid: "sleep", steps: [JoiaStep(clip: "c1")], eyes: "closed", expression: "sad")
+        let plain = JoiaAnimation(uuid: "plain", steps: [JoiaStep(clip: "c1")])
+        let (bridge, sent) = bridge([sleeping, plain])
+        bridge.play("sleep", loop: true)
+        bridge.play("plain", loop: true)
+        let face = object(object(sent.messages[0])["sequence"]!)["face"]
+        #expect(face == .object(["eyes": .string("closed"), "expression": .string("sad")]))
+        #expect(object(object(sent.messages[1])["sequence"]!)["face"] == nil)
+    }
+
     @Test func aClipPlayedByTwoStepsIsSentOnce() {
         let wave = JoiaAnimation(uuid: "wave", steps: [JoiaStep(clip: "c1"), JoiaStep(clip: "c2"), JoiaStep(clip: "c1")])
         let (bridge, sent) = bridge([wave])

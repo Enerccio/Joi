@@ -72,4 +72,5 @@ sends an `animation` frame to her nodes.
 ## The viewer
 
 `joi-model-viewer.js` plays clips with `@pixiv/three-vrm-animation` (retargeting to the body's rig) and `playSequence` plays steps. The node's
-renderer page (`joi-node/src/main/renderer`) wraps the same file.
+renderer page (`joi-node/src/main/renderer`) wraps the same file. An animation can force her face while it plays (`AnimationPack.eyes` and
+`expression`, in the `.joia` as `eyes` and `expression`, set in `AnimationPackDialog`): see *Her face* in [Writing a node](nodes.md).

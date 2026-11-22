@@ -8,8 +8,17 @@ import JoiClient
     func play(_ animation: String?, loop: Bool)
     /// The server is gone (`true`) or back: she is frozen and gray, or goes on.
     func setOffline(_ offline: Bool)
+    /// How her eyes are as her state says: `closed`, or `auto` (open and blinking), reached over that many seconds. An animation's own eyes win.
+    func setEyes(_ eyes: String, seconds: Double)
+    /// Her mood (its key, nil for none): shown as a soft expression.
+    func setMood(_ mood: String?)
     /// Called once an animation played with `play` that does not loop is over.
     var onEnded: (@MainActor () -> Void)? { get set }
+}
+
+extension AnimationPlayer {
+    public func setEyes(_ eyes: String, seconds: Double) {}
+    public func setMood(_ mood: String?) {}
 }
 
 /// The messages of the renderer page (`joi-node/src/main/renderer/src/main.js`, its native mode) and the files it reads: the part of the
@@ -38,6 +47,8 @@ import JoiClient
     private var playMessage: JSONValue?
     private var togglesMessage: JSONValue?
     private var offlineMessage: JSONValue?
+    private var eyesMessage: JSONValue?
+    private var moodMessage: JSONValue?
     private var playing = 0
     private var playingLoops = true
     private var watchdog: Task<Void, Never>?
@@ -49,7 +60,7 @@ import JoiClient
 
     /// The page is open and asks for what is to be shown.
     public func pageReady() {
-        [model, togglesMessage, playMessage, offlineMessage].compactMap { $0 }.forEach { send?($0) }
+        [model, togglesMessage, playMessage, offlineMessage, eyesMessage, moodMessage].compactMap { $0 }.forEach { send?($0) }
     }
 
     /// Shows her body.
@@ -75,6 +86,18 @@ import JoiClient
         let json = (try? JSONEncoder().encode(toggles)).flatMap { try? JSONDecoder().decode(JSONValue.self, from: $0) } ?? .array([])
         let message = Self.message("toggles", ["toggles": json])
         togglesMessage = message
+        broadcast(message)
+    }
+
+    public func setEyes(_ eyes: String, seconds: Double) {
+        let message = Self.message("eyes", ["eyes": .string(eyes), "ease": .double(seconds)])
+        eyesMessage = message
+        broadcast(message)
+    }
+
+    public func setMood(_ mood: String?) {
+        let message = Self.message("mood", mood.map { ["mood": .string($0)] } ?? [:])
+        moodMessage = message
         broadcast(message)
     }
 
@@ -113,10 +136,17 @@ import JoiClient
             let speed = (step.speed ?? 1) > 0 ? step.speed ?? 1 : 1
             seconds += (body.lengths[step.clip] ?? Self.unknownSeconds) / speed
         }
+        var sequence: [String: JSONValue] = ["steps": .array(json), "loop": .bool(loop)]
+        if found.eyes != nil || found.expression != nil {
+            var face: [String: JSONValue] = [:]
+            if let eyes = found.eyes { face["eyes"] = .string(eyes) }
+            if let expression = found.expression { face["expression"] = .string(expression) }
+            sequence["face"] = .object(face)
+        }
         let message = Self.message("play", [
             "id": .int(id),
             "clips": .array(order.map { .string("body/clip/\($0).vrma") }),
-            "sequence": .object(["steps": .array(json), "loop": .bool(loop)]),
+            "sequence": .object(sequence),
         ])
         playMessage = message
         broadcast(message)

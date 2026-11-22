@@ -122,3 +122,21 @@ left alone.
 
 Tests: the messages (`RendererServerTest`, `RendererBridgeTests`). The analyzer was tried on synthetic vowels (a pulse train through three resonators: all five were found) and on
 a macOS voice (`say`), and the page with `RendererPreview`'s `speak <wav>` command and a body from the cache, which moves the mouth without a server or a player.
+
+## Her face
+
+Her eyes and her expression are a layer of the viewer (`<joi-model-viewer>`, `setFace`), like the mouth: off until a page calls it (the server's dialogs, which try
+expressions one by one, need none), and run each frame after the animation mixer and before the model updates, so a clip does not take them over. The node page turns
+it on at the start. The layer has three inputs, the first that says something wins: **the animation's face** (`sequence.face`: `{eyes, expression}` of the animation
+being played, from its `.joia`), **her state's eyes** (`eyes`: `{eyes: "auto"|"closed", ease}`) and **her mood** (`mood`: its key, mapped by the viewer's `MOODS` table to a VRM
+expression, a weight and for two moods (sleepy: half closed, excited: wide) the eyes). The messages `eyes` and `mood` are kept and sent again to a page that opens
+later (`RendererServer.eyes` / `mood`); the node says them from the director: `AvatarPane.state` (sleeping: closed in 0.4 s, falling asleep: closed over 3 s,
+waking up: open over 1.5 s, else open) and the reply's `mood` (and `JoiInfo.mood` at the start). The iOS app does the same (`ChatModel.state`, `RendererBridge.setEyes` / `setMood`).
+
+What the layer does: the lids go to the target (closed 1, half 0.55) with an exponential ease; while the eyes are `auto` a blink (0.2 s, one in five a double) comes every 2 to 6 s on the
+`blink` expression; the emotion expressions (`happy`, `angry`, `sad`, `relaxed`, `surprised`) fade to their weights over about a second (three-vrm applies the models' own
+override of blink and mouth); the VRM `lookAt` follows the camera plus a small random offset that changes every 0.6 to 2.5 s, and nothing while the eyes are closed. A model without
+the expression ignores it. The animation's `eyes` and `expression` are fields of `AnimationPack` (extended attributes, so no migration; `AnimationFace` keeps the allowed values and
+drops the others), of `JoiaMetadata.Animation` (the `.joia`), and set in the animation's dialog (`AnimationPackDialog`, whose preview shows them: `ClipPreview.setFace`).
+Tried with `RendererPreview`'s `eyes <auto|closed> [seconds]` and `mood <key|none>` commands.
+

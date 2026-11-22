@@ -33,8 +33,13 @@ public record JoiaMetadata(List<Animation> animations, List<Clip> clips, String 
      * @param uuid        its uuid where it was exported (an import makes a new animation)
      * @param loop        whether it starts again after its last step
      * @param steps       its steps, in order
+     * @param eyes        how her eyes are while it plays: {@code closed}, {@code half} or {@code wide}; null for her own (open and
+     *                    blinking, or what her state or mood says)
+     * @param expression  the face it shows: {@code happy}, {@code sad}, {@code angry}, {@code relaxed} or {@code surprised}; null
+     *                    for her mood's
      */
-    public record Animation(String uuid, String name, String description, Boolean loop, List<Step> steps) {
+    public record Animation(String uuid, String name, String description, Boolean loop, List<Step> steps, String eyes,
+                            String expression) {
 
         public Animation {
             steps = steps == null ? List.of() : List.copyOf(steps.stream().filter(s -> s != null && s.clip() != null).toList());

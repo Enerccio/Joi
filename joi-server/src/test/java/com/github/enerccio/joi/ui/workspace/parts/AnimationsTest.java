@@ -152,6 +152,9 @@ class AnimationsTest extends PlatformTestBase {
         dialog.updateStepForTest(1, step -> step.withSpeed(1.5).withInPlace(true));
         dialog.moveStepForTest(1, -1);
         dialog.getLoopField().setValue(true);
+        // the face she makes while it plays: stored, and "her own" (empty) is none
+        dialog.getEyesField().setValue("closed");
+        dialog.getExpressionField().setValue("sad");
         AnimationPackDialog reopened = new AnimationPackDialog(packService.find(pack.getId()));
         reopened.create();
         assertThat(names(reopened)).containsExactly("bow", "wave", "wave");
@@ -160,6 +163,12 @@ class AnimationsTest extends PlatformTestBase {
         assertThat(first.inPlace()).isTrue();
         assertThat(first.loop()).isFalse();
         assertThat(reopened.getPack().loops()).isTrue();
+        assertThat(reopened.getPack().getEyes()).isEqualTo("closed");
+        assertThat(reopened.getPack().getExpression()).isEqualTo("sad");
+        assertThat(reopened.getEyesField().getValue()).isEqualTo("closed");
+        reopened.getEyesField().setValue("");
+        assertThat(packService.find(reopened.getPack().getId()).getEyes()).isNull();
+        assertThat(packService.find(reopened.getPack().getId()).getExpression()).isEqualTo("sad");
         assertThat(reopened.getPreview().getBodySelect().getValue()).isEqualTo(body.getId());
         // nothing is chosen in the table: the whole animation plays
         assertThat(reopened.getSteps().getSelectedItems()).isEmpty();

@@ -131,7 +131,22 @@ public class ModelViewer extends Component implements HasSize, HasStyle {
                           double blend) {
     }
 
-    private record JsSequence(List<JsStep> steps, boolean loop) {
+    private record JsFace(String eyes, String expression) {
+    }
+
+    private record JsSequence(List<JsStep> steps, boolean loop, JsFace face) {
+    }
+
+    /** The face the animations played from now on force (null for her own): see {@code setFace} in joi-model-viewer.js. */
+    private JsFace animationFace;
+
+    /**
+     * The face the animations played from now on show: how her eyes are ({@code closed}, {@code half}, {@code wide}) and the
+     * expression ({@code happy}, {@code sad}, {@code angry}, {@code relaxed}, {@code surprised}); null for none. Takes effect with the
+     * next {@link #playSequence}.
+     */
+    public void setAnimationFace(String eyes, String expression) {
+        animationFace = eyes == null && expression == null ? null : new JsFace(eyes, expression);
     }
 
     /** How many "animation-src-N" attributes are set. */
@@ -164,7 +179,7 @@ public class ModelViewer extends Component implements HasSize, HasStyle {
             jsSteps.add(new JsStep(src, step.loop(), step.speed(), step.inPlace(), step.reverse(), step.rotation(), step.blend()));
         }
         animationSources = files.size();
-        getElement().callJsFunction("playSequence", new Gson().toJson(new JsSequence(jsSteps, loop)));
+        getElement().callJsFunction("playSequence", new Gson().toJson(new JsSequence(jsSteps, loop, animationFace)));
     }
 
     /** Lets a looping step end its round and the rest of the animation play once. */

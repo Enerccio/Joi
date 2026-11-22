@@ -55,6 +55,9 @@ public class RendererServer implements AutoCloseable {
     private String modelMessage;
     private String playMessage;
     private long playing;
+    /** How her eyes are and her mood, kept for the pages that open later. */
+    private String eyesMessage;
+    private String moodMessage;
     private boolean playingLoops = true;
     /** What the Looking Glass page renders with, null for none. */
     private volatile String lookingGlass;
@@ -136,6 +139,29 @@ public class RendererServer implements AutoCloseable {
         broadcast(message("speech-stop"));
     }
 
+    /**
+     * How her eyes are as her state says (what she does: asleep, falling asleep, waking up, awake): {@code closed}, or
+     * {@code auto} for open and blinking, reached over that many seconds. An animation's own eyes win over this while it plays.
+     * Sent to the pages open and to those that open later.
+     */
+    public synchronized void eyes(String eyes, double seconds) {
+        JsonObject message = message("eyes");
+        message.addProperty("eyes", eyes);
+        message.addProperty("ease", seconds);
+        eyesMessage = GSON.toJson(message);
+        broadcast(message);
+    }
+
+    /** Her mood (its key, null for none): the page shows it as a soft expression. Sent to the pages open and to those that open later. */
+    public synchronized void mood(String mood) {
+        JsonObject message = message("mood");
+        if (mood != null) {
+            message.addProperty("mood", mood);
+        }
+        moodMessage = GSON.toJson(message);
+        broadcast(message);
+    }
+
     /** The server is gone ({@code true}) or back: the pages freeze her and show her in gray, or let her go on. */
     public synchronized void offline(boolean offline) {
         JsonObject message = message("offline");
@@ -204,6 +230,16 @@ public class RendererServer implements AutoCloseable {
         JsonObject sequence = new JsonObject();
         sequence.add("steps", steps);
         sequence.addProperty("loop", loop);
+        if (found.eyes() != null || found.expression() != null) {
+            JsonObject face = new JsonObject();
+            if (found.eyes() != null) {
+                face.addProperty("eyes", found.eyes());
+            }
+            if (found.expression() != null) {
+                face.addProperty("expression", found.expression());
+            }
+            sequence.add("face", face);
+        }
         JsonArray urls = new JsonArray();
         clips.keySet().forEach(clip -> urls.add("body/clip/" + clip + ".vrma"));
         JsonObject play = message("play");
@@ -267,6 +303,12 @@ public class RendererServer implements AutoCloseable {
             }
             if (offlineMessage != null) {
                 queue.add(offlineMessage);
+            }
+            if (eyesMessage != null) {
+                queue.add(eyesMessage);
+            }
+            if (moodMessage != null) {
+                queue.add(moodMessage);
             }
             if (tuningMessage != null) {
                 queue.add(tuningMessage);

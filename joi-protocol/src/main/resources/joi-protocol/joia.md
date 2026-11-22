@@ -43,6 +43,8 @@ A reader streams the sections, checks each hash, and skips a kind it doesn't kno
       "name": "Jumping jacks",
       "description": "You do jumping jacks.",
       "loop": false,
+      "eyes": "closed",
+      "expression": "sad",
       "steps": [
         {"clip": "<clip uuid>", "loop": false, "speed": 1, "inPlace": true, "reverse": false},
         {"clip": "<clip uuid>", "loop": true, "speed": 1.2, "inPlace": true, "reverse": true,
@@ -76,7 +78,9 @@ A reader streams the sections, checks each hash, and skips a kind it doesn't kno
 Every key may be missing, except a clip's `uuid`: no two clips have the same one. A step names its clip by its uuid;
 a clip is in the file once, however many steps play it. A step with `reverse` plays its clip backwards; `rotation` (a unit quaternion `[x, y, z, w]`, missing for none)
 turns the whole clip around her hips where the step starts; `blend` is the seconds of crossfade from the step before
-(missing or 0: a cut). These belong to the step, not the clip. A clip's `loop`, `inPlace` and `speed` are only what a new step
+(missing or 0: a cut). These belong to the step, not the clip. An animation may also say how her face is while it plays: `eyes` (`closed`, `half` or `wide`) and
+`expression` (`happy`, `sad`, `angry`, `relaxed` or `surprised`); missing for her own (her eyes follow what she does and her mood shows as a soft
+expression). A value a reader does not know is ignored. These belong to the whole animation (older files have none). A clip's `loop`, `inPlace` and `speed` are only what a new step
 of it starts from.
 
 ## Import

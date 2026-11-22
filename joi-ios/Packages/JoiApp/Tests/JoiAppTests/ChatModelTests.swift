@@ -62,7 +62,11 @@ struct FakeHistory: HistorySource {
 @MainActor final class FakePlayer: AnimationPlayer {
     var played: [String] = []
     var offline = false
+    var eyes: [String] = []
+    var moods: [String?] = []
     var onEnded: (@MainActor () -> Void)?
+    func setEyes(_ eyes: String, seconds: Double) { self.eyes.append("\(eyes) \(seconds)") }
+    func setMood(_ mood: String?) { moods.append(mood) }
     func play(_ animation: String?, loop: Bool) { played.append("\(animation ?? "rest")\(loop ? " loop" : "")") }
     func setOffline(_ offline: Bool) { self.offline = offline }
 }
@@ -231,6 +235,8 @@ struct FakeHistory: HistorySource {
         #expect(player.played == ["idle loop", "sleep loop", "wake"])
         #expect(chat.messages.map(\.text) == [""])
         #expect(chat.avatarState == .wakingUp)
+        // her eyes: open while she is idle, shut while she sleeps, opening as she wakes up
+        #expect(player.eyes == ["auto 0.25", "closed 0.4", "auto 1.5"])
         player.onEnded?()
         #expect(chat.messages.map(\.text) == ["I'm awake."])
         #expect(chat.avatarState == .idle)

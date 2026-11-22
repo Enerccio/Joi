@@ -41,7 +41,7 @@ class JoiaFileTest {
         JoiaMetadata.Animation jacks = new JoiaMetadata.Animation("a1", "Jacks", "Jumping jacks", true, List.of(
                 new JoiaMetadata.Step("c1", false, 1, true, false, null, 0),
                 new JoiaMetadata.Step("c2", true, 1.25, true, true, List.of(0.0, 0.7071, 0.0, 0.7071), 0.5),
-                new JoiaMetadata.Step("c1", false, 1, false, false, null, 0)));
+                new JoiaMetadata.Step("c1", false, 1, false, false, null, 0)), "closed", "happy");
         return new JoiaMetadata(List.of(jacks), List.of(clip("c1", "start"), clip("c2", "jump")), "2026-11-19T12:00:00Z");
     }
 
