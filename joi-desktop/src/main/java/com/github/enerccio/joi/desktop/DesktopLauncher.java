@@ -621,12 +621,36 @@ public final class DesktopLauncher {
             throw new IllegalStateException(e);
         }
         Path folder = Path.of(System.getProperty("java.io.tmpdir")).resolve("joi-" + System.getProperty("user.name", "user") + "-" + id);
+        Files.createDirectories(folder);
+        // the temporary directory may be shared (/tmp on Linux) and the name can be guessed: another user could make the folder (or a
+        // link to one of theirs) first and see the socket, so it has to be a real folder of this user
+        if (Files.isSymbolicLink(folder) || !Files.isDirectory(folder, java.nio.file.LinkOption.NOFOLLOW_LINKS)
+                || !ownedByMe(folder)) {
+            throw new IllegalStateException("The folder for the API socket (" + folder + ") is not a folder of this user; remove it"
+                    + " or use --data with a shorter folder");
+        }
         createPrivateDirectory(folder);
         Path fallback = folder.resolve("api.sock");
         if (fallback.toString().getBytes(StandardCharsets.UTF_8).length > MAX_SOCKET_PATH) {
             throw new IllegalStateException("No path for the API socket is short enough (" + fallback + "); use --data with a shorter folder");
         }
         return fallback;
+    }
+
+    /** Whether the folder belongs to the user this runs as (true where the file system has no owners). */
+    static boolean ownedByMe(Path folder) throws IOException {
+        if (!folder.getFileSystem().supportedFileAttributeViews().contains("posix")) {
+            // Windows: the temporary directory is in the user's own profile
+            return true;
+        }
+        try {
+            String owner = Files.getOwner(folder, java.nio.file.LinkOption.NOFOLLOW_LINKS).getName();
+            String me = folder.getFileSystem().getUserPrincipalLookupService()
+                    .lookupPrincipalByName(System.getProperty("user.name")).getName();
+            return owner.equals(me);
+        } catch (UnsupportedOperationException e) {
+            return true;
+        }
     }
 
     /** A folder only its owner may open (where the file system has owners). */

@@ -64,7 +64,7 @@ POMs. The node unpacks Chromium into its home on the first start (`fx/Chromium`)
    `desktop/logs/joi.log`;
 2. finds `server/` next to the launcher jar or above it (`-Djoi.serverDir` overrides), checks the port (`--port`, default 8766; a Joi already answering there with
    `<title>Joi</title>` just opens the browser; another program makes it pick a free port unless the port was given);
-3. picks the socket `<data>/desktop/api.sock` (a path over 100 bytes goes to `<tmp>/joi-<user>-<hash>/api.sock`, in a private folder), refuses to start when a server
+3. picks the socket `<data>/desktop/api.sock` (a path over 100 bytes goes to `<tmp>/joi-<user>-<hash>/api.sock`, in a private folder; a folder of that name that is a link or belongs to another user is refused, since `/tmp` may be shared), refuses to start when a server
    answers on it already (the same data folder), removes a stale file, and sets `joi.api.local-socket`;
 4. writes the Jetty base (`start.d/joi.ini` with the modules `server,http,unixdomain-http,ee11-deploy,ee11-webapp,ee11-annotations,ee11-websocket-jakarta,ee11-jsp`,
    `webapps/ROOT.xml` for the WAR with a persistent work folder) and starts Jetty in its own JVM through `start.jar`'s `Main` by reflection, with `jetty.http.host`,

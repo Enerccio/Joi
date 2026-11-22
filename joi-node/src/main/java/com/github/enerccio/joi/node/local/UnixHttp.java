@@ -331,6 +331,9 @@ public final class UnixHttp {
                 } catch (NumberFormatException e) {
                     throw new IOException("A chunk of the answer has no size: " + size);
                 }
+                if (left < 0) {
+                    throw new IOException("A chunk of the answer has a negative size: " + size);
+                }
                 if (left == 0) {
                     // the trailers end with an empty line
                     String trailer;

@@ -86,7 +86,7 @@ offers `notify` and `offer_to_clipboard`.
 A server address `unix:/path/to/api.sock` (`ServerClient.UNIX`) is the server's local socket (see [The desktop app](desktop.md)). `ServerClient` then talks through
 `UnixHttp` (one connection per request, `Connection: close`, `Content-Length`, chunked or read-to-EOF bodies, streamed downloads to a file, a watchdog for the timeout,
 refusal of line breaks in header values and of anything but a plain path), signs in with `signInLocal()` (`POST /oauth/local` with `client_id` `joi-node-<node id>`; no refresh
-token: `refresh()` signs in again) and `authorization()` mints a new token when the one in hand expired. `NodeSocket.localSocket(Path)` opens the WebSocket with `UnixWebSocket`
+token: `refresh()` signs in again) and `authorization()` mints a new token when the one in hand expired. Every refresh (an OAuth pair or a local token) runs under one lock of the process, and a call that got a 401 refreshes only if no other call did meanwhile: a second refresh would make the first one's token useless (a local token is replaced, a used refresh token ends the pairing). `NodeSocket.localSocket(Path)` opens the WebSocket with `UnixWebSocket`
 (a client of RFC 6455 for `java.net.http.WebSocket`'s listener interface: masked frames, fragments, ping and pong, the close handshake) at `ws://localhost/api/v1/node`, and
 `NodeSocket.authorizer(...)` supplies a fresh `Authorization` header on every reconnect, because the token of the first connection is an hour old by then.
 

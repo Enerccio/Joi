@@ -65,6 +65,12 @@ public class ServerClient {
     /** The prefix of the address of a server on this machine, reached over its Unix domain socket. */
     public static final String UNIX = "unix:";
 
+    /**
+     * Held while credentials are made again (a refresh, a local token), by every client of the process: they share the settings, and
+     * a second refresh at once would make the first one's token useless. Not the settings' own lock, which the UI also takes.
+     */
+    private static final Object REFRESHING = new Object();
+
     /** A call the server refused: its status and its {@link ApiError}. */
     public static class ServerException extends IOException {
         private final int status;
@@ -151,12 +157,34 @@ public class ServerClient {
 
     /** The {@code Authorization} header now, refreshing an expired OAuth access token first; null for none. */
     public String authorization() throws IOException, InterruptedException {
-        NodeSettings.Credentials credentials = settings.credentials();
-        if (credentials.token == null && canRefresh() && (credentials.accessToken == null
-                || System.currentTimeMillis() > credentials.accessExpires - 60_000)) {
-            refresh();
+        // one refresh at a time for all clients of these settings: a second one would make the first one's token useless (a local
+        // token is replaced, a refresh token is used up, and refreshing with a used one ends the pairing)
+        synchronized (REFRESHING) {
+            NodeSettings.Credentials credentials = settings.credentials();
+            if (credentials.token == null && canRefresh() && (credentials.accessToken == null
+                    || System.currentTimeMillis() > credentials.accessExpires - 60_000)) {
+                refresh();
+            }
+            return credentials.authorization();
         }
-        return credentials.authorization();
+    }
+
+    /**
+     * After a 401 to a call made with {@code used}: refreshes, unless another call refreshed meanwhile (the credentials are no longer
+     * {@code used}), and then the call is only made again with the new ones.
+     *
+     * @return whether to make the call again
+     */
+    private boolean refreshAfter(String used) throws IOException, InterruptedException {
+        synchronized (REFRESHING) {
+            if (!canRefresh()) {
+                return false;
+            }
+            if (java.util.Objects.equals(used, settings.credentials().authorization())) {
+                refresh();
+            }
+            return true;
+        }
     }
 
     /**
@@ -197,16 +225,16 @@ public class ServerClient {
     }
 
     private <T> T callJson(String method, String path, Object body, Class<T> type) throws IOException, InterruptedException {
-        Answer response = sendJson(method, path, body);
-        if (response.status() == 401 && canRefresh()) {
-            refresh();
-            response = sendJson(method, path, body);
+        String used = settings.credentials().authorization();
+        Answer response = sendJson(method, path, body, used);
+        if (response.status() == 401 && refreshAfter(used)) {
+            response = sendJson(method, path, body, settings.credentials().authorization());
         }
         return answer(response, type);
     }
 
-    private Answer sendJson(String method, String path, Object body) throws IOException, InterruptedException {
-        return exchange(method, path, body == null ? null : "application/json", settings.credentials().authorization(),
+    private Answer sendJson(String method, String path, Object body, String authorization) throws IOException, InterruptedException {
+        return exchange(method, path, body == null ? null : "application/json", authorization,
                 body == null ? null : GSON.toJson(body).getBytes(StandardCharsets.UTF_8));
     }
 
@@ -241,16 +269,16 @@ public class ServerClient {
     }
 
     private <T> T get(String path, Class<T> type, boolean authorized) throws IOException, InterruptedException {
-        Answer response = send(path, authorized);
-        if (response.status() == 401 && authorized && canRefresh()) {
-            refresh();
-            response = send(path, true);
+        String used = authorized ? settings.credentials().authorization() : null;
+        Answer response = send(path, used);
+        if (response.status() == 401 && authorized && refreshAfter(used)) {
+            response = send(path, settings.credentials().authorization());
         }
         return answer(response, type);
     }
 
-    private Answer send(String path, boolean authorized) throws IOException, InterruptedException {
-        return exchange("GET", path, null, authorized ? settings.credentials().authorization() : null, null);
+    private Answer send(String path, String authorization) throws IOException, InterruptedException {
+        return exchange("GET", path, null, authorization, null);
     }
 
     private static <T> T answer(Answer response, Class<T> type) throws ServerException {
@@ -389,18 +417,21 @@ public class ServerClient {
         if (unix == null) {
             throw new IllegalStateException("The server is not on this machine: " + server);
         }
-        NodeSettings.Node node = settings.node();
-        Answer response = post(JoiProtocol.LOCAL, Map.of("client_id", CLIENT_ID + "-" + node.nodeId, "client_name", "Joi node " + node.name));
-        if (response.status() != 200) {
-            throw oauthError(response);
+        // with the refreshes: a new local token replaces the one another call is using
+        synchronized (REFRESHING) {
+            NodeSettings.Node node = settings.node();
+            Answer response = post(JoiProtocol.LOCAL, Map.of("client_id", CLIENT_ID + "-" + node.nodeId, "client_name", "Joi node " + node.name));
+            if (response.status() != 200) {
+                throw oauthError(response);
+            }
+            LocalToken token = GSON.fromJson(response.body(), LocalToken.class);
+            NodeSettings.Credentials credentials = settings.credentials();
+            credentials.token = null;
+            credentials.accessToken = token.accessToken();
+            credentials.refreshToken = null;
+            credentials.accessExpires = System.currentTimeMillis() + token.expiresIn() * 1000;
+            settings.saveCredentials();
         }
-        LocalToken token = GSON.fromJson(response.body(), LocalToken.class);
-        NodeSettings.Credentials credentials = settings.credentials();
-        credentials.token = null;
-        credentials.accessToken = token.accessToken();
-        credentials.refreshToken = null;
-        credentials.accessExpires = System.currentTimeMillis() + token.expiresIn() * 1000;
-        settings.saveCredentials();
     }
 
     private void refresh() throws IOException, InterruptedException {

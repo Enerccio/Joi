@@ -39,7 +39,8 @@ public class ApiConfiguration {
     /**
      * The Unix domain socket the server also listens on (the desktop app opens it in the data folder), null for none. A call that
      * arrives on it ({@link #isLocalSocket}) is from the server's own machine: it may fetch a token with no key and no login
-     * ({@code POST /oauth/local}). The web UI is not served there, and no one reaches it from a web page.
+     * ({@code POST /oauth/local}). Jetty serves the whole web application on it, the web UI too, but only the user who may open the
+     * socket's folder reaches it, and no web page can.
      */
     public Path getLocalSocket() {
         return localSocket;
