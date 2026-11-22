@@ -159,8 +159,8 @@ class AvatarPane extends BorderPane {
     }
 
     /** The piece plays now. */
-    void speechStarted(long number) {
-        renderer.speechStarted(number);
+    void speechStarted(long number, long at) {
+        renderer.speechStarted(number, at);
     }
 
     /** Her speech is over or stopped. */

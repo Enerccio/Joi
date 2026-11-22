@@ -172,7 +172,7 @@ class RendererServerTest {
         BlockingQueue<JsonObject> open = events();
         Thread.sleep(300);
         server.speech(3, "UklGRg==");
-        server.speechStarted(3);
+        server.speechStarted(3, 1_700_000_000_123L);
         server.speechStopped();
         JsonObject piece = open.poll(5, TimeUnit.SECONDS);
         assertThat(piece.get("type").getAsString()).isEqualTo("speech");
@@ -181,6 +181,8 @@ class RendererServerTest {
         JsonObject started = open.poll(5, TimeUnit.SECONDS);
         assertThat(started.get("type").getAsString()).isEqualTo("speech-start");
         assertThat(started.get("index").getAsLong()).isEqualTo(3);
+        // when the sound began, so that a page that reads this late still puts her mouth on the sound
+        assertThat(started.get("at").getAsLong()).isEqualTo(1_700_000_000_123L);
         assertThat(open.poll(5, TimeUnit.SECONDS).get("type").getAsString()).isEqualTo("speech-stop");
 
         // her voice is not kept for a page that opens later

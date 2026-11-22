@@ -334,9 +334,10 @@ export async function analyzeFile(bytes) {
  * player that takes a moment to start): the mouth is that much late too.
  */
 export class MouthPlayer {
-  constructor(delay = 0.06, clock = () => performance.now() / 1000) {
+  constructor(delay = 0.06, clock = () => performance.now() / 1000, wall = () => Date.now() / 1000) {
     this.delay = delay;
     this._clock = clock;
+    this._wall = wall;
     this._tracks = new Map();
     this._current = null;
     this._began = 0;
@@ -351,15 +352,26 @@ export class MouthPlayer {
     }
   }
 
-  /** The audio of the piece plays now. A piece whose track is not ready yet starts when it is. */
-  start(index) {
+  /**
+   * The audio of the piece plays now. A piece whose track is not ready yet starts when it is. `at` is when the sound began, as wall-clock
+   * milliseconds (the node's own clock, the same machine): a page busy drawing or reading another piece gets to this call late, and the
+   * mouth must not be late with it. Without `at`, or when it is not credible (more than 3 s from now: another machine's clock), now counts.
+   */
+  start(index, at) {
     this._starting = index;
     for (const key of [...this._tracks.keys()]) {
       if (key < index) {
         this._tracks.delete(key);
       }
     }
-    this._began = this._clock() + this.delay;
+    let ahead = 0;
+    if (typeof at === 'number' && Number.isFinite(at)) {
+      const offset = at / 1000 - this._wall();
+      if (Math.abs(offset) <= 3) {
+        ahead = offset;
+      }
+    }
+    this._began = this._clock() + ahead + this.delay;
     this._current = this._tracks.get(index) || null;
   }
 

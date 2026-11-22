@@ -14,7 +14,6 @@ import java.util.ArrayDeque;
 import java.util.Base64;
 import java.util.Queue;
 import java.util.function.BiConsumer;
-import java.util.function.LongConsumer;
 
 /**
  * Her speech: the pieces of a reply played one after another as they come, each a whole file (written to a temp file
@@ -37,6 +36,11 @@ class SpeechPlayer {
     private long numbers;
     private static final boolean MAC = System.getProperty("os.name", "").toLowerCase().contains("mac");
 
+    /** Wav pieces: one output line that stays open, so a piece starts at once (see {@link LineOutput}). */
+    private final LineOutput lines = new LineOutput();
+    /** Raised when her speech is stopped: what the line reports after that is not of this speech. */
+    private long token;
+
     private MediaPlayer playing;
     /** The {@code afplay} that plays now (macOS). */
     private Process process;
@@ -46,7 +50,7 @@ class SpeechPlayer {
     };
     private BiConsumer<Long, AudioChunk> onQueued = (number, chunk) -> {
     };
-    private LongConsumer onStarted = number -> {
+    private BiConsumer<Long, Long> onStarted = (number, at) -> {
     };
     private Runnable onStopped = () -> {
     };
@@ -56,8 +60,8 @@ class SpeechPlayer {
         this.onQueued = onQueued;
     }
 
-    /** The piece of that number plays now. */
-    void setOnStarted(LongConsumer onStarted) {
+    /** The piece of that number plays now: its number and the wall-clock time (epoch milliseconds) its sound begins at. */
+    void setOnStarted(BiConsumer<Long, Long> onStarted) {
         this.onStarted = onStarted;
     }
 
@@ -93,6 +97,8 @@ class SpeechPlayer {
     /** Stops her speech (she was talked over). */
     void stop() {
         queue.clear();
+        token++;
+        lines.cancel();
         onStopped.run();
         busy = false;
         if (process != null) {
@@ -131,9 +137,43 @@ class SpeechPlayer {
             onEnded.run();
             return;
         }
-        Path file = piece.file();
         busy = true;
-        onStarted.accept(piece.number());
+        LineOutput.Piece pcm = LineOutput.open(piece.file());
+        if (pcm != null) {
+            nextOnLine(piece, pcm);
+            return;
+        }
+        nextWithPlayer(piece);
+    }
+
+    /** A wav piece through the open line: the mouth starts when the line runs, just before the sound. */
+    private void nextOnLine(Piece piece, LineOutput.Piece pcm) {
+        long mine = token;
+        lines.play(pcm,
+                // the time is taken on the line's thread: the JavaFX thread may be busy drawing when this runs
+                at -> Platform.runLater(() -> {
+                    if (mine == token) {
+                        onStarted.accept(piece.number(), at);
+                    }
+                }),
+                () -> Platform.runLater(() -> {
+                    if (mine == token) {
+                        deleteQuietly(piece.file());
+                        next();
+                    }
+                }),
+                () -> Platform.runLater(() -> {
+                    // no line (no output device, a broken one): the piece is played the old way
+                    if (mine == token) {
+                        nextWithPlayer(piece);
+                    }
+                }));
+    }
+
+    /** Any other piece (an mp3, or no line to be had): the system's player or JavaFX's, started for it. */
+    private void nextWithPlayer(Piece piece) {
+        Path file = piece.file();
+        onStarted.accept(piece.number(), System.currentTimeMillis());
         if (MAC) {
             nextWithProcess(file);
             return;

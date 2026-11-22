@@ -129,8 +129,17 @@ public class RendererServer implements AutoCloseable {
 
     /** The piece of that number plays now: her mouth moves from here on. */
     public void speechStarted(long number) {
+        speechStarted(number, System.currentTimeMillis());
+    }
+
+    /**
+     * The piece of that number plays from {@code at} (wall-clock time, epoch milliseconds): the page puts her mouth on it and not on the
+     * moment it reads the message, which a page busy drawing (the Looking Glass's many views) or reading another piece gets to late.
+     */
+    public void speechStarted(long number, long at) {
         JsonObject message = message("speech-start");
         message.addProperty("index", number);
+        message.addProperty("at", at);
         broadcast(message);
     }
 

@@ -7,7 +7,7 @@
 // {type: "toggles", toggles: [{mesh, key, hides, shown}]} shows and hides the parts of her model (set again once it loads).
 // In the iOS app (WKWebView) there is no node server: the app calls window.joiReceive(message) with the same messages and takes
 // what the page says through webkit.messageHandlers.joi ({type: "ready"} when it is loaded, {type: "loaded"} when her model is there, then "ended" and "error" as below).
-// {type: "speech", index, data} (a piece of her voice, a wav or mp3 file in Base64: read for her mouth), {type: "speech-start", index}
+// {type: "speech", index, data} (a piece of her voice, a wav or mp3 file in Base64: read for her mouth), {type: "speech-start", index, at} (at: the wall-clock time in ms the sound begins at)
 // (that piece plays now, by the node's own player) and {type: "speech-stop"} (her speech ended or was stopped): her mouth follows her voice (joi-lipsync.js).
 // {type: "eyes", eyes: "auto"|"closed", ease} (her state's eyes, reached over `ease` seconds) and {type: "mood", mood, expression, weight, eyes}
 // (her mood as the server's mood frame says it: the expression it shows and the eyes it gives her; just {type: "mood"} for none): her face layer (the viewer's setFace); an animation's own face comes in its sequence ({face: {eyes, expression}}).
@@ -140,7 +140,11 @@ function receive(message) {
       speech(message);
       break;
     case 'speech-start':
-      mouth.start(message.index);
+      // how late the page got to the message (a page busy drawing gets to it late; the mouth goes by `at`, so it does not matter)
+      if (typeof message.at === 'number') {
+        console.log('joi renderer: speech-start ' + message.index + ' read ' + (Date.now() - message.at) + ' ms after its sound began');
+      }
+      mouth.start(message.index, message.at);
       break;
     case 'speech-stop':
       mouth.stop();

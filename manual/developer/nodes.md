@@ -106,9 +106,9 @@ The server can call a node's tool itself, not only through her function `<node>_
 ## Her mouth
 
 The mouth is read from the sound, in the renderer page, so the Java node and the iOS app share one implementation and the speech servers need to tell nothing (none of
-them gives phoneme timings). The player of the node plays the audio itself (on macOS `afplay` in a process of its own, so the page cannot tap it); the page gets three
+them gives phoneme timings). The player of the node plays the audio itself, so the page cannot tap it: a wav piece through one Java Sound line that stays open between pieces (`LineOutput`: starting an output device takes from a few hundred milliseconds to seconds, so a player started for each piece made the mouth lead the voice; here `speech-start` is sent when the line runs, just before the first sound is written, and the line closes after 20 s of silence), any other piece (an mp3, or a wav the JDK does not read, or no line to be had) on macOS by `afplay` in a process of its own and elsewhere by JavaFX's player, where `speech-start` is sent as the player is started and the mouth is late by `delay`; the page gets three
 messages, all of them transient (not sent again to a page that opens later): `speech` (`index`, `data`: a piece, wav or mp3, in Base64, before it plays), `speech-start`
-(`index`: that piece plays now) and `speech-stop` (her speech is over or was stopped). The node numbers the pieces itself (`SpeechPlayer`: the numbers of the server's
+(`index`, `at`: that piece plays now, and the wall-clock time in milliseconds its sound began at, taken by the player; the page is the same machine's, and a page busy drawing (the Looking Glass's many views) or reading another piece gets to the message late, so the mouth's clock is set from `at` and not from the moment it reads it; ignored when it is more than 3 s from the page's clock) and `speech-stop` (her speech is over or was stopped). The node numbers the pieces itself (`SpeechPlayer`: the numbers of the server's
 `audio.index` start again at 0 in each turn); `AvatarPane` hands the three calls to `RendererServer.speech`, `speechStarted` and `speechStopped`.
 
 `joi-server/src/main/frontend/joi-lipsync.js` (copied into the renderer page's `generated/` by `copy-viewer.mjs`, like the viewer) reads a piece: the file is decoded with Web
