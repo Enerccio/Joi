@@ -5,7 +5,7 @@ order: 690
 covers:
   - joi-server/src/test
   - joi-node/src/test
-verified: 714077a
+verified: 3701cea
 ---
 
 # Testing
@@ -39,7 +39,7 @@ registered on the turn must be unregistered after the test: the chat service is 
 | `api` | the HTTP API (`JoiApiTest`, `BodyApiTest`), every answer checked against the schemas; the pairing offers are in `JoiApiTest` |
 | `ui/access` | `PairPhoneDialogTest`: the link of the QR code, the check that approves the device of the offer |
 | `domain` | services, the turn, the web tools (against fake servers: `FakeWeb`), events, conversion (`ModelConversionTest` and `AnimationConversionTest` need Blender) |
-| `domain/node` | `NodeServiceTest` drives the node WebSocket through a fake transport, checking every frame against the schemas |
+| `domain/node` | `NodeServiceTest` drives the node WebSocket through a fake transport, checking every frame against the schemas (also the `mood` frame after the manifest, a mood change by the user and `set_mood`) |
 | `ui/jobs` | `AssistantsRunsTest`: what the assistants do now (the second list of `/jobs`); the job log is checked in `ChatTurnTest` and `SummarizerTest` with `Jobs.addSink` (never `Jobs.reset()`) |
 | `domain/workspace` | `TaskWorkspaceTest`: names, limits, expiry; the task writing a file is in `WebTasksTest`, the clipboard offer through a fake node in `NodeServiceTest` |
 | `domain/extensions` | `JoiExtensionsTest`: an extension of Joi (a proxy) through the loader; no OSGi framework in tests (profile `test`) |

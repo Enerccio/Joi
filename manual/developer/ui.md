@@ -5,7 +5,7 @@ order: 700
 covers:
   - joi-server/src/main/java/com/github/enerccio/joi/ui
   - joi-server/src/main/java/com/github/enerccio/joi/loc
-verified: 714077a
+verified: 3701cea
 ---
 
 # The UI
@@ -23,9 +23,9 @@ After the login `ui/workspace/JoiWorkspace` shows tabs of `WorkspacePart`s, with
 The assistant's dialog is `ui/dialogs/JoiDialog`, with a `JoiDialogPart` for each tab: `JoiAboutPart`, `JoiBodiesPart`,
 `JoiAnimationsPart`, `JoiTemplatesPart`, `JoiMemoriesPart`, `JoiChatsPart` (with the Summarize button), `JoiSummariesPart` and `JoiTasksPart`. A part stores
 its change with `JoiDialog.save(change)` (or `saveAbout(before, change)`), which applies it to her as stored now: her turns save her
-mood while the dialog is open. The settings of the
+mood while the dialog is open. The About tab's Today's mood box is no part of the persona: it calls `ChatService.changeMood(joi, key, true)`. The settings of the
 summaries are one widget, `ui/widgets/SummaryFields`, shared by the assistant's About tab and the user's settings (the chain assistant → user → default). Other dialogs: `ModelDialog`, `BodyDialog`,
-`OutfitDialog`, `AnimationDialog`, `AnimationPackDialog`, `TtsModelDialog`, `JoiAIDialog`, `PersonalityDialog`, `MoodDialog`.
+`OutfitDialog`, `AnimationDialog`, `AnimationPackDialog`, `TtsModelDialog`, `JoiAIDialog`, `PersonalityDialog`, `MoodDialog` (with the mood's face: expression, strength and eyes).
 Panels: `ui/bodies` (`AppearancePanel`, `SpringBonesPanel`, `ToggleGroupsPanel`, `ModelViewer`, `ClipPreview`), `ui/tools`, `ui/access` (its list shows a `LOCAL` token as "This computer"; *Pair a phone* is `PairPhoneDialog`: a QR code (ZXing, a data-URI PNG) of `joi://pair?server=...&offer=...`, the server address editable because a phone cannot reach `localhost`, and a poll of the UI every 1.5 s that approves the device that came with the offer, as the user of the screen: `DeviceAuthorizationService.waitingForOffer` and `approve`).
 
 ## Rules
