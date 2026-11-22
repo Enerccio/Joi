@@ -77,7 +77,7 @@
   </build>
 
   <profiles>
-    <!-- The JavaFX app with Chromium: mvn -o -Pfx compile exec:exec@run -pl joi-node (OpenJFX 25 and JCEF are in ~/.m2) -->
+    <!-- The JavaFX app with Chromium: mvn -Pfx compile exec:exec@run -pl joi-node (OpenJFX 25 and JCEF come from Maven) -->
     <profile>
       <id>fx</id>
       <properties>
@@ -111,13 +111,13 @@
       </dependencies>
       <build>
         <plugins>
-          <!-- the renderer page: npm from its cache (offline; the property npm.mode allows the network), then Vite, before the resources are copied -->
+          <!-- the renderer page: npm (its cache first, the network for what is missing; the property npm.mode changes that), then Vite, before the resources are copied -->
           <plugin>
             <groupId>org.codehaus.mojo</groupId>
             <artifactId>exec-maven-plugin</artifactId>
             <version>3.5.0</version>
             <executions>
-              <!-- runs the app: mvn -o -Pfx compile exec:exec@run -pl joi-node (-Dnode.args=preview for RendererPreviewApp).
+              <!-- runs the app: mvn -Pfx compile exec:exec@run -pl joi-node (-Dnode.args=preview for RendererPreviewApp).
                  Not javafx:run: that plugin leaves JCEF's natives, JOGL and gluegen off the class path -->
               <execution>
                 <id>run</id>

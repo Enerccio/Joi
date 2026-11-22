@@ -33,10 +33,10 @@ mvn test -pl joi-server -Dtest=JoiContextTest                 # joi-server's tes
 mvn jetty:run -pl joi-server                                  # dev mode on http://localhost:8080, data in ~/.joi (JOI_DATA)
 mvn package -pl joi-server -Pproduction                       # the WAR with the production frontend bundle
 mvn test -pl joi-node                                         # the node's core and its terminal client (JoiNodeCli)
-mvn -o -Pfx compile exec:exec@run -pl joi-node               # the JavaFX node (OpenJFX 25 and JCEF are in ~/.m2)
-mvn -o -Pfx compile exec:exec@run -pl joi-node -Dnode.args=preview   # her cached body in Chromium, no server
-mvn -o -B -DskipTests -Pfx,production,desktop package -pl joi-desktop -am   # the desktop app (server + node, jlink + jpackage) in joi-desktop/target/desktop
-mvn -o -Pswift,ios verify -pl joi-ios -am                     # the iOS app: renderer page (npm, offline), Swift packages' tests, xcodegen, xcodebuild for the Simulator (Xcode, XcodeGen)
+mvn -Pfx compile exec:exec@run -pl joi-node               # the JavaFX node (OpenJFX 25 and JCEF come from Maven)
+mvn -Pfx compile exec:exec@run -pl joi-node -Dnode.args=preview   # her cached body in Chromium, no server
+mvn -B -DskipTests -Pfx,production,desktop package -pl joi-desktop -am   # the desktop app (server + node, jlink + jpackage) in joi-desktop/target/desktop
+mvn -Pswift,ios verify -pl joi-ios -am                     # the iOS app: renderer page (npm), Swift packages' tests, xcodegen, xcodebuild for the Simulator (Xcode, XcodeGen)
 tools/retype_build.sh                                         # the manual into docs/ (needs `retype`)
 screenshots/bin/shoot-all.sh                                  # retake the pictures of the manual (screenshots/SCREENSHOTS.md)
 ```
@@ -77,8 +77,8 @@ with the code.
   change together.
 - `joi-ios/` — the iOS app (`DESIGN.md` → The iOS app), in the reactor only with the root POM's profile `ios`: Swift packages in `Packages/` (`JoiProtocol`: the protocol **generated
   from the JSON Schemas** by `SwiftGenerator` in `joi-protocol/src/test`, checked in, kept current by `SwiftGeneratorTest`: after a schema change run
-  `mvn -o -Pswift process-test-classes -pl joi-protocol`; `JoiClient`: the HTTP API, the pairing, the node WebSocket and the `.joim` / `.joia` readers; `JoiApp`: the models, her body (`Body/`: the node's renderer page in a `WKWebView`, `AvatarDirector`) and the SwiftUI views) and a thin Xcode
-  project written by XcodeGen from `project.yml` (`.xcodeproj` and `App/Renderer`, the renderer page Maven builds into the app, are not in Git). `mvn -o -Pswift,ios verify -pl joi-ios -am` does all of it (needs Xcode and `brew install xcodegen`);
+  `mvn -Pswift process-test-classes -pl joi-protocol`; `JoiClient`: the HTTP API, the pairing, the node WebSocket and the `.joim` / `.joia` readers; `JoiApp`: the models, her body (`Body/`: the node's renderer page in a `WKWebView`, `AvatarDirector`) and the SwiftUI views) and a thin Xcode
+  project written by XcodeGen from `project.yml` (`.xcodeproj` and `App/Renderer`, the renderer page Maven builds into the app, are not in Git). `mvn -Pswift,ios verify -pl joi-ios -am` does all of it (needs Xcode and `brew install xcodegen`);
   `swift test` runs a package alone. See `manual/developer/ios-app.md`.
 - `joi-extensions/` — the extensions that come with Joi (OSGi bundles: the model providers `anthropic`, `google-genai`, `grok`, built against the platform only), loaded from the
   extensions folder of the data folder (Administration → Extensions); the API of Joi's own extensions is `joi-server/.../extensions` (`JoiExtension`).
@@ -123,7 +123,7 @@ with the code.
   (the node in a terminal), `renderer/` (her body's files unpacked, `BodyFiles`; the renderer page served on localhost and
   driven by server-sent events, `RendererServer`; `RendererPreview` shows cached files without a server). The page is
   `src/main/renderer` (Vite; the server's `joi-model-viewer.js` copied in at build time), built by the `fx` profile
-  (`npm install --offline`, the packages are in the npm cache). The JavaFX app is `node/fx`, compiled only with `-Pfx`
+  (`npm install --prefer-offline`: the npm cache first, the network for what is missing). The JavaFX app is `node/fx`, compiled only with `-Pfx`
   (OpenJFX 25, mac-aarch64, is in `~/.m2`). Her body is shown in the pane by Chromium (JCEF 152, `jcefmaven` with the
   macOS arm64 natives jar, unpacked into `~/.joi-client/jcef` on the first start, never downloaded at run time):
   `fx/Chromium` starts it, `org/cef/browser/JoiOsrBrowser` renders off screen into `fx/ChromiumPane`; on the Looking
@@ -160,7 +160,8 @@ Don't add adult content from avatar packages to anything (the converter drops it
 - **Disk:** the internal disk is nearly full. Big files (avatars, builds, Unity projects, caches) go to
   `/Volumes/Annex` (an APFS sparsebundle on a USB NVMe, mounted by a LaunchAgent; may be absent: check before use).
   Don't copy large files into the scratchpad.
-- **Downloads** (packages, models, plugins) need the user's approval first; say the name, source and size.
+- **Downloads of big things** (avatars, models, Unity and Looking Glass packages, anything over about 100 MB) need the user's approval first; say the name, source and size.
+  Ordinary build dependencies (Maven, npm) download as the build needs them.
 - **Looking Glass Go:** Bridge crashes at start when the Go is already connected (hidapi on macOS 26): start Bridge
   first, then plug in the display. The Bridge REST API is on `localhost:33334`.
 - **Unity:** use `2022.3.62f3` (the `76f1` install is broken). Batchmode (`Unity -batchmode -quit -projectPath ...`)
@@ -168,8 +169,7 @@ Don't add adult content from avatar packages to anything (the converter drops it
   The test project is `/Volumes/Annex/unity/JoiLKG`; its setup script is `Assets/Joi/Editor/JoiSetup.cs`
   (`-executeMethod JoiSetup.All`). Looking Glass Unity plugin 3.2.8 (built-in pipeline; 4.x needs Unity 6 + URP).
 - **JDK:** `mvn` on the PATH runs on Homebrew's JDK 24, which can't compile for 25. Set
-  `JAVA_HOME=~/Library/Java/JavaVirtualMachines/corretto-26.0.2.1/Contents/Home` for Maven. Build with `-o` (offline)
-  when the dependencies are already in `~/.m2`, so nothing is downloaded without asking.
+  `JAVA_HOME=~/Library/Java/JavaVirtualMachines/corretto-26.0.2.1/Contents/Home` for Maven.
 - Run one heavy thing at a time (a Unity build, Blender, a Maven build): the machine also runs the user's IDE.
 
 ## Models

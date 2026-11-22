@@ -64,8 +64,8 @@
   </build>
   <profiles>
     <!-- The iOS app's protocol: the Swift package written from the schemas, and its tests (see DESIGN.md, the iOS app).
-         mvn -o -Pswift test -pl joi-protocol          generates, runs the Java tests, then `swift test`
-         mvn -o -Pswift process-test-classes -pl joi-protocol    generates only
+         mvn -Pswift test -pl joi-protocol          generates, runs the Java tests, then `swift test`
+         mvn -Pswift process-test-classes -pl joi-protocol    generates only
          Not in the normal build: that must not write into the source tree. SwiftGeneratorTest fails when the files in Git are stale. -->
     <profile>
       <id>swift</id>

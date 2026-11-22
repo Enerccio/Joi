@@ -106,14 +106,14 @@ allows local networking, other `http` addresses need a change in `project.yml`).
 
 ## Building with Maven
 
-`mvn -o -Pswift,ios verify -pl joi-ios -am` (the profile `ios` of the root POM adds `joi-ios`; `swift` writes and tests the protocol package): the protocol
-package, the renderer page (`npm install`, `npm run build` in `joi-node/src/main/renderer`, offline as the node's build, then `rsync` into `joi-ios/App/Renderer`), `xcodegen`, `swift test` of `JoiClient` and `JoiApp`, then `xcodebuild` for the Simulator into `joi-ios/target/DerivedData`. A device archive is only made
+`mvn -Pswift,ios verify -pl joi-ios -am` (the profile `ios` of the root POM adds `joi-ios`; `swift` writes and tests the protocol package): the protocol
+package, the renderer page (`npm install`, `npm run build` in `joi-node/src/main/renderer`, as the node's build, then `rsync` into `joi-ios/App/Renderer`), `xcodegen`, `swift test` of `JoiClient` and `JoiApp`, then `xcodebuild` for the Simulator into `joi-ios/target/DerivedData`. A device archive is only made
 with `-Dios.skipArchive=false -Dios.team=<team id>`; the version is `-Dios.marketingVersion=x.y.z -Dios.buildNumber=n`. Needs Xcode and XcodeGen (macOS only). The `.ipa`
 and TestFlight are not done.
 
 ## Tests
 
-`swift test` in each package (or `mvn -o -Pswift test -pl joi-protocol` for the protocol one). `JoiClientTests` has `FakeHTTP` (answers by a closure and records the calls) and
+`swift test` in each package (or `mvn -Pswift test -pl joi-protocol` for the protocol one). `JoiClientTests` has `FakeHTTP` (answers by a closure and records the calls) and
 `FakeServer` / `FakeChannel` (a scripted server that welcomes a hello by itself) in the tests' folder; the timings are short through `NodeConnection.Options`.
 The tests of the refresh (four calls together make one), the heartbeat and the new tries check that those rules hold. `JoiAppTests` have a fake link, history and speech
 for `ChatModel`.

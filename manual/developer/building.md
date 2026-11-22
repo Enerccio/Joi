@@ -23,7 +23,7 @@ verified: b34ee9c
 # Building
 
 JDK 25 or newer and Maven 3.9. Clone with `git clone --recurse-submodules` (or `git submodule update --init`). Where `mvn` runs on an older
-JDK, set `JAVA_HOME` to a 25+ one. Build offline (`-o`) when the dependencies are in `~/.m2`.
+JDK, set `JAVA_HOME` to a 25+ one. Maven downloads the dependencies on the first build; `-o` (offline) works once they are in `~/.m2`.
 
 ## The reactor
 
@@ -74,7 +74,7 @@ docker compose up -d --build
 `extensions` stage, the platform comes from the server's build):
 
 ```bash
-mvn -o package -pl joi-extensions/anthropic,joi-extensions/google-genai,joi-extensions/grok   # target/<name>-<version>.jar
+mvn package -pl joi-extensions/anthropic,joi-extensions/google-genai,joi-extensions/grok   # target/<name>-<version>.jar
 docker compose -f joi-extensions/docker-compose.yml build
 docker compose -f joi-extensions/docker-compose.yml run --rm extensions                       # the JARs in joi-extensions/build
 ```
@@ -108,9 +108,9 @@ the actions and the Docker base images. `test.yml` and `server.yml` do not build
 The JavaFX node is behind the `fx` profile (OpenJFX 25, the embedded Chromium from `jcefmaven`, and the renderer page built by Vite):
 
 ```bash
-mvn -o -Pfx compile exec:exec@run -pl joi-node                           # the JavaFX node
-mvn -o -Pfx compile exec:exec@run -pl joi-node -Dnode.args=preview       # her cached body in Chromium, with no server
-mvn -o -Pfx compile exec:exec@run -pl joi-node -Dnode.args="--joi-home-dir ~/.joi-dev"   # a node with a home of its own (or JOI_HOME_DIR)
+mvn -Pfx compile exec:exec@run -pl joi-node                           # the JavaFX node
+mvn -Pfx compile exec:exec@run -pl joi-node -Dnode.args=preview       # her cached body in Chromium, with no server
+mvn -Pfx compile exec:exec@run -pl joi-node -Dnode.args="--joi-home-dir ~/.joi-dev"   # a node with a home of its own (or JOI_HOME_DIR)
 ```
 
 Run it with `exec:exec@run` (`fx/Launcher`), not `javafx:run`, which leaves the Chromium jars off the class path. The renderer page is
@@ -119,7 +119,7 @@ Run it with `exec:exec@run` (`fx/Launcher`), not `javafx:run`, which leaves the 
 ## The desktop app
 
 `mvn -Pfx,production,desktop package -pl joi-desktop -am` builds the server and the node into one installation, with a tray icon and a socket for the node: see
-[The desktop app](desktop.md). The `fx` profile's npm step is offline by default (`npm.mode`), the natives of Chromium follow the machine (`jcef.platform`).
+[The desktop app](desktop.md). The `fx` profile's npm step uses npm's cache first and the network for what is missing (`npm.mode`, default `--prefer-offline`; `--offline` there stops it from downloading, which fails with `ENOTCACHED` on a machine whose cache is empty), the natives of Chromium follow the machine (`jcef.platform`).
 
 ## Schema changes
 
@@ -131,13 +131,13 @@ columns and sets the checksum; `--dry-run` only reports).
 
 ## The iOS app
 
-`mvn -o -Pswift,ios verify -pl joi-ios -am` builds the app for the Simulator (Xcode and XcodeGen, macOS only; the profile `ios` adds the module, `swift` writes the
-protocol's Swift package); it also builds the node's renderer page with npm (offline, like the node) into `joi-ios/App/Renderer`. The Simulator build is signed ad hoc (the Keychain needs a signature's entitlements). See [The iOS app](ios-app.md#building-with-maven).
+`mvn -Pswift,ios verify -pl joi-ios -am` builds the app for the Simulator (Xcode and XcodeGen, macOS only; the profile `ios` adds the module, `swift` writes the
+protocol's Swift package); it also builds the node's renderer page with npm (like the node) into `joi-ios/App/Renderer`. The Simulator build is signed ad hoc (the Keychain needs a signature's entitlements). See [The iOS app](ios-app.md#building-with-maven).
 
 ## The protocol in Swift
 
 A change of a JSON Schema (or of `asyncapi.yaml`) also changes the generated Swift package of the iOS app, which is in Git: run
-`mvn -o -Pswift process-test-classes -pl joi-protocol` and commit what it writes, else `SwiftGeneratorTest` fails. See
+`mvn -Pswift process-test-classes -pl joi-protocol` and commit what it writes, else `SwiftGeneratorTest` fails. See
 [The protocol](protocol.md#the-swift-package).
 
 ## Blender and ffmpeg

@@ -8,7 +8,7 @@
     The iOS app of Joi, built by Maven the way the desktop app is: the Swift code is not Java, so this module only calls the tools. Part of
     the build only with the root POM's profile `ios`, and with `swift` for the protocol's Swift package (written by joi-protocol):
 
-      mvn -o -Pswift,ios verify -pl joi-ios -am
+      mvn -Pswift,ios verify -pl joi-ios -am
 
     needs Xcode (macOS only) and XcodeGen (`brew install xcodegen`). What it does, in the order of the lifecycle:
       joi-protocol (-Pswift)   the Swift protocol package from the schemas, its tests (`swift test`)
@@ -57,8 +57,8 @@
           <workingDirectory>${project.basedir}</workingDirectory>
         </configuration>
         <executions>
-          <!-- her body in the app is the node's renderer page (three.js and three-vrm in a web view): built from its npm cache, offline
-               (the property npm.mode allows the network), and copied into the app's folder Renderer, which the Xcode project holds as resources -->
+          <!-- her body in the app is the node's renderer page (three.js and three-vrm in a web view): built with npm
+               (its cache first, the network for what is missing: the property npm.mode), and copied into the app's folder Renderer, which the Xcode project holds as resources -->
           <execution>
             <id>renderer-install</id>
             <phase>generate-resources</phase>

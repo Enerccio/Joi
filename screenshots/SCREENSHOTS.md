@@ -28,9 +28,9 @@ screenshots/
 
 ## Requirements
 
-* the server builds and runs from this checkout: `bin/start-app.sh` runs `mvn -o -pl joi-server jetty:run` (JDK 25+, set in
+* the server builds and runs from this checkout: `bin/start-app.sh` runs `mvn -pl joi-server jetty:run` (JDK 25+, set in
   `bin/env.sh`; the first start builds the frontend and takes minutes). Build `joi-protocol` first when it changed
-  (`mvn -o -q install -DskipTests -pl joi-protocol`);
+  (`mvn -q install -DskipTests -pl joi-protocol`);
 * Node.js 20+ (`npm install` in this folder, once), Google Chrome (`/Applications` on a Mac);
 * for the node: the `fx` profile builds (OpenJFX and JCEF are in `~/.m2`), and a screen: **OpenJFX has no headless mode**, the
   window of the node opens while a node flow runs. Do not use the machine's mouse and keyboard meanwhile; the harness does not

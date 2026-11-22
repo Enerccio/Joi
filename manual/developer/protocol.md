@@ -89,7 +89,7 @@ The iOS app (planned, see `DESIGN.md` → *The iOS app*) does not copy the proto
   of the files that import it (the Command Line Tools lack its cross-import module).
 - **The generated files are in Git**, because an Xcode build does not run Maven. `SwiftGeneratorTest` generates in memory and fails, with the command to
   run, when a file differs or is left over; it skips itself when there is no `joi-ios` folder (a build of the server alone).
-- Regenerate and test: `mvn -o -Pswift process-test-classes -pl joi-protocol` (generate only) or `mvn -o -Pswift test -pl joi-protocol` (generate, the Java
+- Regenerate and test: `mvn -Pswift process-test-classes -pl joi-protocol` (generate only) or `mvn -Pswift test -pl joi-protocol` (generate, the Java
   tests, then `swift test`). Not in the normal build, which must not write into the source tree. With only the Command Line Tools, pass the Testing
   framework to `swift`: `-Dswift.test.flags="-Xswiftc -F$F -Xlinker -F$F -Xlinker -rpath -Xlinker $F"` with
   `F=/Library/Developer/CommandLineTools/Library/Developer/Frameworks` and `DEVELOPER_DIR` set to the tools' folder; with Xcode (its licence accepted) plain

@@ -26,8 +26,8 @@ there). It is not in the default reactor: the root POM's profile `desktop` adds 
 mvn -B -DskipTests -Pfx,production,desktop package -pl joi-desktop -am
 ```
 
-`fx` compiles the node's JavaFX app and brings its dependencies and the renderer page (npm; `-Dnpm.mode=--prefer-offline` lets it use the network, the
-default `--offline` is the development machine's), `production` builds the frontend bundle into the WAR. Add `-Ddesktop.skipInstaller=true` to leave out
+`fx` compiles the node's JavaFX app and brings its dependencies and the renderer page (npm: its cache first, the network for what is missing; `-Dnpm.mode=--offline`
+stops it from downloading), `production` builds the frontend bundle into the WAR. Add `-Ddesktop.skipInstaller=true` to leave out
 the `.deb`, `.dmg` or `.msi`, `-Ddesktop.appVersion=1.2.3` for jpackage's numeric version (default `1.0.0`; a `-SNAPSHOT` is not accepted). Needs the JDK's `jlink` and
 `jpackage` (the JDK that runs Maven), and for the installers dpkg-deb and fakeroot (Linux), hdiutil (macOS) or the WiX Toolset (Windows). jlink and jpackage make a
 runtime for the OS and CPU they run on, so build on each target (`desktop.yml` does).

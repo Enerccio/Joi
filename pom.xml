@@ -33,9 +33,9 @@
     <junit.version>6.0.3</junit.version>
     <aspectj.version>1.9.25.1</aspectj.version>
     <jetty.version>12.1.14</jetty.version>
-    <!-- the renderer page's npm step (joi-node, profile fx): offline from the npm cache on the development machine, the
-         continuous integration sets npm.mode to prefer-offline (the value of the flag); npm.cmd on Windows -->
-    <npm.mode>--offline</npm.mode>
+    <!-- the renderer page's npm step (joi-node, profile fx): the npm cache first, the network for what is missing (the value is a flag
+         of npm install: offline, prefer-offline or prefer-online, with two dashes in front); npm.cmd on Windows -->
+    <npm.mode>--prefer-offline</npm.mode>
     <npm.executable>npm</npm.executable>
     <!-- the node's JavaFX app (joi-node, profile fx) and the desktop app (joi-desktop) -->
     <javafx.version>25</javafx.version>
@@ -91,7 +91,7 @@
       </modules>
     </profile>
 
-    <!-- The iOS app (joi-ios): Xcode and XcodeGen, macOS only. Build: mvn -o -Pswift,ios verify -pl joi-ios -am
+    <!-- The iOS app (joi-ios): Xcode and XcodeGen, macOS only. Build: mvn -Pswift,ios verify -pl joi-ios -am
          (swift: the protocol's Swift package, written by joi-protocol), see joi-ios/pom.xml and manual/developer/ios-app.md. -->
     <profile>
       <id>ios</id>
