@@ -5,7 +5,7 @@ order: 700
 covers:
   - joi-server/src/main/java/com/github/enerccio/joi/ui
   - joi-server/src/main/java/com/github/enerccio/joi/loc
-verified: b34ee9c
+verified: 714077a
 ---
 
 # The UI
@@ -45,7 +45,8 @@ Panels: `ui/bodies` (`AppearancePanel`, `SpringBonesPanel`, `ToggleGroupsPanel`,
 
 `frontend/joi-model-viewer.js` is the `<joi-model-viewer>` element: three.js and `@pixiv/three-vrm`, with orbit controls, expressions,
 toggles, animations (`playSequence`), snapshots (`takeSnapshots`) and the spring-bone preview. The node's renderer page uses the same
-file.
+file. The animation dialog also sets the face an animation forces (`Eyes`, `Expression`; its preview passes them with the sequence: `ClipPreview.setFace`, `ModelViewer.setAnimationFace`), and the
+viewer's face layer (`setFace`) and mouth (`setMouth`) are off until a page calls them: see [Writing a node](nodes.md).
 
 ## Prompts
 
