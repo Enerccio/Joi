@@ -253,10 +253,39 @@ public class TtsServiceImpl implements TtsService {
             return GpuLease.NONE;
         }
         try {
-            return gpuService.acquire(model.getGpuLock(), GpuService.model(model.getModel()), null);
+            try {
+                return gpuService.acquire(model.getGpuLock(), GpuService.model(model.getModel()), null);
+            } catch (GpuException e) {
+                if (!connectionDropped(e)) {
+                    throw e;
+                }
+                // the platform's HTTP client keeps its connections open and the proxy in front of the speech server may close one meanwhile
+                // ("header parser received no bytes"); the JDK does not send a POST again. A failed acquire gave the lock back and left the
+                // GPU unknown, so the steps just run again, on a new connection
+                TtsLog.get().info("A step of the GPU lock of {} lost its connection ({}), once more", model.getModel(), e.getMessage());
+                return gpuService.acquire(model.getGpuLock(), GpuService.model(model.getModel()), null);
+            }
         } catch (GpuException e) {
             throw new BackendException(e.getMessage(), e);
         }
+    }
+
+    /** A step failed because the connection broke (a connection that was closed, reset or never answered), not because the server answered or time ran out. */
+    static boolean connectionDropped(GpuException e) {
+        if (e.isCancelled()) {
+            return false;
+        }
+        for (Throwable cause = e; cause != null; cause = cause.getCause() == cause ? null : cause.getCause()) {
+            if (cause instanceof java.net.http.HttpTimeoutException) {
+                return false;
+            }
+        }
+        for (Throwable cause = e; cause != null; cause = cause.getCause() == cause ? null : cause.getCause()) {
+            if (cause instanceof java.io.IOException) {
+                return true;
+            }
+        }
+        return false;
     }
 
     @FunctionalInterface
