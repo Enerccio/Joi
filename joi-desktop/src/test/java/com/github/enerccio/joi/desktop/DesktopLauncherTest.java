@@ -60,7 +60,7 @@ class DesktopLauncherTest {
             System.clearProperty("joi.data");
             DesktopLauncher.Options none = DesktopLauncher.Options.parse(new String[0]);
             if (System.getenv("JOI_DATA") == null) {
-                assertThat(DesktopLauncher.dataDirectory(none)).isEqualTo(Path.of(System.getProperty("user.home"), ".joi").toAbsolutePath().normalize());
+                assertThat(DesktopLauncher.dataDirectory(none)).isEqualTo(Path.of(System.getProperty("user.home"), ".joi-bundled-client").toAbsolutePath().normalize());
             }
             System.setProperty("joi.data", dir.resolve("set").toString());
             assertThat(DesktopLauncher.dataDirectory(none)).isEqualTo(dir.resolve("set"));

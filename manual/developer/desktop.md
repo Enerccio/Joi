@@ -60,7 +60,7 @@ POMs. The node unpacks Chromium into its home on the first start (`fx/Chromium`)
 
 `DesktopLauncher` (JDK only, `com.github.enerccio.joi.desktop`) is the main class of `joi-launcher.jar` and compiles on its own. It:
 
-1. resolves the data folder (`--data`, else `joi.data` / `JOI_DATA`, else `~/.joi`) and sets `joi.data` for the server, makes `<data>/desktop` (`0700`), redirects its output to
+1. resolves the data folder (`--data`, else `joi.data` / `JOI_DATA`, else `~/.joi-bundled-client`, so it never shares the folder of an installed server) and sets `joi.data` for the server, makes `<data>/desktop` (`0700`), redirects its output to
    `desktop/logs/joi.log`;
 2. finds `server/` next to the launcher jar or above it (`-Djoi.serverDir` overrides), checks the port (`--port`, default 8766; a Joi already answering there with
    `<title>Joi</title>` just opens the browser; another program makes it pick a free port unless the port was given);
@@ -72,7 +72,7 @@ POMs. The node unpacks Chromium into its home on the first start (`fx/Chromium`)
 5. shows the tray icon (or a window), waits for the web page, opens the browser, and starts the node unless `--no-node` or the saved choice `node.autostart` (in
    `desktop/launcher.properties`) says no.
 
-**Starting the node** (`startNode`): the node's home is resolved as the node does (`JOI_HOME_DIR`, `JOI_CLIENT`, else `~/.joi-client`) and passed as `--joi-home-dir`, so the
+**Starting the node** (`startNode`): the node's home is `JOI_HOME_DIR`, else `<data>/node` (never the `~/.joi-client` of a node installed on its own; `JOI_CLIENT` is not read) and passed as `--joi-home-dir`, so the
 lock `node.lock` that the launcher looks at (`nodeRunning`: a non-blocking lock attempt; the system frees a lock when its process ends, so a crashed node leaves
 nothing) is the one the node takes (`NodeInstance.acquire`, in `fx/Launcher`). If it is free, the launcher runs the `JoiNode` binary next to its own executable (found from
 `ProcessHandle.current().info().command()`), or, in the portable folder where that is `java`, the runtime's `java -cp app/* ...fx.Launcher`, with `--local <socket> --web <url>`;

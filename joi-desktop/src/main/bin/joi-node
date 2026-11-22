@@ -3,13 +3,13 @@
 # Java runtime: the same as the tray icon's "Open the Joi node". For another server run it with its own options (see the manual).
 # Extra JVM options can be passed in JOI_JAVA_OPTS.
 DIR="$(cd "$(dirname "$0")/.." && pwd)"
-DATA="${JOI_DATA:-$HOME/.joi}"
+DATA="${JOI_DATA:-$HOME/.joi-bundled-client}"
 case "$(uname -s)" in
   Darwin) OPENS="--add-opens=java.desktop/sun.awt=ALL-UNNAMED --add-opens=java.desktop/sun.lwawt=ALL-UNNAMED --add-opens=java.desktop/sun.lwawt.macosx=ALL-UNNAMED" ;;
   *) OPENS="" ;;
 esac
 if [ "$#" -eq 0 ] && [ -S "$DATA/desktop/api.sock" ]; then
-  set -- --local "$DATA/desktop/api.sock" --web "http://127.0.0.1:${JOI_PORT:-8766}"
+  set -- --local "$DATA/desktop/api.sock" --web "http://127.0.0.1:${JOI_PORT:-8766}" --joi-home-dir "${JOI_HOME_DIR:-$DATA/node}"
 fi
 # shellcheck disable=SC2086
 exec "$DIR/runtime/bin/java" \

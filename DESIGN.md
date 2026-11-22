@@ -1598,6 +1598,9 @@ runtime and two programs, **Joi** (the server with a tray icon) and **JoiNode** 
 `bin/joi` and `bin/joi-node`, and as `.deb`, `.dmg` and `.msi`. `DesktopLauncher` (JDK only, no Jetty or Joi class on its path) runs jetty-home
 with the WAR in its own JVM: the web UI on `127.0.0.1:8766` (a free port if taken) with the login as in the server, the API on the Unix socket
 in the data folder (see *The local door* above), so the node of this machine needs no key. The decisions:
+- **Its own home folder, `~/.joi-bundled-client`.** The data folder defaults to it and the node's home is `node` inside it (`JOI_HOME_DIR`
+  moves that one), so the bundled Joi never shares a database, a key, a node login or a lock with a server (`~/.joi`) or a node
+  (`~/.joi-client`) installed on its own; `JOI_CLIENT` is not read. `--data` / `JOI_DATA` still move it.
 - **Login stays in the UI** (as Marginalia's desktop app), the socket carries the API only. The node, started before the first account exists,
   shows that it waits for it and asks again every few seconds (`fx/JoiNodeApp.showLocal`), with buttons for the browser and for another server.
 - **Two binaries, one installation, one node.** The tray icon (Open Joi in the browser, Open the Joi node, Start the node with Joi, Quit) starts

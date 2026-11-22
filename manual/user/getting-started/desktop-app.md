@@ -64,7 +64,7 @@ On a desktop with no tray, a small window with the same buttons takes its place.
 |---|---|
 | `--port <port>` | the port of the web page (default 8766; a free one is picked when it is taken, unless you gave it) |
 | `--host <address>` | the address it listens on (default `127.0.0.1`; anything else shows the page to your network without HTTPS) |
-| `--data <folder>` | the data folder (default `JOI_DATA`, else `~/.joi`) |
+| `--data <folder>` | the data folder (default `JOI_DATA`, else `~/.joi-bundled-client`) |
 | `--no-browser` | do not open the browser |
 | `--no-node` | do not offer or start the node |
 | `--no-tray` | no tray icon or window; stop it with Ctrl+C |
@@ -73,11 +73,12 @@ Extra Java options (for example `-Xmx4g`) go in `JOI_JAVA_OPTS` for the portable
 
 ## Where things are
 
-- **The data folder** is the same as the server's: `~/.joi`, with the database, your uploads and the key that protects your stored
+- **The data folder** is `~/.joi-bundled-client`, its own, so it never clashes with a server you installed on its own (`~/.joi`). It holds the database, your uploads and the key that protects your stored
   secrets. The desktop app adds `desktop/` to it: the log (`desktop/logs/joi.log`, and `node.log` for the node), the unpacked
   web application and the socket `desktop/api.sock`. Back the folder up as a whole while Joi is stopped.
-- **The node's home** is `~/.joi-client`, as for any node: its settings, her body's cache and the unpacked Chromium. If you also use
-  the node against another server, it keeps one login per server there.
+- **The node's home** is `node` in the data folder (`~/.joi-bundled-client/node`; `JOI_HOME_DIR` moves it), not the `~/.joi-client` of a
+  node installed on its own: its settings, her body's cache and the unpacked Chromium. If you also use this node against another
+  server, it keeps one login per server there.
 - A very long data folder path does not fit a Unix socket (about 100 characters). The socket is then made in the system's temporary
   folder instead, in a folder only you can open; the log says where.
 
@@ -92,11 +93,11 @@ Extra Java options (for example `-Xmx4g`) go in `JOI_JAVA_OPTS` for the portable
 ## Updating and removing
 
 Install the new version over the old one. The data folder is kept, and the server upgrades its database when it starts. To remove
-Joi, uninstall it (or delete the folder) and, if you want everything gone, delete `~/.joi` and `~/.joi-client`.
+Joi, uninstall it (or delete the folder) and, if you want everything gone, delete `~/.joi-bundled-client`.
 
 ## If it does not start
 
-- Look at `~/.joi/desktop/logs/joi.log`.
+- Look at `~/.joi-bundled-client/desktop/logs/joi.log`.
 - *Port 8766 is used by another application*: you gave `--port`; leave it out, or pick another.
 - *Another Joi runs with the data folder*: it is already running, look in the tray, or quit it first.
 - The tray icon is missing on Linux: some desktops hide tray icons without an extension; the window or `--no-tray` still works.

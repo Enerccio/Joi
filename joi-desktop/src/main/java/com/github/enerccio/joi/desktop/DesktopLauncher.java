@@ -85,6 +85,8 @@ public final class DesktopLauncher {
             + "ee11-websocket-jakarta,ee11-jsp";
     /** The longest socket path that every system accepts (the limit is 104 bytes on macOS and 108 on Linux, with the end mark). */
     private static final int MAX_SOCKET_PATH = 100;
+    /** The data folder in the user's home: its own, so the bundled Joi does not share it with a server installed on its own. */
+    static final String DEFAULT_DATA = ".joi-bundled-client";
     private static final String NODE_MAIN = "com.github.enerccio.joi.node.fx.Launcher";
     private static final String NODE_LOCK = "node.lock";
 
@@ -302,7 +304,7 @@ public final class DesktopLauncher {
      */
     private synchronized void startNode() {
         try {
-            Path home = nodeHome();
+            Path home = nodeHome(dataDir);
             if (nodeRunning(home)) {
                 log("The Joi node already runs (" + home + ")");
                 tell("The Joi node is already running");
@@ -350,17 +352,16 @@ public final class DesktopLauncher {
     }
 
     /**
-     * The node's home: the same as the node resolves it ({@code JOI_HOME_DIR}, {@code JOI_CLIENT}, else {@code ~/.joi-client}); it
-     * is passed to the node as a flag, so the lock this launcher looks at is the one the node takes.
+     * The node's home: {@code JOI_HOME_DIR}, else {@code node} in the data folder (so {@code ~/.joi-bundled-client/node}, never the
+     * {@code ~/.joi-client} of a node installed on its own: the two do not share a lock, a login or a cache). It is passed to the
+     * node as a flag, so the lock this launcher looks at is the one the node takes.
      */
-    private static Path nodeHome() {
-        for (String name : new String[] {"JOI_HOME_DIR", "JOI_CLIENT"}) {
-            String value = System.getenv(name);
-            if (value != null && !value.isBlank()) {
-                return expand(value.strip());
-            }
+    static Path nodeHome(Path dataDir) {
+        String value = System.getenv("JOI_HOME_DIR");
+        if (value != null && !value.isBlank()) {
+            return expand(value.strip());
         }
-        return Path.of(System.getProperty("user.home"), ".joi-client").toAbsolutePath().normalize();
+        return dataDir.resolve("node").toAbsolutePath().normalize();
     }
 
     private static Path expand(String path) {
@@ -594,11 +595,12 @@ public final class DesktopLauncher {
         throw new IllegalStateException("Joi server files (server/jetty-home, server/joi.war) not found near " + dir);
     }
 
-    /** The data folder: {@code --data}, else {@code -Djoi.data} / {@code JOI_DATA} (as the server reads it), else {@code ~/.joi}. */
+    /** The data folder: {@code --data}, else {@code -Djoi.data} / {@code JOI_DATA} (as the server reads it), else {@code ~/.joi-bundled-client}
+     * (not the {@code ~/.joi} of a server installed on its own). */
     static Path dataDirectory(Options options) {
         String folder = options.data != null ? options.data.toString() : System.getProperty("joi.data", System.getenv("JOI_DATA"));
         if (folder == null || folder.isBlank()) {
-            return Path.of(System.getProperty("user.home"), ".joi").toAbsolutePath().normalize();
+            return Path.of(System.getProperty("user.home"), DEFAULT_DATA).toAbsolutePath().normalize();
         }
         return expand(folder.strip());
     }
@@ -779,7 +781,7 @@ public final class DesktopLauncher {
                 Usage: joi [options]
                   --port <port>     port of the web UI (default %d, a free one is picked when taken)
                   --host <address>  address of the web UI (default 127.0.0.1, others expose it to the network)
-                  --data <dir>      Joi's data folder (default: JOI_DATA, else .joi in your home directory)
+                  --data <dir>      Joi's data folder (default: JOI_DATA, else .joi-bundled-client in your home directory)
                   --no-browser      don't open the browser
                   --no-node         don't offer or start the node (the program with the avatar)
                   --no-tray         no tray icon / window, stop with Ctrl+C
