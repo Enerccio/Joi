@@ -127,7 +127,8 @@ a macOS voice (`say`), and the page with `RendererPreview`'s `speak <wav>` comma
 
 Her eyes and her expression are a layer of the viewer (`<joi-model-viewer>`, `setFace`), like the mouth: off until a page calls it (the server's dialogs, which try
 expressions one by one, need none), and run each frame after the animation mixer and before the model updates, so a clip does not take them over. The node page turns
-it on at the start. The layer has three inputs, the first that says something wins: **the animation's face** (`sequence.face`: `{eyes, expression}` of the animation
+it on at the start. In the server's dialogs an animation with a face turns it on for itself, and the next animation without one turns it off again, so the
+dialogs that try expressions get the face back. The layer has three inputs, the first that says something wins: **the animation's face** (`sequence.face`: `{eyes, expression}` of the animation
 being played, from its `.joia`), **her state's eyes** (`eyes`: `{eyes: "auto"|"closed", ease}`) and **her mood** (`mood`: `{mood, expression, weight, eyes}`, the server's `mood` frame as it is: the mood's face is its own setting, so the page has no table
 and a mood of the user's works). The messages `eyes` and `mood` are kept and sent again to a page that opens
 later (`RendererServer.eyes` / `mood`); the node says them from the director: `AvatarPane.state` (sleeping: closed in 0.4 s, falling asleep: closed over 3 s,

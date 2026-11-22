@@ -20,7 +20,8 @@
 // how it is: eyes "auto" (open, blinking now and then, looking at the camera), "closed", "half" or "wide" (open, never blinking), reached
 // over `ease` seconds; mood {expression, weight, eyes} (her mood's face, from the server: a soft expression and, for some moods, the eyes).
 // An animation can say better: the sequence of playSequence may have face: {eyes, expression} (expression: happy, sad, angry, relaxed
-// or surprised), which wins over her state and her mood while that animation plays (setFace(null) turns the layer off).
+// or surprised), which wins over her state and her mood while that animation plays (setFace(null) turns the layer off). An animation
+// with a face turns the layer on when nobody did; then the next animation without one turns it off again (the dialogs of the server).
 // finishAnimation() lets a looping step end its round and the rest play once; stopAnimation() puts her back at rest;
 // setAnimationPaused(paused) pauses; setFrozen(frozen) freezes her altogether (the animation, the sway, the spring bones:
 // the node's page does it while the server is gone). It fires "animation-started" ({duration} of one round), "animation-step"
@@ -322,6 +323,8 @@ class JoiModelViewer extends HTMLElement {
    * gives the face back to the model.
    */
   setFace(face) {
+    // asked for from outside (the node's page): it stays on whatever plays
+    this._faceByAnimation = false;
     if (!face) {
       this._face = null;
       this._clearFace();
@@ -439,6 +442,10 @@ class JoiModelViewer extends HTMLElement {
       vrm.lookAt.target = null;
       vrm.lookAt.reset();
     }
+    // the point she looked at leaves the scene with the layer (turned on again, it makes a new one)
+    if (this._faceState && this._faceState.gaze && this._faceState.gaze.parent) {
+      this._faceState.gaze.parent.remove(this._faceState.gaze);
+    }
     this._faceState = null;
   }
 
@@ -500,6 +507,10 @@ class JoiModelViewer extends HTMLElement {
     this._animationFace = sequence.face || null;
     if (sequence.face && !this._face) {
       this.setFace({});
+      // on only for this animation (a dialog of the server): an animation without a face turns it off again
+      this._faceByAnimation = true;
+    } else if (!sequence.face && this._faceByAnimation) {
+      this.setFace(null);
     }
     this._animationPaused = false;
     if (this._vrm) {
