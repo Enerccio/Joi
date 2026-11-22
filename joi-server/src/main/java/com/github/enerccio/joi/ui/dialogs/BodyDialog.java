@@ -370,17 +370,23 @@ public class BodyDialog extends Dialog {
     private void store() {
         try {
             String name = StringUtils.strip(nameField.getValue());
+            // another body's name is not taken: the field says so and the body keeps the name it has (none for a new one)
+            boolean taken = bodyService.nameTaken(joi, name, body);
+            nameField.setInvalid(taken);
+            nameField.setErrorMessage(taken ? loc.getValue(J_L.MSG_BODY_NAME_TAKEN) : null);
             Long modelId = modelSelect.getValue();
             if (body == null) {
-                if (StringUtils.isBlank(name) && modelId == null) {
+                if ((taken || StringUtils.isBlank(name)) && modelId == null) {
                     return;
                 }
-                body = bodyService.create(joi, name);
+                body = bodyService.create(joi, taken ? null : name);
                 body.setAnimationUuids(allAnimations == null ? null : chosenAnimations());
             } else {
                 body = bodyService.find(body.getId());
             }
-            body.setName(StringUtils.defaultIfBlank(name, null));
+            if (!taken) {
+                body.setName(StringUtils.defaultIfBlank(name, null));
+            }
             body.setDescription(StringUtils.defaultIfBlank(StringUtils.strip(bodyDescription.getValue()), null));
             Long before = body.getModel() == null ? null : body.getModel().getId();
             if (!java.util.Objects.equals(before, modelId)) {

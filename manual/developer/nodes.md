@@ -37,7 +37,7 @@ answers. Unknown types and fields are ignored.
 6. **Tasks.** The server sends `task` (a `TaskInfo` without the transcript) when a task is made and each time its status changes, and to a node that connects for
    each task that waits. A `waiting` one is a question: show it and answer through the HTTP API (`approve`, `approve` with `always`, `deny`). The first answer wins.
 7. **Heartbeat.** `ping` and `pong` both ways; a connection silent for twice the heartbeat is closed. `log` carries a note of the system.
-8. **Errors.** An `error` frame keeps the connection. Close codes: 4001 unauthorized, 4002 unsupported version, 4003 replaced, 4004 no such assistant, 4008 timeout,
+8. **Errors.** An `error` frame keeps the connection. Close codes: 4001 unauthorized, 4002 unsupported version, 4003 replaced, 4004 no such assistant (also once she is deleted: the next frame gets `error` `not_found` first), 4008 timeout,
    4009 revoked.
 
 ## Reconnecting

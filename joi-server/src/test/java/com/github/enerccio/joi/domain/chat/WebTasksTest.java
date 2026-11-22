@@ -31,6 +31,7 @@ import com.github.enerccio.marginalia.domain.security.model.User;
 import com.github.enerccio.marginalia.test.PlatformTestBase;
 import com.github.enerccio.marginalia.test.llm.MockLLMResponse;
 import com.google.gson.JsonObject;
+import com.github.enerccio.joi.domain.settings.JoiAppSettings;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -64,6 +65,8 @@ class WebTasksTest extends PlatformTestBase {
     @Autowired
     private WebToolSettingsService settings;
     @Autowired
+    private com.github.enerccio.joi.domain.service.JoiAppSettingsService appSettings;
+    @Autowired
     private WebTaskService tasks;
     @Autowired
     private JoiTaskMessageService transcripts;
@@ -83,6 +86,8 @@ class WebTasksTest extends PlatformTestBase {
         for (ToolMetadata left : metadataService.findAll(ToolScope.APP, null)) {
             metadataService.delete(left, true);
         }
+        // the fake search servers are on localhost
+        appSettings.save(new JoiAppSettings(true));
         me = login();
         joi = joiService.create("Mira");
         joi.setChatModel(createAI().getId());
@@ -92,6 +97,7 @@ class WebTasksTest extends PlatformTestBase {
     @AfterEach
     void tearDown() throws Exception {
         loginAdmin();
+        appSettings.save(JoiAppSettings.DEFAULT);
         for (ToolMetadata left : metadataService.findAll(ToolScope.APP, null)) {
             metadataService.delete(left, true);
         }

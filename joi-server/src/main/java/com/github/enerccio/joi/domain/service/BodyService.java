@@ -25,10 +25,19 @@ public interface BodyService extends ExtendableService<Body, BodyRepository> {
     List<Body> findByModel(Model model) throws Exception;
 
     /**
-     * A new body of the assistant with the name. Her first body is the one she is in, and she is told (an event queued)
+     * A new body of the assistant with the name (none for a blank one; another body's name is refused with an
+     * {@link IllegalArgumentException}, see {@link #nameTaken}). Her first body is the one she is in, and she is told (an event queued)
      * when she has chatted already.
      */
     Body create(Joi joi, String name) throws Exception;
+
+    /**
+     * Whether another body of the assistant has the name (case and the spaces around it aside): her bodies are told
+     * apart by name ({@link #switchBody}). A blank name is never taken.
+     *
+     * @param except the body being renamed, null for a new one
+     */
+    boolean nameTaken(Joi joi, String name, Body except) throws Exception;
 
     /**
      * Puts her into the body (null: into none), out of the one she was in. She is told (an event queued) when she has

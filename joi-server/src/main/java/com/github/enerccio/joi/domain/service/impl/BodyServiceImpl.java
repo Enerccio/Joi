@@ -90,6 +90,18 @@ public class BodyServiceImpl extends ExtendableServiceImpl<Body, BodyRepository>
 
     @Override
     @CommonTxReadOnly
+    public boolean nameTaken(Joi joi, String name, Body except) throws Exception {
+        String wanted = StringUtils.strip(name);
+        if (StringUtils.isBlank(wanted)) {
+            return false;
+        }
+        return getRepository().findByJoi(joi).stream()
+                .filter(other -> !other.isDeleted() && (except == null || !other.getId().equals(except.getId())))
+                .anyMatch(other -> wanted.equalsIgnoreCase(StringUtils.strip(other.getName())));
+    }
+
+    @Override
+    @CommonTxReadOnly
     public Body active(Joi joi) throws Exception {
         return getRepository().findByJoi(joi).stream().filter(Body::isActive).findFirst().orElse(null);
     }
@@ -103,6 +115,9 @@ public class BodyServiceImpl extends ExtendableServiceImpl<Body, BodyRepository>
     @Override
     @CommonTx
     public Body create(Joi joi, String name) throws Exception {
+        if (nameTaken(joi, name, null)) {
+            throw new IllegalArgumentException("She already has a body named " + StringUtils.strip(name));
+        }
         Body body = new Body();
         body.setJoi(joi);
         body.setName(StringUtils.defaultIfBlank(StringUtils.strip(name), null));

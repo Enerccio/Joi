@@ -30,6 +30,7 @@ import java.util.Date;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
  * Bodies: the dialog stores a new body once it has a name or a model and offers only models with a VRM; her first body
@@ -113,6 +114,40 @@ class BodyDialogTest extends PlatformTestBase {
         assertThat(body.getLookingGlassModel()).isNull();
         assertThat(body.isActive()).isTrue();
         assertThat(bodyService.findByModel(modelService.find(ryuu.getId()))).extracting(Body::getId).containsExactly(body.getId());
+    }
+
+    @Test
+    void twoBodiesOfHersHaveNoSameNameAndARenameToATakenOneKeepsTheOldName() throws Exception {
+        Body street = bodyService.create(joi, "Street");
+        Body armor = bodyService.create(joi, "Armor");
+        assertThatThrownBy(() -> bodyService.create(joi, " street ")).isInstanceOf(IllegalArgumentException.class);
+        assertThat(bodyService.nameTaken(joi, "STREET", null)).isTrue();
+        assertThat(bodyService.nameTaken(joi, "Street", street)).isFalse();
+        assertThat(bodyService.nameTaken(joi, " ", null)).isFalse();
+
+        // a new body with a taken name is not stored
+        BodyDialog fresh = new BodyDialog(joi, null);
+        fresh.create();
+        fresh.getNameField().setValue("Armor");
+        assertThat(fresh.getNameField().isInvalid()).isTrue();
+        assertThat(bodyService.findForJoi(joi)).hasSize(2);
+        fresh.close();
+
+        BodyDialog dialog = new BodyDialog(joi, armor);
+        dialog.create();
+        dialog.getNameField().setValue("street");
+        assertThat(dialog.getNameField().isInvalid()).isTrue();
+        assertThat(bodyService.find(armor.getId()).getName()).isEqualTo("Armor");
+        // closed with the taken name in the field: the body keeps the one it had
+        dialog.close();
+        assertThat(bodyService.find(armor.getId()).getName()).isEqualTo("Armor");
+
+        dialog = new BodyDialog(joi, bodyService.find(armor.getId()));
+        dialog.create();
+        dialog.getNameField().setValue("Plate");
+        assertThat(dialog.getNameField().isInvalid()).isFalse();
+        assertThat(bodyService.find(armor.getId()).getName()).isEqualTo("Plate");
+        dialog.close();
     }
 
     @Test

@@ -347,6 +347,7 @@ public class JoiLocalizationBundleEN extends TextBundleBase<J_L> {
         setValue(J_L.MSG_APPEARANCE_HINT, "Written into her prompt, in the second person; the parts described apart are added for the state they are in.");
         setValue(J_L.MSG_BODY_CAPABILITIES, "%d expressions · %d parts she can switch (the ones described apart). Name and describe them in the model's dialog.");
         setValue(J_L.MSG_BODY_NO_MODEL, "Choose a model to see the body.");
+        setValue(J_L.MSG_BODY_NAME_TAKEN, "She already has a body of this name: it keeps the name it had.");
         setValue(J_L.MSG_MODEL_IN_USE, "This model is a part of these bodies: %s. Choose another model for them first.");
         setValue(J_L.HELP_BODY_EVENTS, "Once you have talked, she is told when she gets a body, is put into another one or loses hers.");
         setValue(J_L.LABEL_FORMAT, "Format");

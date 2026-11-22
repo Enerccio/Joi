@@ -2,6 +2,7 @@ package com.github.enerccio.joi.domain.service.impl;
 
 import com.github.enerccio.joi.domain.model.impl.Joi;
 import com.github.enerccio.joi.domain.model.impl.ToolMetadata;
+import com.github.enerccio.joi.domain.service.JoiAppSettingsService;
 import com.github.enerccio.joi.domain.service.ToolMetadataService;
 import com.github.enerccio.joi.domain.service.ToolPermissionService;
 import com.github.enerccio.joi.domain.service.ToolPermissionService.Config;
@@ -35,6 +36,9 @@ public class WebToolSettingsServiceImpl implements WebToolSettingsService {
     @Autowired
     private ToolMetadataService metadataService;
 
+    @Autowired
+    private JoiAppSettingsService appSettingsService;
+
     @Override
     @CommonTxReadOnly
     public Search search(Joi joi) throws Exception {
@@ -51,7 +55,7 @@ public class WebToolSettingsServiceImpl implements WebToolSettingsService {
 
     private Search search(ToolMetadata metadata, ToolScope from) {
         if (metadata == null) {
-            return new Search(WebSearchConfig.from(null), null, Map.of(), null);
+            return new Search(WebSearchConfig.from(null), null, Map.of(), null, localSourcesAllowed(from));
         }
         WebSearchConfig config = WebSearchConfig.from(metadata.config());
         Map<String, String> keys = new LinkedHashMap<>();
@@ -61,7 +65,23 @@ public class WebToolSettingsServiceImpl implements WebToolSettingsService {
                 keys.put(WebSearchConfig.keyName(source), key);
             }
         }
-        return new Search(config, from, keys, metadataService.secret(metadata, WebSearchConfig.PROXY_SECRET));
+        return new Search(config, from, keys, metadataService.secret(metadata, WebSearchConfig.PROXY_SECRET), localSourcesAllowed(from));
+    }
+
+    /**
+     * Whether the search sources of a place may be on the server's own network: the administrator's always, the others
+     * only when the administrator allows local servers to users (Administration → App settings). When that can't be
+     * told, they may not.
+     */
+    private boolean localSourcesAllowed(ToolScope from) {
+        if (from == ToolScope.APP) {
+            return true;
+        }
+        try {
+            return appSettingsService.localServersAllowed();
+        } catch (Exception e) {
+            return false;
+        }
     }
 
     @Override
@@ -146,7 +166,7 @@ public class WebToolSettingsServiceImpl implements WebToolSettingsService {
                                    String typedProxyAuth, String query) throws Exception, WebException {
         Search saved = searchIn(scope, joi);
         String key = StringUtils.defaultIfBlank(typedKey, saved.keys().get(WebSearchConfig.keyName(source)));
-        return new WebSearchClient(config).search(source, key, StringUtils.defaultIfBlank(typedProxyAuth, saved.proxyAuth()), query);
+        return new WebSearchClient(config, localSourcesAllowed(scope)).search(source, key, StringUtils.defaultIfBlank(typedProxyAuth, saved.proxyAuth()), query);
     }
 
     @Override

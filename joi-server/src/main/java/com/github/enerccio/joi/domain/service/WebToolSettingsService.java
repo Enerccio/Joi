@@ -24,8 +24,11 @@ public interface WebToolSettingsService {
      * @param from      where they come from, null when nobody set any (the defaults)
      * @param keys      the API keys by the name of the secret ({@link WebSearchConfig#keyName}), in the clear
      * @param proxyAuth {@code user:password} of the proxy, null for none
+     * @param allowPrivate whether the addresses of the sources may be on the server's own network: always for the
+     *                  administrator's options, for a user's or an assistant's only when the administrator lets users have
+     *                  the server call their local servers ({@link JoiAppSettingsService#localServersAllowed})
      */
-    record Search(WebSearchConfig config, ToolScope from, Map<String, String> keys, String proxyAuth) {
+    record Search(WebSearchConfig config, ToolScope from, Map<String, String> keys, String proxyAuth, boolean allowPrivate) {
 
         /** The key of the source, null for none. */
         public String key(SearchSource source) {

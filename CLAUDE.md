@@ -177,8 +177,9 @@ Don't add adult content from avatar packages to anything (the converter drops it
   not only the diff; fix what you find, add a row to Verifications (date, `<your model id>` as the environment reports it,
   e.g. `claude-sonnet-5-5`, your reasoning level as the environment reports it (`CLAUDE_EFFORT`, e.g. `medium`; say so if it is
   not reported), the commits checked, notes: what you read, whether you ran the tests, what you fixed) and
-  move "Verified up to" to the newest of them. Your own fix commits belong to that row and may be included in "Verified
-  up to". Never mark a commit as verified without really reviewing it. Never rebase or squash verified history. "Written by"
+  move "Verified up to" to the newest of them. The commits you make during the verification (fixes, docs, stamps, and work
+  the user asks for meanwhile that you reviewed) are verified with it: list them in its row and move "Verified up to" to the
+  newest of them yourself, without being asked. Never mark a commit as verified without really reviewing it. Never rebase or squash verified history. "Written by"
   is secondary, but follow it every time: **always write one commit behind.** A commit cannot contain its own hash, so the row of
   a commit you made goes into your **next commit**, together with that commit's own change, never into a commit made only to hold
   the row (that one would need a row of its own, for ever). So before each commit, add rows (hash, your model id) to "Written by"

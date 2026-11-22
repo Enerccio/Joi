@@ -31,6 +31,10 @@ line). **Add a source** opens its dialog, with **Test** to search with it as typ
 A key is stored protected and never shown again; **Remove the saved key** deletes it. A source can have a **Proxy of its own**. **On my
 own network** marks it as local.
 
+A source on the server's own machine or network (`localhost`, `192.168.…`) works for a user who is not an administrator only when
+Administration → **App settings** allows local servers; otherwise its search fails with a message that says so. The administrator's own
+sources may be anywhere.
+
 ## Options
 
 | Option | Meaning |

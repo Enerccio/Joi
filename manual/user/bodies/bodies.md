@@ -19,7 +19,7 @@ The first body she gets becomes active. She can only switch between the bodies o
 
 | Part | Meaning |
 |---|---|
-| **Name**, **Description** | the description is what she reads of this body in her list of bodies; blank uses the model's |
+| **Name**, **Description** | the description is what she reads of this body in her list of bodies; blank uses the model's. Two of her bodies can't have the same name: a name she already has is marked and not kept, and the body keeps its old name when the dialog is closed |
 | **Model** | the full model. Only models with a VRM are offered (converted, or uploaded as `.vrm` or `.glb`) |
 | **Model for the Looking Glass** | a lighter model for the Looking Glass; **The same model** is the default |
 | **How she looks** | the model's description for the body's state, read only: edit it in the model's dialog |

@@ -331,7 +331,7 @@ public final class WebResearch {
             throw new WebException(search.config().sources().isEmpty() ? "No search source is set up"
                     : "No search source may be used now (they are off" + (search.config().localOnly() ? ", or only local ones are allowed" : "") + ")");
         }
-        WebSearchClient client = new WebSearchClient(search.config());
+        WebSearchClient client = new WebSearchClient(search.config(), search.allowPrivate());
         List<String> failures = new ArrayList<>();
         for (SearchSource source : candidates) {
             try {

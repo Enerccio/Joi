@@ -15,7 +15,8 @@ verified: cd7efe8
 `Model` is a 3D model of the user: the upload, the converted VRM, the snapshots and images, the `.joim`, all as resources, and what was decided on
 it (toggle names, the description, groups, default state, spring chains, notes, the last proposal, conversion settings), stored as extended
 attributes. `Body` belongs to an assistant and points to the user's models (the full one and, optionally, a lighter one for the Looking Glass). One
-body of hers is active.
+body of hers is active. Her bodies have different names, case aside (she switches by name): `BodyService.create` refuses a taken one, and
+`BodyDialog` asks `BodyService.nameTaken` before it stores a rename, marking the field and keeping the old name.
 
 | Class | In `domain/bodies` | What it is |
 |---|---|---|

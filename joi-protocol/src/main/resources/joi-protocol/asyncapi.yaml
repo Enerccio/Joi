@@ -86,7 +86,8 @@ info:
     - `4002` unsupported version: the major version of `hello.protocol` is not served (the reason names the ones that
       are).
     - `4003` replaced: the same node connected again for the same assistant.
-    - `4004` not found: no such assistant of the user.
+    - `4004` not found: no such assistant of the user, or she was deleted while the node was connected (its next frame
+      is answered by `error` `not_found` before the close).
     - `4008` timeout: no `hello` within 10 s, or no frame for twice the heartbeat.
     - `4009` revoked: the node's credentials were revoked.
 

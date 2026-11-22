@@ -227,7 +227,8 @@ one; the server treats every node the same.
     (the same run of the server) is told nothing, as before. Nothing is kept on the server across a restart: a node
     that was never connected to the old run has nothing to say, and is greeted as a new connection.
   - **Errors:** an `error` frame (`ApiError`, `ref` the frame) keeps the connection; close codes 4001 unauthorized,
-    4002 unsupported version, 4003 replaced, 4004 no such assistant, 4008 timeout, 4009 revoked.
+    4002 unsupported version, 4003 replaced, 4004 no such assistant (also when she is deleted while the node is
+    connected: its next frame is answered by `error` `not_found`, then the connection is closed), 4008 timeout, 4009 revoked.
   - **On the server:** `api/NodeEndpoint` (Jakarta WebSocket, registered on the container once Spring is up; it
     keeps the `Authorization` of the upgrade) hands the frames to `NodeService`. A connection is a `NodeSession`
     holding its user's request scope (`ApiRequestAttributes`) for as long as it lives: its turns run in it. The
@@ -284,8 +285,8 @@ repository keeps a log of it:
 [verification.md](verification.md) at the root. It is mainly a log of verifications: a line saying up to which commit the
 code is verified and a table with one row per verification (date, the model id that verified, the reasoning level it ran at,
 the commits it checked, notes on how). A commit that is not in it is simply unverified, and the next verification goes over all of them. A verification
-runs only when the user asks for it; it reads the code around each diff, fixes what it finds, and its own fix commits belong
-to its row. A row is a record that a model reviewed the commits, not a proof; the notes say how deep the review went.
+runs only when the user asks for it; it reads the code around each diff, fixes what it finds, and the commits it makes meanwhile
+belong to its row and are verified with it ("Verified up to" moves to the newest of them). A row is a record that a model reviewed the commits, not a proof; the notes say how deep the review went.
 Verified history is never rebased or squashed, since the hashes would point at nothing. The log starts at the last commit before it existed, so the first
 verification has to go over the whole code. Who wrote a commit is secondary: an optional table of hash and model id,
 filled in by the model that made the commit, always one commit behind: a commit cannot contain its own hash, so the row of a commit goes into the next commit that model makes, together with that commit's own change, never into a commit made only for the row. The rules are in
@@ -346,8 +347,11 @@ check) is in [MARGINALIA.md](MARGINALIA.md).
   OAuth tokens live. See The node protocol.
 - **App settings (built):** Administration → App settings holds what the administrator decides for everybody
   (`JoiAppSettings`, in the platform's `AppSettings` under `joi_app`). For now one option: whether users who are not
-  administrators may mark a TTS model as local (the server then calls localhost and private addresses for them). Off by
-  default; administrators always may. Otherwise the box is hidden and the flag ignored when saved, tested and spoken.
+  administrators may mark a TTS model as local (the server then calls localhost and private addresses for them), and
+  have search sources (a SearXNG instance, a mirror) on those addresses. Off by default; administrators always may, and
+  the administrator's own search sources may be anywhere. Otherwise the box is hidden and the flag ignored when saved,
+  tested and spoken, and a user's or an assistant's source on a private address (or a redirect to one) is refused when
+  it is searched or tested (`WebToolSettingsService.Search.allowPrivate`, `WebSearchClient`).
 
   An empty field is not set: the User Settings are used, and shown greyed out (the placeholder). A change of her name,
   the user's name or her personality is an **event** for her (`QueuedEvent`, kinds `persona.renamed`,
@@ -1397,7 +1401,8 @@ UI — nothing is deleted):
   of the narrow view cone. The self-image snapshots use the same presets.
 - **Several bodies**; each display holds its own active body.
 - **Her bodies are a list assigned to her**, one of them active (built: `Body` rows of the assistant, the `active`
-  flag). She can only switch between the bodies on her list (`switch_body` offers just those), and so can the UI for
+  flag). Two bodies of hers never have the same name (case aside): she switches by name. A rename to a taken name is
+  refused in the body dialog, which keeps the name the body had (`BodyService.nameTaken`). She can only switch between the bodies on her list (`switch_body` offers just those), and so can the UI for
   her. On connect a node is sent each body of her list it has not cached (by the content hashes), so a switch is
   instant, never a download in the middle of a conversation. Adding a body to her list (or removing one, or a new
   version of its model) syncs the nodes connected now, in the background, and is an event for her ("you have a new

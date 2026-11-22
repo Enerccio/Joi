@@ -400,6 +400,13 @@ public class NodeServiceImpl implements NodeService, InitializingBean, Disposabl
             session.error(frame.id(), "bad_message", "Say hello first");
             return;
         }
+        if (session.welcomed() && type != NodeMessage.HELLO && type != NodeMessage.PING && type != NodeMessage.PONG && !assistantExists(session)) {
+            // she was deleted (or put in the trash) while the node was connected: nothing more is done for her
+            session.error(frame.id(), "not_found", "The assistant " + session.joiUuid() + " was deleted");
+            session.close(4004, "No assistant " + session.joiUuid());
+            closed(session);
+            return;
+        }
         try {
             switch (type) {
                 case HELLO -> hello(session, frame);
@@ -421,6 +428,17 @@ public class NodeServiceImpl implements NodeService, InitializingBean, Disposabl
         } catch (Exception e) {
             log.error("Node {}: the {} failed", session.name(), frame.type(), e);
             session.error(frame.id(), "internal", "Internal error");
+        }
+    }
+
+    /** Whether the session's assistant is still there, not deleted; when that can't be told, she is taken as there. */
+    private boolean assistantExists(NodeSession session) {
+        try (InRequestScope _ = new InRequestScope(session.attributes())) {
+            Joi joi = joiService.find(session.joiId());
+            return joi != null && !joi.isDeleted();
+        } catch (Exception e) {
+            log.warn("Node {}: could not look up the assistant {}", session.name(), session.joiId(), e);
+            return true;
         }
     }
 

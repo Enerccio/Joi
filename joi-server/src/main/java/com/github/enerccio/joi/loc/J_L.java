@@ -291,6 +291,7 @@ public enum J_L implements LocalizationKey {
     MSG_APPEARANCE_HINT,
     MSG_BODY_CAPABILITIES,
     MSG_BODY_NO_MODEL,
+    MSG_BODY_NAME_TAKEN,
     MSG_MODEL_IN_USE,
     HELP_BODY_EVENTS,
     LABEL_FORMAT,

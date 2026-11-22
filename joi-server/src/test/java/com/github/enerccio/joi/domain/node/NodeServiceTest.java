@@ -232,6 +232,21 @@ class NodeServiceTest extends PlatformTestBase {
     }
 
     @Test
+    void aNodeOfAnAssistantDeletedWhileItIsConnectedIsToldAndClosed() throws Exception {
+        Node node = connect("Bearer " + token);
+        node.hello("n1", "desk", joi.getUuid(), "1.2");
+        assertThat(node.next().get("type").getAsString()).isEqualTo("welcome");
+        joiService.delete(joiService.find(joi.getId()), false);
+
+        node.frame("say", "t1", "{\"text\": \"Hi\"}");
+        JsonObject error = node.next("error");
+        assertThat(error.get("ref").getAsString()).isEqualTo("t1");
+        assertThat(error.getAsJsonObject("data").get("code").getAsString()).isEqualTo("not_found");
+        assertThat(node.closedWith).isEqualTo(4004);
+        assertThat(nodeService.sessions(joi)).isEmpty();
+    }
+
+    @Test
     void sheCallsAToolOfTheNodeInATurnItStarted() throws Exception {
         Node node = connect("Bearer " + token);
         node.hello("n1", "desk", joi.getUuid(), "1.2");

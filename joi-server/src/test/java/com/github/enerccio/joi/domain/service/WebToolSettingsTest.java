@@ -6,6 +6,7 @@ import com.github.enerccio.joi.domain.service.WebToolSettingsService.Pages;
 import com.github.enerccio.joi.domain.service.WebToolSettingsService.Search;
 import com.github.enerccio.joi.domain.tools.ServerTool;
 import com.github.enerccio.joi.domain.tools.ToolScope;
+import com.github.enerccio.joi.domain.settings.JoiAppSettings;
 import com.github.enerccio.joi.domain.web.PageConfig;
 import com.github.enerccio.joi.domain.web.PageSourceType;
 import com.github.enerccio.joi.domain.web.SearchSource;
@@ -33,6 +34,8 @@ class WebToolSettingsTest extends PlatformTestBase {
     private ToolMetadataService metadataService;
     @Autowired
     private JoiService joiService;
+    @Autowired
+    private JoiAppSettingsService appSettings;
 
     private Joi joi;
     private User me;
@@ -154,6 +157,31 @@ class WebToolSettingsTest extends PlatformTestBase {
         assertThat(settings.privateAllowed()).isTrue();
         settings.savePages(ToolScope.JOI, joi, mine, Map.of());
         assertThat(settings.pages(joi).config().allowPrivate()).isTrue();
+    }
+
+    @Test
+    void aUsersSearchSourceIsOnTheServersNetworkOnlyWhenTheAdministratorAllowsLocalServers() throws Exception {
+        SearchSource home = new SearchSource("home", "Home", SearchSourceType.SEARXNG, true, false, "http://127.0.0.1:9", null, List.of(), null);
+        WebSearchConfig mine = config(null, home);
+        settings.saveSearch(ToolScope.USER, null, mine, Map.of());
+        assertThat(settings.search(joi).allowPrivate()).isFalse();
+        assertThatThrownBy(() -> settings.testSearch(ToolScope.USER, null, mine, home, null, null, "x"))
+                .hasMessageContaining("own network");
+
+        loginAdmin();
+        // the administrator's own sources may be anywhere
+        assertThat(settings.searchIn(ToolScope.APP, null).allowPrivate()).isTrue();
+        appSettings.save(new JoiAppSettings(true));
+        try {
+            loginAs(me);
+            assertThat(settings.search(joi).allowPrivate()).isTrue();
+            // allowed, so it gets as far as the (closed) port
+            assertThatThrownBy(() -> settings.testSearch(ToolScope.USER, null, mine, home, null, null, "x"))
+                    .hasMessageNotContaining("own network");
+        } finally {
+            loginAdmin();
+            appSettings.save(JoiAppSettings.DEFAULT);
+        }
     }
 
     @Test
