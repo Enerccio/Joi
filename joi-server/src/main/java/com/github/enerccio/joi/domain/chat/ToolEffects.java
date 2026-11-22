@@ -14,7 +14,18 @@ public final class ToolEffects {
     private static final Set<String> READ_ONLY = Set.of(AnimationTools.PLAY_ANIMATION, BodyTools.LIST_OUTFITS,
             BodyTools.LIST_BODIES, MemoryTools.RECALL, WorkspaceTools.LIST);
 
+    /** The functions whose result says nothing the model could use: a gesture, a mood, a notice on the user's screen. */
+    private static final Set<String> NO_ANSWER = Set.of(AnimationTools.PLAY_ANIMATION, MoodTools.SET_MOOD);
+
     private ToolEffects() {
+    }
+
+    /**
+     * Whether a function only does something and its result gives the model nothing to say about (so a round that has already said its
+     * words and made only such calls needs no round after them): a gesture, a mood, and a node's {@code notify}.
+     */
+    public static boolean needsNoAnswer(String function) {
+        return function != null && (NO_ANSWER.contains(function) || function.endsWith("__notify"));
     }
 
     /** Whether calling the function changes state (anything not known to be read-only does, a node's tools included). */

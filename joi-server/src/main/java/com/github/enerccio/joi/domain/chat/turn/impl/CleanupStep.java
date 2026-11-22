@@ -15,7 +15,9 @@ public class CleanupStep extends TurnStepBase {
 
     @Override
     protected void onStep(TurnController controller) throws Exception {
-        TurnOutcome outcome = controller.getMessage() != null ? TurnOutcome.COMPLETED
+        boolean partial = Boolean.TRUE.equals(controller.getProperties().get(TurnProperties.PARTIAL));
+        TurnOutcome outcome = partial ? TurnOutcome.FAILED
+                : controller.getMessage() != null ? TurnOutcome.COMPLETED
                 : controller.getFailure() != null ? TurnOutcome.FAILED : TurnOutcome.STOPPED;
         controller.getProperties().put(TurnProperties.OUTCOME, outcome);
         controller.emitEvent(TurnEvents.AFTER_CLEANUP, controller::next);

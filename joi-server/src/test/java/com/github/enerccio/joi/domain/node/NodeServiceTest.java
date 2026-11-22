@@ -666,7 +666,7 @@ class NodeServiceTest extends PlatformTestBase {
         joi.setMood("calm");
         joi = joiService.save(joi);
         llm.enqueue(MockLLMResponse.text("Hello."),
-                MockLLMResponse.text("Ha!").andToolCall("set_mood", "{\"mood\":\"Playful\"}"),
+                MockLLMResponse.toolCall("set_mood", "{\"mood\":\"Playful\"}"),
                 MockLLMResponse.text("Yes."));
         Node node = connect("Bearer " + token);
         node.hello("n1", "desk", joi.getUuid(), "1.10");
@@ -697,7 +697,7 @@ class NodeServiceTest extends PlatformTestBase {
         wave.setDescription("You wave hello.");
         wave = packService.save(wave);
         llm.enqueue(MockLLMResponse.text("Hello."),
-                MockLLMResponse.text("Hi!").andToolCall("play_animation", "{\"animation\":\"Wave\"}"),
+                MockLLMResponse.toolCall("play_animation", "{\"animation\":\"Wave\"}"),
                 MockLLMResponse.text("There."),
                 MockLLMResponse.toolCall("play_animation", "{\"animation\":\"Moonwalk\"}"),
                 MockLLMResponse.text("Hm."));

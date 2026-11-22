@@ -26,7 +26,9 @@ Each step (`TurnStepType`) is a bean listed under the chat service in `services-
 | `SPEECH` | the speech of the reply |
 | `CLEANUP` | closes the turn |
 
-`INFERENCE` and `CALL_TOOLS` loop until a round has no calls. After the platform's `MAX_FUNCTION_ROUNDS` the model must answer in text.
+`INFERENCE` and `CALL_TOOLS` loop until a round has no calls. After the platform's `MAX_FUNCTION_ROUNDS` the model must answer in text. The exception is a round that has said its words and made only calls whose result says nothing (`ToolEffects.needsNoAnswer`: `play_animation`, `set_mood`, a node's
+`notify`, all succeeded): `CALL_TOOLS` ends the turn at `STORE` for it, since the next round would have nothing to add (a small model fills it with nothing until its
+token budget is gone).
 
 ## Everything is asynchronous
 
@@ -51,6 +53,15 @@ The caller's listener (`onReply`, `onAudio`) may fail, for example a stream whos
 speech and the steps after the store still run.
 
 `AFTER_CLEANUP` comes for every turn with its outcome (`TurnOutcome`).
+
+## A turn that fails after some rounds
+
+A round can fail (the model's server answers an error, a round uses its whole token budget without a word) after earlier rounds answered and called functions. Those
+words had streamed to the clients and the functions had run, so the engine does not drop them: before the cleanup, `TurnEngine.keepWhatHappened` sends a failed turn that has
+words or calls to `STORE` once (never one that was stopped, or failed before it did anything). The message is stored with the reply and tool calls so far,
+`TurnProperties.PARTIAL` is set, the speech is skipped (`StoreStep` goes to `CLEANUP`), and a note of the type `LOG` and the kind `turn.failed` carries the reason into the
+conversation: the web chat and the nodes (as a `log` frame) show it and the model never sees it. The turn still ends as a failure: the caller's future fails, the node gets `error`,
+the job and the outcome are `FAILED`. `ChatTurnTest` has the case (the second round uses its budget after a call).
 
 Who hooks in: her memories in the prompt, the server tools (`remember`, `recall`, `play_animation`, `set_mood`, `change_body_part`, `list_outfits`,
 `set_outfit`, `list_bodies`, `switch_body`, `web_search`, `fetch_page`, `list_workspace_files`, `offer_file_to_clipboard`) and the nodes' tools and approvals (`NodeService` registers a

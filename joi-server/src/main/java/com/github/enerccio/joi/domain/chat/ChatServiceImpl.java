@@ -379,6 +379,8 @@ public class ChatServiceImpl implements ChatService, InitializingBean, Disposabl
         private volatile String reasoning;
         private final List<ToolUsage> toolUsages = new java.util.concurrent.CopyOnWriteArrayList<>();
         private volatile ChatMessage message;
+        /** A failed turn is stored once, as far as it got ({@link #keepWhatHappened}). */
+        private final AtomicBoolean partialTried = new AtomicBoolean();
         private volatile long promptTokens;
         private volatile long completionTokens;
         private volatile long textMs = -1;
@@ -425,6 +427,9 @@ public class ChatServiceImpl implements ChatService, InitializingBean, Disposabl
             executor.execute(() -> {
                 try (InRequestScope _ = new InRequestScope(requestAttributes); TurnJob.Left _ = job.enter()) {
                     TurnStepType type = current;
+                    if (type == TurnStepType.CLEANUP && keepWhatHappened()) {
+                        current = type = TurnStepType.STORE;
+                    }
                     if (type == null) {
                         finish();
                         return;
@@ -439,6 +444,20 @@ public class ChatServiceImpl implements ChatService, InitializingBean, Disposabl
                     }
                 }
             });
+        }
+
+        /**
+         * A round failed after others had answered: her words and the functions she called so far did happen (a node showed and spoke them,
+         * a clipboard offer was made), so they are stored, with her prompt, instead of being lost; the turn still ends as a failure.
+         * A turn that is stopped, or failed before it did anything, stores nothing.
+         */
+        private boolean keepWhatHappened() {
+            if (failure == null || message != null || token.isCancelled()
+                    || StringUtils.isBlank(reply) && toolUsages.isEmpty() || !partialTried.compareAndSet(false, true)) {
+                return false;
+            }
+            properties.put(TurnProperties.PARTIAL, true);
+            return true;
         }
 
         /** Something failed outside a step's own handling: the cleanup, or the end when it was the cleanup. */
@@ -457,10 +476,14 @@ public class ChatServiceImpl implements ChatService, InitializingBean, Disposabl
             if (!finished.compareAndSet(false, true)) {
                 return;
             }
+            boolean partial = Boolean.TRUE.equals(properties.get(TurnProperties.PARTIAL));
             try {
-                job.finish(message != null ? JobStatus.COMPLETED : failure != null ? JobStatus.FAILED : JobStatus.CANCELLED);
+                job.finish(partial ? JobStatus.FAILED : message != null ? JobStatus.COMPLETED : failure != null ? JobStatus.FAILED : JobStatus.CANCELLED);
                 running.remove(this);
-                if (message != null) {
+                if (partial && failure != null) {
+                    noteFailure();
+                    result.completeExceptionally(failure);
+                } else if (message != null) {
                     long first = firstToken.get();
                     result.complete(new Result(message, mood, ai, audio, speechError, promptTokens, completionTokens, first,
                             textMs, speechMs));
@@ -471,6 +494,16 @@ public class ChatServiceImpl implements ChatService, InitializingBean, Disposabl
                 }
             } finally {
                 ended.complete(null);
+            }
+        }
+
+        /** Tells the conversation why a turn that is kept ends here: a note, not for the model (the clients get it as a `log` frame). */
+        private void noteFailure() {
+            try {
+                ChatServiceImpl.this.log(joi, "turn.failed", "Her turn failed after she had answered in part, what she said and did is kept: "
+                        + StringUtils.defaultIfBlank(failure.getMessage(), failure.getClass().getSimpleName()));
+            } catch (Exception e) {
+                log.warn("The note of a failed turn was not written: {}", e.getMessage());
             }
         }
 

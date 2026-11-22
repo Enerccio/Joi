@@ -10,6 +10,7 @@ import com.github.enerccio.joi.domain.chat.turn.TurnOutcome;
 import com.github.enerccio.joi.domain.chat.turn.TurnProperties;
 import com.github.enerccio.marginalia.domain.collections.ReasoningPassthrough;
 import com.github.enerccio.marginalia.domain.model.impl.OpenAICompatible;
+import com.github.enerccio.joi.domain.collections.ChatMessageType;
 import com.github.enerccio.joi.domain.collections.MemoryImportance;
 import com.github.enerccio.joi.domain.model.impl.ChatMessage;
 import com.github.enerccio.joi.domain.model.impl.Joi;
@@ -312,6 +313,92 @@ class ChatTurnTest extends PlatformTestBase {
         llm.enqueue(MockLLMResponse.text("Good morning!").usage(100, 12));
         assertThat(chat("Hello?", new ChatService.Listener() {
         }).message().getResponse()).isEqualTo("Good morning!");
+    }
+
+    @Test
+    void aRoundThatFailsAfterOthersAnsweredKeepsWhatSheSaidAndDidAndTheTurnStillFails() throws Exception {
+        OpenAICompatible ai = createAI();
+        ai.setMaxCompletionTokens(50);
+        aiService.save(ai);
+        joi.setChatModel(ai.getId());
+        joi = joiService.save(joi);
+        List<String> calls = new CopyOnWriteArrayList<>();
+        offerNote(calls);
+        // she speaks and calls a function; the round after its result loops until its budget is gone and gives nothing
+        llm.enqueue(MockLLMResponse.text("Let me note it.").andToolCall("note", "{\"text\":\"milk\"}"),
+                MockLLMResponse.text("").usage(100, 50));
+
+        assertThatThrownBy(() -> chat("Remember the milk", new ChatService.Listener() {
+        })).hasMessageContaining("whole budget of 50 tokens");
+
+        // the call was made, and it and her words are kept as a message, with a note of why the turn ended (not for the model)
+        assertThat(calls).containsExactly("milk");
+        List<ChatMessage> stored = chatMessageService.findLatest(joi, 10);
+        assertThat(stored).extracting(ChatMessage::getType).containsExactlyInAnyOrder(ChatMessageType.USER, ChatMessageType.LOG);
+        ChatMessage kept = stored.stream().filter(message -> message.getType() == ChatMessageType.USER).findFirst().orElseThrow();
+        assertThat(kept.getInput()).isEqualTo("Remember the milk");
+        assertThat(kept.getResponse()).isEqualTo("Let me note it.");
+        assertThat(ToolUsage.fromJson(kept.getToolCalls())).containsExactly(new ToolUsage("note", "{\"text\":\"milk\"}", "noted milk", false));
+        ChatMessage note = stored.stream().filter(message -> message.getType() == ChatMessageType.LOG).findFirst().orElseThrow();
+        assertThat(note.getEventKind()).isEqualTo("turn.failed");
+        assertThat(note.getInput()).contains("whole budget of 50 tokens");
+
+        // the next turn runs as usual
+        llm.enqueue(MockLLMResponse.text("Noted.").usage(100, 12));
+        assertThat(chat("Thanks", new ChatService.Listener() {
+        }).message().getResponse()).isEqualTo("Noted.");
+    }
+
+    /** A function with that name that does nothing and answers {@code done}. */
+    private void offerGesture(String name, List<String> calls) {
+        ObjectNode schema = new ObjectMapper().createObjectNode().put("type", "object");
+        schema.putObject("properties").putObject("what").put("type", "string");
+        FunctionDefinition gesture = FunctionDefinition.dynamic(name, "A gesture", schema, (continuation, arguments) -> {
+            calls.add((String) arguments.get("what"));
+            continuation.complete("done");
+        });
+        registrations.add(chatService.addEventListener(TurnEvents.COLLECT_TOOLS, (event, chain) -> {
+            event.setFunctions(event.getFunctions().and(FunctionSet.bind(List.of(gesture), this)));
+            chain.next();
+        }));
+    }
+
+    @Test
+    void aRoundThatSaidItsWordsAndOnlyGesturedEndsTheTurnWithoutAnotherRound() throws Exception {
+        List<String> calls = new CopyOnWriteArrayList<>();
+        offerGesture("play_animation", calls);
+        // the second response would be the round after the gesture: nothing is left to say, and a small model loops there
+        llm.enqueue(MockLLMResponse.text("Hello there!").andToolCall("play_animation", "{\"what\":\"wave\"}"),
+                MockLLMResponse.text("never asked"));
+
+        ChatService.Result result = chat("Hi", new ChatService.Listener() {
+        });
+
+        assertThat(calls).containsExactly("wave");
+        assertThat(llm.getCompletionRequests()).hasSize(1);
+        assertThat(result.message().getResponse()).isEqualTo("Hello there!");
+        assertThat(ToolUsage.fromJson(result.message().getToolCalls()))
+                .containsExactly(new ToolUsage("play_animation", "{\"what\":\"wave\"}", "done", false));
+    }
+
+    @Test
+    void aGestureWithoutWordsOrNextToAFunctionThatAnswersStillGetsItsRound() throws Exception {
+        List<String> gestures = new CopyOnWriteArrayList<>();
+        List<String> notes = new CopyOnWriteArrayList<>();
+        offerGesture("play_animation", gestures);
+        offerNote(notes);
+        // no words yet: the model gets the result and answers
+        llm.enqueue(MockLLMResponse.toolCall("play_animation", "{\"what\":\"wave\"}"), MockLLMResponse.text("Hi!"));
+        assertThat(chat("Hi", new ChatService.Listener() {
+        }).message().getResponse()).isEqualTo("Hi!");
+        assertThat(llm.getCompletionRequests()).hasSize(2);
+
+        // words, but a function whose result she has not seen is called with the gesture: the model reads it
+        llm.enqueue(MockLLMResponse.text("Noting.").andToolCall("play_animation", "{\"what\":\"nod\"}").andToolCall("note", "{\"text\":\"milk\"}"),
+                MockLLMResponse.text("Noted."));
+        assertThat(chat("Note the milk", new ChatService.Listener() {
+        }).message().getResponse()).isEqualTo("Noting.\n\nNoted.");
+        assertThat(llm.getCompletionRequests()).hasSize(4);
     }
 
     @Test

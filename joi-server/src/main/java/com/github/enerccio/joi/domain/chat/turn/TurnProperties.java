@@ -26,6 +26,8 @@ public final class TurnProperties {
     public static final String SPEECH_TEXT = "joi.speechText";
     /** Why some or all of the speech is missing ({@code String}), at {@link TurnEvents#AFTER_SPEECH}, null when nothing is. */
     public static final String SPEECH_ERROR = "joi.speechError";
+    /** {@code Boolean.TRUE} when a round failed after others had answered and what the turn had done was stored anyway, see {@code ChatServiceImpl}. */
+    public static final String PARTIAL = "joi.partial";
     /** How the turn went ({@link TurnOutcome}), at {@link TurnEvents#AFTER_CLEANUP}. */
     public static final String OUTCOME = "joi.outcome";
 

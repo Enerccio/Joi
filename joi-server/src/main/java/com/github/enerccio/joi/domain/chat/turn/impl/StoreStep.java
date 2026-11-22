@@ -3,6 +3,7 @@ package com.github.enerccio.joi.domain.chat.turn.impl;
 import com.github.enerccio.joi.domain.chat.ToolUsage;
 import com.github.enerccio.joi.domain.chat.turn.TurnController;
 import com.github.enerccio.joi.domain.chat.turn.TurnEvents;
+import com.github.enerccio.joi.domain.chat.turn.TurnProperties;
 import com.github.enerccio.joi.domain.chat.turn.TurnStepBase;
 import com.github.enerccio.joi.domain.chat.turn.TurnStepType;
 import com.github.enerccio.joi.domain.collections.ChatMessageType;
@@ -65,7 +66,14 @@ public class StoreStep extends TurnStepBase {
                 // a caller that is gone (a stream whose client left) does not stop her speech and what follows the store
                 log.debug("A listener of a chat failed: {}", e.getMessage());
             }
-            controller.emitEvent(TurnEvents.AFTER_STORE, controller::next);
+            // a turn that failed after some rounds is kept as it was, and not spoken: it goes to its end
+            controller.emitEvent(TurnEvents.AFTER_STORE, () -> {
+                if (Boolean.TRUE.equals(controller.getProperties().get(TurnProperties.PARTIAL))) {
+                    controller.jumpTo(TurnStepType.CLEANUP);
+                } else {
+                    controller.next();
+                }
+            });
         });
     }
 

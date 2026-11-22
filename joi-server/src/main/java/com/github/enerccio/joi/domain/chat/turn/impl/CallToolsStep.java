@@ -1,5 +1,6 @@
 package com.github.enerccio.joi.domain.chat.turn.impl;
 
+import com.github.enerccio.joi.domain.chat.ToolEffects;
 import com.github.enerccio.joi.domain.chat.ToolUsage;
 import com.github.enerccio.joi.domain.chat.turn.TurnController;
 import com.github.enerccio.joi.domain.chat.turn.TurnEvents;
@@ -29,8 +30,25 @@ public class CallToolsStep extends TurnStepBase {
     protected void onStep(TurnController controller) throws Exception {
         List<LLMToolCall> calls = controller.getProperties().get(TurnProperties.ROUND_CALLS) instanceof List<?> list
                 ? list.stream().map(LLMToolCall.class::cast).toList() : List.of();
-        forEachAsync(controller, calls, (call, next) -> call(controller, call, next),
-                () -> controller.jumpTo(TurnStepType.INFERENCE));
+        forEachAsync(controller, calls, (call, next) -> call(controller, call, next), () -> afterCalls(controller, calls));
+    }
+
+    /**
+     * The model reads the results in another round, except when it has said its words in this one and only gestured (an animation, a mood, a
+     * notice): that round has nothing to add, and a small model fills it with nothing until its budget is gone, so the turn ends here.
+     */
+    private void afterCalls(TurnController controller, List<LLMToolCall> calls) throws Exception {
+        List<ToolUsage> usages = controller.getToolUsages();
+        boolean said = StringUtils.isNotBlank((String) controller.getProperties().get(TurnProperties.ROUND_TEXT));
+        boolean gestures = !calls.isEmpty() && calls.stream().allMatch(call -> ToolEffects.needsNoAnswer(call.getName()));
+        boolean worked = usages.size() >= calls.size()
+                && usages.subList(usages.size() - calls.size(), usages.size()).stream().noneMatch(ToolUsage::failed);
+        if (said && gestures && worked) {
+            controller.markTextDone();
+            controller.jumpTo(TurnStepType.STORE);
+            return;
+        }
+        controller.jumpTo(TurnStepType.INFERENCE);
     }
 
     private void call(TurnController controller, LLMToolCall call, TurnController.FromEventCallback next) {
