@@ -1914,7 +1914,7 @@ writes into the source tree or needs Xcode:
 
 **Stages:**
 
-1. The generator and the Swift package with its fixtures (**built**: `SwiftGenerator`, `joi-ios/Packages/JoiProtocol`); pairing, text chat, streamed replies, her speech, her body
+1. The generator and the Swift package with its fixtures (**built**: `SwiftGenerator`, `joi-ios/Packages/JoiProtocol`); the client (**built**: `joi-ios/Packages/JoiClient`, an actor for the HTTP API and the device-grant pairing with the reference node's refresh rules, `NodeConnection` for the node WebSocket with the heartbeat and the new tries, tested against a fake server and a real one); pairing, text chat, streamed replies, her speech, her body
    in the WebView (proves the protocol with a node that is not Java).
 2. The App Intents (*Ask*, *Tell*, *Listen*, approvals), the Vocal Shortcut guide, push-to-talk with on-device speech
    to text, the registered-shortcut tools, `notify` and the first native tools; approval cards.
