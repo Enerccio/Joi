@@ -23,4 +23,6 @@ extension JoiClient: HistorySource {}
 @MainActor public protocol SpeechPlaying: AnyObject {
     func enqueue(_ chunk: AudioChunk)
     func stop()
+    /// Called when the last piece that was given has been played.
+    var onFinished: (@MainActor () -> Void)? { get set }
 }

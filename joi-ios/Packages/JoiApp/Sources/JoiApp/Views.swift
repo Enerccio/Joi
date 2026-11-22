@@ -21,8 +21,8 @@ public struct RootView: View {
                 }
             case .pairing(let grant):
                 PairingView(grant: grant, model: model)
-            case .ready(let chat):
-                ChatView(chat: chat, model: model)
+            case .ready(let chat, let avatar):
+                ChatView(chat: chat, avatar: avatar, model: model)
             }
         }
         .task { model.launch() }
@@ -86,11 +86,72 @@ enum QRCode {
     }
 }
 
+/// Her body above, the chat below (side by side when the phone lies down). The body takes half of the height, less while the keyboard is up.
 struct ChatView: View {
     let chat: ChatModel
+    let avatar: AvatarModel
     let model: AppModel
-    @State private var input = ""
     @FocusState private var focused: Bool
+
+    var body: some View {
+        GeometryReader { geometry in
+            if geometry.size.width > geometry.size.height {
+                HStack(spacing: 0) {
+                    AvatarPane(avatar: avatar).frame(width: geometry.size.width * 0.45)
+                    ChatColumn(chat: chat, model: model, focused: $focused)
+                }
+            } else {
+                VStack(spacing: 0) {
+                    AvatarPane(avatar: avatar).frame(height: geometry.size.height * (focused ? 0.25 : 0.5))
+                    ChatColumn(chat: chat, model: model, focused: $focused)
+                }
+                .animation(.easeInOut(duration: 0.25), value: focused)
+            }
+        }
+    }
+}
+
+/// Her body, or what is going on while it is not there.
+struct AvatarPane: View {
+    let avatar: AvatarModel
+
+    var body: some View {
+        ZStack {
+            Color(red: 0.067, green: 0.067, blue: 0.078)
+            #if canImport(UIKit)
+            // the page stays while her body is loaded again
+            if let page = avatar.page {
+                AvatarView(bridge: avatar.bridge, page: page)
+            }
+            #endif
+            switch avatar.status {
+            case .shown:
+                if !avatar.drawn {
+                    VStack(spacing: 8) {
+                        ProgressView().tint(.white)
+                        Text("Drawing her").font(.footnote).foregroundStyle(.white.opacity(0.7))
+                    }
+                }
+            case .loading(let what):
+                VStack(spacing: 8) {
+                    ProgressView().tint(.white)
+                    Text(what).font(.footnote).foregroundStyle(.white.opacity(0.7))
+                }
+            case .none:
+                Text("She has no body yet.").font(.footnote).foregroundStyle(.white.opacity(0.7))
+            case .failed(let why):
+                Text("Her body could not be loaded: \(why)").font(.footnote).foregroundStyle(.red).multilineTextAlignment(.center).padding()
+            }
+        }
+        .clipped()
+    }
+}
+
+struct ChatColumn: View {
+    let chat: ChatModel
+    let model: AppModel
+    @FocusState.Binding var focused: Bool
+    @State private var input = ""
 
     var body: some View {
         VStack(spacing: 0) {

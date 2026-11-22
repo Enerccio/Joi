@@ -23,7 +23,14 @@ targets:
     type: application
     platform: iOS
     sources:
-      - App
+      - path: App
+        excludes:
+          - Renderer
+      # the renderer page, built by Maven (joi-ios/pom.xml) from joi-node/src/main/renderer; a folder, so that its paths stay as they are
+      - path: App/Renderer
+        type: folder
+        optional: true
+        buildPhase: resources
     dependencies:
       - package: JoiApp
         product: JoiApp

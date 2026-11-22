@@ -13,7 +13,7 @@ public final class AppModel {
         case working(String)
         /// The user approves this code in the server's UI.
         case pairing(DeviceAuthorization)
-        case ready(ChatModel)
+        case ready(ChatModel, AvatarModel)
     }
 
     public private(set) var phase: Phase = .setup
@@ -57,7 +57,7 @@ public final class AppModel {
     /// Forgets the pairing and the server's address (the server keeps the device listed until it is revoked there).
     public func signOut() {
         task?.cancel()
-        if case .ready(let chat) = phase {
+        if case .ready(let chat, _) = phase {
             Task { await chat.stop() }
         }
         store.save(Credentials())
@@ -89,7 +89,8 @@ public final class AppModel {
             phase = .working("Signing in")
             _ = try await client.me()
             defaults.set(server.absoluteString, forKey: Keys.server)
-            phase = .ready(try await chat(client))
+            let (chat, avatar) = try await chat(client)
+            phase = .ready(chat, avatar)
         } catch is CancellationError {
             return
         } catch {
@@ -99,17 +100,38 @@ public final class AppModel {
         }
     }
 
-    private func chat(_ client: JoiClient) async throws -> ChatModel {
+    private func chat(_ client: JoiClient) async throws -> (ChatModel, AvatarModel) {
         guard let joi = try await client.jois().jois.first else {
             throw ServerError(status: 0, code: "no_joi", message: "The server has no assistant yet.")
         }
+        // the animations chosen for her: what her body does while she sleeps, waits and speaks
+        let roles = try? await client.joi(joi.id).animations
+        let avatar = AvatarModel(page: Self.rendererPage)
         let hello = Hello(protocol: JoiProtocolInfo.nodeVersion, nodeId: nodeId, name: "phone", kind: "phone", software: "joi-ios 0.1",
                           joi: joi.id, parts: [.tools, .audioOut])
         let link = NodeConnection(url: await client.nodeSocket, hello: hello, manifest: Manifest(version: 1, os: "ios", tools: []),
                                   authorizer: { try await client.authorization() })
-        let model = ChatModel(joiID: joi.id, joiName: joi.name, history: client, link: link, speech: Self.makeSpeech())
+        let model = ChatModel(joiID: joi.id, joiName: joi.name, history: client, link: link, speech: Self.makeSpeech(),
+                              player: avatar.bridge, roles: roles)
+        model.onServerEvent = { [weak model, weak avatar] name in
+            // the server tells that her body or her settings changed
+            switch name {
+            case "body":
+                avatar?.load(from: client, joi: joi.id)
+            case "joi":
+                Task { model?.setRoles(try? await client.joi(joi.id).animations) }
+            default:
+                break
+            }
+        }
+        avatar.load(from: client, joi: joi.id)
         Task { await model.start() }
-        return model
+        return (model, avatar)
+    }
+
+    /// The renderer page (`joi-node/src/main/renderer`, built into the app by Maven as the folder `Renderer`).
+    static var rendererPage: URL? {
+        Bundle.main.resourceURL?.appendingPathComponent("Renderer")
     }
 
     private var nodeId: String {

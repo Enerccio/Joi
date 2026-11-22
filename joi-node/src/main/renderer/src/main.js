@@ -5,6 +5,8 @@
 // {type: "error", id, message} when it could not play.
 // {type: "offline", offline: true|false}: the server is gone (or back): she is frozen and shown in gray (body.offline).
 // {type: "toggles", toggles: [{mesh, key, hides, shown}]} shows and hides the parts of her model (set again once it loads).
+// In the iOS app (WKWebView) there is no node server: the app calls window.joiReceive(message) with the same messages and takes
+// what the page says through webkit.messageHandlers.joi ({type: "ready"} when it is loaded, {type: "loaded"} when her model is there, then "ended" and "error" as below).
 // With ?looking-glass the page renders her for the Looking Glass whose calibration the node serves (looking-glass.js);
 // {type: "tuning", tuning} changes how (the node's tuning panel).
 import './generated/joi-model-viewer.js';
@@ -26,7 +28,13 @@ if (new URLSearchParams(location.search).has('looking-glass')) {
     .catch(error => console.log('joi renderer: no Looking Glass calibration: ' + error.message));
 }
 
+const native = window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.joi;
+
 function post(body) {
+  if (native) {
+    native.postMessage(body);
+    return;
+  }
   fetch('ended', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body)})
     .catch(() => {
       // the node is gone: nothing to tell
@@ -45,7 +53,13 @@ function play(message) {
 }
 
 // the parts shown and hidden are of the model: set again when one has loaded
-viewer.addEventListener('model-info', () => viewer.setToggles(JSON.stringify(toggles)));
+viewer.addEventListener('model-info', () => {
+  viewer.setToggles(JSON.stringify(toggles));
+  if (native) {
+    // the app shows a note over the page until her model is drawn
+    native.postMessage({type: 'loaded'});
+  }
+});
 viewer.addEventListener('animation-finished', () => {
   if (playing !== null) {
     post({type: 'ended', id: playing});
@@ -57,10 +71,7 @@ viewer.addEventListener('animation-error', event => {
   }
 });
 
-const events = new EventSource('events');
-events.onerror = () => console.log('joi renderer: the node\'s events dropped (reconnecting)');
-events.onmessage = event => {
-  const message = JSON.parse(event.data);
+function receive(message) {
   console.log('joi renderer: ' + message.type + (message.id !== undefined ? ' ' + message.id : ''));
   switch (message.type) {
     case 'model':
@@ -90,4 +101,23 @@ events.onmessage = event => {
       viewer.stopAnimation();
       break;
   }
-};
+}
+
+if (native) {
+  // what the page logs and the errors it has go to the app's log (no inspector on a phone)
+  for (const level of ['log', 'warn', 'error']) {
+    const original = console[level].bind(console);
+    console[level] = (...args) => {
+      original(...args);
+      native.postMessage({type: 'log', message: level + ': ' + args.map(String).join(' ')});
+    };
+  }
+  window.addEventListener('error', event => native.postMessage({type: 'log', message: 'error: ' + event.message}));
+  window.addEventListener('unhandledrejection', event => native.postMessage({type: 'log', message: 'rejected: ' + event.reason}));
+  window.joiReceive = receive;
+  post({type: 'ready'});
+} else {
+  const events = new EventSource('events');
+  events.onerror = () => console.log('joi renderer: the node\'s events dropped (reconnecting)');
+  events.onmessage = event => receive(JSON.parse(event.data));
+}

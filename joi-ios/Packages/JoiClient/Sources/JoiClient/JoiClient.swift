@@ -97,6 +97,50 @@ public actor JoiClient {
                        body: reason.map { TaskDenial(reason: $0) })
     }
 
+    // MARK: files
+
+    /// A file the server offers (her `.joim`, her `.joia`), kept in `cache` under its SHA-256 (`<hash>.joim`): the one that is there
+    /// already is not downloaded again. The download goes to a file (never memory) and is checked against the hash before it is kept.
+    public func download(_ file: Download, into cache: URL) async throws -> URL {
+        let hash = file.sha256.lowercased()
+        guard hash.count == 64, hash.allSatisfy(\.isHexDigit) else {
+            // it names a file of the cache: anything but a hash could lead out of it
+            throw ServerError(status: 0, code: "bad_hash", message: "The server gave no SHA-256 for \(file.url)")
+        }
+        let name = URL(string: file.url)?.lastPathComponent.filter { $0.isLetter && $0.isLowercase } ?? ""
+        let target = cache.appendingPathComponent(hash + "." + (name.isEmpty ? "bin" : name))
+        let fm = FileManager.default
+        if let size = (try? fm.attributesOfItem(atPath: target.path))?[.size] as? Int, size == file.size {
+            return target
+        }
+        try fm.createDirectory(at: cache, withIntermediateDirectories: true)
+        // the server names a file by the address it was reached at: here only its path and query count
+        guard let parts = URLComponents(string: file.url) else { throw ServerError(status: 0, code: "bad_url", message: "Not an address: \(file.url)") }
+        let path = parts.percentEncodedPath + (parts.percentEncodedQuery.map { "?" + $0 } ?? "")
+        let used = try await authorization()
+        var (temp, response) = try await fetch(path, authorization: used)
+        if response.statusCode == 401, try await refreshAfter(used) {
+            try? fm.removeItem(at: temp)
+            (temp, response) = try await fetch(path, authorization: store.load().authorization)
+        }
+        defer { try? fm.removeItem(at: temp) }
+        guard response.statusCode == 200 else {
+            throw apiError((try? Data(contentsOf: temp, options: .mappedIfSafe).prefix(4096)).map { Data($0) } ?? Data(), response)
+        }
+        guard try FileHash.sha256(of: temp) == hash else {
+            throw ServerError(status: 0, code: "bad_hash", message: "The file of \(file.url) is not what the server said")
+        }
+        try? fm.removeItem(at: target)
+        try fm.moveItem(at: temp, to: target)
+        return target
+    }
+
+    private func fetch(_ path: String, authorization: String?) async throws -> (URL, HTTPURLResponse) {
+        var request = URLRequest(url: url(path), timeoutInterval: 120)
+        if let authorization { request.setValue(authorization, forHTTPHeaderField: "Authorization") }
+        return try await transport.download(request)
+    }
+
     // MARK: credentials
 
     /// The `Authorization` header now, after making an access token that ends again; nil for none.

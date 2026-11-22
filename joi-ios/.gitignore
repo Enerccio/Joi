@@ -9,3 +9,6 @@ DerivedData/
 # written by XcodeGen from project.yml
 Joi.xcodeproj/
 App/Info.plist
+
+# the renderer page (joi-node/src/main/renderer, built by Maven and copied here): her body in the app's web view
+App/Renderer/

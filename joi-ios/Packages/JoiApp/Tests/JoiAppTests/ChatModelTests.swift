@@ -47,16 +47,25 @@ struct FakeHistory: HistorySource {
 @MainActor final class FakeSpeech: SpeechPlaying {
     var chunks: [AudioChunk] = []
     var stops = 0
+    var onFinished: (@MainActor () -> Void)?
     func enqueue(_ chunk: AudioChunk) { chunks.append(chunk) }
     func stop() { stops += 1 }
+}
+
+@MainActor final class FakePlayer: AnimationPlayer {
+    var played: [String] = []
+    var offline = false
+    var onEnded: (@MainActor () -> Void)?
+    func play(_ animation: String?, loop: Bool) { played.append("\(animation ?? "rest")\(loop ? " loop" : "")") }
+    func setOffline(_ offline: Bool) { self.offline = offline }
 }
 
 @MainActor @Suite struct ChatModelTests {
     let link = FakeLink()
     let speech = FakeSpeech()
 
-    private func model(history: FakeHistory = FakeHistory()) -> ChatModel {
-        ChatModel(joiID: "j1", joiName: "Joi", history: history, link: link, speech: speech)
+    private func model(history: FakeHistory = FakeHistory(), withSpeech: Bool = true) -> ChatModel {
+        ChatModel(joiID: "j1", joiName: "Joi", history: history, link: link, speech: withSpeech ? speech : nil)
     }
 
     private func frame(_ ref: String?, _ data: NodeFrameData) -> NodeConnection.Event {
@@ -86,11 +95,13 @@ struct FakeHistory: HistorySource {
         #expect(chat.messages.map(\.role) == [.user, .joi])
         #expect(chat.messages[1].streaming && chat.messages[1].turn == "t1")
 
+        // her words wait for her voice: the chat does not run ahead of what she says
         chat.apply(frame("t1", .text(TextDelta(delta: "Not "))))
         chat.apply(frame("t1", .text(TextDelta(delta: "much."))))
-        #expect(chat.messages[1].text == "Not much.")
+        #expect(chat.messages[1].text == "")
         chat.apply(frame("t1", .reply(ChatReply(messageId: "m9", text: "Not much.", usage: Usage(promptTokens: 1, completionTokens: 1, firstTokenMs: 1, textMs: 1, speechMs: 1)))))
         chat.apply(frame("t1", .audio(AudioChunk(index: 0, text: "Not much.", mimeType: "audio/wav", data: Data([1, 2])))))
+        #expect(chat.messages[1].text == "Not much.")
         chat.apply(frame("t1", .done(Done(messageId: "m9"))))
         #expect(!chat.messages[1].streaming)
         #expect(chat.messages[1].text == "Not much.")
@@ -99,6 +110,17 @@ struct FakeHistory: HistorySource {
 
     @Test func aTurnTheServerStartedIsShownToo() async {
         let chat = model()
+        await chat.start()
+        chat.apply(frame(nil, .turn(TurnStart(turn: "s7", cause: "first_boot"))))
+        chat.apply(frame("s7", .text(TextDelta(delta: "I'm awake."))))
+        // no voice came: her words are shown when the turn ends
+        chat.apply(frame("s7", .done(Done(messageId: "m1"))))
+        #expect(chat.messages.map(\.text) == ["I'm awake."])
+        #expect(chat.messages[0].role == .joi && !chat.messages[0].streaming)
+    }
+
+    @Test func withoutSpeechHerWordsComeAsTheyAreWritten() async {
+        let chat = model(withSpeech: false)
         await chat.start()
         chat.apply(frame(nil, .turn(TurnStart(turn: "s7", cause: "first_boot"))))
         chat.apply(frame("s7", .text(TextDelta(delta: "I'm awake."))))
@@ -179,14 +201,49 @@ struct FakeHistory: HistorySource {
     }
 
     @Test func eventsComeThroughTheStreamToo() async throws {
-        let chat = model()
+        let chat = model(withSpeech: false)
         await chat.start()
         link.tell(frame(nil, .turn(TurnStart(turn: "s1", cause: "x"))))
         link.tell(frame("s1", .text(TextDelta(delta: "Hello"))))
         for _ in 0..<200 where chat.messages.first?.text != "Hello" { try await Task.sleep(for: .milliseconds(5)) }
         #expect(chat.messages.first?.text == "Hello")
         await chat.stop()
-        #expect(link.closed && speech.stops >= 1)
+        #expect(link.closed)
+    }
+
+    @Test func herBodyFollowsHerTurnsAndTheConnection() async {
+        let player = FakePlayer()
+        let roles = JoiAnimations(sleeping: "sleep", wakingUp: "wake", idle: ["idle"], talking: ["talk"])
+        let chat = ChatModel(joiID: "j1", joiName: "Joi", history: FakeHistory(), link: link, speech: nil, player: player, roles: roles)
+        await chat.start()
+        #expect(player.played == ["idle loop"])
+        // her first waking up: she sleeps while her words are written, they are shown when she is awake
+        chat.apply(frame(nil, .turn(TurnStart(turn: "s1", cause: "first_boot"))))
+        chat.apply(frame("s1", .text(TextDelta(delta: "I'm awake."))))
+        chat.apply(frame("s1", .done(Done(messageId: "m1"))))
+        #expect(player.played == ["idle loop", "sleep loop", "wake"])
+        #expect(chat.messages.map(\.text) == [""])
+        #expect(chat.avatarState == .wakingUp)
+        player.onEnded?()
+        #expect(chat.messages.map(\.text) == ["I'm awake."])
+        #expect(chat.avatarState == .idle)
+        // a gesture she chose
+        chat.apply(frame(nil, .animation(PlayAnimation(animation: "wave"))))
+        #expect(player.played.last == "wave")
+        // the server is gone: she is frozen
+        chat.apply(.disconnected(code: 1006, reason: "lost"))
+        chat.apply(.retrying(seconds: 1))
+        #expect(player.offline)
+        chat.apply(.reconnected(Welcome(protocol: "1.8", server: "s", version: "v", session: "s2", joi: JoiSummary(id: "j1", name: "Joi"), heartbeatSeconds: 30)))
+        #expect(!player.offline)
+    }
+
+    @Test func aServerEventIsToldToTheApp() async {
+        let chat = model(withSpeech: false)
+        var names: [String] = []
+        chat.onServerEvent = { names.append($0) }
+        chat.apply(frame(nil, .event(ServerEvent(name: "body", at: Date()))))
+        #expect(names == ["body"])
     }
 
     @Test func anAddressIsMadeIntoAnUrl() {

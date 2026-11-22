@@ -6,6 +6,7 @@ import JoiProtocol
 @MainActor public final class SpeechPlayer: NSObject, SpeechPlaying, AVAudioPlayerDelegate {
     private var queue: [AudioChunk] = []
     private var player: AVAudioPlayer?
+    public var onFinished: (@MainActor () -> Void)?
 
     public override init() {
         super.init()
@@ -25,7 +26,9 @@ import JoiProtocol
 
     private func playNext() {
         guard !queue.isEmpty else {
+            let wasPlaying = player != nil
             player = nil
+            if wasPlaying { onFinished?() }
             return
         }
         let chunk = queue.removeFirst()

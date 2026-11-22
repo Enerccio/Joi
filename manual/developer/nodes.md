@@ -75,7 +75,7 @@ can't handle is logged and the socket reads on.
 | `local/UnixHttp`, `local/UnixWebSocket` | HTTP/1.1 and the node WebSocket over a Unix domain socket (the JDK's clients cannot connect to one): see below |
 | `LocalMode`, `NodeInstance` | `--local <socket>` / `--web <url>` (or `JOI_LOCAL_SOCKET`, `JOI_WEB_URL`), the lock `node.lock` of one node per home |
 | `JoiNodeCli` | the node in a terminal: the smallest complete example |
-| `renderer/` | her body's files unpacked (`BodyFiles`) and served to the renderer page (`RendererServer`), the page's source in `src/main/renderer` |
+| `renderer/` | her body's files unpacked (`BodyFiles`) and served to the renderer page (`RendererServer`), the page's source in `src/main/renderer` (its native mode, where the app calls the page and the page posts back, is for the iOS app: see [The iOS app](ios-app.md)) |
 | `fx/` | the JavaFX app: `JoiNodeApp`, `AvatarPane`, `ControlsPane`, `SpeechPlayer`, the Chromium host and the Looking Glass |
 
 Start with `JoiNodeCli`: it logs in (token, device grant or none), picks her, downloads her body into the cache, connects, chats, answers the questions of tasks and

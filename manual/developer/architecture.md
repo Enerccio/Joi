@@ -45,7 +45,7 @@ schemas (see [The protocol](protocol.md#the-swift-package)); it cannot be Java, 
 Her body is drawn by a web page, `joi-model-viewer.js` (three.js and `@pixiv/three-vrm`, `@pixiv/three-vrm-animation`), the same code the
 server's UI uses for its previews. In the node the page is served on `127.0.0.1` (a random port and a secret path), driven over
 server-sent events, and shown by Chromium (JCEF) in the JavaFX pane. On a Looking Glass the page runs in its Looking Glass mode in the
-user's own Chrome, full screen on the display.
+user's own Chrome, full screen on the display. The iOS app shows the same page in a `WKWebView`, with no server: it calls the page and the page tells it back (see [The iOS app](ios-app.md)).
 
 ## The protocol
 

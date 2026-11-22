@@ -57,6 +57,56 @@
           <workingDirectory>${project.basedir}</workingDirectory>
         </configuration>
         <executions>
+          <!-- her body in the app is the node's renderer page (three.js and three-vrm in a web view): built from its npm cache, offline
+               (the property npm.mode allows the network), and copied into the app's folder Renderer, which the Xcode project holds as resources -->
+          <execution>
+            <id>renderer-install</id>
+            <phase>generate-resources</phase>
+            <goals>
+              <goal>exec</goal>
+            </goals>
+            <configuration>
+              <executable>${npm.executable}</executable>
+              <workingDirectory>${project.basedir}/../joi-node/src/main/renderer</workingDirectory>
+              <arguments>
+                <argument>install</argument>
+                <argument>${npm.mode}</argument>
+                <argument>--no-audit</argument>
+                <argument>--no-fund</argument>
+              </arguments>
+            </configuration>
+          </execution>
+          <execution>
+            <id>renderer-build</id>
+            <phase>generate-resources</phase>
+            <goals>
+              <goal>exec</goal>
+            </goals>
+            <configuration>
+              <executable>${npm.executable}</executable>
+              <workingDirectory>${project.basedir}/../joi-node/src/main/renderer</workingDirectory>
+              <arguments>
+                <argument>run</argument>
+                <argument>build</argument>
+              </arguments>
+            </configuration>
+          </execution>
+          <execution>
+            <id>renderer-copy</id>
+            <phase>generate-resources</phase>
+            <goals>
+              <goal>exec</goal>
+            </goals>
+            <configuration>
+              <executable>rsync</executable>
+              <arguments>
+                <argument>-a</argument>
+                <argument>--delete</argument>
+                <argument>../joi-node/src/main/renderer/dist/</argument>
+                <argument>App/Renderer/</argument>
+              </arguments>
+            </configuration>
+          </execution>
           <execution>
             <id>xcodegen</id>
             <phase>process-resources</phase>

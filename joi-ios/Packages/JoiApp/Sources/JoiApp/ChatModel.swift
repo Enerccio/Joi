@@ -27,9 +27,10 @@ public struct ChatMessage: Identifiable, Equatable, Sendable {
     }
 }
 
-/// The conversation: her history, what the user says, her answer as it is written, her voice, and the state of the connection.
+/// The conversation: her history, what the user says, her answer as it is written, her voice, her body (what it does as her turns come and
+/// go: `AvatarDirector`) and the state of the connection.
 @MainActor @Observable
-public final class ChatModel {
+public final class ChatModel: AvatarOutput {
     public enum Status: Equatable, Sendable {
         case connecting
         case connected
@@ -40,7 +41,9 @@ public final class ChatModel {
     }
 
     public private(set) var messages: [ChatMessage] = []
-    public private(set) var status: Status = .connecting
+    public private(set) var status: Status = .connecting {
+        didSet { player?.setOffline(status != .connected && status != .connecting) }
+    }
     public private(set) var hasMoreHistory = false
     public let joiID: String
     public let joiName: String
@@ -48,16 +51,33 @@ public final class ChatModel {
     private let history: HistorySource
     private let link: NodeLink
     private let speech: SpeechPlaying?
+    @ObservationIgnored private let player: AnimationPlayer?
+    @ObservationIgnored private var director: AvatarDirector!
+    /// What she is doing now (her body's state).
+    public private(set) var avatarState: AvatarDirector.State = .idle
+    /// The server tells that something changed (`body`, `joi`: the app loads it again).
+    @ObservationIgnored public var onServerEvent: (@MainActor (String) -> Void)?
     private var eventTask: Task<Void, Never>?
     /// The turn the user's last words started: only one at a time.
     private var runningTurn: String?
+    private var started = false
 
-    public init(joiID: String, joiName: String, history: HistorySource, link: NodeLink, speech: SpeechPlaying? = nil) {
+    public init(joiID: String, joiName: String, history: HistorySource, link: NodeLink, speech: SpeechPlaying? = nil,
+                player: AnimationPlayer? = nil, roles: JoiAnimations? = nil) {
         self.joiID = joiID
         self.joiName = joiName
         self.history = history
         self.link = link
         self.speech = speech
+        self.player = player
+        director = AvatarDirector(output: self, roles: roles)
+        speech?.onFinished = { [weak self] in self?.director.speechEnded() }
+        player?.onEnded = { [weak self] in self?.director.animationEnded() }
+    }
+
+    /// The animations chosen in her dialog changed.
+    public func setRoles(_ roles: JoiAnimations?) {
+        director.roles(roles)
     }
 
     /// Loads her history, starts listening to the connection and connects it. Call again to try again after `offline`.
@@ -72,6 +92,10 @@ public final class ChatModel {
         if messages.isEmpty {
             await loadHistory()
         }
+        if started == false {
+            started = true
+            director.start()
+        }
         status = .connecting
         do {
             _ = try await link.connect()
@@ -85,6 +109,7 @@ public final class ChatModel {
         eventTask?.cancel()
         eventTask = nil
         speech?.stop()
+        player?.onEnded = nil
         await link.close()
     }
 
@@ -93,6 +118,8 @@ public final class ChatModel {
         let words = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !words.isEmpty else { return }
         speech?.stop()
+        director.speechEnded() // what she was saying is over
+        director.expectSpeech(speech != nil)
         messages.append(ChatMessage(role: .user, text: words))
         do {
             let turn = try await link.say(words, speak: true, reasoning: nil, withEvents: nil)
@@ -158,22 +185,57 @@ public final class ChatModel {
             // a turn the server started (she woke up, the user is back): her words come with this id
             runningTurn = start.turn
             messages.append(ChatMessage(role: .joi, text: "", turn: start.turn, streaming: true))
+            director.turnStarted(start.turn, cause: start.cause, speak: speech != nil)
         case .text(let delta):
-            withTurn(incoming.ref) { $0.text += delta.delta }
+            if let turn = incoming.ref { director.text(turn, delta.delta) }
         case .reply(let reply):
-            withTurn(incoming.ref) { $0.text = reply.text }
+            if let turn = incoming.ref { director.reply(turn, reply) }
         case .audio(let chunk):
-            speech?.enqueue(chunk)
+            if let turn = incoming.ref { director.audio(turn, chunk) } else { speech?.enqueue(chunk) }
         case .done:
-            finish(incoming.ref)
+            director.done(incoming.ref)
         case .error(let error):
-            finish(incoming.ref)
-            messages.append(ChatMessage(role: .error, text: error.message))
+            director.failed(incoming.ref, error)
+        case .animation(let play):
+            director.gesture(play.animation, loop: play.loop ?? false)
+        case .event(let event):
+            onServerEvent?(event.name)
         case .log(let log):
             messages.append(ChatMessage(role: .note, text: log.text))
         default:
-            break // her body, her tasks and the rest are the app's later stages
+            break // her tasks and the rest are the app's later stages
         }
+    }
+
+    // MARK: what the director shows (her words come when her body lets them)
+
+    public func play(_ animation: String?, loop: Bool) {
+        player?.play(animation, loop: loop)
+    }
+
+    public func text(turn: String, delta: String) {
+        withTurn(turn) { $0.text += delta }
+    }
+
+    public func reply(turn: String, reply: ChatReply) {
+        withTurn(turn) { $0.text = reply.text }
+    }
+
+    public func speak(turn: String, chunk: AudioChunk) {
+        speech?.enqueue(chunk)
+    }
+
+    public func done(turn: String?) {
+        finish(turn)
+    }
+
+    public func failed(turn: String?, error: ApiError) {
+        finish(turn)
+        messages.append(ChatMessage(role: .error, text: error.message))
+    }
+
+    public func state(_ state: AvatarDirector.State) {
+        avatarState = state
     }
 
     /// Her message of that turn (made when a frame comes first, as after a turn the server started).
@@ -198,6 +260,7 @@ public final class ChatModel {
     }
 
     private func endRunningTurn(note: String) {
+        director.disconnected()
         guard let turn = runningTurn else { return }
         finish(turn)
         messages.append(ChatMessage(role: .note, text: note))
