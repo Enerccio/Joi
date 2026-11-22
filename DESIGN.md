@@ -1904,7 +1904,7 @@ writes into the source tree or needs Xcode:
 - `-Pswift` in `joi-protocol`: `mvn -o -Pswift test -pl joi-protocol` generates the Swift package
   (`exec:java` on `SwiftGenerator` at `process-test-classes`), runs the Java tests, then `swift test` on the package
   (`exec:exec`; the Command Line Tools are enough, with the Testing framework passed in `swift.test.flags`, or plain with Xcode). Built and tried: the 76 Swift tests pass.
-- `-Pios` (a module `joi-ios`, `pom` packaging, after `joi-protocol` in the reactor; **not built yet**): `mvn -o -Pios verify -pl joi-ios -am`
+- `-Pios` (a module `joi-ios`, `pom` packaging, after `joi-protocol` in the reactor; **built**, with `-Pswift` for the protocol's package): `mvn -o -Pswift,ios verify -pl joi-ios -am`
   generates, runs `swift test`, `xcodebuild test` on a Simulator, `xcodebuild archive`; `-exportArchive` for the `.ipa` and the
   TestFlight upload are opt-in (they need signing). The version is Maven's (`tools/version_from_tag.sh`), passed as
   `MARKETING_VERSION`; the signing team and the profile come from properties or the environment, never from the POM. The Xcode
@@ -1914,8 +1914,7 @@ writes into the source tree or needs Xcode:
 
 **Stages:**
 
-1. The generator and the Swift package with its fixtures (**built**: `SwiftGenerator`, `joi-ios/Packages/JoiProtocol`); the client (**built**: `joi-ios/Packages/JoiClient`, an actor for the HTTP API and the device-grant pairing with the reference node's refresh rules, `NodeConnection` for the node WebSocket with the heartbeat and the new tries, tested against a fake server and a real one); pairing, text chat, streamed replies, her speech, her body
-   in the WebView (proves the protocol with a node that is not Java).
+1. The generator and the Swift package with its fixtures (**built**: `SwiftGenerator`, `joi-ios/Packages/JoiProtocol`); the client (**built**: `joi-ios/Packages/JoiClient`, an actor for the HTTP API and the device-grant pairing with the reference node's refresh rules, `NodeConnection` for the node WebSocket with the heartbeat and the new tries, tested against a fake server and a real one); the app shell (**built**: `JoiApp` and `joi-ios/project.yml`, pairing, history, chat with her answer streaming and her voice, run in the Simulator against a server, built by `mvn -Pswift,ios verify`). Left of stage 1: her body in the WebView. Together this proves the protocol with a node that is not Java.
 2. The App Intents (*Ask*, *Tell*, *Listen*, approvals), the Vocal Shortcut guide, push-to-talk with on-device speech
    to text, the registered-shortcut tools, `notify` and the first native tools; approval cards.
 3. The always-listening mode (a battery measurement on a real phone first), reconnect-safe tool calls, the APNs relay,

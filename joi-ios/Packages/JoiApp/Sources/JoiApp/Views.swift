@@ -1,0 +1,185 @@
+import CoreImage.CIFilterBuiltins
+import SwiftUI
+import JoiProtocol
+
+/// The app's only view: the Xcode project's `App` shows it.
+public struct RootView: View {
+    @State private var model = AppModel()
+
+    public init() {}
+
+    public var body: some View {
+        Group {
+            switch model.phase {
+            case .setup:
+                SetupView(model: model)
+            case .working(let what):
+                VStack(spacing: 16) {
+                    ProgressView()
+                    Text(what).foregroundStyle(.secondary)
+                    Button("Cancel") { model.cancel() }
+                }
+            case .pairing(let grant):
+                PairingView(grant: grant, model: model)
+            case .ready(let chat):
+                ChatView(chat: chat, model: model)
+            }
+        }
+        .task { model.launch() }
+    }
+}
+
+struct SetupView: View {
+    @Bindable var model: AppModel
+
+    var body: some View {
+        Form {
+            Section {
+                TextField("joi.example.com", text: $model.serverText)
+                    #if os(iOS)
+                    .textInputAutocapitalization(.never)
+                    .keyboardType(.URL)
+                    #endif
+                    .autocorrectionDisabled()
+                    .onSubmit { model.connect() }
+            } header: {
+                Text("Your Joi server")
+            } footer: {
+                if let error = model.error { Text(error).foregroundStyle(.red) }
+            }
+            Button("Connect") { model.connect() }
+                .disabled(model.serverText.trimmingCharacters(in: .whitespaces).isEmpty)
+        }
+    }
+}
+
+struct PairingView: View {
+    let grant: DeviceAuthorization
+    let model: AppModel
+
+    var body: some View {
+        VStack(spacing: 20) {
+            Text("Approve this phone").font(.title2.bold())
+            Text("Open the Joi server, User Settings → Access → Connect a device, and enter the code:")
+                .multilineTextAlignment(.center).foregroundStyle(.secondary)
+            Text(grant.userCode).font(.system(.largeTitle, design: .monospaced).bold()).textSelection(.enabled)
+            if let image = QRCode.image(grant.verificationUriComplete) {
+                image.interpolation(.none).resizable().scaledToFit().frame(width: 180, height: 180)
+            }
+            if let link = URL(string: grant.verificationUriComplete) {
+                Link("Or open the link", destination: link)
+            }
+            ProgressView("Waiting for the approval")
+            Button("Cancel") { model.cancel() }
+        }
+        .padding()
+    }
+}
+
+enum QRCode {
+    static func image(_ text: String) -> Image? {
+        let filter = CIFilter.qrCodeGenerator()
+        filter.message = Data(text.utf8)
+        guard let output = filter.outputImage?.transformed(by: CGAffineTransform(scaleX: 8, y: 8)),
+              let cg = CIContext().createCGImage(output, from: output.extent) else { return nil }
+        return Image(decorative: cg, scale: 1)
+    }
+}
+
+struct ChatView: View {
+    let chat: ChatModel
+    let model: AppModel
+    @State private var input = ""
+    @FocusState private var focused: Bool
+
+    var body: some View {
+        VStack(spacing: 0) {
+            StatusBanner(status: chat.status) { Task { await chat.start() } }
+            ScrollViewReader { proxy in
+                ScrollView {
+                    LazyVStack(alignment: .leading, spacing: 8) {
+                        ForEach(chat.messages) { MessageRow(message: $0).id($0.id) }
+                    }
+                    .padding()
+                }
+                // stays at the end while her words grow, and when the keyboard comes
+                .defaultScrollAnchor(.bottom)
+                .scrollDismissesKeyboard(.interactively)
+                .onChange(of: chat.messages) {
+                    if let last = chat.messages.last { proxy.scrollTo(last.id, anchor: .bottom) }
+                }
+            }
+            HStack {
+                TextField("Say something to \(chat.joiName)", text: $input, axis: .vertical)
+                    .lineLimit(1...4)
+                    .textFieldStyle(.roundedBorder)
+                    .focused($focused)
+                    .onSubmit(send)
+                Button("Send", action: send)
+                    .disabled(input.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+            }
+            .padding()
+        }
+        .toolbar {
+            ToolbarItem { Button("Sign out", role: .destructive) { model.signOut() } }
+        }
+    }
+
+    private func send() {
+        let text = input
+        input = ""
+        Task { await chat.send(text) }
+    }
+}
+
+struct StatusBanner: View {
+    let status: ChatModel.Status
+    let retry: () -> Void
+
+    var body: some View {
+        switch status {
+        case .connected:
+            EmptyView()
+        case .connecting:
+            banner("Connecting…", color: .gray)
+        case .reconnecting(let seconds):
+            banner("Connection lost, trying again in \(seconds) s", color: .orange)
+        case .offline(let why):
+            HStack {
+                Text(why).font(.footnote)
+                Spacer()
+                Button("Try again", action: retry).font(.footnote.bold())
+            }
+            .padding(8).background(Color.red.opacity(0.2))
+        }
+    }
+
+    private func banner(_ text: String, color: Color) -> some View {
+        Text(text).font(.footnote).frame(maxWidth: .infinity).padding(6).background(color.opacity(0.2))
+    }
+}
+
+struct MessageRow: View {
+    let message: ChatMessage
+
+    var body: some View {
+        switch message.role {
+        case .user:
+            bubble(message.text, color: .accentColor.opacity(0.25), alignment: .trailing)
+        case .joi:
+            bubble(message.text.isEmpty && message.streaming ? "…" : message.text, color: .gray.opacity(0.2), alignment: .leading)
+        case .note:
+            Text(message.text).font(.footnote).foregroundStyle(.secondary).frame(maxWidth: .infinity)
+        case .error:
+            Text(message.text).font(.footnote).foregroundStyle(.red).frame(maxWidth: .infinity)
+        }
+    }
+
+    private func bubble(_ text: String, color: Color, alignment: HorizontalAlignment) -> some View {
+        Text(text)
+            .textSelection(.enabled)
+            .padding(10)
+            .background(color, in: RoundedRectangle(cornerRadius: 14))
+            .frame(maxWidth: .infinity, alignment: alignment == .trailing ? .trailing : .leading)
+    }
+}

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # The release version is the tag: on a build of a v* tag (GITHUB_REF=refs/tags/v1.2.3) every POM of Joi (the root, joi-protocol,
-# joi-server, joi-node, joi-desktop, joi-extensions and the extensions in it) gets the version of the tag, 1.2.3, before anything is built, so the
+# joi-server, joi-node, joi-desktop, joi-ios, joi-extensions and the extensions in it) gets the version of the tag, 1.2.3, before anything is built, so the
 # WAR, the extension JARs and the image are named and labelled by the tag. Any other build keeps the version of pom.xml.
 # Run by the workflows (server.yml, test.yml) in every job that builds. Locally, to try it on a copy of the POMs:
 # JOI_ROOT=/path/to/copy GITHUB_REF=refs/tags/v1.2.3 tools/version_from_tag.sh
@@ -36,7 +36,7 @@ if old == new:
 print(f"::warning::pom.xml says {old}, the tag v{new}: the build takes {new}. Set it in the POMs so that the next builds of master say it too.")
 
 poms = [root, pathlib.Path("joi-protocol/pom.xml"), pathlib.Path("joi-server/pom.xml"), pathlib.Path("joi-node/pom.xml"),
-        pathlib.Path("joi-desktop/pom.xml"), pathlib.Path("joi-extensions/pom.xml")] + sorted(pathlib.Path("joi-extensions").glob("*/pom.xml"))
+        pathlib.Path("joi-desktop/pom.xml"), pathlib.Path("joi-ios/pom.xml"), pathlib.Path("joi-extensions/pom.xml")] + sorted(pathlib.Path("joi-extensions").glob("*/pom.xml"))
 needle = f"<version>{old}</version>"
 for pom in poms:
     content = pom.read_text(encoding="utf-8")

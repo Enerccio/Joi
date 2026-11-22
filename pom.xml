@@ -91,6 +91,15 @@
       </modules>
     </profile>
 
+    <!-- The iOS app (joi-ios): Xcode and XcodeGen, macOS only. Build: mvn -o -Pswift,ios verify -pl joi-ios -am
+         (swift: the protocol's Swift package, written by joi-protocol), see joi-ios/pom.xml and manual/developer/ios-app.md. -->
+    <profile>
+      <id>ios</id>
+      <modules>
+        <module>joi-ios</module>
+      </modules>
+    </profile>
+
     <!-- The natives of Chromium by the machine that builds (the packages are for this machine only, as the jlink runtime is) -->
     <profile>
       <id>jcef-macosx-arm64</id>

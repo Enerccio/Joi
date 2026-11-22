@@ -7,6 +7,7 @@ covers:
   - joi-node/pom.xml
   - joi-desktop/pom.xml
   - joi-protocol/pom.xml
+  - joi-ios/pom.xml
   - .github/workflows/desktop.yml
   - CLAUDE.md
   - Dockerfile
@@ -122,6 +123,11 @@ platform's tables. While Joi is not running in production the first migration, `
 version. A development database built from an older V1 fails Flyway's checksum: do not delete it, upgrade it with
 `python3 tools/upgrade_dev_db.py` (server stopped; it backs the database up, rebuilds it from the current V1, copies the data by shared
 columns and sets the checksum; `--dry-run` only reports).
+
+## The iOS app
+
+`mvn -o -Pswift,ios verify -pl joi-ios -am` builds the app for the Simulator (Xcode and XcodeGen, macOS only; the profile `ios` adds the module, `swift` writes the
+protocol's Swift package). See [The iOS app](ios-app.md#building-with-maven).
 
 ## The protocol in Swift
 

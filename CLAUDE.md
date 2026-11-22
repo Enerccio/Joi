@@ -36,6 +36,7 @@ mvn test -pl joi-node                                         # the node's core 
 mvn -o -Pfx compile exec:exec@run -pl joi-node               # the JavaFX node (OpenJFX 25 and JCEF are in ~/.m2)
 mvn -o -Pfx compile exec:exec@run -pl joi-node -Dnode.args=preview   # her cached body in Chromium, no server
 mvn -o -B -DskipTests -Pfx,production,desktop package -pl joi-desktop -am   # the desktop app (server + node, jlink + jpackage) in joi-desktop/target/desktop
+mvn -o -Pswift,ios verify -pl joi-ios -am                     # the iOS app: Swift packages' tests, xcodegen, xcodebuild for the Simulator (Xcode, XcodeGen)
 tools/retype_build.sh                                         # the manual into docs/ (needs `retype`)
 screenshots/bin/shoot-all.sh                                  # retake the pictures of the manual (screenshots/SCREENSHOTS.md)
 ```
@@ -74,9 +75,11 @@ with the code.
   The `.joim` and `.joia` containers (`protocol/joim`, `protocol/joia`, documented in `joim.md` and `joia.md` there;
   their sections share `joim/Sections`) are part of it too: the format and its doc
   change together.
-- `joi-ios/` — the iOS app (planned, `DESIGN.md` → The iOS app), outside the Maven reactor for now. So far `Packages/JoiProtocol`: the protocol in Swift, **generated
-  from the JSON Schemas** by `SwiftGenerator` (`joi-protocol/src/test`), checked in, kept current by `SwiftGeneratorTest`; regenerate with
-  `mvn -o -Pswift process-test-classes -pl joi-protocol` after a schema change (and `mvn -o -Pswift test -pl joi-protocol` also runs `swift test`).
+- `joi-ios/` — the iOS app (`DESIGN.md` → The iOS app), in the reactor only with the root POM's profile `ios`: Swift packages in `Packages/` (`JoiProtocol`: the protocol **generated
+  from the JSON Schemas** by `SwiftGenerator` in `joi-protocol/src/test`, checked in, kept current by `SwiftGeneratorTest`: after a schema change run
+  `mvn -o -Pswift process-test-classes -pl joi-protocol`; `JoiClient`: the HTTP API, the pairing and the node WebSocket; `JoiApp`: the models and the SwiftUI views) and a thin Xcode
+  project written by XcodeGen from `project.yml` (`.xcodeproj` is not in Git). `mvn -o -Pswift,ios verify -pl joi-ios -am` does all of it (needs Xcode and `brew install xcodegen`);
+  `swift test` runs a package alone. See `manual/developer/ios-app.md`.
 - `joi-extensions/` — the extensions that come with Joi (OSGi bundles: the model providers `anthropic`, `google-genai`, `grok`, built against the platform only), loaded from the
   extensions folder of the data folder (Administration → Extensions); the API of Joi's own extensions is `joi-server/.../extensions` (`JoiExtension`).
 - `joi-desktop/` — the desktop app, in the reactor only with the root POM's profile `desktop`: `DesktopLauncher` (JDK only: runs jetty-home with the WAR, the

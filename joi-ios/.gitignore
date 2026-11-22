@@ -5,3 +5,7 @@ xcuserdata/
 DerivedData/
 *.xcarchive
 *.ipa
+
+# written by XcodeGen from project.yml
+Joi.xcodeproj/
+App/Info.plist

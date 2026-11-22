@@ -30,6 +30,12 @@ public actor NodeConnection {
         public let id: String?
         public let ref: String?
         public let data: NodeFrameData
+
+        public init(id: String? = nil, ref: String? = nil, data: NodeFrameData) {
+            self.id = id
+            self.ref = ref
+            self.data = data
+        }
     }
 
     public enum Event: Sendable {
