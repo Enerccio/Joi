@@ -75,7 +75,11 @@ public final class PageFetcher {
     // ----------------------------------------------------------------------------------------------------------------
 
     private String direct(URI uri) throws WebException {
-        WebHttp http = new WebHttp(config.proxy(), proxyAuth, config.timeoutSeconds(), userAgent);
+        // without a proxy the client also holds every connection to a public address, so a name whose DNS answer changes
+        // after checkReachable does not reach the server's network; a proxy (it may be the administrator's, on that
+        // network) looks the page up itself and is not refused
+        boolean pinned = !config.allowPrivate() && StringUtils.isBlank(config.proxy());
+        WebHttp http = new WebHttp(config.proxy(), proxyAuth, config.timeoutSeconds(), userAgent, pinned);
         WebHttp.Response response;
         try {
             response = http.get(uri, Map.of("Accept", "text/html,text/plain;q=0.9,*/*;q=0.5"), this::checkReachable);

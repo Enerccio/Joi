@@ -66,7 +66,10 @@ rounds). `WebSearchClient` calls the sources (`DDGS`, `SEARXNG`, `GOOGLE`, `BRAV
 - In local-only mode only the sources and readers marked `local` run; nothing is guessed from the URL.
 - A user's or an assistant's source may be on the server's own network (localhost, private addresses) only when Administration →
   App settings allows local servers to users (`JoiAppSettingsService.localServersAllowed`); the administrator's may always.
-  `WebToolSettingsService.Search.allowPrivate` carries it to `WebSearchClient`, which refuses the address and every redirect to one.
+  `WebToolSettingsService.Search.allowPrivate` carries it to `WebSearchClient`. Without leave, `WebHttp` is built `publicOnly`: with a proxy,
+  a proxy on that network is refused; without one, the client pins every connection (redirects included) to an address it checked
+  (`OutboundAddressGuard.publicOnly`), so a DNS answer that changes after the check does not get through. `PageFetcher` reads directly the same
+  way when it has no proxy.
 - Fetched content is data, not instructions. Direct reads refuse addresses of the server's own network unless the option allows them (`PageFetcher.checkReachable`, checked again at each redirect). A user's or an assistant's
   own options allow them only when the administrator's do (`WebToolSettingsService.privateAllowed`; their `allowPrivate` is ignored when saved,
   read and tested otherwise).

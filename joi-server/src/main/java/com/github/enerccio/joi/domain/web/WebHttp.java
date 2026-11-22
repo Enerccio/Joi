@@ -1,5 +1,6 @@
 package com.github.enerccio.joi.domain.web;
 
+import com.github.enerccio.marginalia.domain.security.OutboundAddressGuard;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
@@ -59,6 +60,16 @@ public final class WebHttp {
      * @param proxyAuth {@code user:password} for the proxy, blank for none
      */
     public WebHttp(String proxy, String proxyAuth, int timeoutSeconds, String userAgent) throws WebException {
+        this(proxy, proxyAuth, timeoutSeconds, userAgent, false);
+    }
+
+    /**
+     * @param publicOnly refuse the server's own network (localhost, private addresses): with a proxy, a proxy on it (the
+     *                   proxy looks the rest up); without one, every address the client connects to, redirects included,
+     *                   looked up once and connected to as checked ({@link OutboundAddressGuard#publicOnly}), so a name whose
+     *                   DNS answer changes after a check does not reach it
+     */
+    public WebHttp(String proxy, String proxyAuth, int timeoutSeconds, String userAgent, boolean publicOnly) throws WebException {
         this.timeout = Duration.ofSeconds(timeoutSeconds);
         this.userAgent = StringUtils.defaultIfBlank(userAgent, USER_AGENT);
         HttpClient.Builder builder = HttpClient.newBuilder().connectTimeout(timeout).followRedirects(HttpClient.Redirect.NEVER);
@@ -73,6 +84,13 @@ public final class WebHttp {
             if (uri.getHost() == null || !(scheme.equals("http") || scheme.equals("https"))) {
                 throw new WebException("The proxy has to be http://host:port (an HTTP proxy)");
             }
+            if (publicOnly) {
+                try {
+                    OutboundAddressGuard.DEFAULT.resolvePublic(uri.getHost());
+                } catch (OutboundAddressGuard.RefusedAddressException e) {
+                    throw new WebException(refused(e), e);
+                }
+            }
             builder.proxy(ProxySelector.of(new InetSocketAddress(uri.getHost(), uri.getPort() > 0 ? uri.getPort() : 8080)));
             if (StringUtils.isNotBlank(proxyAuth) && proxyAuth.contains(":")) {
                 String user = StringUtils.substringBefore(proxyAuth, ":");
@@ -84,8 +102,16 @@ public final class WebHttp {
                     }
                 });
             }
+        } else if (publicOnly) {
+            OutboundAddressGuard.DEFAULT.publicOnly(builder);
         }
         this.client = builder.build();
+    }
+
+    /** The message of a refused address: the host, never the path. */
+    static String refused(OutboundAddressGuard.RefusedAddressException e) {
+        return e.getMessage().startsWith("Unknown host") ? e.getMessage()
+                : "The address " + e.getHost() + " is on the server's own network, which the administrator does not allow here";
     }
 
     /** A GET; redirects are followed (up to 5) while {@code allowed} accepts where they lead. */
@@ -144,7 +170,15 @@ public final class WebHttp {
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             throw new WebException("Stopped while waiting for " + request.uri().getHost(), e);
-        } catch (IOException e) {
+        } catch (IOException | RuntimeException e) {
+            // the public-only client refuses an address of the server's network from send itself
+            OutboundAddressGuard.RefusedAddressException refusal = OutboundAddressGuard.refusal(e);
+            if (refusal != null) {
+                throw new WebException(refused(refusal), e);
+            }
+            if (e instanceof RuntimeException runtime) {
+                throw runtime;
+            }
             throw new WebException("Could not reach " + request.uri().getHost() + ": " + StringUtils.defaultIfBlank(e.getMessage(), e.getClass().getSimpleName()), e);
         }
         String type = answer.headers().firstValue("Content-Type").orElse("");

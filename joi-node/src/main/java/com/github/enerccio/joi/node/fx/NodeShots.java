@@ -363,6 +363,10 @@ public final class NodeShots extends Application {
     }
 
     private File write(String name, BufferedImage image) {
+        if (!name.matches("[A-Za-z0-9._-]+") || name.contains("..")) {
+            // a picture goes into the folder of the pictures, nowhere else
+            throw new IllegalArgumentException("A picture's name is letters, digits, '.', '_' and '-': " + name);
+        }
         File file = new File(out, name + ".png");
         try {
             ImageIO.write(image, "png", file);

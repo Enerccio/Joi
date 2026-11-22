@@ -53,6 +53,8 @@ public class ToggleGroupsPanel {
     private VerticalLayout layout;
     private VerticalLayout groupsLayout;
     private List<ToggleGroup> groups = new ArrayList<>();
+    /** The choice of toggles of each group, by its position. */
+    private final List<MultiSelectComboBox<String>> toggleBoxes = new ArrayList<>();
 
     /**
      * @param currentModel the model of the dialog
@@ -86,6 +88,7 @@ public class ToggleGroupsPanel {
         layout.setVisible(capabilities != null && !capabilities.toggles().isEmpty());
         groups = model == null ? new ArrayList<>() : new ArrayList<>(model.toggleGroups());
         groupsLayout.removeAll();
+        toggleBoxes.clear();
         if (capabilities == null) {
             return;
         }
@@ -117,18 +120,11 @@ public class ToggleGroupsPanel {
         header.setWidthFull();
         header.setFlexGrow(1, name);
 
-        // a toggle is in one group at most
-        Set<String> elsewhere = new HashSet<>();
-        for (ToggleGroup other : groups) {
-            if (other != group) {
-                elsewhere.addAll(other.toggles());
-            }
-        }
         MultiSelectComboBox<String> toggles = new MultiSelectComboBox<>(loc.getValue(J_L.LABEL_GROUP_TOGGLES));
         toggles.setWidthFull();
-        toggles.setItems(byId.keySet().stream().filter(id -> !elsewhere.contains(id)).toList());
         toggles.setItemLabelGenerator(id -> byId.containsKey(id) ? model.toggleName(byId.get(id)) : id);
-        toggles.setValue(new LinkedHashSet<>(group.toggles().stream().filter(byId::containsKey).toList()));
+        toggleBoxes.add(toggles);
+        offer(toggles, index, byId);
         VerticalLayout statesBox = new VerticalLayout();
         statesBox.setPadding(false);
         statesBox.setSpacing(false);
@@ -141,6 +137,12 @@ public class ToggleGroupsPanel {
             // the states follow; the box stays open to pick more
             replace(index, now.withToggles(new ArrayList<>(ids)), false);
             fillStates(statesBox, model, byId, index);
+            // the other groups no longer offer the toggles taken here, and offer again the ones let go
+            for (int other = 0; other < toggleBoxes.size(); other++) {
+                if (other != index) {
+                    offer(toggleBoxes.get(other), other, byId);
+                }
+            }
         });
         fillStates(statesBox, model, byId, index);
 
@@ -149,6 +151,18 @@ public class ToggleGroupsPanel {
         box.setSpacing(false);
         box.addClassName(JoiCssStyles.TOGGLE_GROUP);
         return box;
+    }
+
+    /** The toggles the group may take (a toggle is in one group at most), its own chosen. */
+    private void offer(MultiSelectComboBox<String> box, int index, Map<String, ModelCapabilities.Toggle> byId) {
+        Set<String> elsewhere = new HashSet<>();
+        for (int other = 0; other < groups.size(); other++) {
+            if (other != index) {
+                elsewhere.addAll(groups.get(other).toggles());
+            }
+        }
+        box.setItems(byId.keySet().stream().filter(id -> !elsewhere.contains(id)).toList());
+        box.setValue(new LinkedHashSet<>(groups.get(index).toggles().stream().filter(byId::containsKey).filter(id -> !elsewhere.contains(id)).toList()));
     }
 
     /** The states of a group, each a row of boxes for its toggles, and the button that adds one. */
@@ -257,6 +271,11 @@ public class ToggleGroupsPanel {
         if (redraw) {
             show();
         }
+    }
+
+    /** The choice of toggles of the group at the position, for tests. */
+    public MultiSelectComboBox<String> getToggleBox(int index) {
+        return toggleBoxes.get(index);
     }
 
     /** The groups as edited, for tests. */

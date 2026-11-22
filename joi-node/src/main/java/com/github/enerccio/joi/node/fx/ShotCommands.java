@@ -53,6 +53,11 @@ final class ShotCommands {
         JsonObject answer = new JsonObject();
         boolean quit = false;
         try {
+            // a page in a browser can't send JSON here without asking first (CORS), which nothing answers
+            String type = exchange.getRequestHeaders().getFirst("Content-Type");
+            if (!"POST".equals(exchange.getRequestMethod()) || type == null || !type.toLowerCase(java.util.Locale.ROOT).startsWith("application/json")) {
+                throw new IllegalArgumentException("POST a JSON command (Content-Type: application/json)");
+            }
             JsonObject command = GSON.fromJson(new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8), JsonObject.class);
             String cmd = command.get("cmd").getAsString();
             quit = cmd.equals("quit");

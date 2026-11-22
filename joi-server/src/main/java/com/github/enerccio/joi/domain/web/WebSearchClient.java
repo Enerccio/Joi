@@ -63,26 +63,21 @@ public final class WebSearchClient {
         }
         // the source's own proxy comes with its own credentials only through the common secret: none is guessed
         String proxy = StringUtils.defaultIfBlank(source.proxy(), config.proxy());
-        WebHttp http = new WebHttp(proxy, StringUtils.isBlank(source.proxy()) ? proxyAuth : null, config.timeoutSeconds(), config.userAgent());
-        if (StringUtils.isNotBlank(source.url())) {
+        if (!allowPrivate && StringUtils.isBlank(proxy) && StringUtils.isNotBlank(source.url())) {
+            // early, with a readable answer; the client checks every connection again (redirects, a changed DNS answer)
             reachable(address(source, source.url()));
         }
+        WebHttp http = new WebHttp(proxy, StringUtils.isBlank(source.proxy()) ? proxyAuth : null, config.timeoutSeconds(), config.userAgent(), !allowPrivate);
         String q = query.strip();
         int max = config.maxResults();
-        SearchResult result;
-        try {
-            result = switch (source.type()) {
-                case DDGS -> duckDuckGo(http, source, q);
-                case SEARXNG -> searxng(http, source, q);
-                case GOOGLE -> google(http, source, apiKey, q);
-                case BRAVE -> brave(http, source, apiKey, q);
-                case TAVILY -> tavily(http, source, apiKey, q);
-                case PERPLEXITY -> perplexity(http, source, apiKey, q);
-            };
-        } catch (IllegalStateException e) {
-            // a redirect to the server's own network (check)
-            throw new WebException(e.getMessage(), e);
-        }
+        SearchResult result = switch (source.type()) {
+            case DDGS -> duckDuckGo(http, source, q);
+            case SEARXNG -> searxng(http, source, q);
+            case GOOGLE -> google(http, source, apiKey, q);
+            case BRAVE -> brave(http, source, apiKey, q);
+            case TAVILY -> tavily(http, source, apiKey, q);
+            case PERPLEXITY -> perplexity(http, source, apiKey, q);
+        };
         List<SearchHit> hits = result.hits().stream().filter(hit -> !hit.url().isBlank()).limit(max).toList();
         return new SearchResult(hits, result.answer());
     }
@@ -145,7 +140,7 @@ public final class WebSearchClient {
         }
         WebHttp.Response response;
         try {
-            response = http.get(URI.create(url.toString()), Map.of("Accept", "application/json"), this::check);
+            response = http.get(URI.create(url.toString()), Map.of("Accept", "application/json"), null);
         } catch (WebException e) {
             if (e.status() == 403) {
                 throw new WebException("The SearXNG instance does not allow the json format (search.formats in its settings.yml)", 403, e);
@@ -177,7 +172,7 @@ public final class WebSearchClient {
         if (StringUtils.isNotBlank(config.language())) {
             url.append("&hl=").append(WebHttp.encode(config.language())).append("&lr=lang_").append(WebHttp.encode(config.language()));
         }
-        JsonObject json = json(http.get(URI.create(url.toString()), Map.of("Accept", "application/json"), this::check), source);
+        JsonObject json = json(http.get(URI.create(url.toString()), Map.of("Accept", "application/json"), null), source);
         List<SearchHit> hits = new ArrayList<>();
         for (JsonElement item : array(json, "items")) {
             JsonObject result = item.getAsJsonObject();
@@ -193,7 +188,7 @@ public final class WebSearchClient {
         if (StringUtils.isNotBlank(config.language())) {
             url.append("&search_lang=").append(WebHttp.encode(config.language()));
         }
-        JsonObject json = json(http.get(URI.create(url.toString()), Map.of("Accept", "application/json", "X-Subscription-Token", key), this::check), source);
+        JsonObject json = json(http.get(URI.create(url.toString()), Map.of("Accept", "application/json", "X-Subscription-Token", key), null), source);
         List<SearchHit> hits = new ArrayList<>();
         JsonElement web = json.get("web");
         if (web != null && web.isJsonObject()) {
@@ -265,27 +260,18 @@ public final class WebSearchClient {
     }
 
     /**
-     * Refuses an address of the server's own network when it is not allowed: a user's source must not send the server to
-     * its router or another service of the machine unless the administrator allows local servers.
+     * Refuses a source's address on the server's own network: a user's source must not send the server to its router or
+     * another service of the machine unless the administrator allows local servers. Only for a readable answer early: the
+     * client of {@link WebHttp} with {@code publicOnly} is what holds every connection to it.
      */
-    private void reachable(URI uri) throws WebException {
-        try {
-            check(uri);
-        } catch (IllegalStateException e) {
-            throw new WebException(e.getMessage(), e);
-        }
-    }
-
-    /** As {@link #reachable}, for the redirects of a GET, which cannot throw a checked exception. */
-    private void check(URI uri) throws IllegalStateException {
-        if (allowPrivate || uri == null || uri.getHost() == null) {
+    private static void reachable(URI uri) throws WebException {
+        if (uri.getHost() == null) {
             return;
         }
         try {
             OutboundAddressGuard.DEFAULT.resolvePublic(uri.getHost());
         } catch (OutboundAddressGuard.RefusedAddressException e) {
-            throw new IllegalStateException(e.getMessage().startsWith("Unknown host") ? e.getMessage()
-                    : "The address " + uri.getHost() + " is on the server's own network, which the administrator does not allow search sources on", e);
+            throw new WebException(WebHttp.refused(e), e);
         }
     }
 

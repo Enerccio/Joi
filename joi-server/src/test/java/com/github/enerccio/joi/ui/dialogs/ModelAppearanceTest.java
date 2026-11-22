@@ -267,6 +267,31 @@ class ModelAppearanceTest extends PlatformTestBase {
     }
 
     @Test
+    void aToggleTakenByOneGroupIsNoLongerOfferedToTheOthers() throws Exception {
+        ModelDialog dialog = new ModelDialog(modelService.find(model.getId()));
+        dialog.create();
+        com.github.enerccio.joi.ui.bodies.ToggleGroupsPanel panel = dialog.getGroupsPanel();
+        panel.setGroupsForTest(List.of(new ToggleGroup("g1", "headgear", List.of(), List.of(), null),
+                new ToggleGroup("g2", "halo", List.of(), List.of(), null)));
+        var first = panel.getToggleBox(0);
+        var second = panel.getToggleBox(1);
+        assertThat(second.getListDataView().getItems().toList()).contains(HALO);
+
+        // the user picks the halo in the first group
+        first.setValue(java.util.Set.of(HALO));
+        com.vaadin.flow.component.ComponentUtil.fireEvent(first,
+                new com.vaadin.flow.component.AbstractField.ComponentValueChangeEvent<>(first, first, java.util.Set.of(), true));
+        assertThat(modelService.find(model.getId()).toggleGroups().getFirst().toggles()).containsExactly(HALO);
+        assertThat(second.getListDataView().getItems().toList()).doesNotContain(HALO);
+
+        // and lets it go: the second offers it again
+        first.setValue(java.util.Set.of());
+        com.vaadin.flow.component.ComponentUtil.fireEvent(first,
+                new com.vaadin.flow.component.AbstractField.ComponentValueChangeEvent<>(first, first, java.util.Set.of(HALO), true));
+        assertThat(second.getListDataView().getItems().toList()).contains(HALO);
+    }
+
+    @Test
     void aGroupIsShotAndDescribedAsAWholeFromTheDefaultState() throws Exception {
         visionModel();
         Model stored = modelService.find(model.getId());

@@ -350,8 +350,9 @@ check) is in [MARGINALIA.md](MARGINALIA.md).
   administrators may mark a TTS model as local (the server then calls localhost and private addresses for them), and
   have search sources (a SearXNG instance, a mirror) on those addresses. Off by default; administrators always may, and
   the administrator's own search sources may be anywhere. Otherwise the box is hidden and the flag ignored when saved,
-  tested and spoken, and a user's or an assistant's source on a private address (or a redirect to one) is refused when
-  it is searched or tested (`WebToolSettingsService.Search.allowPrivate`, `WebSearchClient`).
+  tested and spoken, and a user's or an assistant's source on a private address (or a redirect to one, or a proxy
+  there) is refused when it is searched or tested (`WebToolSettingsService.Search.allowPrivate`, `WebSearchClient`; the
+  client connects only to the address it checked, so a changed DNS answer does not get through).
 
   An empty field is not set: the User Settings are used, and shown greyed out (the placeholder). A change of her name,
   the user's name or her personality is an **event** for her (`QueuedEvent`, kinds `persona.renamed`,

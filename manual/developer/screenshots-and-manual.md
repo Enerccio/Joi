@@ -7,6 +7,7 @@ covers:
   - tools/retype_build.sh
   - tools/check_dev_docs.py
   - joi-node/src/main/java/com/github/enerccio/joi/node/fx/NodeShots.java
+  - joi-node/src/main/java/com/github/enerccio/joi/node/fx/ShotCommands.java
 verified: ed86d8f
 ---
 
@@ -51,7 +52,8 @@ restore the step; coordinates are for 1920x932 and a control's text beats a coor
 `Launcher shots <out dir> <port>` starts the normal app and a small command server on the loopback (`fx/NodeShots`, `fx/ShotCommands`). A script presses buttons of the
 scene, types into its fields and writes the window as a PNG with `Node.snapshot`, so it needs no screen recording permission; the Chromium pane that shows her body is part
 of the picture. OpenJFX has no headless mode, so the window opens. `lib/node.mjs` has the commands (`click`, `type`, `combo`, `wait`, `texts`, the menus, `snap`, `snapDialog`,
-`quit`). Of the Looking Glass only its controls are taken, never the display.
+`quit`). A command is a POST with `Content-Type: application/json` (a page in a browser can't send that without asking), and a picture's name is
+letters, digits, `.`, `_` and `-` only, so it stays in the out folder. Of the Looking Glass only its controls are taken, never the display.
 
 ## Rules
 

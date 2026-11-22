@@ -7,7 +7,7 @@ export const serverUrl = process.env.SHOT_URL || 'http://127.0.0.1:8099';
 
 /** Sends a command; throws the node's own error text when it fails. */
 export async function cmd(name, args = {}) {
-  const res = await fetch(nodeUrl, { method: 'POST', body: JSON.stringify({ cmd: name, ...args }) });
+  const res = await fetch(nodeUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ cmd: name, ...args }) });
   const answer = await res.json();
   if (!answer.ok) throw new Error(`${name} ${JSON.stringify(args)}: ${answer.error}`);
   return answer;

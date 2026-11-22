@@ -212,6 +212,21 @@ class WebSearchClientTest {
     }
 
     @Test
+    void withoutLeaveForTheServersNetworkNeitherASourceNorAProxyOnItIsCalled() throws Exception {
+        try (FakeWeb web = new FakeWeb(FakeWeb.Reply.json("{\"results\":[]}"))) {
+            assertThatThrownBy(() -> new WebSearchClient(config(5, false, null), false).search(source(SearchSourceType.SEARXNG, web.url(), List.of()), null, null, "x"))
+                    .isInstanceOf(WebException.class).hasMessageContaining("own network");
+            // a proxy on it neither
+            WebSearchConfig proxied = new WebSearchConfig(List.of(), web.url(), 5, 5, null, false, null, false, 0, 0);
+            assertThatThrownBy(() -> new WebSearchClient(proxied, false).search(source(SearchSourceType.BRAVE, "http://search.invalid/", List.of()), "k", null, "x"))
+                    .isInstanceOf(WebException.class).hasMessageContaining("own network");
+            assertThat(web.seen).isEmpty();
+            // with leave, the same source answers
+            assertThat(new WebSearchClient(config(5, false, null), true).search(source(SearchSourceType.SEARXNG, web.url(), List.of()), null, null, "x").hits()).isEmpty();
+        }
+    }
+
+    @Test
     void theConfigIsReadWithItsDefaultsAndLimits() {
         WebSearchConfig empty = WebSearchConfig.from(null);
         assertThat(empty.timeoutSeconds()).isEqualTo(WebSearchConfig.TIMEOUT);

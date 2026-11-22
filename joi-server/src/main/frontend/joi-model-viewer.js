@@ -214,8 +214,9 @@ class JoiModelViewer extends HTMLElement {
       this._setStatus('…');
       return await response.arrayBuffer();
     }
+    // Content-Length is only for the progress: a compressed response decodes to more bytes, a cut one to fewer
     const reader = response.body.getReader();
-    const data = new Uint8Array(total);
+    const chunks = [];
     let received = 0;
     for (;;) {
       const {done, value} = await reader.read();
@@ -226,9 +227,15 @@ class JoiModelViewer extends HTMLElement {
         reader.cancel();
         return null;
       }
-      data.set(value, received);
+      chunks.push(value);
       received += value.length;
-      this._setStatus(Math.floor(received * 100 / total) + ' %');
+      this._setStatus(Math.min(99, Math.floor(received * 100 / total)) + ' %');
+    }
+    const data = new Uint8Array(received);
+    let at = 0;
+    for (const chunk of chunks) {
+      data.set(chunk, at);
+      at += chunk.length;
     }
     return data.buffer;
   }
