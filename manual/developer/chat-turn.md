@@ -4,7 +4,7 @@ icon: sync
 order: 750
 covers:
   - joi-server/src/main/java/com/github/enerccio/joi/domain/chat
-verified: cd7efe8
+verified: 61104d2
 ---
 
 # A chat turn

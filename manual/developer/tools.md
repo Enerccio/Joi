@@ -7,7 +7,7 @@ covers:
   - joi-server/src/main/java/com/github/enerccio/joi/domain/web
   - joi-server/src/main/java/com/github/enerccio/joi/domain/workspace
   - joi-server/src/main/java/com/github/enerccio/joi/domain/chat/WorkspaceTools.java
-verified: cd7efe8
+verified: 61104d2
 ---
 
 # Server tools
