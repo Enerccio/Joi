@@ -24,7 +24,7 @@ code does.
 | `joi-server` | the server (the WAR): the LLM tool loop, memory, moods, bodies, events, the API and the Vaadin UI |
 | `joi-node` | the reference node: server client, node socket, avatar director, the terminal node and the JavaFX app with its renderer |
 | `joi-desktop` | the desktop app: the server with a tray icon and the node in one installation (jlink, jpackage), behind the root POM's profile `desktop` |
-| `joi-ios` | the iOS app (planned): so far the protocol in Swift, `Packages/JoiProtocol`, generated from the schemas. Outside the Maven reactor for now |
+| `joi-ios` | the iOS app: the protocol in Swift generated from the schemas, the client, and the app with her body in a web view; in the reactor with the profile `ios` |
 | `marginalia/` | a git submodule of Marginalia; only its platform module is used |
 | `manual/`, `screenshots/` | this manual and the scripted environment that takes its pictures |
 
