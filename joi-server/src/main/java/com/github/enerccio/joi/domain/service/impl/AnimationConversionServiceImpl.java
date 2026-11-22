@@ -91,6 +91,8 @@ public class AnimationConversionServiceImpl implements AnimationConversionServic
                     error = StringUtils.defaultIfBlank(e.getMessage(), e.getClass().getSimpleName());
                     log.warn("The conversion of the clip {} failed: {}", fileName, error, e);
                 }
+                // the upload goes before the listener hears of the end: what it does next may look for the file (the finally is for a failure above)
+                FileUtils.deleteQuietly(upload);
                 if (listener != null) {
                     try {
                         // in the request scope of the user: ui.access may run the listener in this thread

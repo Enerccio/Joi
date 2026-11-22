@@ -98,7 +98,7 @@ RUN if [ "$WITH_BLENDER" != "true" ]; then \
         ln -s /opt/blender/blender /usr/local/bin/blender; \
         if ldd /opt/blender/blender | grep "not found"; then echo "Blender misses libraries"; exit 1; fi; \
         mkdir -p "$BLENDER_USER_RESOURCE"; \
-        blender -b --factory-startup --command extension install --sync --enable vrm; \
+        blender --online-mode -b --factory-startup --command extension install --sync --enable vrm; \
         blender -b --factory-startup --python-expr "import addon_utils; m = addon_utils.enable('bl_ext.blender_org.vrm', default_set=False); assert m is not None; print('VRM add-on ok')" | grep "VRM add-on ok"; \
         chown -R jetty:jetty "$BLENDER_USER_RESOURCE"; \
     fi

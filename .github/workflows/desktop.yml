@@ -106,7 +106,7 @@ jobs:
         # desktop (the module joi-desktop). -am builds the platform, the protocol, the server and the node first. Tests run in test.yml.
         # Quoted for PowerShell on Windows.
         run: >-
-          mvn "-Pfx,production,desktop" "-DskipTests" "-Dnpm.mode=--prefer-offline" "-Ddesktop.installerRequired=true"
+          mvn "-Pfx,production,desktop" "-DskipTests" "-Ddesktop.installerRequired=true"
           "-Ddesktop.appVersion=${{ env.APP_VERSION }}" "-pl" "joi-desktop" "-am" package
 
       - name: Smoke test
@@ -164,6 +164,8 @@ jobs:
             # the package registers its menu entry with xdg-desktop-menu, which fails (exit 3) on a runner without a desktop: give it
             # the directories a desktop has
             sudo mkdir -p /usr/share/desktop-directories /usr/share/applications /etc/xdg/menus/applications-merged
+            # the runner's package index can be older than its mirror (a 404 for a package it names): refresh it first
+            sudo apt-get update
             sudo apt-get install -y "$PWD/$deb"
             test -x /opt/joi/bin/JoiNode
             smoke "deb" 18768 /opt/joi/bin/Joi
