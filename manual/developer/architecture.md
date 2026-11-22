@@ -5,7 +5,7 @@ order: 790
 covers:
   - DESIGN.md
   - pom.xml
-verified: 233b1b7
+verified: cfa8451
 ---
 
 # Architecture
@@ -37,7 +37,8 @@ are functions the turn offers; the nodes' tools join each turn through a listene
 
 A node is any client of the node WebSocket (`/api/v1/node`). The reference node is Java, so it runs on macOS, Windows and Linux. It
 holds no brain: it downloads her body (`.joim` and `.joia`) by hash, draws it, plays her speech, offers its tools, and asks the user
-about the tasks that wait. See [Writing a node](nodes.md).
+about the tasks that wait. See [Writing a node](nodes.md). A phone is planned as another node, a native Swift app (`joi-ios`) whose protocol types are generated from the
+schemas (see [The protocol](protocol.md#the-swift-package)); it cannot be Java, and it brings the OS's own tools (Shortcuts, App Intents).
 
 ## The renderer
 
