@@ -1,0 +1,204 @@
+# Builds the desktop app (mvn -Pfx,production,desktop package -pl joi-desktop -am) on every platform jlink and jpackage can target.
+# jlink and jpackage only make a runtime / app for the OS and CPU they run on, hence one job per platform.
+#
+# The app is Joi's server with a tray icon (Joi) and the node with the avatar (JoiNode) in one installation. The node reaches the
+# server over a Unix domain socket in the data folder and needs no key and no login; the web UI keeps its login.
+#
+# Artifacts per platform (downloadable from the run, attached to the release for v* tags):
+#   joi-<version>-<os>-<arch>.tar.gz|zip       portable folder (bin/joi, bin/joi-node, app/, server/, runtime/)
+#   joi-<version>-<os>-<arch>-app.tar.gz|zip   native app image (Joi.app / Joi.exe + JoiNode.exe / bin/Joi + bin/JoiNode)
+#   joi-<version>-<os>-<arch>.deb|dmg|msi      installer (Linux / macOS / Windows), made from the app image
+#
+# Installers need tools on the runner: dpkg-deb + fakeroot (Linux), hdiutil (macOS), WiX Toolset (Windows); the GitHub images have
+# them. The build is told to fail when an installer cannot be made (-Ddesktop.installerRequired). Blender is not in the app: the
+# conversions of models and clips need it installed (JOI_BLENDER or Blender.app), uploads of finished models (.joim) work without.
+# The macOS app is signed ad hoc only (no developer certificate), so the first start asks for the user's leave in System Settings.
+
+name: Desktop
+
+on:
+  push:
+    branches: [master]
+    tags: ['v*']
+  pull_request:
+    paths:
+      - 'joi-desktop/**'
+      - 'joi-node/**'
+      - 'joi-server/**'
+      - 'joi-protocol/**'
+      - 'marginalia'
+      - 'pom.xml'
+      - 'tools/version_from_tag.sh'
+      - '.github/workflows/desktop.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: desktop-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  JAVA_VERSION: '25'
+  MAVEN_ARGS: '-B -ntp'
+
+jobs:
+  desktop:
+    name: Desktop ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: linux-x64
+            os: ubuntu-latest
+          - name: linux-arm64
+            os: ubuntu-24.04-arm
+          - name: windows-x64
+            os: windows-latest
+          - name: macos-arm64
+            os: macos-latest
+          - name: macos-x64
+            os: macos-15-intel
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # the platform is the Marginalia submodule
+          submodules: recursive
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: ${{ env.JAVA_VERSION }}
+          cache: maven
+
+      - uses: actions/setup-node@v4
+        with:
+          # the renderer page of the node (joi-node/src/main/renderer) is built with npm, from the network here
+          node-version: '22'
+
+      - name: Take the version from the tag
+        # a v* tag is the release version: Joi's POMs get it before the build (tools/version_from_tag.sh); other builds keep pom.xml's
+        shell: bash
+        run: tools/version_from_tag.sh
+
+      - name: Version of the installer
+        # jpackage wants one to three numbers, the first above 0 (the macOS rule): v1.2.3-rc1 is 1.2.3, a build that is no release 1.0.0
+        shell: bash
+        run: |
+          if [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
+            version="$(echo "${GITHUB_REF#refs/tags/v}" | sed -E 's/^([0-9]+(\.[0-9]+){0,2}).*/\1/')"
+          else
+            version="1.0.0"
+          fi
+          echo "APP_VERSION=$version" >> "$GITHUB_ENV"
+
+      - name: Install the parent POMs
+        # Joi's root POM and the platform's parent (marginalia/pom.xml): the modules refer to them
+        run: |
+          mvn -N install
+          mvn -N install -f marginalia/pom.xml
+
+      - name: Build the desktop app
+        # the profiles: fx (the node's JavaFX app with Chromium, its natives of this OS), production (the frontend bundle in the WAR),
+        # desktop (the module joi-desktop). -am builds the platform, the protocol, the server and the node first. Tests run in test.yml.
+        # Quoted for PowerShell on Windows.
+        run: >-
+          mvn "-Pfx,production,desktop" "-DskipTests" "-Dnpm.mode=--prefer-offline" "-Ddesktop.installerRequired=true"
+          "-Ddesktop.appVersion=${{ env.APP_VERSION }}" "-pl" "joi-desktop" "-am" package
+
+      - name: Smoke test
+        # the native app and the portable launcher script must start the bundled server, serve Joi on the web port, and open the API
+        # socket: a call on it may ask for a token without a key (POST /oauth/local; 409 while there is no account), the same call
+        # on the web port is refused (404)
+        shell: bash
+        run: |
+          smoke() {
+            local name="$1" port="$2"; shift 2
+            local data="$RUNNER_TEMP/data-$port"
+            "$@" --data "$data" --port "$port" --no-browser --no-tray --no-node > "$RUNNER_TEMP/smoke-$port.log" 2>&1 &
+            for i in $(seq 1 240); do
+              if curl -s "http://127.0.0.1:$port/" | grep -q "<title>Joi</title>"; then
+                echo "$name: Joi is up after ${i}s"
+                if [ "$RUNNER_OS" != "Windows" ]; then
+                  local viaSocket viaPort
+                  viaSocket=$(curl -s -o /dev/null -w '%{http_code}' -X POST --unix-socket "$data/desktop/api.sock" http://localhost/oauth/local)
+                  viaPort=$(curl -s -o /dev/null -w '%{http_code}' -X POST "http://127.0.0.1:$port/oauth/local")
+                  echo "$name: /oauth/local on the socket $viaSocket, on the web port $viaPort"
+                  if [ "$viaSocket" != "409" ] || [ "$viaPort" != "404" ]; then
+                    echo "$name: the API socket does not behave"
+                    cat "$RUNNER_TEMP/smoke-$port.log"
+                    return 1
+                  fi
+                fi
+                return 0
+              fi
+              sleep 1
+            done
+            echo "$name: Joi did not start"
+            cat "$RUNNER_TEMP/smoke-$port.log"
+            return 1
+          }
+          case "$RUNNER_OS" in
+            Windows) app="joi-desktop/target/desktop/package/Joi/Joi.exe" ;;
+            macOS)   app="joi-desktop/target/desktop/package/Joi.app/Contents/MacOS/Joi" ;;
+            *)       app="joi-desktop/target/desktop/package/Joi/bin/Joi" ;;
+          esac
+          smoke "app image" 18766 "$app"
+          if [ "$RUNNER_OS" != "Windows" ]; then
+            dists=(joi-desktop/target/desktop/joi-*/)
+            smoke "portable" 18767 "${dists[0]}bin/joi"
+          fi
+          # the node's program must be in the app image as well
+          case "$RUNNER_OS" in
+            Windows) test -f "joi-desktop/target/desktop/package/Joi/JoiNode.exe" ;;
+            macOS)   test -x "joi-desktop/target/desktop/package/Joi.app/Contents/MacOS/JoiNode" ;;
+            *)       test -x "joi-desktop/target/desktop/package/Joi/bin/JoiNode" ;;
+          esac
+          if [ "$RUNNER_OS" = "Linux" ]; then
+            # the .deb must install, and the installed app (/opt/joi) must start
+            deb=$(ls joi-desktop/target/desktop/joi-*.deb)
+            dpkg-deb --info "$deb"
+            # the package registers its menu entry with xdg-desktop-menu, which fails (exit 3) on a runner without a desktop: give it
+            # the directories a desktop has
+            sudo mkdir -p /usr/share/desktop-directories /usr/share/applications /etc/xdg/menus/applications-merged
+            sudo apt-get install -y "$PWD/$deb"
+            test -x /opt/joi/bin/JoiNode
+            smoke "deb" 18768 /opt/joi/bin/Joi
+            pkill -f /opt/joi || true
+          fi
+
+      - name: Upload distribution
+        uses: actions/upload-artifact@v4
+        with:
+          name: joi-desktop-${{ matrix.name }}
+          path: |
+            joi-desktop/target/desktop/joi-*.tar.gz
+            joi-desktop/target/desktop/joi-*.zip
+            joi-desktop/target/desktop/joi-*.deb
+            joi-desktop/target/desktop/joi-*.dmg
+            joi-desktop/target/desktop/joi-*.msi
+          if-no-files-found: error
+          # archives are already compressed
+          compression-level: 0
+          retention-days: 14
+
+  release:
+    name: Attach to release
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: desktop
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: joi-desktop-*
+          merge-multiple: true
+          path: dist
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*

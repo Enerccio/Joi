@@ -7,5 +7,11 @@ public enum AccessTokenKind {
     TOKEN,
 
     /** Given to a device the user approved (OAuth device grant): a short-lived access token and a refresh token. */
-    OAUTH
+    OAUTH,
+
+    /**
+     * Given to the node on the server's own machine over the local socket ({@code POST /oauth/local}): an access token with no refresh
+     * token, made again over the socket when it expires. It works whatever the administrator offers to other clients.
+     */
+    LOCAL
 }

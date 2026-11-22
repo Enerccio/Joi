@@ -51,7 +51,8 @@ public class JoiApiServlet extends HttpServlet {
             headers.put(name.toLowerCase(Locale.ROOT), request.getHeader(name));
         }
         String path = request.getRequestURI().substring(request.getContextPath().length());
-        ApiCall call = new ApiCall(request.getMethod(), path, ApiCall.parse(request.getQueryString()), headers, body, baseUrl(request));
+        boolean local = context.getBean(ApiConfiguration.class).isLocalSocket(request.getLocalAddr(), request.getLocalPort());
+        ApiCall call = new ApiCall(request.getMethod(), path, ApiCall.parse(request.getQueryString()), headers, body, baseUrl(request), local);
         context.getBean(JoiApi.class).handle(call, sink);
     }
 

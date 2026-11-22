@@ -11,7 +11,7 @@ package com.github.enerccio.joi.protocol;
 public final class JoiProtocol {
 
     /** The version this JAR describes: the HTTP API and the node WebSocket ({@link #NODE}, since 1.2). */
-    public static final String VERSION = "1.7";
+    public static final String VERSION = "1.8";
 
     /** The version of the node WebSocket. */
     public static final String NODE_VERSION = VERSION;
@@ -32,6 +32,14 @@ public final class JoiProtocol {
     public static final String DEVICE_AUTHORIZATION = OAUTH + "/device_authorization";
 
     public static final String TOKEN = OAUTH + "/token";
+
+    /**
+     * The token of a node on the server's own machine (since 1.8): {@code POST} over the server's local socket (a Unix domain
+     * socket in the data folder; the desktop app opens it) gives a {@link com.github.enerccio.joi.protocol.oauth.LocalToken} with no
+     * key and no login, the socket being the proof that the caller is on the machine and may read the data folder. A call that did
+     * not arrive on that socket is answered as an unknown path.
+     */
+    public static final String LOCAL = OAUTH + "/local";
 
     /** The OAuth metadata of the server (RFC 8414). */
     public static final String OAUTH_METADATA = "/.well-known/oauth-authorization-server";

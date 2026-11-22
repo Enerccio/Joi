@@ -1,0 +1,379 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <!--
+    The desktop app of Joi: a self-contained installation (no Java, no server to set up) with two programs, the server with a
+    tray icon (Joi) and the node with the avatar (JoiNode). Part of the build only with the root POM's profile `desktop`:
+
+      mvn -B -DskipTests -Pfx,production,desktop package -pl joi-desktop -am
+
+    (fx: the node's JavaFX app with Chromium, production: the server's frontend bundle in the WAR). Result in target/desktop:
+
+      joi-<version>/                          portable folder: bin/joi(.bat), app/ (the jars), server/ (jetty-home + joi.war), runtime/
+      package/                                native app made by jpackage (Joi.app on macOS, Joi/ with Joi.exe and JoiNode.exe on
+                                              Windows, Joi/bin/Joi and Joi/bin/JoiNode on Linux): one runtime, two launchers
+      joi-<version>-<os>-<arch>.tar.gz|zip    archive of the portable folder
+      joi-<version>-<os>-<arch>-app.tar.gz|zip  archive of the native app
+      joi-<version>-<os>-<arch>.deb|dmg|msi   installer of the native app (src/main/installer.xml)
+
+    The server part is as Marginalia's desktop app (src/desktop there): DesktopLauncher starts jetty-home in its JVM. jlink and
+    jpackage come from the JDK that runs Maven and make a runtime for this OS and CPU only: build on each target platform (see
+    .github/workflows/desktop.yml). jpackage needs a numeric version (no -SNAPSHOT): -Ddesktop.appVersion.
+  -->
+  <parent>
+    <groupId>io.github.enerccio</groupId>
+    <artifactId>joi-parent</artifactId>
+    <version>0.1.0-SNAPSHOT</version>
+  </parent>
+
+  <artifactId>joi-desktop</artifactId>
+  <packaging>jar</packaging>
+  <name>joi-desktop</name>
+
+  <properties>
+    <desktop.dir>${project.build.directory}/desktop</desktop.dir>
+    <desktop.dist>${desktop.dir}/joi-${project.version}</desktop.dist>
+    <!-- jpackage: a number of one to three parts, the first above 0 (macOS) -->
+    <desktop.appVersion>1.0.0</desktop.appVersion>
+    <!-- installers (deb / dmg / msi) made from the app image; -Ddesktop.skipInstaller=true leaves them out,
+         -Ddesktop.installerRequired=true (CI) fails the build when one cannot be made (without it a missing dpkg-deb / WiX only
+         prints a warning) -->
+    <desktop.skipInstaller>false</desktop.skipInstaller>
+    <desktop.installerRequired>false</desktop.installerRequired>
+    <desktop.jetty.version>${jetty.version}</desktop.jetty.version>
+    <!-- JDK modules of the runtime image: the server (as Marginalia's), the tray icon and browser opening (java.desktop), and
+         what the node and JavaFX use from the class path (jdk.httpserver: the renderer page's server, jdk.jfr: JavaFX, jdk.unsupported;
+         found with jdeps over the jars of app/, redo it when a dependency of the node changes) -->
+    <desktop.modules>java.base,java.compiler,java.datatransfer,java.desktop,java.instrument,java.logging,java.management,java.naming,java.net.http,java.prefs,java.rmi,java.scripting,java.security.jgss,java.security.sasl,java.sql,java.sql.rowset,java.transaction.xa,java.xml,java.xml.crypto,jdk.attach,jdk.charsets,jdk.crypto.ec,jdk.httpserver,jdk.jfr,jdk.localedata,jdk.management,jdk.naming.dns,jdk.net,jdk.unsupported,jdk.zipfs</desktop.modules>
+    <!-- the server (the tray icon needs no dock icon on macOS) and the node; JavaFX and JCEF load native libraries -->
+    <desktop.javaOptions>--enable-native-access=ALL-UNNAMED -Dapple.awt.UIElement=true</desktop.javaOptions>
+    <desktop.nodeOptions>--enable-native-access=ALL-UNNAMED</desktop.nodeOptions>
+    <desktop.microphone>Joi listens for her name and for what you say to her.</desktop.microphone>
+  </properties>
+
+  <dependencies>
+    <!-- not a dependency of the code: it makes the reactor build the WAR before this module, which copies it (the WAR is not on
+         any class path) -->
+    <dependency>
+      <groupId>io.github.enerccio</groupId>
+      <artifactId>joi-server</artifactId>
+      <version>${project.version}</version>
+      <type>war</type>
+      <scope>provided</scope>
+    </dependency>
+
+    <!-- the node's program with everything it runs on (copied into app/): build with -Pfx, the classes of its JavaFX app are not
+         compiled without it. The JavaFX jars of this OS come with these artifacts' own POMs -->
+    <dependency>
+      <groupId>io.github.enerccio</groupId>
+      <artifactId>joi-node</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>org.openjfx</groupId>
+      <artifactId>javafx-controls</artifactId>
+      <version>${javafx.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>org.openjfx</groupId>
+      <artifactId>javafx-media</artifactId>
+      <version>${javafx.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>me.friwi</groupId>
+      <artifactId>jcefmaven</artifactId>
+      <version>${jcef.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>me.friwi</groupId>
+      <artifactId>jcef-natives-${jcef.platform}</artifactId>
+      <version>${jcef.natives.version}</version>
+    </dependency>
+
+    <dependency>
+      <groupId>org.junit.jupiter</groupId>
+      <artifactId>junit-jupiter</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.assertj</groupId>
+      <artifactId>assertj-core</artifactId>
+      <version>3.27.3</version>
+      <scope>test</scope>
+    </dependency>
+  </dependencies>
+
+  <build>
+    <finalName>joi-launcher</finalName>
+    <!-- the launcher's jar holds the launcher and its icon only -->
+    <resources>
+      <resource>
+        <directory>src/main/icons</directory>
+        <includes>
+          <include>joi.png</include>
+        </includes>
+      </resource>
+    </resources>
+    <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-compiler-plugin</artifactId>
+        <version>3.15.0</version>
+        <configuration>
+          <release>${java.version}</release>
+          <encoding>UTF-8</encoding>
+        </configuration>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-surefire-plugin</artifactId>
+        <version>3.5.4</version>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-jar-plugin</artifactId>
+        <configuration>
+          <archive>
+            <manifest>
+              <mainClass>com.github.enerccio.joi.desktop.DesktopLauncher</mainClass>
+            </manifest>
+            <manifestEntries>
+              <Implementation-Version>${project.version}</Implementation-Version>
+            </manifestEntries>
+          </archive>
+        </configuration>
+      </plugin>
+
+      <!-- what goes into the distribution, before the antrun execution below: the WAR, jetty-home, and the jars of the node and
+           of what it runs on -->
+      <plugin>
+        <artifactId>maven-dependency-plugin</artifactId>
+        <version>3.7.0</version>
+        <executions>
+          <execution>
+            <id>desktop-war</id>
+            <phase>prepare-package</phase>
+            <goals>
+              <goal>copy</goal>
+            </goals>
+            <configuration>
+              <artifactItems>
+                <artifactItem>
+                  <groupId>io.github.enerccio</groupId>
+                  <artifactId>joi-server</artifactId>
+                  <version>${project.version}</version>
+                  <type>war</type>
+                  <destFileName>joi.war</destFileName>
+                </artifactItem>
+                <artifactItem>
+                  <groupId>org.eclipse.jetty</groupId>
+                  <artifactId>jetty-home</artifactId>
+                  <version>${desktop.jetty.version}</version>
+                  <type>zip</type>
+                </artifactItem>
+              </artifactItems>
+              <outputDirectory>${desktop.dir}/download</outputDirectory>
+            </configuration>
+          </execution>
+          <execution>
+            <id>desktop-node-jars</id>
+            <phase>prepare-package</phase>
+            <goals>
+              <goal>copy-dependencies</goal>
+            </goals>
+            <configuration>
+              <outputDirectory>${desktop.dir}/node-jars</outputDirectory>
+              <includeScope>runtime</includeScope>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+
+      <plugin>
+        <artifactId>maven-antrun-plugin</artifactId>
+        <version>3.1.0</version>
+        <executions>
+          <execution>
+            <id>desktop-distribution</id>
+            <phase>package</phase>
+            <goals>
+              <goal>run</goal>
+            </goals>
+            <configuration>
+              <target>
+                <property name="app" value="${desktop.dist}/app"/>
+                <!-- the server's files are not on the launchers' class path (jpackage would put every jar there) -->
+                <property name="server" value="${desktop.dist}/server"/>
+                <condition property="desktop.os" value="windows">
+                  <os family="windows"/>
+                </condition>
+                <condition property="desktop.os" value="macos">
+                  <os family="mac"/>
+                </condition>
+                <property name="desktop.os" value="linux"/>
+                <!-- app icon for jpackage: .icns on macOS, .ico on Windows, .png on Linux (src/main/icons) -->
+                <condition property="desktop.icon" value="src/main/icons/joi.icns">
+                  <equals arg1="${desktop.os}" arg2="macos"/>
+                </condition>
+                <condition property="desktop.icon" value="src/main/icons/joi.ico">
+                  <equals arg1="${desktop.os}" arg2="windows"/>
+                </condition>
+                <property name="desktop.icon" value="src/main/icons/joi.png"/>
+                <!-- JCEF on macOS reaches into AWT's internals; the other systems have no such packages (a warning if named) -->
+                <condition property="desktop.nodeOptions.all" value="${desktop.nodeOptions} --add-opens=java.desktop/sun.awt=ALL-UNNAMED --add-opens=java.desktop/sun.lwawt=ALL-UNNAMED --add-opens=java.desktop/sun.lwawt.macosx=ALL-UNNAMED">
+                  <equals arg1="${desktop.os}" arg2="macos"/>
+                </condition>
+                <property name="desktop.nodeOptions.all" value="${desktop.nodeOptions}"/>
+
+                <delete dir="${desktop.dist}"/>
+                <delete dir="${desktop.dir}/package"/>
+                <delete dir="${desktop.dir}/node-launcher"/>
+
+                <!-- app/: the launcher's jar, and the jars of the node and everything under it (both programs start from here;
+                     the server launcher is run with -jar / its own manifest, so its class path stays its jar) -->
+                <mkdir dir="${app}"/>
+                <copy file="${project.build.directory}/joi-launcher.jar" todir="${app}"/>
+                <copy todir="${app}">
+                  <fileset dir="${desktop.dir}/node-jars"/>
+                </copy>
+                <!-- the server's WAR and jetty-home -->
+                <copy file="${desktop.dir}/download/joi.war" tofile="${server}/joi.war"/>
+                <unzip src="${desktop.dir}/download/jetty-home-${desktop.jetty.version}.zip" dest="${server}/jetty-home">
+                  <cutdirsmapper dirs="1"/>
+                </unzip>
+
+                <!-- trimmed Java runtime for this platform -->
+                <exec executable="${java.home}/bin/jlink" failonerror="true">
+                  <arg value="--add-modules"/>
+                  <arg value="${desktop.modules}"/>
+                  <arg value="--strip-debug"/>
+                  <arg value="--no-header-files"/>
+                  <arg value="--no-man-pages"/>
+                  <arg value="--compress=zip-6"/>
+                  <arg value="--output"/>
+                  <arg value="${desktop.dist}/runtime"/>
+                </exec>
+
+                <copy todir="${desktop.dist}/bin">
+                  <fileset dir="src/main/bin"/>
+                </copy>
+                <chmod file="${desktop.dist}/bin/joi" perm="755"/>
+                <chmod file="${desktop.dist}/bin/joi-node" perm="755"/>
+
+                <!-- the second program of the app image: the node. Its own icon, the options JavaFX and Chromium need. The main
+                     jar of the node is its own (the class path is every jar of the input folder for both programs) -->
+                <mkdir dir="${desktop.dir}/node-launcher"/>
+                <echo file="${desktop.dir}/node-launcher/JoiNode.properties">main-jar=joi-node-${project.version}.jar
+main-class=com.github.enerccio.joi.node.fx.Launcher
+description=The Joi node: the avatar, the microphone and the tools of this computer
+java-options=${desktop.nodeOptions.all}
+</echo>
+
+                <!-- native application (app image, no installer: needs no signing to try out) with the two launchers: Joi
+                     (the server and its tray icon) and JoiNode -->
+                <exec executable="${java.home}/bin/jpackage" failonerror="true">
+                  <arg value="--type"/>
+                  <arg value="app-image"/>
+                  <arg value="--name"/>
+                  <arg value="Joi"/>
+                  <arg value="--app-version"/>
+                  <arg value="${desktop.appVersion}"/>
+                  <arg value="--vendor"/>
+                  <arg value="enerccio"/>
+                  <arg value="--description"/>
+                  <arg value="Joi, a personal AI assistant"/>
+                  <arg value="--icon"/>
+                  <arg value="${desktop.icon}"/>
+                  <arg value="--input"/>
+                  <arg value="${app}"/>
+                  <arg value="--main-jar"/>
+                  <arg value="joi-launcher.jar"/>
+                  <arg value="--add-launcher"/>
+                  <arg value="JoiNode=${desktop.dir}/node-launcher/JoiNode.properties"/>
+                  <arg value="--app-content"/>
+                  <arg value="${server}"/>
+                  <arg value="--runtime-image"/>
+                  <arg value="${desktop.dist}/runtime"/>
+                  <arg value="--java-options"/>
+                  <arg value="${desktop.javaOptions}"/>
+                  <arg value="--dest"/>
+                  <arg value="${desktop.dir}/package"/>
+                </exec>
+
+                <!-- macOS asks for the microphone only of an application whose Info.plist says what it is for (the node
+                     listens): jpackage writes a generic sentence, this says what Joi hears it for. The plist changes the
+                     signature jpackage made: signed again, ad hoc -->
+                <exec executable="plutil" os="Mac OS X" failonerror="true">
+                  <arg value="-replace"/>
+                  <arg value="NSMicrophoneUsageDescription"/>
+                  <arg value="-string"/>
+                  <arg value="${desktop.microphone}"/>
+                  <arg value="${desktop.dir}/package/Joi.app/Contents/Info.plist"/>
+                </exec>
+                <exec executable="codesign" os="Mac OS X" failonerror="true">
+                  <arg value="--force"/>
+                  <arg value="--deep"/>
+                  <arg value="--sign"/>
+                  <arg value="-"/>
+                  <arg value="${desktop.dir}/package/Joi.app"/>
+                </exec>
+
+                <!-- archives of the portable folder and of the app image: tar keeps file permissions (an app bundle or launcher
+                     without its executable bit is broken), Windows tar (bsdtar from System32, not Git's GNU tar that may come
+                     first on PATH) writes zip -->
+                <property environment="env"/>
+                <condition property="desktop.archiveExt" value="zip" else="tar.gz">
+                  <os family="windows"/>
+                </condition>
+                <condition property="desktop.tarFlags" value="-a -c -f" else="-c -z -f">
+                  <os family="windows"/>
+                </condition>
+                <condition property="desktop.tar" value="${env.SystemRoot}\System32\tar.exe" else="tar">
+                  <os family="windows"/>
+                </condition>
+                <!-- Java calls x86-64 "amd64" on Windows and Linux and "x86_64" on macOS: one name for all -->
+                <condition property="desktop.arch" value="x86_64">
+                  <equals arg1="${os.arch}" arg2="amd64"/>
+                </condition>
+                <property name="desktop.arch" value="${os.arch}"/>
+                <property name="desktop.archiveBase" value="joi-${project.version}-${desktop.os}-${desktop.arch}"/>
+                <delete>
+                  <fileset dir="${desktop.dir}" includes="joi-*.tar.gz,joi-*.zip"/>
+                </delete>
+                <exec executable="${desktop.tar}" dir="${desktop.dir}" failonerror="true">
+                  <arg line="${desktop.tarFlags}"/>
+                  <arg value="${desktop.archiveBase}.${desktop.archiveExt}"/>
+                  <arg value="joi-${project.version}"/>
+                </exec>
+                <exec executable="${desktop.tar}" dir="${desktop.dir}/package" failonerror="true">
+                  <arg line="${desktop.tarFlags}"/>
+                  <arg value="../${desktop.archiveBase}-app.${desktop.archiveExt}"/>
+                  <arg value="."/>
+                </exec>
+              </target>
+            </configuration>
+          </execution>
+
+          <!-- installer of the app image: .deb on Linux, .dmg on macOS, .msi on Windows, named like the archives
+               (src/main/installer.xml) -->
+          <execution>
+            <id>desktop-installer</id>
+            <phase>package</phase>
+            <goals>
+              <goal>run</goal>
+            </goals>
+            <configuration>
+              <skip>${desktop.skipInstaller}</skip>
+              <target>
+                <ant antfile="src/main/installer.xml" target="plain"/>
+              </target>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+    </plugins>
+  </build>
+</project>

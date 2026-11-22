@@ -1,0 +1,69 @@
+# Runs the tests of Joi: the protocol (its schemas against the records), the server (the real Spring configuration on SQLite
+# with a fake model server, no network or API key) and the node (its core and the terminal client; the JavaFX part is not built,
+# it needs -Pfx and the natives of one platform).
+#
+# Marginalia's platform (the submodule) has its own 673 tests that belong to Marginalia: it is built here, not tested.
+
+name: Test
+
+on:
+  push:
+    branches: [master]
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: test-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  JAVA_VERSION: '25'
+  MAVEN_ARGS: '-B -ntp'
+
+jobs:
+  test:
+    name: Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # the platform is the Marginalia submodule
+          submodules: recursive
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: ${{ env.JAVA_VERSION }}
+          cache: maven
+
+      - name: Take the version from the tag
+        # a v* tag is the release version: Joi's POMs get it before the build (tools/version_from_tag.sh); other builds keep pom.xml's
+        run: tools/version_from_tag.sh
+
+      - name: Install the parent POMs
+        run: |
+          mvn -N install
+          mvn -N install -f marginalia/pom.xml
+
+      - name: Install the platform and the protocol
+        # the platform with its test JAR (the server's tests extend the platform's PlatformTestBase), built without its own tests
+        run: mvn -DskipTests install -pl marginalia/marginalia/platform,joi-protocol
+
+      - name: Test
+        run: mvn test -pl joi-protocol,joi-server,joi-node
+
+      - name: Upload test reports
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-reports
+          path: |
+            joi-protocol/target/surefire-reports/
+            joi-server/target/surefire-reports/
+            joi-node/target/surefire-reports/
+          retention-days: 7

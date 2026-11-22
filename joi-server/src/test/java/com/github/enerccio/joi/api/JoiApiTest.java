@@ -85,6 +85,7 @@ class JoiApiTest extends PlatformTestBase {
     void tearDown() throws Exception {
         configuration.setNoAuth(false);
         configuration.setNoAuthUser(null);
+        configuration.setLocalSocket(null);
         loginAdmin();
         apiAccessService.save(ApiAccess.DEFAULT);
     }
@@ -479,6 +480,73 @@ class JoiApiTest extends PlatformTestBase {
         assertThat(call("GET", "/api/v1/me", "Bearer " + access, null).status).isEqualTo(401);
         assertThat(form(JoiProtocol.TOKEN, "grant_type=refresh_token&refresh_token=" + refresh).json().get("error").getAsString())
                 .isEqualTo("invalid_grant");
+    }
+
+    /** A call that arrived on the server's local socket. */
+    private Answer local(String method, String path, String authorization, String body) throws IOException {
+        Map<String, String> map = new HashMap<>();
+        if (authorization != null) {
+            map.put("authorization", authorization);
+        }
+        map.put("content-type", "application/x-www-form-urlencoded");
+        Answer answer = new Answer();
+        api.handle(new ApiCall(method, path, Map.of(), map, body == null ? new byte[0] : body.getBytes(StandardCharsets.UTF_8),
+                "http://localhost", true), answer);
+        return answer;
+    }
+
+    @Test
+    void aNodeOnTheSameMachineGetsATokenOverTheLocalSocketOnly() throws Exception {
+        configuration.setNoAuthUser(user.getLogin());
+        // not on the socket (TCP, a proxy): the path does not exist
+        Answer remote = form(JoiProtocol.LOCAL, "client_id=desk");
+        assertThat(remote.status).isEqualTo(404);
+        assertThat(remote.json().get("error").getAsString()).isEqualTo("invalid_request");
+        assertThat(local("GET", JoiProtocol.LOCAL, null, null).status).isEqualTo(405);
+
+        Answer issued = local("POST", JoiProtocol.LOCAL, null, "client_id=desk&client_name=Desk");
+        assertThat(issued.status).isEqualTo(200);
+        valid("LocalToken", issued.body);
+        assertThat(issued.json().has("refresh_token")).isFalse();
+        String first = issued.json().get("access_token").getAsString();
+        assertThat(first).startsWith("joil_");
+        Answer me = call("GET", "/api/v1/me", "Bearer " + first, null);
+        assertThat(me.status).isEqualTo(200);
+        assertThat(me.json().get("login").getAsString()).isEqualTo(user.getLogin());
+
+        // the same client gets a new token in place of the old one: one entry in the user's list
+        int before = accessTokenService.findAllForUser().size();
+        String second = local("POST", JoiProtocol.LOCAL, null, "client_id=desk").json().get("access_token").getAsString();
+        assertThat(second).isNotEqualTo(first);
+        assertThat(accessTokenService.findAllForUser()).hasSize(before);
+        assertThat(call("GET", "/api/v1/me", "Bearer " + first, null).status).isEqualTo(401);
+        assertThat(call("GET", "/api/v1/me", "Bearer " + second, null).status).isEqualTo(200);
+
+        // a local token is the machine's own: what the administrator offers to other clients does not turn it off
+        loginAdmin();
+        apiAccessService.save(new ApiAccess(false, false, 60, 90));
+        loginAs(user);
+        assertThat(call("GET", "/api/v1/me", "Bearer " + second, null).status).isEqualTo(200);
+        assertThat(local("POST", JoiProtocol.LOCAL, null, "client_id=other").status).isEqualTo(200);
+    }
+
+    @Test
+    void theLocalSocketIsRecognisedByItsAddressAndItsMissingPort() {
+        configuration.setLocalSocket(null);
+        assertThat(configuration.isLocalSocket("/tmp/joi.sock", -1)).isFalse();
+        try {
+            configuration.setLocalSocket("/tmp/joi/api.sock");
+            assertThat(configuration.isLocalSocket("/tmp/joi/api.sock", -1)).isTrue();
+            assertThat(configuration.isLocalSocket("/tmp/joi/../joi/api.sock", -1)).isTrue();
+            assertThat(configuration.isLocalSocket("/tmp/joi/other.sock", -1)).isFalse();
+            // a TCP call always has a local port, whatever it says its address is
+            assertThat(configuration.isLocalSocket("/tmp/joi/api.sock", 8080)).isFalse();
+            assertThat(configuration.isLocalSocket("127.0.0.1", -1)).isFalse();
+            assertThat(configuration.isLocalSocket("", -1)).isFalse();
+            assertThat(configuration.isLocalSocket(null, -1)).isFalse();
+        } finally {
+            configuration.setLocalSocket(null);
+        }
     }
 
     @Test

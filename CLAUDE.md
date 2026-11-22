@@ -35,6 +35,7 @@ mvn package -pl joi-server -Pproduction                       # the WAR with the
 mvn test -pl joi-node                                         # the node's core and its terminal client (JoiNodeCli)
 mvn -o -Pfx compile exec:exec@run -pl joi-node               # the JavaFX node (OpenJFX 25 and JCEF are in ~/.m2)
 mvn -o -Pfx compile exec:exec@run -pl joi-node -Dnode.args=preview   # her cached body in Chromium, no server
+mvn -o -B -DskipTests -Pfx,production,desktop package -pl joi-desktop -am   # the desktop app (server + node, jlink + jpackage) in joi-desktop/target/desktop
 tools/retype_build.sh                                         # the manual into docs/ (needs `retype`)
 screenshots/bin/shoot-all.sh                                  # retake the pictures of the manual (screenshots/SCREENSHOTS.md)
 ```
@@ -75,6 +76,13 @@ with the code.
   change together.
 - `joi-extensions/` — the extensions that come with Joi (OSGi bundles: the model providers `anthropic`, `google-genai`, `grok`, built against the platform only), loaded from the
   extensions folder of the data folder (Administration → Extensions); the API of Joi's own extensions is `joi-server/.../extensions` (`JoiExtension`).
+- `joi-desktop/` — the desktop app, in the reactor only with the root POM's profile `desktop`: `DesktopLauncher` (JDK only: runs jetty-home with the WAR, the
+  web UI on a loopback port with its login, the API on a Unix socket in the data folder where the node of this machine needs no key
+  (`POST /oauth/local`, `joi.api.local-socket`), a tray icon that starts the node, one node per home by the lock `node.lock`), and the POM that
+  makes the portable folder, the jpackage app with two launchers (`Joi`, `JoiNode`) and the installers (`src/main/installer.xml`); the icons are
+  drawn by `tools/MakeIcons.java`. The node side of the socket is `joi-node/.../node/local` (`UnixHttp`, `UnixWebSocket`), `LocalMode`, `NodeInstance`.
+  See `manual/developer/desktop.md`. Only macOS arm64 is tried locally; the other platforms are built by `desktop.yml`.
+- `.github/workflows/` (`test.yml`, `server.yml`: the WAR, the extension JARs and the multi-arch image on ghcr.io; `desktop.yml`: the desktop app per platform; `manual.yml`), `dependabot.yml`, `tools/version_from_tag.sh` (a `v*` tag is the version of Joi's POMs, not the platform's); see `manual/developer/building.md`.
 - `Dockerfile`, `docker-compose.yml`, `docker-entrypoint.sh` — the server's image (the platform, the protocol and the server built into the WAR,
   run by Jetty, with ffmpeg and headless Blender; the data folder `JOI_DATA` is the volume). Not the node. See `manual/user/getting-started/docker-server.md`.
 - `marginalia/` — git submodule of Marginalia, pinned at a commit on its `dev` branch; joi-server uses only its

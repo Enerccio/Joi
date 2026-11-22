@@ -5,10 +5,16 @@ order: 780
 covers:
   - pom.xml
   - joi-node/pom.xml
+  - joi-desktop/pom.xml
+  - .github/workflows/desktop.yml
   - CLAUDE.md
   - Dockerfile
   - docker-compose.yml
   - docker-entrypoint.sh
+  - tools/version_from_tag.sh
+  - .github/workflows/server.yml
+  - .github/workflows/test.yml
+  - .github/dependabot.yml
 verified: 61104d2
 ---
 
@@ -69,6 +75,27 @@ docker compose -f joi-extensions/docker-compose.yml run --rm extensions         
 Then copy the JARs into the `extensions` folder of the data folder (`./data/extensions` with the compose file) and restart the server, or load them
 in Administration → Extensions.
 
+## GitHub builds
+
+Four workflows in `.github/workflows` (as Marginalia's) and Dependabot. All check out with `submodules: recursive`.
+
+| Workflow | When | What |
+|---|---|---|
+| `test.yml` | every push and pull request | Builds the platform (no tests of its own) and the protocol, then runs the tests of `joi-protocol`, `joi-server` and `joi-node` (not the JavaFX part). Reports are an artifact when it fails. |
+| `server.yml` | master, `v*` tags, pull requests that touch the server, extensions or Docker files | The WAR (`-Pproduction`) and the three extension JARs as the artifact `joi-server`; the Docker image for `linux/amd64` and `linux/arm64`, each built on a native runner and smoke-tested (`/health` answers 200) before it is pushed. |
+| `desktop.yml` | master, `v*` tags, pull requests that touch the desktop app, node, server or protocol | The desktop app (`-Pfx,production,desktop`, see [The desktop app](desktop.md)) on Linux x64 and arm64, Windows x64 and macOS arm64 and x64, with its installers, smoke-tested (the server starts, the API socket answers `POST /oauth/local` with 409 while the port answers 404, both programs and the `.deb` are there). The files are an artifact per platform and, for a `v*` tag, attached to the release. |
+| `manual.yml` | master, pull requests that touch the manual | The manual to GitHub Pages. |
+
+The image goes to `ghcr.io/<owner>/joi`: `edge` from master, and `<version>`, `<major>.<minor>` and `latest` from a `v*` tag. Pull requests only
+build. A `v*` tag also attaches `joi-server-<version>.war` and `joi-extension-<name>-<version>.jar` to its GitHub release. The image holds no
+extensions, as above: they are loaded from the data folder. The `linux/arm64` image has no Blender.
+
+The release version is the tag: `tools/version_from_tag.sh` rewrites Joi's own POMs (not the platform's, whose version is Marginalia's) to
+`1.2.3` for `v1.2.3` before every build. Other builds keep the version of `pom.xml`. To try it on a copy of the POMs:
+`JOI_ROOT=<copy> GITHUB_REF=refs/tags/v1.2.3 tools/version_from_tag.sh`. `.github/dependabot.yml` opens grouped weekly pull requests for Maven,
+the actions and the Docker base images. `test.yml` and `server.yml` do not build the node's JavaFX app; `desktop.yml` does, on each platform, with the natives of that platform
+(`jcef.platform`, set by the profiles of the root POM).
+
 ## The node
 
 The JavaFX node is behind the `fx` profile (OpenJFX 25, the embedded Chromium from `jcefmaven`, and the renderer page built by Vite):
@@ -81,6 +108,11 @@ mvn -o -Pfx compile exec:exec@run -pl joi-node -Dnode.args="--joi-home-dir ~/.jo
 
 Run it with `exec:exec@run` (`fx/Launcher`), not `javafx:run`, which leaves the Chromium jars off the class path. The renderer page is
 `joi-node/src/main/renderer`; the server's `joi-model-viewer.js` is copied in at build time.
+
+## The desktop app
+
+`mvn -Pfx,production,desktop package -pl joi-desktop -am` builds the server and the node into one installation, with a tray icon and a socket for the node: see
+[The desktop app](desktop.md). The `fx` profile's npm step is offline by default (`npm.mode`), the natives of Chromium follow the machine (`jcef.platform`).
 
 ## Schema changes
 

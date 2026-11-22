@@ -1,5 +1,6 @@
 package com.github.enerccio.joi.node;
 
+import com.github.enerccio.joi.node.local.UnixWebSocket;
 import com.github.enerccio.joi.protocol.http.*;
 import com.github.enerccio.joi.protocol.node.*;
 import com.google.gson.Gson;
@@ -10,6 +11,7 @@ import com.google.gson.JsonParseException;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.WebSocket;
+import java.nio.file.Path;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
@@ -133,6 +135,10 @@ public class NodeSocket {
     private boolean testing;
 
     private URI uri;
+    /** The server's local socket when it is on this machine, else null (the network). */
+    private volatile Path localSocket;
+    /** Gives the {@code Authorization} header of a try to connect again (an access token that expired is made again), null to keep the first. */
+    private volatile Callable<String> authorizer;
     private String authorization;
     private Hello hello;
     private volatile Manifest manifest;
@@ -157,6 +163,20 @@ public class NodeSocket {
 
     public NodeSocket(Listener listener) {
         this.listener = listener;
+    }
+
+    /** Connects over the Unix domain socket of a server on this machine instead of the network (the URI's host and port are not used). */
+    public void localSocket(Path socket) {
+        this.localSocket = socket;
+    }
+
+    /**
+     * Where the {@code Authorization} header comes from when the node connects again: the connection may be lost for longer than an
+     * access token lives, and the header the first connection had is then no good (the server closes with {@code unauthorized}, which
+     * ends the node for good). Not used for the first connection, which has the header it is given.
+     */
+    public void authorizer(Callable<String> authorizer) {
+        this.authorizer = authorizer;
     }
 
     /** Runs the node's tools: the result of a call (on a thread of its own; it may wait for the user). */
@@ -195,11 +215,16 @@ public class NodeSocket {
         synchronized (this) {
             welcome = welcomed;
         }
-        WebSocket.Builder builder = http.newWebSocketBuilder().connectTimeout(Duration.ofSeconds(10));
-        if (authorization != null) {
-            builder.header("Authorization", authorization);
+        String header = authorization;
+        if (gen > 1 && authorizer != null) {
+            try {
+                header = authorizer.call();
+            } catch (Exception e) {
+                LOG.log(System.Logger.Level.WARNING, "The credentials for connecting again could not be made: " + e, e);
+            }
         }
-        builder.buildAsync(uri, new WebSocket.Listener() {
+        String authorization = header;
+        WebSocket.Listener events = new WebSocket.Listener() {
             private final StringBuilder text = new StringBuilder();
 
             @Override
@@ -231,7 +256,19 @@ public class NodeSocket {
             public void onError(WebSocket webSocket, Throwable error) {
                 ended(gen, 1006, String.valueOf(error.getMessage()));
             }
-        }).whenComplete((ws, error) -> {
+        };
+        CompletableFuture<WebSocket> opened;
+        Path unix = localSocket;
+        if (unix != null) {
+            opened = UnixWebSocket.connectAsync(unix, uri, authorization == null ? Map.of() : Map.of("Authorization", authorization), events);
+        } else {
+            WebSocket.Builder builder = http.newWebSocketBuilder().connectTimeout(Duration.ofSeconds(10));
+            if (authorization != null) {
+                builder.header("Authorization", authorization);
+            }
+            opened = builder.buildAsync(uri, events);
+        }
+        opened.whenComplete((ws, error) -> {
             if (error != null) {
                 welcomed.completeExceptionally(error);
                 return;

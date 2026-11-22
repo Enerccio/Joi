@@ -25,6 +25,7 @@ import javafx.scene.input.KeyCodeCombination;
 import javafx.scene.input.KeyCombination;
 import javafx.stage.Window;
 import javafx.scene.layout.*;
+import java.util.concurrent.atomic.AtomicBoolean;
 import javafx.stage.Stage;
 
 import java.io.IOException;
@@ -128,7 +129,71 @@ public class JoiNodeApp extends Application {
         stage.setOnHidden(e -> Platform.exit());
         stage.show();
         NodeSettings.Node node = settings.node();
+        LocalMode local = LocalMode.parse(parameters == null ? new String[0] : parameters.getRaw().toArray(String[]::new), System.getenv());
+        if (local != null) {
+            // started by the server's desktop app on this machine: its socket is the way in, nothing to type
+            showLocal(local);
+            return;
+        }
         showServer(node.server == null ? "http://localhost:8080" : node.server, null);
+    }
+
+    /**
+     * The server on this machine, over its local socket: signs in without a key and loads her. While nobody has an account yet
+     * (the first one is made in the web UI) or the server is still starting, it asks again every few seconds.
+     */
+    private void showLocal(LocalMode local) {
+        Label status = new Label("Connecting to Joi on this computer...");
+        status.setWrapText(true);
+        Button browser = new Button("Open Joi in the browser");
+        browser.setVisible(local.web() != null);
+        browser.setManaged(local.web() != null);
+        browser.setOnAction(e -> {
+            if (local.web() != null) {
+                getHostServices().showDocument(local.web());
+            }
+        });
+        Button other = new Button("Another server...");
+        AtomicBoolean leave = new AtomicBoolean();
+        other.setOnAction(e -> {
+            leave.set(true);
+            showServer("http://localhost:8080", null);
+        });
+        show(new StackPane(centered(new Label("Joi"), status, new HBox(8, browser, other))));
+        Thread.ofVirtual().name("Joi node local").start(() -> {
+            while (!leave.get()) {
+                try {
+                    NodeSettings.Node node = settings.node();
+                    node.server = NodeSettings.normalise(local.server());
+                    settings.saveNode();
+                    ServerClient signedIn = new ServerClient(node.server, settings);
+                    signedIn.signInLocal();
+                    signedIn.info();
+                    if (leave.get()) {
+                        return;
+                    }
+                    Platform.runLater(() -> {
+                        client = signedIn;
+                        loadJois();
+                    });
+                    return;
+                } catch (ServerClient.ServerException e) {
+                    String text = "no_user".equals(e.code())
+                            ? "Joi has no account yet. Open Joi in the browser and make the first one; this window goes on by itself."
+                            : "Joi on this computer refused: " + e.getMessage();
+                    Platform.runLater(() -> status.setText(text));
+                } catch (IOException e) {
+                    Platform.runLater(() -> status.setText("Joi does not answer on this computer yet (" + e.getMessage() + "). Is it running?"));
+                } catch (InterruptedException e) {
+                    return;
+                }
+                try {
+                    Thread.sleep(3000);
+                } catch (InterruptedException e) {
+                    return;
+                }
+            }
+        });
     }
 
     @Override
@@ -274,6 +339,9 @@ public class JoiNodeApp extends Application {
                     settings.credentials().token = token;
                     settings.saveCredentials();
                 }
+                if (client.local()) {
+                    client.signInLocal();
+                }
                 return client.info();
             }
         };
@@ -281,7 +349,7 @@ public class JoiNodeApp extends Application {
             ServerInfo info = task.getValue();
             try {
                 List<AuthMethod> methods = info.auth().methods();
-                if (settings.credentials().authorization() != null || methods.contains(AuthMethod.NONE)) {
+                if (client.local() || settings.credentials().authorization() != null || methods.contains(AuthMethod.NONE)) {
                     loadJois();
                 } else if (methods.contains(AuthMethod.OAUTH)) {
                     pair();
@@ -1087,6 +1155,8 @@ public class JoiNodeApp extends Application {
                         socket.manifest(changed);
                     }
                 });
+                socket.localSocket(client.localSocket());
+                socket.authorizer(client::authorization);
                 socket.connect(client.nodeSocket(), client.authorization(), hello, manifest).get();
                 Platform.runLater(() -> {
                     director.start();

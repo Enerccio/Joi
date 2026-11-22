@@ -19,6 +19,8 @@ public interface AccessTokenService extends ExtendableService<AccessToken, Acces
     String TOKEN_START = "joi_";
     String ACCESS_START = "joia_";
     String REFRESH_START = "joir_";
+    /** The access token of the node on the server's own machine ({@link AccessTokenKind#LOCAL}). */
+    String LOCAL_START = "joil_";
 
     /** How many credentials a user can have at once. */
     int MAX_PER_USER = 50;
@@ -55,6 +57,13 @@ public interface AccessTokenService extends ExtendableService<AccessToken, Acces
      * @throws IllegalStateException when the administrator turned OAuth off
      */
     Issued issueDevice(String name, String clientId) throws Exception;
+
+    /**
+     * The access token of the node on the server's own machine, for the current user, who is known by the local socket and not by a
+     * login. The same {@code clientId} gets a new token in place of the old one (which stops working), so a node has one entry in the
+     * user's list; it has no refresh token. Works whatever the administrator offers to other clients.
+     */
+    Issued issueLocal(String name, String clientId) throws Exception;
 
     /**
      * A new pair for a refresh token; the old pair stops working. Needs no current user.

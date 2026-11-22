@@ -13,8 +13,15 @@ import java.util.Map;
  * @param query   the parameters of the query string, the first value of each
  * @param headers the headers, names in lower case
  * @param baseUrl the URL of the server as the client reached it ({@code http://host:port}, no slash at the end)
+ * @param local   whether it arrived on the server's local socket (see {@link ApiConfiguration#getLocalSocket()}), so it is from the
+ *                machine the server runs on
  */
-public record ApiCall(String method, String path, Map<String, String> query, Map<String, String> headers, byte[] body, String baseUrl) {
+public record ApiCall(String method, String path, Map<String, String> query, Map<String, String> headers, byte[] body, String baseUrl,
+                      boolean local) {
+
+    public ApiCall(String method, String path, Map<String, String> query, Map<String, String> headers, byte[] body, String baseUrl) {
+        this(method, path, query, headers, body, baseUrl, false);
+    }
 
     public String header(String name) {
         return headers.get(name.toLowerCase(Locale.ROOT));

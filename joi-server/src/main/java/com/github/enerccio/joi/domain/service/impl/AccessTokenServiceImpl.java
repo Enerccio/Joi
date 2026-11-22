@@ -74,6 +74,34 @@ public class AccessTokenServiceImpl extends ExtendableServiceImpl<AccessToken, A
 
     @Override
     @CommonTx
+    public Issued issueLocal(String name, String clientId) throws Exception {
+        String client = StringUtils.abbreviate(StringUtils.defaultIfBlank(StringUtils.strip(clientId), "joi-node"), MAX_NAME_LENGTH);
+        AccessToken token = findAllForUser().stream()
+                .filter(t -> !t.isDeleted() && t.getKind() == AccessTokenKind.LOCAL && client.equals(t.getClientId()))
+                .findFirst().orElse(null);
+        if (token == null) {
+            checkCount();
+            token = new AccessToken();
+            token.setKind(AccessTokenKind.LOCAL);
+            token.setClientId(client);
+        }
+        token.setName(StringUtils.abbreviate(StringUtils.defaultIfBlank(StringUtils.strip(name), client), MAX_NAME_LENGTH));
+        long now = AppClock.now().getTime();
+        String prefix = newPrefix(false);
+        String accessText = LOCAL_START + prefix + "_" + secret();
+        long expiresIn = apiAccessService.get().accessTokenMinutes() * 60L;
+        token.setKeyPrefix(prefix);
+        token.setSecretHash(hash(accessText));
+        token.setExpires(new Date(now + expiresIn * 1000));
+        token.setRefreshPrefix(null);
+        token.setRefreshHash(null);
+        token.setRefreshExpires(null);
+        token.setLastUsed(new Date(now));
+        return new Issued(save(token), accessText, null, expiresIn);
+    }
+
+    @Override
+    @CommonTx
     public Issued refresh(String refreshToken) throws Exception {
         ApiAccess access = apiAccessService.get();
         String prefix = prefixOf(refreshToken, REFRESH_START);
@@ -116,15 +144,18 @@ public class AccessTokenServiceImpl extends ExtendableServiceImpl<AccessToken, A
     @CommonTx
     public Principal authenticate(String text) throws Exception {
         AccessTokenKind kind = text == null ? null : text.startsWith(ACCESS_START) ? AccessTokenKind.OAUTH
-                : text.startsWith(TOKEN_START) ? AccessTokenKind.TOKEN : null;
+                : text.startsWith(TOKEN_START) ? AccessTokenKind.TOKEN
+                : text.startsWith(LOCAL_START) ? AccessTokenKind.LOCAL : null;
         if (kind == null) {
             return null;
         }
         ApiAccess access = apiAccessService.get();
-        if (kind == AccessTokenKind.TOKEN ? !access.tokens() : !access.oauth()) {
+        // a local token is the machine's own: the administrator's offer to other clients does not turn it off
+        if (kind == AccessTokenKind.TOKEN ? !access.tokens() : kind == AccessTokenKind.OAUTH && !access.oauth()) {
             return null;
         }
-        String prefix = prefixOf(text, kind == AccessTokenKind.TOKEN ? TOKEN_START : ACCESS_START);
+        String start = kind == AccessTokenKind.TOKEN ? TOKEN_START : kind == AccessTokenKind.OAUTH ? ACCESS_START : LOCAL_START;
+        String prefix = prefixOf(text, start);
         if (prefix == null) {
             return null;
         }

@@ -214,6 +214,8 @@ public final class JoiNodeCli {
             }
         });
         try {
+            socket.localSocket(client.localSocket());
+            socket.authorizer(client::authorization);
             socket.connect(client.nodeSocket(), client.authorization(), hello, manifest).get(20, TimeUnit.SECONDS);
         } catch (Exception e) {
             out.println("Could not connect: " + e.getMessage());
@@ -374,6 +376,11 @@ public final class JoiNodeCli {
         if (env != null && !env.isBlank()) {
             credentials.token = env.strip();
             settings.saveCredentials();
+        }
+        if (client.local()) {
+            // the server is on this machine: its socket is the proof, no token and no pairing
+            client.signInLocal();
+            return;
         }
         List<AuthMethod> methods = info.auth().methods();
         if (credentials.authorization() != null || methods.contains(AuthMethod.NONE)) {

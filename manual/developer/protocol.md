@@ -27,7 +27,7 @@ changes the schema, the record and the docs together with the code.**
 
 ## Versioning
 
-`JoiProtocol.VERSION` is `major.minor` (now 1.7), sent in the handshake. A minor version only adds things; both sides ignore fields and message types they
+`JoiProtocol.VERSION` is `major.minor` (now 1.8), sent in the handshake. A minor version only adds things; both sides ignore fields and message types they
 do not know. The server supports at least the previous major version and says so when a node is too old.
 
 ## The HTTP API
@@ -53,6 +53,13 @@ is the device grant (RFC 8628): the device asks `/oauth/device_authorization` fo
 `/oauth/token` and gets an access token (`joia_...`, an hour by default) and a refresh token (`joir_...`, 90 days; each refresh gives a new pair). **No auth** is the
 configuration's (`joi.api.no-auth`): a call without credentials acts as `joi.api.no-auth-user`, else the first administrator; a credential that is sent must
 still be valid. Credentials are `AccessToken` rows (prefix and SHA-256).
+
+**The local door (1.8).** `POST /oauth/local` (`{client_id, client_name}`, answer `LocalToken`: `access_token` `joil_...`, `token_type`, `expires_in`; one token per
+`client_id` is reused, kind `LOCAL`) gives a token with no credentials, but only on the server's **Unix domain socket** (`joi.api.local-socket`, a path):
+`JoiApiServlet` asks `ApiConfiguration.isLocalSocket(request.getLocalAddr(), request.getLocalPort())` (on a socket the local address is the path and the port -1; the
+remote address is empty) and puts the answer into `ApiCall.local`, so what a caller sends cannot change it. On TCP the call is 404 `invalid_request`; before the first account
+409 `no_user`. The token acts as the user `joi.api.no-auth-user`, else the first administrator, and is not subject to the switches of tokens and OAuth in Administration.
+A client that wants to use the socket needs HTTP/1.1 and WebSocket over it: see [Writing a node](nodes.md) and [The desktop app](desktop.md).
 
 ## The containers
 

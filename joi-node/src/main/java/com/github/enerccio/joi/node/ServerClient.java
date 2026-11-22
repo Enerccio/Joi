@@ -14,7 +14,9 @@ import com.github.enerccio.joi.protocol.http.TaskApproval;
 import com.github.enerccio.joi.protocol.http.TaskDenial;
 import com.github.enerccio.joi.protocol.http.TaskInfo;
 import com.github.enerccio.joi.protocol.http.TaskList;
+import com.github.enerccio.joi.node.local.UnixHttp;
 import com.github.enerccio.joi.protocol.oauth.DeviceAuthorization;
+import com.github.enerccio.joi.protocol.oauth.LocalToken;
 import com.github.enerccio.joi.protocol.oauth.OAuthError;
 import com.github.enerccio.joi.protocol.oauth.TokenResponse;
 import com.google.gson.Gson;
@@ -37,6 +39,7 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.time.Duration;
 import java.util.HexFormat;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.function.LongConsumer;
 import java.util.stream.Collectors;
@@ -56,6 +59,11 @@ public class ServerClient {
     private final NodeSettings settings;
     private final HttpClient http = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(10))
             .followRedirects(HttpClient.Redirect.NORMAL).build();
+    /** The server's local socket when it is on this machine ({@code unix:/path/to/socket}), else null. */
+    private final UnixHttp unix;
+
+    /** The prefix of the address of a server on this machine, reached over its Unix domain socket. */
+    public static final String UNIX = "unix:";
 
     /** A call the server refused: its status and its {@link ApiError}. */
     public static class ServerException extends IOException {
@@ -78,12 +86,24 @@ public class ServerClient {
     }
 
     /**
-     * @param server   {@code http://host:port}, without a path
+     * @param server   {@code http://host:port}, without a path; or {@code unix:/path/to/socket} for a server on this machine, reached
+     *                 over its local socket, where the node needs no key and no login ({@link #signInLocal})
      * @param settings where the credentials are
      */
     public ServerClient(String server, NodeSettings settings) {
         this.server = server.replaceAll("/+$", "");
         this.settings = settings;
+        this.unix = this.server.startsWith(UNIX) ? new UnixHttp(Path.of(this.server.substring(UNIX.length()))) : null;
+    }
+
+    /** Whether the server is on this machine, reached over its local socket. */
+    public boolean local() {
+        return unix != null;
+    }
+
+    /** The local socket of the server, null when it is reached over the network. */
+    public Path localSocket() {
+        return unix == null ? null : unix.socket();
     }
 
     public String server() {
@@ -92,7 +112,7 @@ public class ServerClient {
 
     /** The node WebSocket's URL ({@code ws://} or {@code wss://}). */
     public URI nodeSocket() {
-        return URI.create(server.replaceFirst("^http", "ws") + JoiProtocol.NODE);
+        return URI.create(unix != null ? "ws://localhost" + JoiProtocol.NODE : server.replaceFirst("^http", "ws") + JoiProtocol.NODE);
     }
 
     /** What the server is and how to authenticate (needs no credentials). */
@@ -132,8 +152,8 @@ public class ServerClient {
     /** The {@code Authorization} header now, refreshing an expired OAuth access token first; null for none. */
     public String authorization() throws IOException, InterruptedException {
         NodeSettings.Credentials credentials = settings.credentials();
-        if (credentials.token == null && credentials.refreshToken != null
-                && System.currentTimeMillis() > credentials.accessExpires - 60_000) {
+        if (credentials.token == null && canRefresh() && (credentials.accessToken == null
+                || System.currentTimeMillis() > credentials.accessExpires - 60_000)) {
             refresh();
         }
         return credentials.authorization();
@@ -177,47 +197,64 @@ public class ServerClient {
     }
 
     private <T> T callJson(String method, String path, Object body, Class<T> type) throws IOException, InterruptedException {
-        HttpResponse<String> response = sendJson(method, path, body);
-        if (response.statusCode() == 401 && settings.credentials().refreshToken != null) {
+        Answer response = sendJson(method, path, body);
+        if (response.status() == 401 && canRefresh()) {
             refresh();
             response = sendJson(method, path, body);
         }
         return answer(response, type);
     }
 
-    private HttpResponse<String> sendJson(String method, String path, Object body) throws IOException, InterruptedException {
-        HttpRequest.Builder request = HttpRequest.newBuilder(URI.create(server + path)).timeout(Duration.ofSeconds(30))
-                .method(method, body == null ? HttpRequest.BodyPublishers.noBody() : HttpRequest.BodyPublishers.ofString(GSON.toJson(body), StandardCharsets.UTF_8));
-        if (body != null) {
-            request.header("Content-Type", "application/json");
+    private Answer sendJson(String method, String path, Object body) throws IOException, InterruptedException {
+        return exchange(method, path, body == null ? null : "application/json", settings.credentials().authorization(),
+                body == null ? null : GSON.toJson(body).getBytes(StandardCharsets.UTF_8));
+    }
+
+    /** What the server answered, read whole. */
+    private record Answer(int status, String body) {
+    }
+
+    /** One call, over the network or the local socket. */
+    private Answer exchange(String method, String path, String contentType, String authorization, byte[] body)
+            throws IOException, InterruptedException {
+        if (unix != null) {
+            Map<String, String> headers = new LinkedHashMap<>();
+            if (contentType != null) {
+                headers.put("Content-Type", contentType);
+            }
+            if (authorization != null) {
+                headers.put("Authorization", authorization);
+            }
+            UnixHttp.Reply reply = unix.send(method, path, headers, body, Duration.ofSeconds(30));
+            return new Answer(reply.status(), reply.body());
         }
-        String authorization = settings.credentials().authorization();
+        HttpRequest.Builder request = HttpRequest.newBuilder(URI.create(server + path)).timeout(Duration.ofSeconds(30))
+                .method(method, body == null ? HttpRequest.BodyPublishers.noBody() : HttpRequest.BodyPublishers.ofByteArray(body));
+        if (contentType != null) {
+            request.header("Content-Type", contentType);
+        }
         if (authorization != null) {
             request.header("Authorization", authorization);
         }
-        return http.send(request.build(), HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
+        HttpResponse<String> response = http.send(request.build(), HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
+        return new Answer(response.statusCode(), response.body());
     }
 
     private <T> T get(String path, Class<T> type, boolean authorized) throws IOException, InterruptedException {
-        HttpResponse<String> response = send(path, authorized);
-        if (response.statusCode() == 401 && authorized && settings.credentials().refreshToken != null) {
+        Answer response = send(path, authorized);
+        if (response.status() == 401 && authorized && canRefresh()) {
             refresh();
             response = send(path, true);
         }
         return answer(response, type);
     }
 
-    private HttpResponse<String> send(String path, boolean authorized) throws IOException, InterruptedException {
-        HttpRequest.Builder request = HttpRequest.newBuilder(URI.create(server + path)).timeout(Duration.ofSeconds(30)).GET();
-        String authorization = authorized ? settings.credentials().authorization() : null;
-        if (authorization != null) {
-            request.header("Authorization", authorization);
-        }
-        return http.send(request.build(), HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
+    private Answer send(String path, boolean authorized) throws IOException, InterruptedException {
+        return exchange("GET", path, null, authorized ? settings.credentials().authorization() : null, null);
     }
 
-    private static <T> T answer(HttpResponse<String> response, Class<T> type) throws ServerException {
-        if (response.statusCode() / 100 == 2) {
+    private static <T> T answer(Answer response, Class<T> type) throws ServerException {
+        if (response.status() / 100 == 2) {
             return GSON.fromJson(response.body(), type);
         }
         ApiError error = null;
@@ -226,8 +263,8 @@ public class ServerClient {
         } catch (JsonParseException e) {
             // not ours: the status says enough
         }
-        throw new ServerException(response.statusCode(), error == null ? "http_" + response.statusCode() : error.code(),
-                error == null || error.message() == null ? "HTTP " + response.statusCode() : error.message());
+        throw new ServerException(response.status(), error == null ? "http_" + response.status() : error.code(),
+                error == null || error.message() == null ? "HTTP " + response.status() : error.message());
     }
 
     // ----------------------------------------------------------------------------------------------------------------
@@ -252,22 +289,35 @@ public class ServerClient {
         if (Files.exists(target) && Files.size(target) == file.size()) {
             return target;
         }
-        String url = file.url().startsWith("http") ? file.url() : server + file.url();
-        HttpRequest.Builder request = HttpRequest.newBuilder(URI.create(url)).GET();
         String authorization = authorization();
-        if (authorization != null) {
-            request.header("Authorization", authorization);
+        int status;
+        InputStream content;
+        if (unix != null) {
+            // the server names a file by an address it was reached at: here only its path and query count
+            URI uri = URI.create(file.url());
+            String path = file.url().startsWith("http") ? uri.getRawPath() + (uri.getRawQuery() == null ? "" : "?" + uri.getRawQuery()) : file.url();
+            UnixHttp.Stream stream = unix.open("GET", path, authorization == null ? Map.of() : Map.of("Authorization", authorization), null);
+            status = stream.status();
+            content = stream.body();
+        } else {
+            String url = file.url().startsWith("http") ? file.url() : server + file.url();
+            HttpRequest.Builder request = HttpRequest.newBuilder(URI.create(url)).GET();
+            if (authorization != null) {
+                request.header("Authorization", authorization);
+            }
+            HttpResponse<InputStream> response = http.send(request.build(), HttpResponse.BodyHandlers.ofInputStream());
+            status = response.statusCode();
+            content = response.body();
         }
-        HttpResponse<InputStream> response = http.send(request.build(), HttpResponse.BodyHandlers.ofInputStream());
-        if (response.statusCode() != 200) {
-            try (InputStream body = response.body()) {
-                answer(new StringResponse(response, new String(body.readAllBytes(), StandardCharsets.UTF_8)), Void.class);
+        if (status != 200) {
+            try (InputStream body = content) {
+                answer(new Answer(status, new String(body.readAllBytes(), StandardCharsets.UTF_8)), Void.class);
             }
         }
         Path temp = Files.createTempFile(cache, "download", ".part");
         try {
             MessageDigest sha = MessageDigest.getInstance("SHA-256");
-            try (InputStream in = new DigestInputStream(response.body(), sha); OutputStream out = Files.newOutputStream(temp)) {
+            try (InputStream in = new DigestInputStream(content, sha); OutputStream out = Files.newOutputStream(temp)) {
                 byte[] buffer = new byte[64 * 1024];
                 long total = 0;
                 for (int read; (read = in.read(buffer)) >= 0; ) {
@@ -291,53 +341,15 @@ public class ServerClient {
         }
     }
 
-    /** An error body read from a streamed answer, for {@link #answer}. */
-    private record StringResponse(HttpResponse<InputStream> of, String body) implements HttpResponse<String> {
-        @Override
-        public int statusCode() {
-            return of.statusCode();
-        }
-
-        @Override
-        public HttpRequest request() {
-            return of.request();
-        }
-
-        @Override
-        public java.util.Optional<HttpResponse<String>> previousResponse() {
-            return java.util.Optional.empty();
-        }
-
-        @Override
-        public java.net.http.HttpHeaders headers() {
-            return of.headers();
-        }
-
-        @Override
-        public java.util.Optional<javax.net.ssl.SSLSession> sslSession() {
-            return of.sslSession();
-        }
-
-        @Override
-        public URI uri() {
-            return of.uri();
-        }
-
-        @Override
-        public HttpClient.Version version() {
-            return of.version();
-        }
-    }
-
     // ----------------------------------------------------------------------------------------------------------------
     // OAuth device grant (RFC 8628)
     // ----------------------------------------------------------------------------------------------------------------
 
     /** Asks for a code the user approves in the server's UI. */
     public DeviceAuthorization startDeviceGrant(String nodeName) throws IOException, InterruptedException {
-        HttpResponse<String> response = post(JoiProtocol.DEVICE_AUTHORIZATION,
+        Answer response = post(JoiProtocol.DEVICE_AUTHORIZATION,
                 Map.of("client_id", CLIENT_ID, "client_name", "Joi node " + nodeName));
-        if (response.statusCode() != 200) {
+        if (response.status() != 200) {
             throw oauthError(response);
         }
         return GSON.fromJson(response.body(), DeviceAuthorization.class);
@@ -348,9 +360,9 @@ public class ServerClient {
      * ({@code authorization_pending}, {@code slow_down}); a refused or expired code throws.
      */
     public boolean pollDeviceGrant(String deviceCode) throws IOException, InterruptedException {
-        HttpResponse<String> response = post(JoiProtocol.TOKEN, Map.of("grant_type", JoiProtocol.DEVICE_CODE_GRANT,
+        Answer response = post(JoiProtocol.TOKEN, Map.of("grant_type", JoiProtocol.DEVICE_CODE_GRANT,
                 "device_code", deviceCode, "client_id", CLIENT_ID));
-        if (response.statusCode() == 200) {
+        if (response.status() == 200) {
             store(GSON.fromJson(response.body(), TokenResponse.class));
             return true;
         }
@@ -361,11 +373,45 @@ public class ServerClient {
         throw error;
     }
 
-    private void refresh() throws IOException, InterruptedException {
+    /** Whether the credentials can be made again without the user: an OAuth pair has a refresh token, a server on this machine has its socket. */
+    private boolean canRefresh() throws IOException {
+        return unix != null || settings.credentials().refreshToken != null;
+    }
+
+    /**
+     * Gets the token of a node on the server's own machine ({@code POST /oauth/local}, over its local socket: no key, no login) and keeps it.
+     * It expires; the node asks again, so there is nothing to approve and nothing to refresh.
+     *
+     * @throws ServerException {@code no_user} (409) when nobody has an account yet: the first one is made in the web UI
+     * @throws IllegalStateException the server is not reached over a local socket
+     */
+    public void signInLocal() throws IOException, InterruptedException {
+        if (unix == null) {
+            throw new IllegalStateException("The server is not on this machine: " + server);
+        }
+        NodeSettings.Node node = settings.node();
+        Answer response = post(JoiProtocol.LOCAL, Map.of("client_id", CLIENT_ID + "-" + node.nodeId, "client_name", "Joi node " + node.name));
+        if (response.status() != 200) {
+            throw oauthError(response);
+        }
+        LocalToken token = GSON.fromJson(response.body(), LocalToken.class);
         NodeSettings.Credentials credentials = settings.credentials();
-        HttpResponse<String> response = post(JoiProtocol.TOKEN, Map.of("grant_type", "refresh_token",
+        credentials.token = null;
+        credentials.accessToken = token.accessToken();
+        credentials.refreshToken = null;
+        credentials.accessExpires = System.currentTimeMillis() + token.expiresIn() * 1000;
+        settings.saveCredentials();
+    }
+
+    private void refresh() throws IOException, InterruptedException {
+        if (unix != null) {
+            signInLocal();
+            return;
+        }
+        NodeSettings.Credentials credentials = settings.credentials();
+        Answer response = post(JoiProtocol.TOKEN, Map.of("grant_type", "refresh_token",
                 "refresh_token", credentials.refreshToken, "client_id", CLIENT_ID));
-        if (response.statusCode() != 200) {
+        if (response.status() != 200) {
             // the pair is no longer good: the user pairs the node again
             credentials.accessToken = null;
             credentials.refreshToken = null;
@@ -384,23 +430,21 @@ public class ServerClient {
         settings.saveCredentials();
     }
 
-    private HttpResponse<String> post(String path, Map<String, String> form) throws IOException, InterruptedException {
+    private Answer post(String path, Map<String, String> form) throws IOException, InterruptedException {
         String body = form.entrySet().stream()
                 .map(e -> URLEncoder.encode(e.getKey(), StandardCharsets.UTF_8) + "=" + URLEncoder.encode(e.getValue(), StandardCharsets.UTF_8))
                 .collect(Collectors.joining("&"));
-        HttpRequest request = HttpRequest.newBuilder(URI.create(server + path)).timeout(Duration.ofSeconds(30))
-                .header("Content-Type", "application/x-www-form-urlencoded").POST(HttpRequest.BodyPublishers.ofString(body)).build();
-        return http.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
+        return exchange("POST", path, "application/x-www-form-urlencoded", null, body.getBytes(StandardCharsets.UTF_8));
     }
 
-    private static ServerException oauthError(HttpResponse<String> response) {
+    private static ServerException oauthError(Answer response) {
         OAuthError error = null;
         try {
             error = GSON.fromJson(response.body(), OAuthError.class);
         } catch (JsonParseException e) {
             // not OAuth's
         }
-        return new ServerException(response.statusCode(), error == null || error.error() == null ? "http_" + response.statusCode() : error.error(),
-                error == null || error.errorDescription() == null ? "HTTP " + response.statusCode() : error.errorDescription());
+        return new ServerException(response.status(), error == null || error.error() == null ? "http_" + response.status() : error.error(),
+                error == null || error.errorDescription() == null ? "HTTP " + response.status() : error.errorDescription());
     }
 }

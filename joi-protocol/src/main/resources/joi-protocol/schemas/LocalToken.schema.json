@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Enerccio/joi/protocol/v1/LocalToken.schema.json",
+  "title": "LocalToken",
+  "description": "POST /oauth/local (since 1.8), over the server's local socket only: the access token of a node on the server's own machine. It has no refresh token: when it expires, the node asks again over the socket.",
+  "type": "object",
+  "properties": {
+    "access_token": {
+      "type": "string"
+    },
+    "token_type": {
+      "type": "string",
+      "enum": [
+        "Bearer"
+      ]
+    },
+    "expires_in": {
+      "type": "integer",
+      "description": "Seconds."
+    }
+  },
+  "required": [
+    "access_token",
+    "token_type",
+    "expires_in"
+  ]
+}

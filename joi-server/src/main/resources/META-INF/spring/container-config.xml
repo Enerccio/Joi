@@ -45,6 +45,8 @@
         <property name="noAuth" value="${joi.api.no-auth:false}" />
         <property name="noAuthUser" value="${joi.api.no-auth-user:}" />
         <property name="publicUrl" value="${joi.api.public-url:}" />
+        <!-- the Unix domain socket of the desktop app: a call on it may fetch a token without a key (POST /oauth/local) -->
+        <property name="localSocket" value="${joi.api.local-socket:}" />
     </bean>
 
     <bean name="applicationPoint" class="com.github.enerccio.marginalia.bound.ApplicationPoint" />

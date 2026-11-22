@@ -425,6 +425,7 @@ public class JoiLocalizationBundleEN extends TextBundleBase<J_L> {
         setValue(J_L.ENUM_TTS_MODEL_HIGGS, "Higgs Audio v3 in ComfyUI (emotions, sounds; non-commercial license)");
         setValue(J_L.ENUM_ACCESS_TOKEN_TOKEN, "Token");
         setValue(J_L.ENUM_ACCESS_TOKEN_OAUTH, "Device");
+        setValue(J_L.ENUM_ACCESS_TOKEN_LOCAL, "This computer");
 
         // --- HELP ---
         setValue(J_L.HELP_TEXT_LLM_TYPES, "What Joi may use this model for: Chat (the conversation, fast replies), Deep "

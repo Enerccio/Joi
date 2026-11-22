@@ -369,6 +369,7 @@ public enum J_L implements LocalizationKey {
     ENUM_TTS_MODEL_HIGGS,
     ENUM_ACCESS_TOKEN_TOKEN,
     ENUM_ACCESS_TOKEN_OAUTH,
+    ENUM_ACCESS_TOKEN_LOCAL,
 
     // --- HELP ---
     HELP_TEXT_LLM_TYPES,

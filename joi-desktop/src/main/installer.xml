@@ -1,0 +1,99 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  The installer of the desktop app, called by the antrun execution `desktop-installer` of pom.xml after the app image is built.
+  jpackage needs dpkg-deb + fakeroot (Linux), hdiutil (macOS) or WiX Toolset (Windows).
+
+  Inputs (properties of the pom): project.version, desktop.dir, desktop.appVersion, desktop.installerRequired (a failed jpackage
+  fails the build).
+
+  Output in ${desktop.dir}: joi-<version>-<os>-<arch>.deb|dmg|msi
+-->
+<project name="joi-desktop-installer" default="plain" basedir=".">
+
+  <target name="init">
+    <condition property="desktop.os" value="windows">
+      <os family="windows"/>
+    </condition>
+    <condition property="desktop.os" value="macos">
+      <os family="mac"/>
+    </condition>
+    <property name="desktop.os" value="linux"/>
+    <!-- Java calls x86-64 "amd64" on Windows and Linux and "x86_64" on macOS: one name for all -->
+    <condition property="desktop.arch" value="x86_64">
+      <equals arg1="${os.arch}" arg2="amd64"/>
+    </condition>
+    <property name="desktop.arch" value="${os.arch}"/>
+    <property name="desktop.archiveBase" value="joi-${project.version}-${desktop.os}-${desktop.arch}"/>
+
+    <condition property="desktop.installerType" value="dmg">
+      <equals arg1="${desktop.os}" arg2="macos"/>
+    </condition>
+    <condition property="desktop.installerType" value="msi">
+      <equals arg1="${desktop.os}" arg2="windows"/>
+    </condition>
+    <property name="desktop.installerType" value="deb"/>
+
+    <!-- the app image of jpackage: Joi.app on macOS, a Joi folder elsewhere -->
+    <condition property="desktop.appImageName" value="Joi.app" else="Joi">
+      <equals arg1="${desktop.os}" arg2="macos"/>
+    </condition>
+
+    <!-- the app image carries the icon, the options below are for the installer itself; Windows installs per user (no
+         administrator rights) and keeps the upgrade code, so a newer msi replaces the older one -->
+    <condition property="desktop.installerArgs" value="--mac-package-name Joi">
+      <equals arg1="${desktop.os}" arg2="macos"/>
+    </condition>
+    <condition property="desktop.installerArgs" value="--win-menu --win-shortcut --win-dir-chooser --win-per-user-install --win-upgrade-uuid 9b0d2f6e-6a1c-4b8e-9f43-7c2e5d1a8b30">
+      <equals arg1="${desktop.os}" arg2="windows"/>
+    </condition>
+    <property name="desktop.installerArgs" value="--linux-package-name joi --linux-shortcut --linux-app-category utils --license-file ../LICENSE"/>
+  </target>
+
+  <!-- jpackage of an app image into a deb, dmg or msi, the result is moved to ${desktop.dir} under the archive name -->
+  <macrodef name="installer">
+    <attribute name="appimage"/>
+    <sequential>
+      <delete dir="${desktop.dir}/installers"/>
+      <mkdir dir="${desktop.dir}/installers"/>
+      <exec executable="${java.home}/bin/jpackage" failonerror="${desktop.installerRequired}"
+            failifexecutionfails="${desktop.installerRequired}" resultproperty="desktop.installer.result">
+        <arg value="--type"/>
+        <arg value="${desktop.installerType}"/>
+        <arg value="--app-image"/>
+        <arg value="@{appimage}"/>
+        <arg value="--name"/>
+        <arg value="Joi"/>
+        <arg value="--app-version"/>
+        <arg value="${desktop.appVersion}"/>
+        <arg value="--vendor"/>
+        <arg value="enerccio"/>
+        <arg value="--description"/>
+        <arg value="Joi, a personal AI assistant"/>
+        <arg line="${desktop.installerArgs}"/>
+        <arg value="--dest"/>
+        <arg value="${desktop.dir}/installers"/>
+      </exec>
+      <echo message="jpackage ${desktop.installerType} exit code: ${desktop.installer.result}"/>
+      <move todir="${desktop.dir}">
+        <fileset dir="${desktop.dir}/installers" includes="*.deb"/>
+        <globmapper from="*.deb" to="${desktop.archiveBase}.deb"/>
+      </move>
+      <move todir="${desktop.dir}">
+        <fileset dir="${desktop.dir}/installers" includes="*.dmg"/>
+        <globmapper from="*.dmg" to="${desktop.archiveBase}.dmg"/>
+      </move>
+      <move todir="${desktop.dir}">
+        <fileset dir="${desktop.dir}/installers" includes="*.msi"/>
+        <globmapper from="*.msi" to="${desktop.archiveBase}.msi"/>
+      </move>
+      <delete dir="${desktop.dir}/installers"/>
+    </sequential>
+  </macrodef>
+
+  <target name="plain" depends="init">
+    <delete>
+      <fileset dir="${desktop.dir}" includes="joi-*.deb,joi-*.dmg,joi-*.msi"/>
+    </delete>
+    <installer appimage="${desktop.dir}/package/${desktop.appImageName}"/>
+  </target>
+</project>

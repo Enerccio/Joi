@@ -16,7 +16,9 @@ what gives her hands on that machine.
 | [The terminal node](terminal.md) | the same conversation in a terminal, with what her body would play printed |
 | [The Looking Glass](looking-glass.md) | the JavaFX node can move her onto a Looking Glass display |
 
-You can run several nodes at once, one per machine. Each connects for one assistant. The same node connecting again for her
+You can run several nodes at once, one per machine (a second node on the same machine and home is refused: only one runs at a time).
+The node of the [desktop app](../getting-started/desktop-app.md) joins the server on its own computer over a local socket, with no token;
+a node on another computer or a phone still connects over the network. Each connects for one assistant. The same node connecting again for her
 replaces its old connection.
 
 ## What a node offers

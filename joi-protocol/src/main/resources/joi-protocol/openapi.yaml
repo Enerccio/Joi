@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Joi API
-  version: "1.7"
+  version: "1.8"
   description: |
     The HTTP API of a Joi server for nodes and other clients: the assistants of the user, chat with one of them,
     answered in text and speech, and the body she is in with the files to show it (`.joim`, `.joia`). The message shapes are the JSON Schemas in `schemas/` (the source of truth); the Java
@@ -406,6 +406,38 @@ paths:
               schema: { $ref: "schemas/TokenResponse.schema.json" }
         "400": { $ref: "#/components/responses/OAuthError" }
         "503": { $ref: "#/components/responses/OAuthError" }
+  /oauth/local:
+    post:
+      summary: The token of a node on the server's own machine, with no key and no login (since 1.8)
+      description: |
+        Answered only on the server's local socket: a Unix domain socket in the data folder, which the desktop app opens
+        (`joi.api.local-socket`). Whoever can open it can read the data folder, so the socket is the proof; a call that arrives any
+        other way (TCP, a proxy) is answered `404 invalid_request`, as an unknown path. The token acts for the configured user of no
+        auth (`joi.api.no-auth-user`), else the first administrator, and works whatever the administrator offers to other clients
+        (API access). It has no refresh token: when it expires, ask again. The same `client_id` gets a new token in place of the old
+        one (the old one stops working), so a node keeps one entry in the user's list of devices.
+      security: [ ]
+      requestBody:
+        required: false
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              properties:
+                client_id: { type: string, description: "Any stable name of the client, default joi-node" }
+                client_name: { type: string, description: "The name in the user's list of devices, default client_id" }
+      responses:
+        "200":
+          description: The token
+          content:
+            application/json:
+              schema: { $ref: "schemas/LocalToken.schema.json" }
+        "404": { $ref: "#/components/responses/OAuthError" }
+        "409":
+          description: "`no_user`: nobody has an account yet, the first one is made in the web UI"
+          content:
+            application/json:
+              schema: { $ref: "schemas/OAuthError.schema.json" }
   /.well-known/oauth-authorization-server:
     get:
       summary: The OAuth metadata (RFC 8414)

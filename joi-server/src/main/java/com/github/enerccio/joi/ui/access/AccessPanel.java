@@ -78,7 +78,11 @@ public class AccessPanel {
         grid.setWidthFull();
         grid.setAllRowsVisible(true);
         grid.addColumn(AccessToken::getName).setHeader(loc.getValue(L.LABEL_NAME)).setFlexGrow(1);
-        grid.addColumn(t -> loc.getValue(t.getKind() == AccessTokenKind.OAUTH ? J_L.ENUM_ACCESS_TOKEN_OAUTH : J_L.ENUM_ACCESS_TOKEN_TOKEN))
+        grid.addColumn(t -> loc.getValue(switch (t.getKind()) {
+                    case OAUTH -> J_L.ENUM_ACCESS_TOKEN_OAUTH;
+                    case LOCAL -> J_L.ENUM_ACCESS_TOKEN_LOCAL;
+                    case TOKEN -> J_L.ENUM_ACCESS_TOKEN_TOKEN;
+                }))
                 .setHeader(loc.getValue(L.LABEL_TYPE)).setAutoWidth(true).setFlexGrow(0);
         grid.addColumn(t -> date(format, t.getCreation(), ""))
                 .setHeader(loc.getValue(L.LABEL_CREATED)).setWidth(UIConstants.DATE_COLUMN_SIZE).setFlexGrow(0);

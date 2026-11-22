@@ -33,6 +33,16 @@
     <junit.version>6.0.3</junit.version>
     <aspectj.version>1.9.25.1</aspectj.version>
     <jetty.version>12.1.14</jetty.version>
+    <!-- the renderer page's npm step (joi-node, profile fx): offline from the npm cache on the development machine, the
+         continuous integration sets npm.mode to prefer-offline (the value of the flag); npm.cmd on Windows -->
+    <npm.mode>--offline</npm.mode>
+    <npm.executable>npm</npm.executable>
+    <!-- the node's JavaFX app (joi-node, profile fx) and the desktop app (joi-desktop) -->
+    <javafx.version>25</javafx.version>
+    <jcef.version>152.0.6</jcef.version>
+    <jcef.natives.version>jcef-17e805a+cef-152.0.6+g708dc14+chromium-152.0.7977.83</jcef.natives.version>
+    <!-- which natives of Chromium (JCEF) this machine takes: me.friwi:jcef-natives-${jcef.platform}; set by the profiles below -->
+    <jcef.platform>macosx-arm64</jcef.platform>
   </properties>
 
   <dependencyManagement>
@@ -69,4 +79,81 @@
       </dependency>
     </dependencies>
   </dependencyManagement>
+
+  <profiles>
+    <!-- The desktop app (joi-desktop): the server with a tray icon and the node in one installation, see
+         manual/developer/building.md. Build: mvn -B -DskipTests -Pfx,production,desktop package -pl joi-desktop -am
+         (fx: the node's JavaFX app, production: the server's frontend bundle). -->
+    <profile>
+      <id>desktop</id>
+      <modules>
+        <module>joi-desktop</module>
+      </modules>
+    </profile>
+
+    <!-- The natives of Chromium by the machine that builds (the packages are for this machine only, as the jlink runtime is) -->
+    <profile>
+      <id>jcef-macosx-arm64</id>
+      <activation>
+        <os>
+          <family>mac</family>
+          <arch>aarch64</arch>
+        </os>
+      </activation>
+      <properties>
+        <jcef.platform>macosx-arm64</jcef.platform>
+      </properties>
+    </profile>
+    <profile>
+      <id>jcef-macosx-amd64</id>
+      <activation>
+        <os>
+          <family>mac</family>
+          <arch>x86_64</arch>
+        </os>
+      </activation>
+      <properties>
+        <jcef.platform>macosx-amd64</jcef.platform>
+      </properties>
+    </profile>
+    <profile>
+      <id>jcef-linux-amd64</id>
+      <activation>
+        <os>
+          <family>unix</family>
+          <name>Linux</name>
+          <arch>amd64</arch>
+        </os>
+      </activation>
+      <properties>
+        <jcef.platform>linux-amd64</jcef.platform>
+      </properties>
+    </profile>
+    <profile>
+      <id>jcef-linux-arm64</id>
+      <activation>
+        <os>
+          <family>unix</family>
+          <name>Linux</name>
+          <arch>aarch64</arch>
+        </os>
+      </activation>
+      <properties>
+        <jcef.platform>linux-arm64</jcef.platform>
+      </properties>
+    </profile>
+    <profile>
+      <id>jcef-windows-amd64</id>
+      <activation>
+        <os>
+          <family>windows</family>
+          <arch>amd64</arch>
+        </os>
+      </activation>
+      <properties>
+        <jcef.platform>windows-amd64</jcef.platform>
+        <npm.executable>npm.cmd</npm.executable>
+      </properties>
+    </profile>
+  </profiles>
 </project>

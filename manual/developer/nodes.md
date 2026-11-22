@@ -72,12 +72,27 @@ can't handle is logged and the socket reads on.
 | `ClipboardOffers`, `DesktopClipboard` | the tool `offer_to_clipboard`: off, ask or allow; the clipboard of the terminal node |
 | `TaskQuestions` | the tasks that wait for the user's answer |
 | `PartStaging` | the staging of her parts |
+| `local/UnixHttp`, `local/UnixWebSocket` | HTTP/1.1 and the node WebSocket over a Unix domain socket (the JDK's clients cannot connect to one): see below |
+| `LocalMode`, `NodeInstance` | `--local <socket>` / `--web <url>` (or `JOI_LOCAL_SOCKET`, `JOI_WEB_URL`), the lock `node.lock` of one node per home |
 | `JoiNodeCli` | the node in a terminal: the smallest complete example |
 | `renderer/` | her body's files unpacked (`BodyFiles`) and served to the renderer page (`RendererServer`), the page's source in `src/main/renderer` |
 | `fx/` | the JavaFX app: `JoiNodeApp`, `AvatarPane`, `ControlsPane`, `SpeechPlayer`, the Chromium host and the Looking Glass |
 
 Start with `JoiNodeCli`: it logs in (token, device grant or none), picks her, downloads her body into the cache, connects, chats, answers the questions of tasks and
 offers `notify` and `offer_to_clipboard`.
+
+## The server on the same machine
+
+A server address `unix:/path/to/api.sock` (`ServerClient.UNIX`) is the server's local socket (see [The desktop app](desktop.md)). `ServerClient` then talks through
+`UnixHttp` (one connection per request, `Connection: close`, `Content-Length`, chunked or read-to-EOF bodies, streamed downloads to a file, a watchdog for the timeout,
+refusal of line breaks in header values and of anything but a plain path), signs in with `signInLocal()` (`POST /oauth/local` with `client_id` `joi-node-<node id>`; no refresh
+token: `refresh()` signs in again) and `authorization()` mints a new token when the one in hand expired. `NodeSocket.localSocket(Path)` opens the WebSocket with `UnixWebSocket`
+(a client of RFC 6455 for `java.net.http.WebSocket`'s listener interface: masked frames, fragments, ping and pong, the close handshake) at `ws://localhost/api/v1/node`, and
+`NodeSocket.authorizer(...)` supplies a fresh `Authorization` header on every reconnect, because the token of the first connection is an hour old by then.
+
+The node of the desktop app is started with `--local` (`LocalMode.parse`); `JoiNodeApp.showLocal` is its first screen (it waits for the first account, retrying every 3 s).
+`fx/Launcher` takes `NodeInstance.acquire(home)` before it starts the app and ends with code 3 when another node holds the lock of this home; the launcher of the server
+looks at the same lock (`NodeInstance.running` is the model of the check it makes without a dependency on this module).
 
 ## A tool the user switches on
 

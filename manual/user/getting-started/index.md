@@ -9,7 +9,8 @@ expanded: true
 
 The way from nothing to talking with her, in order:
 
-1. [Install the server](server.md) and start it.
+1. [Install the server](server.md) and start it, or take the [desktop app](desktop-app.md), which holds the server and the node
+   in one installation for one computer (then step 4 needs no address or token).
 2. [First start](first-start.md): make the administrator account and look around the workspace.
 3. [Your first assistant](first-assistant.md): add a text model, create her and choose her models.
 4. [Your first node](first-node.md): connect the node and say hello.

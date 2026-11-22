@@ -11,6 +11,9 @@ chat and plays her voice. See [The JavaFX node](../node/javafx.md) for all of it
 
 ## Start it
 
+With the [desktop app](desktop-app.md) the node starts with the server and joins it by itself: skip to *Choose her*.
+Otherwise:
+
 From the source tree (JDK 25 or newer; OpenJFX and the embedded Chromium are fetched by the build):
 
 ```bash

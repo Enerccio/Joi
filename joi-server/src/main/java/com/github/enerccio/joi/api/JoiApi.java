@@ -21,6 +21,7 @@ import com.github.enerccio.joi.protocol.http.*;
 import com.github.enerccio.joi.protocol.joia.JoiaFile;
 import com.github.enerccio.joi.protocol.joim.JoimFile;
 import com.github.enerccio.joi.protocol.oauth.DeviceAuthorization;
+import com.github.enerccio.joi.protocol.oauth.LocalToken;
 import com.github.enerccio.joi.protocol.oauth.OAuthError;
 import com.github.enerccio.joi.protocol.oauth.OAuthMetadata;
 import com.github.enerccio.joi.protocol.oauth.TokenResponse;
@@ -144,6 +145,8 @@ public class JoiApi implements DisposableBean {
             String path = StringUtils.removeEnd(call.path(), "/");
             if (path.equals(JoiProtocol.OAUTH_METADATA)) {
                 metadata(call, sink);
+            } else if (path.equals(JoiProtocol.LOCAL)) {
+                local(call, sink);
             } else if (path.startsWith(JoiProtocol.OAUTH + "/")) {
                 oauth(call, path, sink);
             } else if (path.equals(JoiProtocol.API)) {
@@ -669,6 +672,35 @@ public class JoiApi implements DisposableBean {
         String base = baseUrl(call);
         json(sink, 200, new OAuthMetadata(base, base + JoiProtocol.DEVICE_AUTHORIZATION, base + JoiProtocol.TOKEN,
                 List.of(JoiProtocol.DEVICE_CODE_GRANT, "refresh_token"), List.of("none")));
+    }
+
+    /**
+     * {@code POST /oauth/local}: the token of a node on the server's own machine. Only a call that arrived on the local socket is
+     * answered; for any other it is a path that does not exist.
+     */
+    private void local(ApiCall call, ApiSink sink) throws Exception {
+        if (!call.local()) {
+            oauthError(sink, 404, "invalid_request", "Not found: " + JoiProtocol.LOCAL);
+            return;
+        }
+        if (!"POST".equalsIgnoreCase(call.method())) {
+            oauthError(sink, 405, "invalid_request", "Use POST");
+            return;
+        }
+        User user = noAuthUser();
+        if (user == null) {
+            oauthError(sink, 409, "no_user", "Nobody has an account yet: open Joi in the browser and make the first one");
+            return;
+        }
+        Map<String, String> form = call.form();
+        String clientId = StringUtils.defaultIfBlank(form.get("client_id"), "joi-node");
+        try (ApiRequestAttributes attributes = new ApiRequestAttributes(user, new SessionPoint());
+             InRequestScope _ = new InRequestScope(attributes)) {
+            AccessTokenService.Issued issued = accessTokenService.issueLocal(StringUtils.defaultIfBlank(form.get("client_name"), clientId), clientId);
+            json(sink, 200, new LocalToken(issued.accessToken(), "Bearer", issued.expiresInSeconds()));
+        } catch (IllegalArgumentException e) {
+            oauthError(sink, 400, "invalid_request", e.getMessage());
+        }
     }
 
     private void oauth(ApiCall call, String path, ApiSink sink) throws Exception {

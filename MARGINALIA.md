@@ -134,6 +134,10 @@ Also in Joi (2026-11-18):
   Marginalia app. Left out: the requests before and after a batch (the GPU lock's steps do that), the batch checks,
   the cast, the clip library (folders, versions, cleanup, shifts) and the studio. The copies may diverge from the
   plugin; nothing in Marginalia changes for them.
+- **The desktop app's packaging, copied from Marginalia's `desktop` profile** (`marginalia/src/desktop`, its `desktop.yml`): jlink, jpackage, the
+  portable folder, the installers and `DesktopLauncher` (jetty-home started in-process, the tray icon) are in `joi-desktop`, changed for Joi: a second
+  launcher for the node, the Unix socket of the API (the Jetty module `unixdomain-http`), the node's single-instance lock. Marginalia's
+  plugin bundling ("full" installers) is left out. The copy may diverge; nothing in Marginalia changes for it.
 
 ## Gaps to check in the platform for Joi
 

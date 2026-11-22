@@ -111,6 +111,18 @@ one; the server treats every node the same.
     first administrator; a credential that is sent must still be valid. Turning a way off stops its credentials at
     once. Credentials are `AccessToken` rows (prefix + SHA-256, like Marginalia's API keys), listed and revoked under
     Access.
+  - **The local door (1.8, built).** A node on the server's own machine needs no key, no pairing and no login: the server can listen on
+    a **Unix domain socket** (`joi.api.local-socket`, a path; the desktop app sets it to `desktop/api.sock` in the data folder) besides its
+    TCP port, and a call that comes in on it is the user's own. `POST /oauth/local` (`client_id`, `client_name` as in the device grant)
+    answers a short-lived token (`joil_...`, an hour, kind `LOCAL`, listed under Access as *This computer*), for the user the call
+    stands for (`joi.api.no-auth-user`, else the first administrator; `409 no_user` until the first account exists). The node asks again
+    when the token expires (and on every reconnect of the WebSocket), so nothing is stored. The same call on the TCP port is `404`: the
+    server knows which door a call used by the local address of the connection (`ApiConfiguration.isLocalSocket`: a socket path as
+    address, port -1), not by anything the caller sends, so a proxy or a remote caller cannot pretend. Who may open the socket may read the
+    data folder anyway, so the socket sits in a folder only its owner may open (`0700`). The web UI is not on the socket: it keeps its
+    login, on a loopback port. Other nodes (a phone, another computer) still come over the network with tokens or OAuth, next to it.
+    The node side is `node/local`: `UnixHttp` (HTTP/1.1 over the socket, which the JDK's client cannot do) and `UnixWebSocket` (the
+    node WebSocket over it); a server address `unix:/path/api.sock` is the whole configuration.
 - **The node WebSocket (built, 1.5):** `asyncapi.yaml` and the schemas in `joi-protocol`,
   the records in `protocol/node`; `SchemaContractTest` checks the records, the enums and the AsyncAPI document
   against each other. `GET /api/v1/node` with `Upgrade: websocket`, the API's credentials (or in `hello.token` for a
@@ -1580,6 +1592,29 @@ Chromium (JCEF 152) shows the page in the pane, rendered off screen and copied i
 mouse doesn't reach it yet); her state and the animation are written over it, and Open in browser shows the same
 page in a browser.
 
+**The desktop app (built, `joi-desktop`).** The simple installation for one machine, as Marginalia's desktop app: one installation, a jlink
+runtime and two programs, **Joi** (the server with a tray icon) and **JoiNode** (the JavaFX node), made by jpackage with `--add-launcher`
+(`Joi.app` with both in `Contents/MacOS`, `Joi.exe` and `JoiNode.exe`, `bin/Joi` and `bin/JoiNode`), also as a portable folder with
+`bin/joi` and `bin/joi-node`, and as `.deb`, `.dmg` and `.msi`. `DesktopLauncher` (JDK only, no Jetty or Joi class on its path) runs jetty-home
+with the WAR in its own JVM: the web UI on `127.0.0.1:8766` (a free port if taken) with the login as in the server, the API on the Unix socket
+in the data folder (see *The local door* above), so the node of this machine needs no key. The decisions:
+- **Login stays in the UI** (as Marginalia's desktop app), the socket carries the API only. The node, started before the first account exists,
+  shows that it waits for it and asks again every few seconds (`fx/JoiNodeApp.showLocal`), with buttons for the browser and for another server.
+- **Two binaries, one installation, one node.** The tray icon (Open Joi in the browser, Open the Joi node, Start the node with Joi, Quit) starts
+  JoiNode as a child process with `--local <socket> --web <url>`; the node holds a lock on `node.lock` in its home for as long as it runs
+  (`NodeInstance`; the system frees it however the process ends), so a second start (the tray item twice, a double click on the node) says so and
+  ends, and the tray checks the same lock before it starts one. Quit takes down the node it started, not one the user started apart. Other nodes
+  (a phone, a PC node of another machine) connect with tokens or OAuth as before, in addition.
+- **No Blender inside.** The conversions of models and clips need Blender where the server runs; uploads of finished models (`.joim`) work
+  without it. Bundling Blender would add a gigabyte for every platform.
+- **Per platform.** jlink and jpackage make a runtime for the OS and CPU they run on, so the CI builds on each (`desktop.yml`: Linux x64 and
+  arm64, Windows x64, macOS arm64 and x64). The natives of Chromium (`jcef-natives-<platform>`) follow the machine through the profiles
+  of the root POM (`jcef.platform`). Only macOS arm64 is tried by the author; the others are built by the CI and smoke-tested there (the server
+  starts, the socket answers `/oauth/local` and the web port refuses it).
+- **Not signed.** macOS gets an ad hoc signature (the plist has the microphone's reason, so the node may listen), Windows and Linux nothing.
+- **Paths.** A Unix socket path is at most 104 bytes on macOS: when `<data>/desktop/api.sock` is longer the launcher takes a folder of the
+  temporary directory named after the data folder (`0700`), and says no if that is too long as well.
+
 **The renderer's host (decided: JCEF).** JavaFX's WebView has no WebGL, so the renderer page runs in JCEF, as in
 [Renderers](#renderers): the same Chromium on every node, a borderless window of the node's own on the Looking Glass
 (no WebXR popup), her body in the app's pane. The page is the server's `joi-model-viewer.js` with a small node
@@ -1994,6 +2029,9 @@ built and run: TLS behind a reverse proxy, the data folder, backups and a restor
 (`verification.md`). **After it,** because each is an addition and none changes the server's schema: the node's harness
 (it is only more tools in the manifest; ship it whole, with its ALLOW / ASK / DENY policy and audit), voice in (audio in is
 a new minor version of the protocol), and the privacy mode (not built at all yet; see Privacy mode).
+
+**Packaging** (2026-11-22): the desktop app (`joi-desktop`, see *The desktop app* under Node) and the GitHub builds (`server.yml`: the WAR, the
+extension JARs and the image; `desktop.yml`: the app per platform). Built; the Windows and Linux builds are tried by the CI only.
 
 ## Open decisions
 

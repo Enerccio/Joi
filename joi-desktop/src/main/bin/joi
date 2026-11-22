@@ -1,0 +1,10 @@
+#!/bin/sh
+# Starts Joi (the server with its tray icon) on the bundled Java runtime. Options: joi --help
+# Extra JVM options can be passed in JOI_JAVA_OPTS (e.g. -Xmx2g).
+DIR="$(cd "$(dirname "$0")/.." && pwd)"
+# JOI_JAVA_OPTS is split into separate JVM options on purpose
+# shellcheck disable=SC2086
+exec "$DIR/runtime/bin/java" \
+  --enable-native-access=ALL-UNNAMED \
+  $JOI_JAVA_OPTS \
+  -jar "$DIR/app/joi-launcher.jar" "$@"

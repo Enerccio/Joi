@@ -23,6 +23,7 @@ code does.
 | `joi-protocol` | the public API: JSON Schemas, `openapi.yaml`, `asyncapi.yaml`, the `.joim` and `.joia` containers, and the Java records that follow them. Gson only |
 | `joi-server` | the server (the WAR): the LLM tool loop, memory, moods, bodies, events, the API and the Vaadin UI |
 | `joi-node` | the reference node: server client, node socket, avatar director, the terminal node and the JavaFX app with its renderer |
+| `joi-desktop` | the desktop app: the server with a tray icon and the node in one installation (jlink, jpackage), behind the root POM's profile `desktop` |
 | `marginalia/` | a git submodule of Marginalia; only its platform module is used |
 | `manual/`, `screenshots/` | this manual and the scripted environment that takes its pictures |
 
@@ -31,6 +32,7 @@ code does.
 | You want to | Read |
 |---|---|
 | build and run it | [Building](building.md) |
+| package it for one computer | [The desktop app](desktop.md) |
 | see how the pieces fit | [Architecture](architecture.md) and [Project structure](project-structure.md) |
 | change the UI | [The UI](ui.md) |
 | change how she answers | [A chat turn](chat-turn.md) |

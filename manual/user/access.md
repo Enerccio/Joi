@@ -29,6 +29,13 @@ A device (such as the node) can pair with the **OAuth device grant** instead:
 The device then gets an access token (an hour by default) and a refresh token (90 days; each refresh gives a new pair). Revoke the
 device in the list to cut it off.
 
+## This computer
+
+A node on the same computer as the server needs no token and no pairing when the server offers a **local socket**: the
+[desktop app](getting-started/desktop-app.md) does. The node then asks the server for a token over the socket
+(`POST /oauth/local`, which only works there, never over the network) and asks again when it expires. Such tokens are listed here as
+**This computer**, one per node, and revoking one makes the node ask again. The web page keeps its login.
+
 ## What the administrator allows
 
 Under **Administration → API access** the administrator chooses whether **Tokens** and **OAuth (devices)** are offered, and the

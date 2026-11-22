@@ -6,6 +6,9 @@ order: 990
 
 # Install the server
 
+For one computer there is a simpler way: the [desktop app](desktop-app.md), an installer with the server, the node and Java in it. This page is
+for a server you build or run yourself.
+
 ## Requirements
 
 - JDK 25 or newer. Set `JAVA_HOME` to it for Maven.

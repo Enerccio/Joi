@@ -5,6 +5,7 @@ import com.github.enerccio.joi.protocol.node.*;
 import com.github.enerccio.joi.protocol.oauth.DeviceAuthorization;
 import com.github.enerccio.joi.protocol.oauth.OAuthError;
 import com.github.enerccio.joi.protocol.oauth.OAuthMetadata;
+import com.github.enerccio.joi.protocol.oauth.LocalToken;
 import com.github.enerccio.joi.protocol.oauth.TokenResponse;
 import com.google.gson.*;
 import com.google.gson.annotations.SerializedName;
@@ -30,7 +31,7 @@ class SchemaContractTest {
     static final List<Class<? extends Record>> RECORDS = List.of(ServerInfo.class, AuthInfo.class, OAuthEndpoints.class, Me.class,
             JoiSummary.class, JoiList.class, Personality.class, Voice.class, JoiInfo.class, ChatRequest.class, Audio.class, Usage.class,
             ChatReply.class, TextDelta.class, AudioChunk.class, Done.class, ApiError.class, DeviceAuthorization.class,
-            TokenResponse.class, OAuthError.class, OAuthMetadata.class, Download.class, BodyModel.class, BodyPart.class,
+            TokenResponse.class, LocalToken.class, OAuthError.class, OAuthMetadata.class, Download.class, BodyModel.class, BodyPart.class,
             BodyToggle.class, BodyPartState.class, PartSwitch.class, PartKept.class, PartRefused.class, PlayAnimation.class,
             BodyAnimation.class, BodyAnimations.class, BodyInfo.class, JoiAnimations.class, Frame.class, Hello.class, Resume.class, Welcome.class, Manifest.class,
             ToolDefinition.class, Say.class, Stop.class, Display.class, ToolUse.class, ToolCall.class, ToolProgress.class, ToolResult.class,
@@ -162,6 +163,7 @@ class SchemaContractTest {
         valid(new ApiError("not_found", "No such assistant"));
         valid(new DeviceAuthorization("dc", "WDJB-MJHT", "http://h/?device", "http://h/?device=WDJB-MJHT", 600, 5));
         valid(new TokenResponse("joia_x", "Bearer", 3600, "joir_y"));
+        valid(new LocalToken("joil_x", "Bearer", 3600));
         valid(new OAuthError("authorization_pending", null));
         valid(new OAuthMetadata("http://h", "http://h/oauth/device_authorization", "http://h/oauth/token",
                 List.of(JoiProtocol.DEVICE_CODE_GRANT, "refresh_token"), List.of("none")));

@@ -16,6 +16,14 @@ Settings are in the node's home, `~/.joi-client` (`--joi-home-dir <folder>` or `
 chosen last, and `credentials.json` holds the credentials for each server, readable by you alone. Her body is cached in
 `cache`.
 
+## Started by the desktop app
+
+The [desktop app](../getting-started/desktop-app.md) starts this node with `--local <socket> --web <url>` (or the variables `JOI_LOCAL_SOCKET`
+and `JOI_WEB_URL`): the node then has no server screen. It asks the server of its own computer for a token over the socket, so the first
+screen is a status line: *waiting for an account* until you have made one in the web page, then your assistants. Two buttons stay on it:
+**Open Joi in the browser** and **Another server...** (the usual first screen). Only one node runs per home: starting a second says so and
+ends.
+
 ## The screens
 
 1. **The server.** The address as `http://host:8080` (a list of the servers you used before, the last first), a field for a token
