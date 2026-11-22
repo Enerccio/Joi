@@ -85,7 +85,10 @@ The app's own code, so that it builds and is tested on the Mac: SwiftUI and the 
   down); the chat list stays at the end (`defaultScrollAnchor(.bottom)`). Over the body are two buttons: *Her look* (a sheet, `PartsView`, one picker per part she has, from
   `AvatarModel.parts`) and a menu with *Sign out*. A change is `ChatModel.switchPart`: a `part` frame with an id, answered by `part_kept` (the body reloads), `part_refused`
   (her words are shown in the sheet: she may decide on it, so the answer can take a whole turn of hers) or `error`. The events of the server in the chat are friendly notes
-  (`ChatModel.eventNote`: connected, first start, summary written, part switched, task ended, Looking Glass). Not yet: approvals, tasks, the microphone, the App Intents.
+  (`ChatModel.eventNote`: connected, first start, summary written, part switched, task ended, Looking Glass). Her tasks that wait for the user (`web_search`, `fetch_page` without a standing approval) are `ChatModel.questions`, kept from the `task` frames (a frame of the same id with another status takes
+  the question back, the connection's loss clears them: the server sends them again when it is back) and shown by `TaskQuestionCard` over the chat, the oldest with how many more wait: *Approve*, *Deny*,
+  and in its menu *Always approve <tool>*. `ChatModel.answer` calls `approveTask` / `denyTask` of `HistorySource` (`JoiClient`'s); a 409 (answered elsewhere) just takes the question back, any other
+  error stays under the card. Not yet: the microphone, the App Intents, a notification for a task that waits while the app is closed (the app has to be open: see *Staying connected* in `DESIGN.md`).
 
 ## The Xcode project
 

@@ -16,6 +16,21 @@ extension NodeConnection: NodeLink {}
 /// Her history, so that the chat's tests have no server.
 public protocol HistorySource: Sendable {
     func history(_ joi: String, limit: Int, before: String?) async throws -> ChatHistory
+    /// Allows a task of hers that waits; with `always` the tool from now on.
+    func approveTask(_ joi: String, _ task: String, always: Bool) async throws -> TaskInfo
+    /// Does not allow a task of hers that waits.
+    func denyTask(_ joi: String, _ task: String, reason: String?) async throws -> TaskInfo
+}
+
+extension HistorySource {
+    // for a source that has no tasks (a fake)
+    public func approveTask(_ joi: String, _ task: String, always: Bool) async throws -> TaskInfo {
+        throw ServerError(status: 0, code: "no_tasks", message: "This source has no tasks.")
+    }
+
+    public func denyTask(_ joi: String, _ task: String, reason: String?) async throws -> TaskInfo {
+        throw ServerError(status: 0, code: "no_tasks", message: "This source has no tasks.")
+    }
 }
 
 extension JoiClient: HistorySource {}

@@ -325,3 +325,98 @@ struct FakeHistory: HistorySource {
         #expect(AppModel.url("  ") == nil)
     }
 }
+
+/// A source of tasks that records the answers.
+final class FakeTasks: HistorySource, @unchecked Sendable {
+    private let lock = NSLock()
+    private var answers: [String] = []
+    var error: Error?
+    var recorded: [String] { lock.withLock { answers } }
+
+    func history(_ joi: String, limit: Int, before: String?) async throws -> ChatHistory { ChatHistory(messages: [], more: false) }
+
+    func approveTask(_ joi: String, _ task: String, always: Bool) async throws -> TaskInfo {
+        if let error { throw error }
+        lock.withLock { answers.append("approve \(task)\(always ? " always" : "")") }
+        return Self.task(task, "running")
+    }
+
+    func denyTask(_ joi: String, _ task: String, reason: String?) async throws -> TaskInfo {
+        if let error { throw error }
+        lock.withLock { answers.append("deny \(task)") }
+        return Self.task(task, "cancelled")
+    }
+
+    static func task(_ id: String, _ status: String) -> TaskInfo {
+        TaskInfo(id: id, title: "Search the web", tool: "web_search", toolDescription: "Searches the web", status: status,
+                 question: "weather in Brno", url: nil, result: nil, error: nil, created: Date(), started: nil, finished: nil, steps: nil)
+    }
+}
+
+@MainActor @Suite struct TaskQuestionTests {
+    let link = FakeLink()
+
+    private func model(_ tasks: FakeTasks = FakeTasks()) -> ChatModel {
+        ChatModel(joiID: "j1", joiName: "Joi", history: tasks, link: link)
+    }
+
+    private func task(_ id: String, _ status: String = "waiting") -> NodeConnection.Event {
+        .frame(NodeConnection.Incoming(ref: nil, data: .task(FakeTasks.task(id, status))))
+    }
+
+    @Test func aTaskThatWaitsIsAskedOnceAndTakenBackWhenItIsAnswered() {
+        let chat = model()
+        chat.apply(task("a"))
+        chat.apply(task("b"))
+        chat.apply(task("a"))
+        #expect(chat.questions.map(\.id) == ["a", "b"])
+        // answered somewhere else
+        chat.apply(task("a", "running"))
+        #expect(chat.questions.map(\.id) == ["b"])
+        // a task that does not wait is no question
+        chat.apply(task("c", "running"))
+        #expect(chat.questions.map(\.id) == ["b"])
+    }
+
+    @Test func approvingAndDenyingAreSentAndTakeTheQuestionBack() async {
+        let tasks = FakeTasks()
+        let chat = model(tasks)
+        chat.apply(task("a"))
+        chat.apply(task("b"))
+        chat.apply(task("c"))
+        await chat.answer(chat.questions[0], .approve)
+        await chat.answer(chat.questions[0], .deny)
+        await chat.answer(chat.questions[0], .approveAlways)
+        #expect(tasks.recorded == ["approve a", "deny b", "approve c always"])
+        #expect(chat.questions.isEmpty)
+        #expect(chat.questionNote == nil)
+    }
+
+    @Test func aTaskAnsweredElsewhereIsAConflictAndSimplyGoes() async {
+        let tasks = FakeTasks()
+        tasks.error = ServerError(status: 409, code: "conflict", message: "Answered already")
+        let chat = model(tasks)
+        chat.apply(task("a"))
+        await chat.answer(chat.questions[0], .approve)
+        #expect(chat.questions.isEmpty)
+        #expect(chat.questionNote == nil)
+    }
+
+    @Test func aFailedAnswerKeepsTheQuestionAndSaysWhy() async {
+        let tasks = FakeTasks()
+        tasks.error = ServerError(status: 500, code: "internal", message: "Broken")
+        let chat = model(tasks)
+        chat.apply(task("a"))
+        await chat.answer(chat.questions[0], .approve)
+        #expect(chat.questions.map(\.id) == ["a"])
+        #expect(chat.questionNote != nil)
+        #expect(chat.answering == nil)
+    }
+
+    @Test func aLostConnectionForgetsTheQuestions() {
+        let chat = model()
+        chat.apply(task("a"))
+        chat.apply(.retrying(seconds: 1))
+        #expect(chat.questions.isEmpty)
+    }
+}

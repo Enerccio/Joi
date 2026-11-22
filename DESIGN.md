@@ -1922,7 +1922,8 @@ writes into the source tree or needs Xcode:
 
 1. The generator and the Swift package with its fixtures (**built**: `SwiftGenerator`, `joi-ios/Packages/JoiProtocol`); the client (**built**: `joi-ios/Packages/JoiClient`, an actor for the HTTP API and the device-grant pairing with the reference node's refresh rules, `NodeConnection` for the node WebSocket with the heartbeat and the new tries, tested against a fake server and a real one); the app shell (**built**: `JoiApp` and `joi-ios/project.yml`, pairing, history, chat with her answer streaming and her voice, run in the Simulator against a server, built by `mvn -Pswift,ios verify`). her body (**built**: `AvatarModel` downloads and unpacks her `.joim` / `.joia` with the hash check, the node's renderer page runs in a `WKWebView` in a native mode of `main.js` and is fed through `joiReceive` and a `WKURLSchemeHandler` for `joi-body://`, `AvatarDirector` is ported to Swift, the body takes half of the screen above the chat; tried in the Simulator with a real body). Together this proves the protocol with a node that is not Java.
 2. The App Intents (*Ask*, *Tell*, *Listen*, approvals), the Vocal Shortcut guide, push-to-talk with on-device speech
-   to text, the registered-shortcut tools, `notify` and the first native tools; approval cards.
+   to text, the registered-shortcut tools, `notify` and the first native tools; approval cards (**built** for her tasks that wait: the
+   `task` frames and `approve` / `deny` over HTTP, a card over the chat while the app is open; the ASK cards of other nodes' tools and the push notification are not).
 3. The always-listening mode (a battery measurement on a real phone first), reconnect-safe tool calls, the APNs relay,
    AR, the Watch.
 

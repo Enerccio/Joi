@@ -177,6 +177,51 @@ struct PartsView: View {
     }
 }
 
+/// A task of hers that waits for the user: what she asked a tool for, and the answer. The oldest is shown, with how many more wait.
+struct TaskQuestionCard: View {
+    let chat: ChatModel
+    let question: TaskInfo
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Label(question.title, systemImage: "questionmark.bubble").font(.headline)
+                Spacer()
+                if chat.questions.count > 1 {
+                    Text("+\(chat.questions.count - 1)").font(.footnote).foregroundStyle(.secondary)
+                }
+            }
+            if let description = question.toolDescription ?? question.tool {
+                Text(description).font(.footnote).foregroundStyle(.secondary)
+            }
+            if let asked = question.question, !asked.isEmpty {
+                Text(asked).font(.callout)
+            }
+            if let url = question.url, !url.isEmpty {
+                Text(url).font(.footnote).foregroundStyle(.secondary).lineLimit(2).truncationMode(.middle).textSelection(.enabled)
+            }
+            if let note = chat.questionNote {
+                Text(note).font(.footnote).foregroundStyle(.red)
+            }
+            HStack {
+                Button("Approve") { Task { await chat.answer(question, .approve) } }.buttonStyle(.borderedProminent)
+                Button("Deny", role: .destructive) { Task { await chat.answer(question, .deny) } }.buttonStyle(.bordered)
+                Spacer()
+                if let tool = question.tool {
+                    Menu {
+                        Button("Always approve \(tool)") { Task { await chat.answer(question, .approveAlways) } }
+                    } label: { Image(systemName: "ellipsis.circle") }
+                }
+                if chat.answering == question.id { ProgressView() }
+            }
+            .disabled(chat.answering != nil)
+        }
+        .padding(12)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(.thinMaterial)
+    }
+}
+
 /// Her body, or what is going on while it is not there.
 struct AvatarPane: View {
     let avatar: AvatarModel
@@ -222,6 +267,9 @@ struct ChatColumn: View {
     var body: some View {
         VStack(spacing: 0) {
             StatusBanner(status: chat.status) { Task { await chat.start() } }
+            if let question = chat.questions.first {
+                TaskQuestionCard(chat: chat, question: question)
+            }
             ScrollViewReader { proxy in
                 ScrollView {
                     LazyVStack(alignment: .leading, spacing: 8) {

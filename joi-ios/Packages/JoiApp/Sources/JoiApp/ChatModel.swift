@@ -57,6 +57,13 @@ public final class ChatModel: AvatarOutput {
     public private(set) var avatarState: AvatarDirector.State = .idle
     /// The part she is being put in another state for (its id), nil when none: one change at a time, as the node's controls lock.
     public private(set) var switchingPart: String?
+    /// Her tasks that wait for the user's answer, the oldest first (the server's `task` frames, since 1.7): the tools the user did not approve
+    /// ahead of time. A task that is answered, here or elsewhere, is taken back by the frame that follows.
+    public private(set) var questions: [TaskInfo] = []
+    /// The task being answered now (its id), nil when none.
+    public private(set) var answering: String?
+    /// Why the last answer was not taken, nil when it was.
+    public private(set) var questionNote: String?
     /// The server kept a change of a part: her body is read again.
     @ObservationIgnored public var onPartKept: (@MainActor () -> Void)?
     private var partWaiters: [String: CheckedContinuation<PartAnswer, Never>] = [:]
@@ -120,6 +127,41 @@ public final class ChatModel: AvatarOutput {
     private func answerPart(_ id: String?, _ answer: PartAnswer) {
         guard let id, let waiter = partWaiters.removeValue(forKey: id) else { return }
         waiter.resume(returning: answer)
+    }
+
+    public enum TaskAnswer: Equatable, Sendable {
+        case approve
+        /// This task and every later one of its tool.
+        case approveAlways
+        case deny
+    }
+
+    /// The user answers a task of hers that waits. One at a time. A task that was answered elsewhere already (409) is simply taken back.
+    public func answer(_ task: TaskInfo, _ answer: TaskAnswer) async {
+        guard answering == nil else { return }
+        answering = task.id
+        questionNote = nil
+        defer { answering = nil }
+        do {
+            switch answer {
+            case .approve: _ = try await history.approveTask(joiID, task.id, always: false)
+            case .approveAlways: _ = try await history.approveTask(joiID, task.id, always: true)
+            case .deny: _ = try await history.denyTask(joiID, task.id, reason: nil)
+            }
+            questions.removeAll { $0.id == task.id }
+        } catch let error as ServerError where error.status == 409 {
+            questions.removeAll { $0.id == task.id }
+        } catch {
+            questionNote = Self.describe(error)
+        }
+    }
+
+    private func take(_ task: TaskInfo) {
+        if task.status == "waiting" {
+            if !questions.contains(where: { $0.id == task.id }) { questions.append(task) }
+        } else {
+            questions.removeAll { $0.id == task.id }
+        }
     }
 
     /// The animations chosen in her dialog changed.
@@ -213,6 +255,8 @@ public final class ChatModel: AvatarOutput {
         case .connecting:
             status = .connecting
         case .disconnected, .retrying(_):
+            // the server tells again what waits when the connection is back, and what was answered meanwhile is not asked twice
+            questions = []
             if case .retrying(let seconds) = event {
                 status = .reconnecting(seconds: seconds)
             }
@@ -220,6 +264,7 @@ public final class ChatModel: AvatarOutput {
         case .reconnected:
             status = .connected
         case .closed(let code, let reason):
+            questions = []
             status = .offline(reason.isEmpty ? "Closed (\(code))" : reason)
         case .frame(let incoming):
             apply(incoming)
@@ -255,10 +300,12 @@ public final class ChatModel: AvatarOutput {
             director.gesture(play.animation, loop: play.loop ?? false)
         case .event(let event):
             onServerEvent?(event.name)
+        case .task(let task):
+            take(task)
         case .log(let log):
             messages.append(ChatMessage(role: .note, text: log.text))
         default:
-            break // her tasks and the rest are the app's later stages
+            break // the rest is the app's later stages
         }
     }
 
