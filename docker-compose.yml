@@ -17,3 +17,6 @@ services:
       - JOI_TRUSTED_PROXIES=172.16.0.0/12
       # the address the server is reached at from outside, for the links of the device sign-in of a node
       # - JOI_API_PUBLIC_URL=https://joi.example.com
+      # two Joi servers on one host (cookies ignore the port) need their own cookie names:
+      # - JOI_SESSION_COOKIE=JOISESSIONID_2
+      # - JOI_COOKIE_NAMESPACE=joi2

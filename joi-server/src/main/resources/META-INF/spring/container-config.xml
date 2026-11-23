@@ -4,19 +4,19 @@
        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:aop="http://www.springframework.org/schema/aop"
        xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd http://www.springframework.org/schema/aop https://www.springframework.org/schema/aop/spring-aop.xsd">
 
-    <!-- the platform's texts (L: its LocalizationBundle*, saying Joi where they name Marginalia, see PlatformTexts) and Joi's
-         (J_L, JoiLocalizationBundle*) -->
+    <!-- the platform's texts (L: its LocalizationBundle*) and Joi's (J_L, JoiLocalizationBundle*); the override below says Joi where the
+         platform's texts name Marginalia and puts Joi's wording over a few of them -->
     <bean name="localization" class="com.github.enerccio.marginalia.loc.LocalizationImpl">
         <property name="defaultLanguageCode" value="${joi.default-language:}" />
         <property name="bundles">
             <list>
-                <bean class="com.github.enerccio.joi.loc.PlatformTexts$EN" />
-                <bean class="com.github.enerccio.joi.loc.PlatformTexts$JP" />
-                <bean class="com.github.enerccio.joi.loc.PlatformTexts$FR" />
-                <bean class="com.github.enerccio.joi.loc.PlatformTexts$ES" />
-                <bean class="com.github.enerccio.joi.loc.PlatformTexts$DE" />
-                <bean class="com.github.enerccio.joi.loc.PlatformTexts$KO" />
-                <bean class="com.github.enerccio.joi.loc.PlatformTexts$IT" />
+                <bean class="com.github.enerccio.marginalia.loc.LocalizationBundleEN" />
+                <bean class="com.github.enerccio.marginalia.loc.LocalizationBundleJP" />
+                <bean class="com.github.enerccio.marginalia.loc.LocalizationBundleFR" />
+                <bean class="com.github.enerccio.marginalia.loc.LocalizationBundleES" />
+                <bean class="com.github.enerccio.marginalia.loc.LocalizationBundleDE" />
+                <bean class="com.github.enerccio.marginalia.loc.LocalizationBundleKO" />
+                <bean class="com.github.enerccio.marginalia.loc.LocalizationBundleIT" />
             </list>
         </property>
         <property name="texts">
@@ -25,6 +25,8 @@
             </list>
         </property>
     </bean>
+
+    <bean class="com.github.enerccio.joi.loc.JoiLocalizationOverride" />
 
     <!-- every setting can be overridden by an environment variable or a -D system property of the same name
          (joi.data = JOI_DATA) -->
@@ -36,6 +38,8 @@
         <property name="allowPersistentLogin" value="${joi.allow-persistent-login:true}" />
         <property name="persistentLoginInfoTTL" value="${joi.persistent-login-ttl:2592000}" />
         <property name="trustedProxies" value="${joi.trusted-proxies:}" />
+        <!-- Joi's name in its cookie names: Marginalia on the same host (cookies ignore the port) does not read or delete the saved logins -->
+        <property name="cookieNamespace" value="${joi.cookie-namespace:joi}" />
     </bean>
 
     <!-- the API: no auth (calls without credentials act as joi.api.no-auth-user, else the first administrator) is

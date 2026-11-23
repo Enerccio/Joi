@@ -34,7 +34,12 @@ Panels: `ui/bodies` (`AppearancePanel`, `SpringBonesPanel`, `ToggleGroupsPanel`,
   `null`.
 - UI changes from other threads go through `ui.access(...)`.
 - Texts are in the localization enum `loc/J_L` with `JoiLocalizationBundleEN`: every key has an English text. Never put a user-visible
-  string in a class.
+  string in a class. The platform's own texts (`L`) say Joi where they name Marginalia through `loc/JoiLocalizationOverride`, a
+  `LocalizationOverride` bean of the platform (a replacement for every language, a few texts of Joi's own); a text of the platform changes there,
+  not in a subclass of its bundles.
+- The login: the dialog's footer and the version Joi shows are `BuildInfo` of Joi (`JoiApplicationInitializer` installs it, the version is
+  `META-INF/build-info/build-info.properties`); the saved-login cookies start with `joi` (`joi.cookie-namespace`) and the session cookie is
+  `JOISESSIONID`, so Joi and Marginalia on one host do not log each other out.
 - Styles are CSS classes: `frontend/styles/joi-styles.css` with `JoiCssStyles`. No inline styles.
 - Scripts are in one JavaScript library class, `ui/JoiJavascriptLibrary`.
 - Dialogs have focus and keyboard submit. Text areas for prompts expand (`ui/widgets/PromptAreas`, the platform's `ResizableTextArea`).

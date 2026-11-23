@@ -123,9 +123,11 @@ Also in Joi (2026-11-18):
   workspace's tabs, like Marginalia's Admin): a Users tab after Marginalia's admin
   page (the platform's `UserDialog` and `PermissionsDialog`) and the platform's `GpuPanel`. Whether the user is an
   administrator is asked of `AdminGuard` (the database): the session's `User` does not carry the flag after a login.
-- **The platform's texts with Joi's name** (`loc/PlatformTexts`): one subclass per language of the platform's
-  `LocalizationBundle*`, registered in `container-config.xml` in their place, puts "Joi" where a text names Marginalia
-  (the GPU's "Also used outside Marginalia"). A neutral wording in the platform itself would make this unnecessary.
+- **The platform's texts with Joi's name** (`loc/JoiLocalizationOverride`): a `LocalizationOverride` bean of the platform replaces "Marginalia" by
+  "Joi" in every text of every language (the GPU's "Also used outside Marginalia") and gives a few texts Joi's wording. It was a subclass of each
+  language's bundle (`PlatformTexts`) before the platform had overrides.
+- **Two applications on one host:** Joi sets `cookieNamespace` (`joi`) for its saved-login cookies, names its session cookie `JOISESSIONID`, or `JOI_SESSION_COOKIE`
+  (`SessionCookie.configure`) and installs its own `BuildInfo` (name, version), which the login footer shows.
 - **TTS models and voice actors, copied from Marginalia's audiobook plugin** (an app-layer plugin, not the platform),
   in `com.github.enerccio.joi.tts`: the Chatterbox and Higgs (ComfyUI) clients, `SpeechRequest`, `ServerCheck`,
   `ComfyClient`, the audio helpers Higgs needs (`Ffmpeg`, `WavJoiner`, `BreathTrim`), `Delivery` / `Tags` /

@@ -74,6 +74,8 @@ The server's settings are environment variables of the service, next to `JAVA_TO
 | `JOI_TRUSTED_PROXIES` | empty | The reverse proxies whose `X-Forwarded-For` header is believed, see [below](#https-and-reverse-proxy). |
 | `JOI_API_PUBLIC_URL` | the address of the call | The address the server is reached at from outside (`https://joi.example.com`): the links of the device sign-in of a node are made from it. Set it behind a proxy. |
 | `JOI_ALLOW_PERSISTENT_LOGIN` | `true` | `false` hides *Save login*. `JOI_PERSISTENT_LOGIN_TTL` is how long a saved login lasts, in seconds (30 days). |
+| `JOI_COOKIE_NAMESPACE` | `joi` | Starts the names of the saved-login cookies. Cookies are kept per host, not per port, so Joi and Marginalia (or two Joi servers) on one host would read and delete each other's saved logins with the same names. Give each server its own. |
+| `JOI_SESSION_COOKIE` | `JOISESSIONID` | The name of the session cookie, for the same reason (the usual `JSESSIONID` is shared by every server on the host, and each replaces the other's session). Change it only to run a second Joi on the host. |
 | `JOI_FFMPEG` | the program on the path | The ffmpeg program for speech (the image has one). |
 | `JOI_BLENDER` | `blender` on the path (the image has it) | The Blender program for converting models, see [below](#converting-models). |
 | `JOI_API_NO_AUTH` | `false` | **Never set it on a server.** API calls without credentials then act as the first administrator. It is for `mvn jetty:run` on your own machine. |
