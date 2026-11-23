@@ -73,6 +73,17 @@ connection (also while the user is asked whether their words go with it) is told
 A node trusts the server only so far: the reference node names a cached download by its `sha256` only when that is 64 hex digits, and a frame it
 can't handle is logged and the socket reads on.
 
+## Profiles
+
+The user may give her profiles (home, work) and assign each node to one by the `nodeId` of its `hello` (see [Bodies and models](bodies.md)). A
+node needs only to read her body with `GET .../body?node=<its nodeId>` (protocol 1.12): the server sends it the `event` `body` only when
+its profile changed. Nothing else changes in the frames; what she is told follows the node that talks to her.
+
+Her outfits (since 1.12): `BodyInfo.outfits` lists them (the one she wears in the node's profile marked `worn`), and a node that lets the user choose one
+sends `outfit` (`OutfitSwitch`, the outfit's id; `NodeServiceImpl.outfitSwitch`). The server wears it in the node's profile, tells her as for a part, and
+sends the `event` `body` to the nodes of the profile, the sender too, which show it when they read her body again; take every toggle of `BodyInfo.toggles`
+then, not only the parts', as an outfit sets toggles that are in no part. The reference node's controls panel has the choice (`ControlsPane.outfits`).
+
 ## The reference node
 
 `joi-node` (`com.github.enerccio.joi.node`):

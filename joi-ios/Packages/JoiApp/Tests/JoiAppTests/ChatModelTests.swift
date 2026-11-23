@@ -370,6 +370,37 @@ struct FakeHistory: HistorySource {
         #expect(await answer.value == .failed("The connection was lost."))
     }
 
+    @Test func anOutfitIsPutOnAndTheBodyEventSaysItWas() async throws {
+        let chat = model(withSpeech: false)
+        await chat.start()
+        let put = Task { await chat.wearOutfit("o2") }
+        for _ in 0..<200 where link.sentFrames.isEmpty { try await Task.sleep(for: .milliseconds(5)) }
+        let sent = try #require(link.sentFrames.last)
+        #expect(sent.type == "outfit")
+        #expect(sent.data?["outfit"] == .string("o2"))
+        await put.value
+        #expect(chat.wearingOutfit == "o2")
+        // one at a time
+        await chat.wearOutfit("o1")
+        #expect(link.sentFrames.count == 1)
+        chat.apply(frame(nil, .event(ServerEvent(name: "body", at: Date()))))
+        #expect(chat.wearingOutfit == nil && chat.outfitFailure == nil)
+    }
+
+    @Test func anErrorOfTheOutfitIsItsFailureAndALostConnectionEndsIt() async throws {
+        let chat = model(withSpeech: false)
+        await chat.start()
+        await chat.wearOutfit("nope")
+        let id = try #require(link.sentFrames.last?.id)
+        chat.apply(frame(id, .error(ApiError(code: "bad_message", message: "Her body has no outfit nope"))))
+        #expect(chat.wearingOutfit == nil && chat.outfitFailure == "Her body has no outfit nope")
+        #expect(chat.messages.isEmpty)
+        await chat.wearOutfit("o1")
+        #expect(chat.wearingOutfit == "o1" && chat.outfitFailure == nil)
+        chat.apply(.disconnected(code: 1006, reason: "lost"))
+        #expect(chat.wearingOutfit == nil && chat.outfitFailure == "The connection was lost.")
+    }
+
     @Test func eventsHaveLinesForTheUser() {
         #expect(ChatModel.eventNote("node.connected") == "Connected")
         #expect(ChatModel.eventNote("node.some_new_cause") == "Some new cause")

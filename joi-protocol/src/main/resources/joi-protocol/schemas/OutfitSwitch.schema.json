@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Enerccio/joi/protocol/v1/OutfitSwitch.schema.json",
+  "title": "OutfitSwitch",
+  "description": "outfit (since 1.12): the user put an outfit of her body on, on the node. The server keeps it in the profile of the node and tells her (as it does a part), and every node of the profile reads her body again (the event body). An outfit the body does not have is answered by error (bad_message) with the id of the frame.",
+  "type": "object",
+  "properties": {
+    "outfit": {
+      "type": "string",
+      "description": "The outfit's id (BodyOutfit.id)."
+    }
+  },
+  "required": [
+    "outfit"
+  ]
+}

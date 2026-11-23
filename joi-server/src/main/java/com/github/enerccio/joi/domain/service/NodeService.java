@@ -56,6 +56,14 @@ public interface NodeService {
     void notify(Joi joi, String event);
 
     /**
+     * As {@link #notify(Joi, String)} for what changed in one profile: only the nodes in it are told. Null for all of them.
+     */
+    void notify(Joi joi, String event, String profile);
+
+    /** The profile the node is in now (see {@code ProfileService}). */
+    String profileOf(NodeSession session);
+
+    /**
      * A task of hers was made or changed its status: a {@code task} frame to her nodes. One that waits is the node's to ask
      * the user about (the answer comes through the HTTP API).
      */

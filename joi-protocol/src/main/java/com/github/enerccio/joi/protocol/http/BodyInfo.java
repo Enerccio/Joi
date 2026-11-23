@@ -13,7 +13,13 @@ import java.util.List;
  * @param toggles           every toggle of the full model as the body has it now (since 1.5), null from a server before
  * @param appearance        how she looks in it now, null when the model is not described
  * @param animations        the animations it plays
+ * @param outfits           its outfits, the one she wears marked (since 1.12), null from a server before
  */
 public record BodyInfo(String id, String name, BodyModel model, BodyModel lookingGlassModel, List<BodyPart> parts,
-                       List<BodyToggle> toggles, String appearance, BodyAnimations animations) {
+                       List<BodyToggle> toggles, String appearance, BodyAnimations animations, List<BodyOutfit> outfits) {
+
+    public BodyInfo(String id, String name, BodyModel model, BodyModel lookingGlassModel, List<BodyPart> parts,
+                    List<BodyToggle> toggles, String appearance, BodyAnimations animations) {
+        this(id, name, model, lookingGlassModel, parts, toggles, appearance, animations, null);
+    }
 }

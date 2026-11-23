@@ -335,6 +335,11 @@ struct FakeBodySource: BodySource {
         await avatar.loaded()
         #expect(sent.types() == ["model", "toggles", "toggles"]) // no model again
         #expect(avatar.parts.map(\.name) == ["Hat"])
+        // her outfits, the one she wears marked (the same files: only what changed is read)
+        changed.outfits = [BodyOutfit(id: "o1", name: "Casual", description: "A hoodie.", worn: false), BodyOutfit(id: "o2", name: "Sailor", worn: true)]
+        avatar.load(from: FakeBodySource(info: changed, files: ["/api/v1/bodies/b/joim": joim]), joi: "j1")
+        await avatar.loaded()
+        #expect(avatar.outfits.map(\.name) == ["Casual", "Sailor"] && avatar.outfits.map(\.worn) == [false, true])
     }
 
     @Test func noBodyAndNoModelAreNoBody() async {

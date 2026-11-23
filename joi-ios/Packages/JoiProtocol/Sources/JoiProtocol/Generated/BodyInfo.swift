@@ -19,8 +19,10 @@ public struct BodyInfo: Codable, Hashable, Sendable {
     /// How she looks in it now, null when the model is not described.
     public var appearance: String?
     public var animations: BodyAnimations
+    /// The outfits of the body, the one she wears marked (since 1.12); null from a server before.
+    public var outfits: [BodyOutfit]?
 
-    public init(id: String, name: String? = nil, model: BodyModel? = nil, lookingGlassModel: BodyModel? = nil, parts: [BodyPart], toggles: [BodyToggle]? = nil, appearance: String? = nil, animations: BodyAnimations) {
+    public init(id: String, name: String? = nil, model: BodyModel? = nil, lookingGlassModel: BodyModel? = nil, parts: [BodyPart], toggles: [BodyToggle]? = nil, appearance: String? = nil, animations: BodyAnimations, outfits: [BodyOutfit]? = nil) {
         self.id = id
         self.name = name
         self.model = model
@@ -29,5 +31,6 @@ public struct BodyInfo: Codable, Hashable, Sendable {
         self.toggles = toggles
         self.appearance = appearance
         self.animations = animations
+        self.outfits = outfits
     }
 }

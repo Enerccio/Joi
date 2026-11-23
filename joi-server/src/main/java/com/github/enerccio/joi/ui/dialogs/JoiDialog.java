@@ -9,6 +9,7 @@ import com.github.enerccio.joi.ui.dialogs.joi.JoiAnimationsPart;
 import com.github.enerccio.joi.ui.dialogs.joi.JoiBodiesPart;
 import com.github.enerccio.joi.ui.dialogs.joi.JoiChatsPart;
 import com.github.enerccio.joi.ui.dialogs.joi.JoiMemoriesPart;
+import com.github.enerccio.joi.ui.dialogs.joi.JoiProfilesPart;
 import com.github.enerccio.joi.ui.dialogs.joi.JoiDialogPart;
 import com.github.enerccio.joi.ui.dialogs.joi.JoiFilesPart;
 import com.github.enerccio.joi.ui.dialogs.joi.JoiSummariesPart;
@@ -67,6 +68,7 @@ public class JoiDialog extends Dialog {
     private JoiMemoriesPart memoriesPart;
     private JoiBodiesPart bodiesPart;
     private JoiAnimationsPart animationsPart;
+    private JoiProfilesPart profilesPart;
     private JoiTasksPart tasksPart;
 
     public JoiDialog(Joi joi) {
@@ -89,7 +91,7 @@ public class JoiDialog extends Dialog {
         tabs.setTabsWidth("200px");
         aboutPart = new JoiAboutPart(this);
         templatesPart = new JoiTemplatesPart(this);
-        for (JoiDialogPart part : List.of(aboutPart, bodiesPart = new JoiBodiesPart(), animationsPart = new JoiAnimationsPart(this), templatesPart, memoriesPart = new JoiMemoriesPart(),
+        for (JoiDialogPart part : List.of(aboutPart, bodiesPart = new JoiBodiesPart(), profilesPart = new JoiProfilesPart(bodiesPart), animationsPart = new JoiAnimationsPart(this), templatesPart, memoriesPart = new JoiMemoriesPart(),
                 summariesPart = new JoiSummariesPart(), chatsPart = new JoiChatsPart(), tasksPart = new JoiTasksPart(), filesPart = new JoiFilesPart())) {
             Component content = part.create();
             parts.put(part, content);
@@ -203,6 +205,11 @@ public class JoiDialog extends Dialog {
     /** The Bodies tab, for tests. */
     public JoiBodiesPart getBodiesPart() {
         return bodiesPart;
+    }
+
+    /** The Profiles tab, for tests. */
+    public JoiProfilesPart getProfilesPart() {
+        return profilesPart;
     }
 
     public JoiAnimationsPart getAnimationsPart() {

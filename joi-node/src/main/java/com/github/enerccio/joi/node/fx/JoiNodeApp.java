@@ -822,6 +822,7 @@ public class JoiNodeApp extends Application {
         // the controls wait for the server: a change they make is told to it, which keeps it
         ControlsPane controls = new ControlsPane();
         controls.parts(loaded.body() == null ? null : loaded.body().parts());
+        controls.outfits(loaded.body() == null ? null : loaded.body().outfits());
         // what the user changes is held back for a few seconds and sent together; her body shows what the server kept
         Map<String, BodyPart> parts = new HashMap<>();
         Map<String, String> kept = new HashMap<>();
@@ -939,6 +940,7 @@ public class JoiNodeApp extends Application {
                                 kept.put(part.id(), part.state());
                             }
                             controls.parts(info.parts());
+                            controls.outfits(info.outfits());
                             toggles.clear();
                             toggles.addAll(info.toggles() == null ? List.of() : info.toggles());
                             renderer.toggles(List.copyOf(toggles));
@@ -953,11 +955,23 @@ public class JoiNodeApp extends Application {
                                         new com.github.enerccio.joi.protocol.node.PartSwitch(part.id(), part.state()));
                             }
                         }
+                        // an outfit (or another node's change) sets toggles that are in no part too: every toggle as the body has it
+                        if (info.toggles() != null) {
+                            toggles.clear();
+                            toggles.addAll(info.toggles());
+                            renderer.toggles(List.copyOf(toggles));
+                        }
+                        controls.outfits(info.outfits());
                     });
                 } catch (Exception e) {
                     Platform.runLater(() -> chat.note("Her body could not be read again: " + e.getMessage()));
                 }
             });
+        });
+        controls.setOnOutfit(outfit -> {
+            if (!socket.outfit(outfit.id())) {
+                controls.outfits(loaded.body() == null ? null : loaded.body().outfits());
+            }
         });
         controls.setOnSwitch((part, state) -> {
             if (!staging.change(part.id(), state.id())) {

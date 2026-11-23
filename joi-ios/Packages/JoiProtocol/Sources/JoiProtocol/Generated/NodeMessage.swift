@@ -13,6 +13,7 @@ public enum NodeMessage: Hashable, Sendable, RawRepresentable, Codable {
     case stop
     case display
     case part
+    case outfit
     case partKept
     case partRefused
     case animation
@@ -47,6 +48,7 @@ public enum NodeMessage: Hashable, Sendable, RawRepresentable, Codable {
         case "stop": self = .stop
         case "display": self = .display
         case "part": self = .part
+        case "outfit": self = .outfit
         case "part_kept": self = .partKept
         case "part_refused": self = .partRefused
         case "animation": self = .animation
@@ -82,6 +84,7 @@ public enum NodeMessage: Hashable, Sendable, RawRepresentable, Codable {
         case .stop: return "stop"
         case .display: return "display"
         case .part: return "part"
+        case .outfit: return "outfit"
         case .partKept: return "part_kept"
         case .partRefused: return "part_refused"
         case .animation: return "animation"
@@ -109,7 +112,7 @@ public enum NodeMessage: Hashable, Sendable, RawRepresentable, Codable {
     }
 
     /// The values of this version.
-    public static let known: [NodeMessage] = [.hello, .welcome, .manifest, .say, .stop, .display, .part, .partKept, .partRefused, .animation, .mood, .log, .task, .turn, .reasoning, .text, .tool, .reply, .audio, .done, .toolCall, .toolProgress, .toolResult, .toolCancel, .approval, .event, .ping, .pong, .error]
+    public static let known: [NodeMessage] = [.hello, .welcome, .manifest, .say, .stop, .display, .part, .outfit, .partKept, .partRefused, .animation, .mood, .log, .task, .turn, .reasoning, .text, .tool, .reply, .audio, .done, .toolCall, .toolProgress, .toolResult, .toolCancel, .approval, .event, .ping, .pong, .error]
 
     public init(from decoder: Decoder) throws {
         self.init(rawValue: try decoder.singleValueContainer().decode(String.self))

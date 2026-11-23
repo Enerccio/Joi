@@ -384,6 +384,21 @@ public class NodeSocket {
         return true;
     }
 
+    /**
+     * Tells the server the user put an outfit of her body on (since 1.12): it keeps it in the profile of this node and tells her; the
+     * nodes of the profile (this one too) get the event {@code body} and read her body again. An outfit the body has not is answered by
+     * {@link Listener#failed}. Not sent while the node is not connected.
+     *
+     * @return whether it was sent
+     */
+    public boolean outfit(String outfit) {
+        if (!connected()) {
+            return false;
+        }
+        send(NodeMessage.OUTFIT, null, null, new com.github.enerccio.joi.protocol.node.OutfitSwitch(outfit));
+        return true;
+    }
+
     /** Tells the server where the approval of a call the node asked the user about is (the result still comes as the call's result). */
     public void approval(String callId, com.github.enerccio.joi.protocol.node.ApprovalState state, String scope, String via) {
         send(NodeMessage.APPROVAL, null, null, new com.github.enerccio.joi.protocol.node.Approval(callId, state, scope, via));

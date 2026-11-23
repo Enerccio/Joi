@@ -64,6 +64,8 @@ public class OutfitDialog extends Dialog {
     private AppearanceService appearanceService;
 
     private final Body body;
+    /** The profile whose state a new outfit starts from; null for the default one. */
+    private final String profile;
     private final Outfit outfit;
     private final Model model;
     private final Runnable onSaved;
@@ -84,10 +86,25 @@ public class OutfitDialog extends Dialog {
      * @param onSaved runs once it is stored
      */
     public OutfitDialog(Body body, Model model, Outfit outfit, Runnable onSaved) {
+        this(body, null, model, outfit, onSaved);
+    }
+
+    /** @param profile the profile whose state of the body's parts is where a new outfit starts, null for the default one */
+    public OutfitDialog(Body body, String profile, Model model, Outfit outfit, Runnable onSaved) {
+        this.profile = profile;
         this.body = body;
         this.model = model;
         this.outfit = outfit;
         this.onSaved = onSaved;
+    }
+
+    /** What the body shows now in the profile. */
+    private Map<String, String> states() {
+        try {
+            return bodyService.partStates(body, profile);
+        } catch (Exception e) {
+            return body.partStateMap();
+        }
     }
 
     public void create() throws Exception {
@@ -117,10 +134,10 @@ public class OutfitDialog extends Dialog {
         H4 togglesTitle = new H4(loc.getValue(J_L.LABEL_OUTFIT_TOGGLES));
         Span togglesHint = new Span(loc.getValue(J_L.MSG_OUTFIT_TOGGLES_HINT));
         togglesHint.addClassName(CssStyles.HINT_TEXT);
-        Button fromBody = new Button(loc.getValue(J_L.LABEL_OUTFIT_FROM_BODY), e -> setToggles(BodyState.shownNow(model, body.partStateMap())));
+        Button fromBody = new Button(loc.getValue(J_L.LABEL_OUTFIT_FROM_BODY), e -> setToggles(BodyState.shownNow(model, states())));
         Div boxes = new Div();
         boxes.addClassName(JoiCssStyles.OUTFIT_TOGGLES);
-        Map<String, Boolean> start = outfit != null ? outfit.toggles() : BodyState.shownNow(model, body.partStateMap());
+        Map<String, Boolean> start = outfit != null ? outfit.toggles() : BodyState.shownNow(model, states());
         if (capabilities != null) {
             for (ModelCapabilities.Toggle toggle : capabilities.toggles()) {
                 String name = model.toggleName(toggle);

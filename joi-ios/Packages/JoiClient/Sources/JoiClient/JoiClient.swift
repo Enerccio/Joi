@@ -16,13 +16,17 @@ public actor JoiClient {
     private let encoder = JoiJSON.makeEncoder()
     private var refreshing: Task<Void, Error>?
     private let now: @Sendable () -> Date
+    /// This device's node id (the one it says hello with): the server answers the body of the profile this node is in.
+    private let nodeId: String?
 
     /// - Parameters:
     ///   - server: its address (`https://joi.example.com`), without the path of the API.
     ///   - clientID: what the server lists the device under (the OAuth `client_id`).
     ///   - clientName: what the user sees when they approve it (`Joi on Peter's iPhone`).
+    ///   - nodeId: the node id of this device, so the body it reads is the one of its profile; nil for the default profile's.
     public init(server: URL, store: CredentialStore, transport: HTTPTransport = URLSessionTransport(), clientID: String = "joi-ios",
-                clientName: String = "Joi iOS", now: @escaping @Sendable () -> Date = { Date() }) {
+                clientName: String = "Joi iOS", nodeId: String? = nil, now: @escaping @Sendable () -> Date = { Date() }) {
+        self.nodeId = nodeId
         self.server = server
         self.store = store
         self.transport = transport
@@ -68,7 +72,8 @@ public actor JoiClient {
     /// The body she is in, nil for none.
     public func body(_ joi: String) async throws -> BodyInfo? {
         do {
-            return try await get(JoiProtocolInfo.api + "/jois/" + escaped(joi) + "/body")
+            let node = nodeId.map { "?node=" + escaped($0) } ?? ""
+            return try await get(JoiProtocolInfo.api + "/jois/" + escaped(joi) + "/body" + node)
         } catch let error as ServerError where error.status == 404 && error.code == "no_body" {
             return nil
         }

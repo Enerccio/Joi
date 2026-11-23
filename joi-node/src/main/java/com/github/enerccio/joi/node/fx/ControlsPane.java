@@ -1,5 +1,6 @@
 package com.github.enerccio.joi.node.fx;
 
+import com.github.enerccio.joi.protocol.http.BodyOutfit;
 import com.github.enerccio.joi.protocol.http.BodyPart;
 import com.github.enerccio.joi.protocol.http.BodyPartState;
 import javafx.geometry.Insets;
@@ -37,6 +38,11 @@ final class ControlsPane extends ScrollPane {
     /** The section of her parts, replaced in its place when she moves into another body. */
     private Node partsSection;
     private boolean quiet;
+    private Consumer<BodyOutfit> onOutfit = outfit -> {
+    };
+    private ChoiceBox<BodyOutfit> outfitChoice;
+    /** The section of her outfits, replaced in its place when she moves into another body. */
+    private Node outfitsSection;
 
     ControlsPane() {
         sections.setPadding(new Insets(12));
@@ -49,6 +55,76 @@ final class ControlsPane extends ScrollPane {
     /** Called with the part and the state the user put it in. */
     void setOnSwitch(BiConsumer<BodyPart, BodyPartState> onSwitch) {
         this.onSwitch = onSwitch;
+    }
+
+    /** Called with the outfit the user chose to put on. */
+    void setOnOutfit(Consumer<BodyOutfit> onOutfit) {
+        this.onOutfit = onOutfit;
+    }
+
+    /**
+     * Her outfits, the one she wears chosen (none when no outfit fits what she wears now). The section is not there when the body
+     * has none, and after the parts when it has.
+     */
+    void outfits(List<BodyOutfit> outfits) {
+        Node next = null;
+        outfitChoice = null;
+        if (outfits != null && !outfits.isEmpty()) {
+            ChoiceBox<BodyOutfit> choice = new ChoiceBox<>();
+            choice.getItems().setAll(outfits);
+            choice.setConverter(new StringConverter<>() {
+                @Override
+                public String toString(BodyOutfit outfit) {
+                    return outfit == null ? "" : outfit.name();
+                }
+
+                @Override
+                public BodyOutfit fromString(String text) {
+                    return null;
+                }
+            });
+            BodyOutfit worn = outfits.stream().filter(BodyOutfit::worn).findFirst().orElse(null);
+            choice.setValue(worn);
+            Label description = new Label(worn == null ? "" : text(worn.description()));
+            description.setWrapText(true);
+            description.setStyle("-fx-opacity: 0.6;");
+            choice.valueProperty().addListener((o, before, now) -> {
+                if (now != null && !quiet) {
+                    description.setText(text(now.description()));
+                    onOutfit.accept(now);
+                }
+            });
+            outfitChoice = choice;
+            Label heading = new Label("Her outfit");
+            heading.setStyle("-fx-font-weight: bold;");
+            next = new VBox(6, heading, choice, description);
+        }
+        int at = outfitsSection == null ? -1 : sections.getChildren().indexOf(outfitsSection);
+        if (at >= 0 && next != null) {
+            sections.getChildren().set(at, next);
+        } else if (at >= 0) {
+            sections.getChildren().remove(at);
+        } else if (next != null) {
+            int parts = partsSection == null ? -1 : sections.getChildren().indexOf(partsSection);
+            sections.getChildren().add(parts < 0 ? sections.getChildren().size() : parts + 1, next);
+        }
+        outfitsSection = next;
+    }
+
+    /** Shows the outfit as the one she wears (null: none), without it being a change of the user. */
+    void showOutfit(BodyOutfit outfit) {
+        if (outfitChoice != null) {
+            quiet = true;
+            try {
+                outfitChoice.setValue(outfit);
+            } finally {
+                quiet = false;
+            }
+        }
+    }
+
+    private static String text(String text) {
+        return text == null ? "" : text;
     }
 
     /** A section of controls under a heading, after the ones before it. */
@@ -120,6 +196,10 @@ final class ControlsPane extends ScrollPane {
     void lockParts(boolean locked) {
         if (partsBox != null) {
             partsBox.setDisable(locked);
+        }
+        // an outfit sets parts too: not while a batch of them waits
+        if (outfitChoice != null) {
+            outfitChoice.setDisable(locked);
         }
     }
 

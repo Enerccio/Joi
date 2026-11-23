@@ -116,7 +116,7 @@ struct ChatView: View {
     /// Over her body: what she wears (when she has parts to switch) and the menu.
     private var controls: some View {
         HStack(spacing: 14) {
-            if !avatar.parts.isEmpty {
+            if !avatar.parts.isEmpty || !avatar.outfits.isEmpty {
                 Button { showingParts = true } label: { Image(systemName: "tshirt") }
                     .accessibilityLabel("Her look")
             }
@@ -143,6 +143,21 @@ struct PartsView: View {
                 if let note {
                     Text(note).font(.footnote).foregroundStyle(.secondary)
                 }
+                if !avatar.outfits.isEmpty {
+                    Section("Outfit") {
+                        Picker("Outfit", selection: Binding(get: { avatar.outfits.first(where: \.worn)?.id ?? "" }, set: { wear($0) })) {
+                            if !avatar.outfits.contains(where: \.worn) { Text("Own mix").tag("") }
+                            ForEach(avatar.outfits, id: \.id) { Text($0.name).tag($0.id) }
+                        }
+                        .disabled(chat.wearingOutfit != nil)
+                        if let worn = avatar.outfits.first(where: \.worn), let description = worn.description, !description.isEmpty {
+                            Text(description).font(.footnote).foregroundStyle(.secondary)
+                        }
+                        if let why = chat.outfitFailure {
+                            Text("Not changed: " + why).font(.footnote).foregroundStyle(.secondary)
+                        }
+                    }
+                }
                 ForEach(avatar.parts, id: \.id) { part in
                     if let states = part.states, states.count > 1 {
                         Picker(part.name, selection: Binding(get: { part.state ?? "" }, set: { choose(part, $0) })) {
@@ -159,9 +174,14 @@ struct PartsView: View {
             .navigationBarTitleDisplayMode(.inline)
             #endif
             .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } } }
-            .overlay { if chat.switchingPart != nil { ProgressView() } }
+            .overlay { if chat.switchingPart != nil || chat.wearingOutfit != nil { ProgressView() } }
         }
         .presentationDetents([.medium, .large])
+    }
+
+    private func wear(_ outfit: String) {
+        guard !outfit.isEmpty, avatar.outfits.first(where: \.worn)?.id != outfit else { return }
+        Task { await chat.wearOutfit(outfit) }
     }
 
     private func choose(_ part: BodyPart, _ state: String) {

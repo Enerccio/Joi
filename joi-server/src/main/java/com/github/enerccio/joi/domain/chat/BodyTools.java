@@ -56,17 +56,18 @@ public class BodyTools implements InitializingBean, DisposableBean {
         registration = chatService.addEventListener(TurnEvents.COLLECT_TOOLS, (event, chain) -> {
             try {
                 Joi joi = event.getJoi();
-                Body body = bodyService.active(joi);
+                String profile = event.getInput() == null ? null : event.getInput().profile();
+                Body body = bodyService.active(joi, profile);
                 List<BodyService.PartOption> options = body == null ? List.of() : bodyService.partOptions(body);
                 // always offered, with or without parts, outfits or a second body: the model renders the tools before the history, so a
                 // list that comes and goes makes the server's cache of the prompt start over (the functions say so when there is nothing)
                 List<Body> bodies = bodyService.findForJoi(joi);
                 List<FunctionDefinition> functions = new ArrayList<>();
-                functions.add(changeBodyPart(joi, options));
-                functions.add(listOutfits(joi));
-                functions.add(setOutfit(joi));
-                functions.add(listBodies(joi));
-                functions.add(switchBody(joi, bodies));
+                functions.add(changeBodyPart(joi, profile, options));
+                functions.add(listOutfits(joi, profile));
+                functions.add(setOutfit(joi, profile));
+                functions.add(listBodies(joi, profile));
+                functions.add(switchBody(joi, profile, bodies));
                 event.setFunctions(event.getFunctions().and(FunctionSet.bind(functions, this)));
             } catch (Exception e) {
                 // no function this turn: she can still talk
@@ -83,7 +84,7 @@ public class BodyTools implements InitializingBean, DisposableBean {
         }
     }
 
-    private FunctionDefinition changeBodyPart(Joi joi, List<BodyService.PartOption> options) {
+    private FunctionDefinition changeBodyPart(Joi joi, String profile, List<BodyService.PartOption> options) {
         ObjectNode schema = jackson.createObjectNode();
         schema.put("type", "object");
         ObjectNode properties = schema.putObject("properties");
@@ -112,12 +113,12 @@ public class BodyTools implements InitializingBean, DisposableBean {
                 return;
             }
             try {
-                Body body = bodyService.active(joi);
+                Body body = bodyService.active(joi, profile);
                 if (body == null) {
                     continuation.fail("You are in no body");
                     return;
                 }
-                String answer = bodyService.changePart(body, part, state);
+                String answer = bodyService.changePart(body, profile, part, state);
                 continuation.complete(answer);
             } catch (IllegalArgumentException e) {
                 continuation.fail(e.getMessage());
@@ -128,13 +129,13 @@ public class BodyTools implements InitializingBean, DisposableBean {
         });
     }
 
-    private FunctionDefinition listOutfits(Joi joi) {
+    private FunctionDefinition listOutfits(Joi joi, String profile) {
         return FunctionDefinition.dynamic(LIST_OUTFITS, "Lists the outfits of your body, each with what you look like in it, "
                 + "and the one you wear now. Use it when you want to choose what to wear, or when you are asked what you have.",
                 emptySchema(), (continuation, arguments) -> {
             try {
                 // the body she is in when she asks: she may have moved into another one in this turn
-                Body body = bodyService.active(joi);
+                Body body = bodyService.active(joi, profile);
                 if (body == null) {
                     continuation.fail("You are in no body");
                     return;
@@ -144,7 +145,7 @@ public class BodyTools implements InitializingBean, DisposableBean {
                     continuation.complete("The body you are in has no outfits.");
                     return;
                 }
-                Outfit wearing = bodyService.currentOutfit(body);
+                Outfit wearing = bodyService.currentOutfit(body, profile);
                 StringBuilder text = new StringBuilder("Your outfits:");
                 for (Outfit outfit : outfits) {
                     text.append("\n- ").append(outfit.name()).append(wearing != null && wearing.id().equals(outfit.id()) ? " (you wear it now)" : "")
@@ -160,7 +161,7 @@ public class BodyTools implements InitializingBean, DisposableBean {
         });
     }
 
-    private FunctionDefinition setOutfit(Joi joi) {
+    private FunctionDefinition setOutfit(Joi joi, String profile) {
         ObjectNode schema = jackson.createObjectNode();
         schema.put("type", "object");
         ObjectNode properties = schema.putObject("properties");
@@ -177,12 +178,12 @@ public class BodyTools implements InitializingBean, DisposableBean {
             }
             try {
                 // the body she is in when she asks: she may have moved into another one in this turn
-                Body body = bodyService.active(joi);
+                Body body = bodyService.active(joi, profile);
                 if (body == null) {
                     continuation.fail("You are in no body");
                     return;
                 }
-                String answer = bodyService.wearOutfit(body, outfit);
+                String answer = bodyService.wearOutfit(body, profile, outfit);
                 continuation.complete(answer);
             } catch (IllegalArgumentException e) {
                 continuation.fail(e.getMessage());
@@ -192,12 +193,12 @@ public class BodyTools implements InitializingBean, DisposableBean {
         });
     }
 
-    private FunctionDefinition listBodies(Joi joi) {
+    private FunctionDefinition listBodies(Joi joi, String profile) {
         return FunctionDefinition.dynamic(LIST_BODIES, "Lists your bodies, each with what it looks like and its outfits, and the one "
                 + "you are in. Use it when you want to choose a body, or when you are asked what you have.", emptySchema(), (continuation, arguments) -> {
             try {
                 StringBuilder text = new StringBuilder("Your bodies:");
-                for (BodyService.BodyInfo info : bodyService.bodyInfos(joi)) {
+                for (BodyService.BodyInfo info : bodyService.bodyInfos(joi, profile)) {
                     text.append("\n- ").append(info.name()).append(info.active() ? " (you are in it now)" : "")
                             .append(StringUtils.isBlank(info.description()) ? "" : ": " + info.description().strip());
                     if (!info.outfits().isEmpty()) {
@@ -212,7 +213,7 @@ public class BodyTools implements InitializingBean, DisposableBean {
         });
     }
 
-    private FunctionDefinition switchBody(Joi joi, List<Body> bodies) {
+    private FunctionDefinition switchBody(Joi joi, String profile, List<Body> bodies) {
         ObjectNode schema = jackson.createObjectNode();
         schema.put("type", "object");
         ObjectNode properties = schema.putObject("properties");
@@ -232,7 +233,7 @@ public class BodyTools implements InitializingBean, DisposableBean {
                 return;
             }
             try {
-                String answer = bodyService.switchBody(joi, target);
+                String answer = bodyService.switchBody(joi, profile, target);
                 continuation.complete(answer);
             } catch (IllegalArgumentException e) {
                 continuation.fail(e.getMessage());

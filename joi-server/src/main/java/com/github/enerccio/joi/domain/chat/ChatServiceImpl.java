@@ -61,6 +61,9 @@ public class ChatServiceImpl implements ChatService, InitializingBean, Disposabl
     private PersonaService personaService;
 
     @Autowired
+    private com.github.enerccio.joi.domain.service.ProfileService profileService;
+
+    @Autowired
     private ChatMessageService chatMessageService;
 
     @Autowired
@@ -212,7 +215,9 @@ public class ChatServiceImpl implements ChatService, InitializingBean, Disposabl
         List<String> images = checkImages(joi, input.images());
         TurnEngine engine = new TurnEngine(joi, ai,
                 new TurnInput(StringUtils.defaultString(input.text()).strip(), StringUtils.defaultIfBlank(input.node(), null), input.speak(),
-                        input.pieces(), StringUtils.defaultIfBlank(input.eventKind(), null), images),
+                        input.pieces(), StringUtils.defaultIfBlank(input.eventKind(), null), images,
+                        // a turn from no node is in the profile she was in last
+                        input.profile() != null ? input.profile() : profileService.last(joi)),
                 listener == null ? new Listener() {
                 } : listener, RequestContextHolder.getRequestAttributes());
         running.add(engine);

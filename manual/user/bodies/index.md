@@ -14,6 +14,8 @@ Her body is a 3D model that a node draws next to the chat, or on a Looking Glass
 - A **body** belongs to one assistant and is made of your models. One of her bodies is active: the one she is in. It keeps the
   state of her parts and her outfits. See [Bodies of an assistant](bodies.md).
 - An **outfit** is a preset of the model's parts with a description. See [Outfits](outfits.md).
+- A **profile** is a place she is in (home, work): its own body and state of parts and outfit, for the nodes you assign to it. See
+  [Profiles](profiles.md).
 
 ![The Bodies tab](../../images/tab-bodies-saiki.png)
 

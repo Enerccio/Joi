@@ -115,7 +115,7 @@ public final class AppModel {
             store.save(Credentials())
             defaults.removeObject(forKey: Keys.credentialsServer)
         }
-        let client = JoiClient(server: server, store: store, transport: transport, clientName: "Joi on \(Self.deviceName)")
+        let client = JoiClient(server: server, store: store, transport: transport, clientName: "Joi on \(Self.deviceName)", nodeId: nodeId)
         self.client = client
         do {
             let info = try await client.info()

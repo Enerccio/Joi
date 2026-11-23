@@ -147,7 +147,10 @@ public class ServerClient {
     /** The body she is in, null for none. */
     public BodyInfo body(String joi) throws IOException, InterruptedException {
         try {
-            return get(JoiProtocol.API + "/jois/" + joi + "/body", BodyInfo.class, true);
+            // the body of the profile this node is in (its stable id says which: the server keeps the assignment)
+            String node = settings.node().nodeId;
+            return get(JoiProtocol.API + "/jois/" + joi + "/body" + (node == null ? ""
+                    : "?node=" + java.net.URLEncoder.encode(node, java.nio.charset.StandardCharsets.UTF_8)), BodyInfo.class, true);
         } catch (ServerException e) {
             if (e.status() == 404 && "no_body".equals(e.code())) {
                 return null;

@@ -1395,7 +1395,8 @@ UI — nothing is deleted):
     and switches it: its **controls panel** (`fx/ControlsPane`, between the chat and her body, a panel for the node's
     controls in general, in sections; the first is *Her parts*: a box for a part that is shown or hidden, a choice
     for a group's states) sends `part` (1.5) staged as above, disabled while the node is not connected, and locked while a batch waits. A switch made in the server's
-    UI does not reach a node that is already running yet (it shows it at its next start). Next: her tools. Toggles come from the model's capabilities (its meshes and
+    UI or by another node reaches a running node: the server sends the `event` `body` (`BodyServiceImpl.bodyChanged`,
+    after the commit) and the node reads her body again (`resync` in the JavaFX node, `AppModel` on iOS). Next: her tools. Toggles come from the model's capabilities (its meshes and
   "hide X" shape keys, kept by the converter), but **only the described parts can be toggled** (the *Describe* box
   in the model's dialog): she can't change what she has no words for, and every toggle changes her look. The rest
   stay as the model comes, and are only tried on the preview. Her prompt and her tools list only the described parts.
@@ -1428,6 +1429,25 @@ UI — nothing is deleted):
     twice): one `body.added` event with what each is, and what is new while that event still waits is **added to it**
     instead of making another. Nothing is queued before she has chatted.
   - Not built: outfits on the node's controls panel, outfits in the `.joim`, an outfit that holds accessories.
+  - **Profiles (built).** A **profile** (home, work) is the state of her bodies in one place: the body she is in and the
+    state of its parts and outfit (`Profiles`, `ProfileService`; one JSON extended attribute of the assistant, no migration).
+    The default profile is what the bodies keep themselves, so an assistant with no profiles works as before. Each node is
+    assigned to one profile by its stable id (the user does it in the Profiles tab of her dialog; the names of the nodes that
+    connected are remembered so one can be assigned while away); a node in none is in the default profile. A new profile starts
+    as the default one is. `GET .../body?node=<nodeId>` (protocol 1.12) gives the body of the node's profile, and a change is
+    pushed (`event` `body`) only to the nodes of its profile. She stays one mind: her prompt shows the look of the profile of
+    the node the turn comes from (`{{profile}}`; when there is more than one), a turn from another profile than her last turn
+    was in says she moved (`{{profileFrom}}`), her functions change the profile of the turn, and an event about her body is
+    queued only for the profile she was in last (a change elsewhere is told by that note when she moves). A turn the server
+    starts (a task that ended, a summary) goes to the node with the most recent user activity (a `say`, a `part`, a
+    `display`), among the ones that speak, and she is in its profile; with no node connected it waits. In the UI the Bodies
+    tab has a Profile choice that sets the profile the body dialog and the active body are of.
+    **Outfits on the node (built, JavaFX):** `GET .../body` lists the outfits (`BodyInfo.outfits`, the worn one marked in the node's
+    profile) and the node sends `outfit` (1.12) when the user chooses one in the controls panel (*Her outfit*); the server wears it in
+    the node's profile, tells her as for a part, and every node of the profile reads her body again (the event `body`; the node also
+    takes every toggle from the body then, as an outfit sets toggles in no part). The iOS app has the same choice in its *Her look* sheet
+    (`PartsView`, `ChatModel.wearOutfit`: an `outfit` frame, ended by the `body` event or an `error`). Not built: the profile of an HTTP
+    chat that names no node (it is the profile of her last turn).
 - **Accessories** can also live **outside** the body: separate small models (glasses, hats, a scarf, a headset,
   earrings, a held mug or book, a pet on the shoulder) in an **accessory library** on the server, shared by all bodies,
   like animations.

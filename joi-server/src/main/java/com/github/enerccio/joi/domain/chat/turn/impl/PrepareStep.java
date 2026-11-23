@@ -24,6 +24,9 @@ public class PrepareStep extends TurnStepBase {
     private BodyService bodyService;
 
     @Autowired
+    private com.github.enerccio.joi.domain.service.ProfileService profileService;
+
+    @Autowired
     private MemoryService memoryService;
 
     @Autowired
@@ -41,7 +44,13 @@ public class PrepareStep extends TurnStepBase {
 
             ChatTemplateData data = new ChatTemplateData();
             data.setNode(StringUtils.defaultIfBlank(controller.getInput().node(), null));
-            data.setBody(bodyService.prompt(joi));
+            // she is in the profile of the node that talks to her; when it is another one than her last turn was in, she is told
+            String profile = controller.getInput().profile();
+            String last = profileService.last(joi);
+            data.setBody(bodyService.prompt(joi, profile, last));
+            if (!com.github.enerccio.joi.domain.bodies.Profiles.idOf(profile).equals(last)) {
+                profileService.used(joi, profile);
+            }
             data.setMemories(memoryService.important(joi, MEMORIES));
             data.setSummaries(summarizerService.prompt(joi));
             Actor voice = chatService.ttsModel(joi) == null ? null : chatService.voiceActor(joi);

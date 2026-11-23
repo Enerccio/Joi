@@ -62,6 +62,16 @@
     },
     "animations": {
       "$ref": "BodyAnimations.schema.json"
+    },
+    "outfits": {
+      "type": [
+        "array",
+        "null"
+      ],
+      "items": {
+        "$ref": "BodyOutfit.schema.json"
+      },
+      "description": "The outfits of the body, the one she wears marked (since 1.12); null from a server before."
     }
   },
   "required": [

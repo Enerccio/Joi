@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Enerccio/joi/protocol/v1/BodyOutfit.schema.json",
+  "title": "BodyOutfit",
+  "description": "An outfit of the body (since 1.12): a preset of its toggles. A node lists them and puts one on with an outfit frame.",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string",
+      "description": "The outfit's id."
+    },
+    "name": {
+      "type": "string"
+    },
+    "description": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "How she looks in it, null when it is not described."
+    },
+    "worn": {
+      "type": "boolean",
+      "description": "Whether she wears it now: the state of the body's toggles is the outfit's."
+    }
+  },
+  "required": [
+    "id",
+    "name",
+    "worn"
+  ]
+}

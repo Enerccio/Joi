@@ -13,6 +13,7 @@ public enum NodeFrameData: Hashable, Sendable {
     case stop(Stop)
     case display(Display)
     case part(PartSwitch)
+    case outfit(OutfitSwitch)
     case partKept(PartKept)
     case partRefused(PartRefused)
     case animation(PlayAnimation)
@@ -52,6 +53,7 @@ extension Frame {
         case "stop": return .stop(try decodeData(Stop.self))
         case "display": return .display(try decodeData(Display.self))
         case "part": return .part(try decodeData(PartSwitch.self))
+        case "outfit": return .outfit(try decodeData(OutfitSwitch.self))
         case "part_kept": return .partKept(try decodeData(PartKept.self))
         case "part_refused": return .partRefused(try decodeData(PartRefused.self))
         case "animation": return .animation(try decodeData(PlayAnimation.self))
@@ -111,6 +113,11 @@ extension Frame {
     /// A `part` frame.
     public static func part(_ data: PartSwitch, id: String? = nil, ref: String? = nil) throws -> Frame {
         Frame(type: "part", id: id, ref: ref, data: try encodeData(data))
+    }
+
+    /// A `outfit` frame.
+    public static func outfit(_ data: OutfitSwitch, id: String? = nil, ref: String? = nil) throws -> Frame {
+        Frame(type: "outfit", id: id, ref: ref, data: try encodeData(data))
     }
 
     /// A `part_kept` frame.

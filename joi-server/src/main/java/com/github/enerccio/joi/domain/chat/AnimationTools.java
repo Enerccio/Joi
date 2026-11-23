@@ -52,7 +52,7 @@ public class AnimationTools implements InitializingBean, DisposableBean {
         registration = chatService.addEventListener(TurnEvents.COLLECT_TOOLS, (event, chain) -> {
             try {
                 Joi joi = event.getJoi();
-                Body body = bodyService.active(joi);
+                Body body = bodyService.active(joi, event.getInput() == null ? null : event.getInput().profile());
                 List<AnimationPack> animations = body == null ? List.of() : bodyService.animations(body);
                 // always offered, even with no animation: the model renders the tools before the history, so a list that comes and goes
                 // makes the server's cache of the prompt start over (the function says so when she has none)

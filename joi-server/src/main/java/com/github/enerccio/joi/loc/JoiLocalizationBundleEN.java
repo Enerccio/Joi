@@ -231,6 +231,17 @@ public class JoiLocalizationBundleEN extends TextBundleBase<J_L> {
         setValue(J_L.LABEL_TOOL_FAILED, "failed");
         setValue(J_L.LABEL_EVENT, "Event");
         setValue(J_L.LABEL_BODIES, "Bodies");
+        setValue(J_L.LABEL_PROFILES, "Profiles");
+        setValue(J_L.LABEL_PROFILE, "Profile");
+        setValue(J_L.LABEL_ADD_PROFILE, "Add profile");
+        setValue(J_L.LABEL_RENAME_PROFILE, "Rename profile");
+        setValue(J_L.LABEL_PROFILE_NODES, "Nodes");
+        setValue(J_L.LABEL_NODE_ID, "Node id");
+        setValue(J_L.LABEL_NODE_CONNECTED, "Connected");
+        setValue(J_L.HELP_PROFILES, "A profile is a place she is in (home, work): her body there and how its parts and outfit are. A new profile starts as the default one is. Change a profile in the Bodies tab (choose it there); the nodes you assign to it show it, and the others do not follow.");
+        setValue(J_L.HELP_PROFILE_NODES, "Each node is in one profile. A node that is in none is in the default profile. What she is told follows the node that talks to her: when it is in another profile than her last turn was, she is told that she moved.");
+        setValue(J_L.MSG_NO_NODES_YET, "No node has connected to her yet.");
+        setValue(J_L.MSG_PROFILE_NAME_TAKEN, "She has a profile with this name already.");
         setValue(J_L.LABEL_ADD_3D_MODEL, "Add model");
         setValue(J_L.LABEL_NEW_3D_MODEL, "New model");
         setValue(J_L.LABEL_3D_MODELS, "Models");
@@ -677,6 +688,8 @@ public class JoiLocalizationBundleEN extends TextBundleBase<J_L> {
         setValue(J_L.DESC_TEMPLATE_OUTFIT_NAME, "The outfit's name.");
         setValue(J_L.DESC_TEMPLATE_OUTFIT_SHOWN, "The meshes of the model shown in the outfit; empty when not known.");
         setValue(J_L.DESC_TEMPLATE_OTHER_BODIES, "The names of her other bodies; empty when none.");
+        setValue(J_L.DESC_TEMPLATE_WHERE_SHE_IS, "The profile she is in (where she is: home, work); empty when she has only the default one.");
+        setValue(J_L.DESC_TEMPLATE_WHERE_SHE_WAS, "The profile she was in until now, when this turn is in another one; empty otherwise.");
         setValue(J_L.DESC_TEMPLATE_SNAPSHOTS, "The snapshots, in the order of the images; empty when there are none.");
         setValue(J_L.DESC_TEMPLATE_REFERENCES, "How many images of the user follow the snapshots; empty when none.");
         setValue(J_L.DESC_TEMPLATE_BODY_NOTES, "The user's notes on the model.");

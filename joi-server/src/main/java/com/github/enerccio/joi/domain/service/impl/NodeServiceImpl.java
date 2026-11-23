@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.github.enerccio.joi.api.JoiApi;
+import com.github.enerccio.joi.domain.bodies.Profiles;
 import com.github.enerccio.joi.domain.chat.ChatService;
 import com.github.enerccio.joi.domain.chat.ToolEffects;
 import com.github.enerccio.joi.domain.chat.ChatService.NoModelException;
@@ -112,6 +113,9 @@ public class NodeServiceImpl implements NodeService, InitializingBean, Disposabl
 
     @Autowired
     private BodyService bodyService;
+
+    @Autowired
+    private ProfileService profileService;
 
     @Autowired
     private QueuedEventService queuedEventService;
@@ -306,17 +310,48 @@ public class NodeServiceImpl implements NodeService, InitializingBean, Disposabl
         if (connected.isEmpty() || StringUtils.isBlank(text)) {
             return false;
         }
-        // one node tells her: the one whose greeting waits (it goes with the greeting), the first that speaks, else the first
+        // one node tells her: the one whose greeting waits (it goes with the greeting), else the one the user did something on last
+        // (that speaks: her answer is voiced there, and she is in the profile of that node), else the one used last
+        java.util.Comparator<NodeSession> recent = java.util.Comparator.comparingLong(NodeSession::lastActive);
         NodeSession session = connected.stream().filter(NodeSession::held).findFirst()
-                .or(() -> connected.stream().filter(NodeSession::speaks).findFirst()).orElse(connected.getFirst());
+                .or(() -> connected.stream().filter(NodeSession::speaks).max(recent))
+                .orElseGet(() -> connected.stream().max(recent).orElse(connected.getFirst()));
         pend(session, new NodeSession.Pending(text, null, cause));
         return true;
     }
 
     @Override
     public void notify(Joi joi, String event) {
+        notify(joi, event, null);
+    }
+
+    @Override
+    public void notify(Joi joi, String event, String profile) {
+        Profiles set = profiles(joi.getId());
         for (NodeSession session : sessions(joi)) {
-            session.send(NodeMessage.EVENT, null, null, new ServerEvent(event, Instant.now().toString()));
+            if (profile == null || Profiles.idOf(profile).equals(set.profileOf(nodeId(session)))) {
+                session.send(NodeMessage.EVENT, null, null, new ServerEvent(event, Instant.now().toString()));
+            }
+        }
+    }
+
+    @Override
+    public String profileOf(NodeSession session) {
+        return profiles(session.joiId()).profileOf(nodeId(session));
+    }
+
+    private static String nodeId(NodeSession session) {
+        return session.hello() == null ? null : session.hello().nodeId();
+    }
+
+    /** Her profiles as stored now; none when they can't be read. */
+    private Profiles profiles(Long joiId) {
+        try {
+            Joi stored = joiService.find(joiId);
+            return stored == null ? new Profiles() : stored.profileSet();
+        } catch (Exception e) {
+            log.debug("The profiles of {} were not read: {}", joiId, e.getMessage());
+            return new Profiles();
         }
     }
 
@@ -474,10 +509,23 @@ public class NodeServiceImpl implements NodeService, InitializingBean, Disposabl
             switch (type) {
                 case HELLO -> hello(session, frame);
                 case MANIFEST -> manifest(session, frame);
-                case SAY -> say(session, frame);
+                case SAY -> {
+                    session.active();
+                    say(session, frame);
+                }
                 case STOP -> stop(session, frame);
-                case DISPLAY -> display(session, frame);
-                case PART -> partSwitch(session, frame);
+                case DISPLAY -> {
+                    session.active();
+                    display(session, frame);
+                }
+                case PART -> {
+                    session.active();
+                    partSwitch(session, frame);
+                }
+                case OUTFIT -> {
+                    session.active();
+                    outfitSwitch(session, frame);
+                }
                 case TOOL_PROGRESS -> progress(session, frame);
                 case TOOL_RESULT -> result(session, frame);
                 case APPROVAL -> approval(session, frame);
@@ -563,6 +611,12 @@ public class NodeServiceImpl implements NodeService, InitializingBean, Disposabl
             }
             name = joiService.name(joi);
             last = chatMessageService.findLastSentAt(List.of(joi)).get(joi.getId());
+            try {
+                // remembered by its name: the user assigns it to a profile in her dialog
+                profileService.seen(joi, hello.nodeId(), hello.name());
+            } catch (Exception e) {
+                log.debug("The node {} was not remembered: {}", hello.name(), e.getMessage());
+            }
         }
         session.welcome(principal, attributes, joi, hello);
         NodeSession before = registered.put(key(session), session);
@@ -832,13 +886,18 @@ public class NodeServiceImpl implements NodeService, InitializingBean, Disposabl
         boolean kept = true;
         try (InRequestScope _ = new InRequestScope(session.attributes())) {
             Joi joi = joiService.find(session.joiId());
-            Body body = joi == null ? null : bodyService.active(joi);
+            String profile = joi == null ? null : profileOf(session);
+            if (joi != null) {
+                // what she is doing now is in this profile: what changes in it is told to her as it happens
+                profileService.used(joi, profile);
+            }
+            Body body = joi == null ? null : bodyService.active(joi, profile);
             require(body != null, "She is in no body");
             boolean told = chatService.chatModel(joi) != null && chatMessageService.hasAny(joi);
             if (told && personaService.personalityOf(joi).decidesOnParts()) {
                 BodyService.PartRequest request;
                 try {
-                    request = bodyService.partRequest(body, change.part(), change.state());
+                    request = bodyService.partRequest(body, profile, change.part(), change.state());
                 } catch (IllegalArgumentException e) {
                     throw new IllegalArgumentException("Her body has no part " + change.part() + " in the state " + change.state());
                 }
@@ -854,7 +913,7 @@ public class NodeServiceImpl implements NodeService, InitializingBean, Disposabl
             } else {
                 List<QueuedEvent> events;
                 try {
-                    events = bodyService.switchPart(body, change.part(), change.state());
+                    events = bodyService.switchPart(body, profile, change.part(), change.state());
                 } catch (IllegalArgumentException e) {
                     throw new IllegalArgumentException("Her body has no part " + change.part() + " in the state " + change.state());
                 }
@@ -870,6 +929,42 @@ public class NodeServiceImpl implements NodeService, InitializingBean, Disposabl
         }
         if (frame.id() != null) {
             session.send(NodeMessage.PART_KEPT, null, frame.id(), new PartKept(change.part(), change.state(), text != null));
+        }
+        if (text != null) {
+            pend(session, new NodeSession.Pending(text, null));
+        }
+    }
+
+    /**
+     * The user put an outfit on, on a node: kept in the profile of the node, and she is told as for a part (it is a user's
+     * change, told in the turn that follows with what else waits). The nodes of the profile read her body again (the event
+     * {@code body}, the sender too); an outfit the body has not is an error.
+     */
+    private void outfitSwitch(NodeSession session, Frame frame) throws Exception {
+        OutfitSwitch change = data(frame, OutfitSwitch.class);
+        require(StringUtils.isNotBlank(change.outfit()), "outfit is what was put on");
+        String text = null;
+        try (InRequestScope _ = new InRequestScope(session.attributes())) {
+            Joi joi = joiService.find(session.joiId());
+            String profile = joi == null ? null : profileOf(session);
+            if (joi != null) {
+                profileService.used(joi, profile);
+            }
+            Body body = joi == null ? null : bodyService.active(joi, profile);
+            require(body != null, "She is in no body");
+            List<QueuedEvent> events;
+            try {
+                events = bodyService.wear(body, profile, change.outfit());
+            } catch (IllegalArgumentException e) {
+                throw new IllegalArgumentException("Her body has no outfit " + change.outfit());
+            }
+            QueuedEvent event = events.isEmpty() ? null : events.getFirst();
+            if (event != null) {
+                queuedEventService.markDelivered(event, null);
+                if (chatService.chatModel(joi) != null && chatMessageService.hasAny(joi)) {
+                    text = event.getText();
+                }
+            }
         }
         if (text != null) {
             pend(session, new NodeSession.Pending(text, null));
@@ -951,12 +1046,13 @@ public class NodeServiceImpl implements NodeService, InitializingBean, Disposabl
         }
         try (InRequestScope _ = new InRequestScope(session.attributes())) {
             Joi joi = joiService.find(session.joiId());
-            Body body = joi == null ? null : bodyService.active(joi);
+            String profile = joi == null ? null : profileOf(session);
+            Body body = joi == null ? null : bodyService.active(joi, profile);
             if (body == null) {
                 throw new IllegalArgumentException("She is in no body");
             }
             // she decided on it herself, it is not told to her again
-            for (QueuedEvent event : bodyService.switchPart(body, request.part(), request.state())) {
+            for (QueuedEvent event : bodyService.switchPart(body, profile, request.part(), request.state())) {
                 queuedEventService.markDelivered(event, null);
             }
         } catch (IllegalArgumentException e) {
@@ -1052,7 +1148,9 @@ public class NodeServiceImpl implements NodeService, InitializingBean, Disposabl
      *
      * @return false when it could not start (she has no model): the node was told
      */
-    private boolean startTurn(NodeSession session, String turn, Joi joi, TurnInput input, boolean reasoning) throws Exception {
+    private boolean startTurn(NodeSession session, String turn, Joi joi, TurnInput node, boolean reasoning) throws Exception {
+        // she is in the profile of the node that talks to her
+        TurnInput input = node.withProfile(profileOf(session));
         CompletableFuture<ChatService.Result> result;
         session.produced(false);
         try (InRequestScope _ = new InRequestScope(session.attributes())) {

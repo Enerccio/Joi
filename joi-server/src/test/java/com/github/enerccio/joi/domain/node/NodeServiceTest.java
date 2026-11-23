@@ -56,6 +56,8 @@ class NodeServiceTest extends PlatformTestBase {
     @Autowired
     private NodeService nodeService;
     @Autowired
+    private com.github.enerccio.joi.domain.service.ProfileService profileService;
+    @Autowired
     private com.github.enerccio.joi.domain.service.ChatImageService imageService;
     @Autowired
     private com.github.enerccio.marginalia.domain.service.AIService aiService;
@@ -276,6 +278,8 @@ class NodeServiceTest extends PlatformTestBase {
         com.github.enerccio.marginalia.domain.model.impl.OpenAICompatible ai = createAI();
         ai.setMultimodal(true);
         ai = (com.github.enerccio.marginalia.domain.model.impl.OpenAICompatible) aiService.save(ai);
+        // read again: the node that connected was remembered on her
+        joi = joiService.find(joi.getId());
         joi.setChatModel(ai.getId());
         joi = joiService.save(joi);
         llm.enqueue(MockLLMResponse.text("A black picture."), MockLLMResponse.text("Only words."));
@@ -751,6 +755,73 @@ class NodeServiceTest extends PlatformTestBase {
         node.frame("part", "p3", "{\"part\": \"key:Headgear/Nope\", \"state\": \"hidden\"}");
         JsonObject error = node.next("error");
         assertThat(error.get("ref").getAsString()).isEqualTo("p3");
+        assertThat(error.getAsJsonObject("data").get("code").getAsString()).isEqualTo("bad_message");
+    }
+
+    @Test
+    void aPartSwitchedOnANodeChangesItsProfileOnlyAndOnlyItsNodesReadTheBodyAgain() throws Exception {
+        Body body = haloBody();
+        String work = profileService.create(joi, "Work");
+        profileService.assign(joi, "n2", work);
+        Node home = connect("Bearer " + token);
+        home.hello("n1", "desk", joi.getUuid(), "1.12");
+        home.next("welcome");
+        home.manifest(1);
+        Node office = connect("Bearer " + token);
+        office.hello("n2", "laptop", joi.getUuid(), "1.12");
+        office.next("welcome");
+        office.manifest(1);
+
+        office.frame("part", null, "{\"part\": \"key:Headgear/Hide Halo\", \"state\": \"hidden\"}");
+        // the node of the profile reads her body again; the other one is not told
+        assertThat(office.next("event").getAsJsonObject("data").get("name").getAsString()).isEqualTo("body");
+        assertThat(home.frames.stream().map(frame -> frame.get("type").getAsString())).doesNotContain("event");
+        assertThat(bodyService.partStates(bodyService.find(body.getId()), work)).containsEntry("key:Headgear/Hide Halo", "hidden");
+        assertThat(bodyService.find(body.getId()).partStateMap()).doesNotContainKey("key:Headgear/Hide Halo");
+        // what she did last is where she is
+        assertThat(profileService.last(joi)).isEqualTo(work);
+
+        // a change of the default profile reaches the home node and not the office
+        bodyService.switchPart(bodyService.find(body.getId()), "key:Headgear/Hide Halo", "hidden");
+        assertThat(home.next("event").getAsJsonObject("data").get("name").getAsString()).isEqualTo("body");
+        assertThat(office.frames.stream().map(frame -> frame.get("type").getAsString())).doesNotContain("event");
+    }
+
+    @Test
+    void anOutfitPutOnOnANodeIsKeptInItsProfileAndTheNodesOfTheProfileReadTheBodyAgain() throws Exception {
+        Body body = haloBody();
+        com.github.enerccio.joi.domain.bodies.Outfit plain = bodyService.addOutfit(body, "Plain", "Nothing floats above you.",
+                java.util.Map.of("key:Headgear/Hide Halo", false));
+        bodyService.addOutfit(body, "Haloed", "A golden halo floats above you.", java.util.Map.of("key:Headgear/Hide Halo", true));
+        String work = profileService.create(joi, "Work");
+        profileService.assign(joi, "n2", work);
+        llm.enqueue(MockLLMResponse.text("Hello."), MockLLMResponse.text("Oh, plain."));
+        Node home = connect("Bearer " + token);
+        home.hello("n1", "desk", joi.getUuid(), "1.12");
+        home.next("welcome");
+        home.manifest(1);
+        Node office = connect("Bearer " + token);
+        office.hello("n2", "laptop", joi.getUuid(), "1.12");
+        office.next("welcome");
+        office.manifest(1);
+        office.frame("say", "t1", "{\"text\": \"Hi\", \"speak\": false}");
+        office.next("done");
+
+        office.frame("outfit", "o1", "{\"outfit\": \"" + plain.id() + "\"}");
+        assertThat(office.next("event").getAsJsonObject("data").get("name").getAsString()).isEqualTo("body");
+        // she is told, as for a part
+        assertThat(office.next("turn").getAsJsonObject("data").get("cause").getAsString()).isEqualTo("part_switched");
+        office.next("done");
+        assertThat(bodyService.currentOutfit(bodyService.find(body.getId()), work).name()).isEqualTo("Plain");
+        assertThat(bodyService.partStates(bodyService.find(body.getId()), work).values()).isNotEmpty();
+        // the default profile's body and its node are as they were
+        assertThat(bodyService.currentOutfit(bodyService.find(body.getId()))).extracting(o -> o == null ? null : o.name()).isEqualTo("Haloed");
+        assertThat(home.frames.stream().map(frame -> frame.get("type").getAsString())).doesNotContain("event");
+
+        // an outfit the body has not
+        office.frame("outfit", "o2", "{\"outfit\": \"nope\"}");
+        JsonObject error = office.next("error");
+        assertThat(error.get("ref").getAsString()).isEqualTo("o2");
         assertThat(error.getAsJsonObject("data").get("code").getAsString()).isEqualTo("bad_message");
     }
 
@@ -1386,6 +1457,43 @@ class NodeServiceTest extends PlatformTestBase {
         assertThat(node.next("turn").getAsJsonObject("data").get("cause").getAsString()).isEqualTo("task_ended");
         node.next("done");
         assertThat(chatMessageService.findLatest(joi, 1).getFirst().getInput()).contains("The answer.");
+    }
+
+    @Test
+    void aTurnTheServerStartsGoesToTheNodeTheUserDidSomethingOnLastAndSheIsInItsProfile() throws Exception {
+        haloBody();
+        String work = profileService.create(joi, "Work");
+        profileService.assign(joi, "n2", work);
+        llm.enqueue(MockLLMResponse.text("Hi."), MockLLMResponse.text("Found it."), MockLLMResponse.text("Hi again."), MockLLMResponse.text("Found more."));
+        Node home = connect("Bearer " + token);
+        home.hello("n1", "desk", joi.getUuid(), "1.12");
+        home.next("welcome");
+        home.manifest(1);
+        Node office = connect("Bearer " + token);
+        office.hello("n2", "laptop", joi.getUuid(), "1.12");
+        office.next("welcome");
+        office.manifest(1);
+        // the nodes that connected are remembered by name, for the user to assign them
+        assertThat(profileService.profiles(joi).knownNodes()).containsEntry("n1", "desk").containsEntry("n2", "laptop");
+
+        // the user talked at the office last: the task that ended is told there, and she is in the profile of that node
+        home.frame("say", "t1", "{\"text\": \"Hi\", \"speak\": false}");
+        home.next("done");
+        office.frame("say", "t2", "{\"text\": \"Hi again\", \"speak\": false}");
+        office.next("done");
+        assertThat(nodeService.tell(joi, "[Event: your task is finished.]", "task_ended")).isTrue();
+        assertThat(office.next("turn").getAsJsonObject("data").get("cause").getAsString()).isEqualTo("task_ended");
+        office.next("done");
+        assertThat(home.frames.stream().map(frame -> frame.get("type").getAsString())).doesNotContain("turn");
+        assertThat(profileService.last(joi)).isEqualTo(work);
+
+        // and when the user is back at home, there
+        home.frame("say", "t3", "{\"text\": \"Back\", \"speak\": false}");
+        home.next("done");
+        assertThat(profileService.last(joi)).isEqualTo(com.github.enerccio.joi.domain.bodies.Profiles.DEFAULT);
+        llm.enqueue(MockLLMResponse.text("Found more."));
+        assertThat(nodeService.tell(joi, "[Event: another task is finished.]", "task_ended")).isTrue();
+        assertThat(home.next("turn").getAsJsonObject("data").get("cause").getAsString()).isEqualTo("task_ended");
     }
 
     @Test

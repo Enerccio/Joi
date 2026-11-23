@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Joi API
-  version: "1.11"
+  version: "1.12"
   description: |
     The HTTP API of a Joi server for nodes and other clients: the assistants of the user, chat with one of them,
     answered in text and speech, and the body she is in with the files to show it (`.joim`, `.joia`). The message shapes are the JSON Schemas in `schemas/` (the source of truth); the Java
@@ -212,8 +212,18 @@ paths:
 
         A client caches the files by their `sha256` and downloads one again only when it changed. A file whose
         `current` is false is older than what is set up: it is written again when the user exits its dialog.
+
+        **Profiles** (since 1.12). She has a profile per place (home, work) with its own body and state of the parts,
+        and the user assigns each node to one. `node` is the stable id the node says hello with: the answer is the body of
+        the profile that node is in. Without it (or for a node that is assigned to none) it is the default profile's body.
+        The server sends the `event` `body` only to the nodes of the profile that changed.
       parameters:
         - { $ref: "#/components/parameters/JoiId" }
+        - name: node
+          in: query
+          required: false
+          description: The id of the node (its `hello.nodeId`), for the body of its profile (since 1.12)
+          schema: { type: string }
       responses:
         "200":
           description: Her body

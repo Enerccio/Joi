@@ -11,7 +11,7 @@ into this body**, **Open** and **Delete**. **Add body** makes a new one.
 
 ![The Bodies tab of her dialog](../../images/joi-bodies.png)
 
-The first body she gets becomes active. She can only switch between the bodies on her list.
+The first body she gets becomes active. She can only switch between the bodies on her list. With [profiles](profiles.md) each place she is in (home, work) has its own active body.
 
 ## The body dialog
 

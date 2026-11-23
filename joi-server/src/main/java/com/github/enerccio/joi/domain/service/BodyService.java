@@ -21,6 +21,9 @@ public interface BodyService extends ExtendableService<Body, BodyRepository> {
     /** The body she is in, null for none. */
     Body active(Joi joi) throws Exception;
 
+    /** As above in the profile (null for the default one; see {@code ProfileService}). */
+    Body active(Joi joi, String profile) throws Exception;
+
     /** The bodies made of the model (as the full one or the Looking Glass one): a model in use is not deleted. */
     List<Body> findByModel(Model model) throws Exception;
 
@@ -47,6 +50,9 @@ public interface BodyService extends ExtendableService<Body, BodyRepository> {
      */
     List<QueuedEvent> activate(Joi joi, Body body) throws Exception;
 
+    /** As above in the profile (null for the default one; see {@code ProfileService}). */
+    List<QueuedEvent> activate(Joi joi, String profile, Body body) throws Exception;
+
     /**
      * Tells her nodes that the body changed in a way the service did not see (its model or animations chosen in a dialog): they
      * read it again. Nothing when the body is not the one she is in.
@@ -69,11 +75,17 @@ public interface BodyService extends ExtendableService<Body, BodyRepository> {
      */
     String appearance(Body body) throws Exception;
 
+    /** As above in the profile (null for the default one; see {@code ProfileService}). */
+    String appearance(Body body, String profile) throws Exception;
+
     /**
      * Whether each toggle of the body's model is shown in the state the body is in ({@code BodyState}); empty when it
      * has no model or the model has no capabilities.
      */
     java.util.Map<String, Boolean> toggles(Body body) throws Exception;
+
+    /** As above in the profile (null for the default one; see {@code ProfileService}). */
+    java.util.Map<String, Boolean> toggles(Body body, String profile) throws Exception;
 
     /**
      * Switches a part of the body's model described apart ({@code DescribedPart}) to one of its states. When she is in
@@ -85,6 +97,9 @@ public interface BodyService extends ExtendableService<Body, BodyRepository> {
      */
     List<QueuedEvent> switchPart(Body body, String partId, String stateId) throws Exception;
 
+    /** As above in the profile (null for the default one; see {@code ProfileService}). */
+    List<QueuedEvent> switchPart(Body body, String profile, String partId, String stateId) throws Exception;
+
     /**
      * She switches a part of her body herself (the function she is offered): by the names she knows (the part's, the
      * state's: its name for a group, "shown" or "hidden" for a toggle; case does not matter). It is kept on the body like
@@ -94,6 +109,9 @@ public interface BodyService extends ExtendableService<Body, BodyRepository> {
      * @throws IllegalArgumentException with words for her when the body has no such part or state
      */
     String changePart(Body body, String partName, String stateName) throws Exception;
+
+    /** As above in the profile (null for the default one; see {@code ProfileService}). */
+    String changePart(Body body, String profile, String partName, String stateName) throws Exception;
 
     /** The parts she can switch in the body, each with the names of its states; empty for none. */
     List<PartOption> partOptions(Body body) throws Exception;
@@ -114,6 +132,9 @@ public interface BodyService extends ExtendableService<Body, BodyRepository> {
      * @throws IllegalArgumentException when the body has no such part or state
      */
     PartRequest partRequest(Body body, String partId, String stateId) throws Exception;
+
+    /** As above in the profile (null for the default one; see {@code ProfileService}). */
+    PartRequest partRequest(Body body, String profile, String partId, String stateId) throws Exception;
 
     /**
      * A request to change a part.
@@ -138,6 +159,13 @@ public interface BodyService extends ExtendableService<Body, BodyRepository> {
      * and the parts she can show or hide (named by the user), and her other bodies. Null when she is in none.
      */
     String prompt(Joi joi) throws Exception;
+
+    /**
+     * As above in the profile (null for the default one; see {@code ProfileService}).
+     *
+     * @param from the profile she was in until this turn, null when it is the same one: she is told that she moved
+     */
+    String prompt(Joi joi, String profile, String from) throws Exception;
 
     /**
      * The animations the body plays, by name: all of the user's when none were chosen ({@code BodyAnimations}), else
@@ -169,6 +197,9 @@ public interface BodyService extends ExtendableService<Body, BodyRepository> {
     /** The outfit the body's toggles are in the state of now, null when they are in the state of none. */
     Outfit currentOutfit(Body body) throws Exception;
 
+    /** As above in the profile (null for the default one; see {@code ProfileService}). */
+    Outfit currentOutfit(Body body, String profile) throws Exception;
+
     /**
      * Adds an outfit to the body.
      *
@@ -177,6 +208,9 @@ public interface BodyService extends ExtendableService<Body, BodyRepository> {
      * @throws IllegalArgumentException when the name is blank or the body has an outfit of that name (case aside)
      */
     Outfit addOutfit(Body body, String name, String description, java.util.Map<String, Boolean> toggles) throws Exception;
+
+    /** As above in the profile (null for the default one; see {@code ProfileService}). */
+    Outfit addOutfit(Body body, String profile, String name, String description, java.util.Map<String, Boolean> toggles) throws Exception;
 
     /**
      * Stores an outfit changed (by its id): its name, description and toggles.
@@ -197,6 +231,9 @@ public interface BodyService extends ExtendableService<Body, BodyRepository> {
      */
     List<QueuedEvent> wear(Body body, String outfitId) throws Exception;
 
+    /** As above in the profile (null for the default one; see {@code ProfileService}). */
+    List<QueuedEvent> wear(Body body, String profile, String outfitId) throws Exception;
+
     /**
      * She puts an outfit on herself (the function she is offered), by its name (case aside). It is kept like the
      * user's change, but she is not told of it as an event: what is returned is what she is told in the answer.
@@ -204,6 +241,9 @@ public interface BodyService extends ExtendableService<Body, BodyRepository> {
      * @throws IllegalArgumentException with words for her when the body has no such outfit
      */
     String wearOutfit(Body body, String outfitName) throws Exception;
+
+    /** As above in the profile (null for the default one; see {@code ProfileService}). */
+    String wearOutfit(Body body, String profile, String outfitName) throws Exception;
 
     /**
      * What this body is, in the words of her list: the user's description, else the model's (null when neither).
@@ -234,6 +274,9 @@ public interface BodyService extends ExtendableService<Body, BodyRepository> {
     /** Her bodies by name, each with its description and outfits. */
     List<BodyInfo> bodyInfos(Joi joi) throws Exception;
 
+    /** As above in the profile (null for the default one; see {@code ProfileService}). */
+    List<BodyInfo> bodyInfos(Joi joi, String profile) throws Exception;
+
     /**
      * She moves into another of her bodies (the function she is offered), by its name (case aside). It is kept like the
      * user's switch, but she is not told of it as an event: what is returned is what she is told in the answer.
@@ -241,4 +284,13 @@ public interface BodyService extends ExtendableService<Body, BodyRepository> {
      * @throws IllegalArgumentException with words for her when she has no such body
      */
     String switchBody(Joi joi, String bodyName) throws Exception;
+
+    /** As above in the profile (null for the default one; see {@code ProfileService}). */
+    String switchBody(Joi joi, String profile, String bodyName) throws Exception;
+
+    /** The state of the body's parts in the profile (null for the default one): the part's id → the state's id. */
+    java.util.Map<String, String> partStates(Body body, String profile) throws Exception;
+
+    /** The id of the profile that is the one of her last turn or change, where events about her body are told. */
+    String currentProfile(Joi joi) throws Exception;
 }

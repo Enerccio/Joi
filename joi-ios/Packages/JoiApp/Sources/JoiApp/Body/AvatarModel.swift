@@ -29,6 +29,8 @@ public final class AvatarModel {
     public private(set) var drawn = false
     /// The parts of her body that can be switched, each in the state it is in.
     public private(set) var parts: [BodyPart] = []
+    /// Her outfits, the one she wears in this node's profile marked `worn` (since 1.12).
+    public private(set) var outfits: [BodyOutfit] = []
     @ObservationIgnored public let bridge = RendererBridge()
     /// Where the renderer page is (`index.html` and its assets): a folder of the app's bundle.
     public let page: URL?
@@ -65,11 +67,13 @@ public final class AvatarModel {
                 bridge.show(.none)
                 drawn = false
                 parts = []
+                outfits = []
                 shownFiles = []
                 status = .none
                 return
             }
             parts = info.parts
+            outfits = info.outfits ?? []
             let files = [joim.sha256, info.animations.joia?.sha256]
             if status == .shown, files == shownFiles {
                 // the same files: what changed is her parts and her toggles

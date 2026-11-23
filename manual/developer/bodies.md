@@ -5,6 +5,8 @@ order: 720
 covers:
   - joi-server/src/main/java/com/github/enerccio/joi/domain/bodies
   - joi-server/src/main/java/com/github/enerccio/joi/domain/animations
+  - joi-server/src/main/java/com/github/enerccio/joi/domain/service/impl/BodyServiceImpl.java
+  - joi-server/src/main/java/com/github/enerccio/joi/domain/service/impl/ProfileServiceImpl.java
 verified: 47509ca
 ---
 
@@ -30,6 +32,39 @@ body of hers is active. Her bodies have different names, case aside (she switche
 | `SpringBones`, `SpringChain` | | the spring chains guessed from bone names and written into the VRM |
 | `Blender` | | runs headless Blender, one process at a time; each run is a call of the job of the conversion (see [Jobs](jobs.md)); its output is read on a thread of its own, so the timeout holds and a hung Blender is killed and frees the lock |
 | `ModelFiles`, `ConversionSource`, `ConversionReport` | | unpacking the upload, finding the avatar, what the converter reports |
+
+## Profiles
+
+A profile (home, work) is the state of an assistant's bodies in one place: the body she is in and the state of its parts and outfit
+(`domain/bodies/Profiles`, kept by `ProfileService` as one JSON extended attribute of the `Joi`, `Joi.profiles`, no migration). The
+**default profile** is not stored there: it is what the bodies keep themselves (`Body.active`, `Body.partStates`), so an assistant
+without profiles works as before and the existing state is the default profile. Another profile keeps its active body's uuid and, for each
+body, its part states (a new one starts as a copy of the default's). `Profiles` also has the nodes' assignment (node id → profile),
+the names of the nodes that connected (`seen`, at hello, so a node can be assigned while it is away) and the profile of her last turn
+(`last`).
+
+`BodyService`'s calls that read or change the state take the profile (`null` or `"default"` for the default one): `active(joi, profile)`,
+`partStates`, `switchPart`, `changePart`, `wear`, `wearOutfit`, `activate`, `switchBody`, `appearance`, `toggles`, `currentOutfit`,
+`bodyInfos`, `prompt`. The calls without it are the default profile (they are overrides with their own transaction, not default methods: a
+default method called through the proxy would run its inner call outside the transaction). A change calls `bodyChanged(joi, profile)`, which
+sends the `event` `body` through `NodeService.notify(joi, event, profile)` to the nodes in that profile only (a change of the default
+profile's active body, a deleted body or a model's change goes to all).
+
+Which profile a turn is in: a node's turn gets `TurnInput.profile` from `NodeService.profileOf(session)` (its `hello.nodeId`);
+`ChatServiceImpl.chat` fills a turn that comes from no node with the profile of the last one. `PrepareStep` gives
+`BodyService.prompt(joi, profile, last)`, where `last` is the profile of her previous turn, and remembers the new one; the body prompt's
+`{{profile}}` and `{{profileFrom}}` (only when there is more than one profile) are how she is told where she is and that she moved.
+Her functions (`BodyTools`, `AnimationTools`) take the profile from the turn's input. Events about her body (`body.part_switched`,
+`body.outfit_changed`, `body.switched`) are queued only when the change is in the profile she was in last; a change elsewhere is
+told when she moves there, by the note in the prompt.
+
+A turn the server starts (`NodeService.tell`: a task that ended, a summary) goes to the node with the most recent user activity
+(`NodeSession.lastActive`: a `say`, a `part` or a `display`), among the ones that speak, so the answer is voiced there and she is in
+that node's profile.
+
+The API's `GET /api/v1/jois/{id}/body` takes `?node=<nodeId>` (protocol 1.12) and answers the body of that node's profile; the Java node and the iOS
+client send their stable id. The UI is the Profiles tab (`ui/dialogs/joi/JoiProfilesPart`) and the Profile choice at the top of the Bodies
+tab (`JoiBodiesPart`), which passes the profile to `BodyDialog` and `OutfitDialog`.
 
 ## Conversion
 

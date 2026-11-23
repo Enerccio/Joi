@@ -99,7 +99,9 @@ The app's own code, so that it builds and is tested on the Mac: SwiftUI and the 
 - **`Views`**: `RootView` is all the app shows. `ChatView` puts her body above the chat, half of the height (a quarter while the keyboard is up; side by side when the phone lies
   down); the chat list stays at the end (`defaultScrollAnchor(.bottom)`). Over the body are two buttons: *Her look* (a sheet, `PartsView`, one picker per part she has, from
   `AvatarModel.parts`) and a menu with *Sign out*. A change is `ChatModel.switchPart`: a `part` frame with an id, answered by `part_kept` (the body reloads), `part_refused`
-  (her words are shown in the sheet: she may decide on it, so the answer can take a whole turn of hers) or `error`. The events of the server in the chat are friendly notes
+  (her words are shown in the sheet: she may decide on it, so the answer can take a whole turn of hers) or `error`. The same sheet has her outfits (`AvatarModel.outfits`, the worn one marked; a picker above the parts, since 1.12): choosing one is `ChatModel.wearOutfit`, an
+  `outfit` frame with an id that the server answers with the event `body` (the body is read again, which ends `wearingOutfit`) or an `error` (`outfitFailure`), and it
+  sends `?node=` with the app's node id when it reads her body, so the body, parts and outfit are those of the profile the phone is in. The events of the server in the chat are friendly notes
   (`ChatModel.eventNote`: connected, first start, summary written, part switched, task ended, Looking Glass). Her tasks that wait for the user (`web_search`, `fetch_page` without a standing approval) are `ChatModel.questions`, kept from the `task` frames (a frame of the same id with another status takes
   the question back, the connection's loss clears them: the server sends them again when it is back) and shown by `TaskQuestionCard` over the chat, the oldest with how many more wait: *Approve*, *Deny*,
   and in its menu *Always approve <tool>*. `ChatModel.answer` calls `approveTask` / `denyTask` of `HistorySource` (`JoiClient`'s); a 409 (answered elsewhere) just takes the question back, any other

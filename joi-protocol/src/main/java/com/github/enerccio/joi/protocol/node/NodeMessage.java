@@ -23,6 +23,8 @@ public enum NodeMessage {
     DISPLAY("display", Direction.TO_SERVER, Display.class),
     /** {@link PartSwitch}: the user switched a part of her body (since 1.5); the server keeps it and starts her turn about it. */
     PART("part", Direction.TO_SERVER, PartSwitch.class),
+    /** {@link OutfitSwitch}: the user put an outfit of her body on (since 1.12); the server keeps it in the node's profile and tells her. */
+    OUTFIT("outfit", Direction.TO_SERVER, OutfitSwitch.class),
     /** {@link PartKept}: the server kept a part in the state asked for by a {@code part} with an id (since 1.5); {@code ref} is that id. */
     PART_KEPT("part_kept", Direction.TO_NODE, PartKept.class),
     /** {@link PartRefused}: she did not allow the change asked for by a {@code part} with an id (since 1.5); {@code ref} is that id. */

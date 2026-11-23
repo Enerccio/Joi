@@ -373,7 +373,8 @@ Answer with the description only, no JSON and no preface: what she wears and how
     /** The section of her system prompt about the body she is in ({@code BodyTemplateData}, the master's {@code {{#body}}}). */
     public String bodyPrompt() {
         return """
-You are in your body "{{bodyName}}".{{#outfit}} You wear the outfit "{{.}}".{{/outfit}}{{#if appearance}}
+{{#if profileFrom}}You were in "{{profileFrom}}" until now; you are in "{{profile}}" now, and here you look as follows. \
+{{else}}{{#profile}}You are in "{{.}}" now. {{/profile}}{{/if}}You are in your body "{{bodyName}}".{{#outfit}} You wear the outfit "{{.}}".{{/outfit}}{{#if appearance}}
 {{appearance}}{{else}} Nobody has described how you look in it yet.{{/if}}{{#expressions}}
 Expressions your face can show: {{.}}.{{/expressions}}{{#if outfits}}
 {{#if outfit}}Your other outfits{{else}}Your outfits{{/if}}: {{outfits}}.{{/if}}{{#parts}}

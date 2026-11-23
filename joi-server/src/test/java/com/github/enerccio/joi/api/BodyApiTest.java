@@ -55,6 +55,8 @@ class BodyApiTest extends PlatformTestBase {
     @Autowired
     private BodyService bodyService;
     @Autowired
+    private ProfileService profileService;
+    @Autowired
     private ModelService modelService;
     @Autowired
     private JoimService joimService;
@@ -150,6 +152,44 @@ class BodyApiTest extends PlatformTestBase {
         V before = field.getValue();
         field.setValue(value);
         ComponentUtil.fireEvent(field, new AbstractField.ComponentValueChangeEvent<>(field, field, before, true));
+    }
+
+    @Test
+    void aNodeReadsTheBodyOfTheProfileItIsIn() throws Exception {
+        Body body = bodyService.create(joi, "Street");
+        body.setModel(ryuu);
+        body = bodyService.save(body);
+        String work = profileService.create(joi, "Work");
+        profileService.assign(joi, "desk-1", work);
+        bodyService.switchPart(body, work, "key:Headgear/Hide Halo", "hidden");
+
+        // no node, or one that is in no profile: the default one's; the node of the profile: its own
+        assertThat(state(get("/api/v1/jois/" + joi.getUuid() + "/body"))).isEqualTo("shown");
+        assertThat(state(getAsNode("desk-1"))).isEqualTo("hidden");
+        assertThat(state(getAsNode("phone-1"))).isEqualTo("shown");
+
+        // the outfits, the one she wears in the profile marked
+        com.github.enerccio.joi.domain.bodies.Outfit plain = bodyService.addOutfit(bodyService.find(body.getId()), "Plain", "Nothing floats.",
+                Map.of("key:Headgear/Hide Halo", false));
+        bodyService.addOutfit(bodyService.find(body.getId()), "Haloed", null, Map.of("key:Headgear/Hide Halo", true));
+        bodyService.wear(bodyService.find(body.getId()), work, plain.id());
+        JsonArray atWork = getAsNode("desk-1").json().getAsJsonArray("outfits");
+        assertThat(atWork.asList().stream().map(o -> o.getAsJsonObject().get("name").getAsString() + o.getAsJsonObject().get("worn").getAsBoolean()))
+                .containsExactly("Plaintrue", "Haloedfalse");
+        JsonArray atHome = getAsNode("phone-1").json().getAsJsonArray("outfits");
+        assertThat(atHome.asList().stream().map(o -> o.getAsJsonObject().get("worn").getAsBoolean())).containsExactly(false, true);
+    }
+
+    private static String state(JoiApiTest.Answer answer) {
+        return answer.json().getAsJsonArray("parts").get(0).getAsJsonObject().get("state").getAsString();
+    }
+
+    private JoiApiTest.Answer getAsNode(String nodeId) throws Exception {
+        JoiApiTest.Answer answer = new JoiApiTest.Answer();
+        api.handle(new ApiCall("GET", "/api/v1/jois/" + joi.getUuid() + "/body", Map.of("node", nodeId),
+                Map.of("authorization", "Bearer " + token), new byte[0], HOST), answer);
+        assertThat(answer.status).isEqualTo(200);
+        return answer;
     }
 
     @Test

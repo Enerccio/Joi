@@ -111,6 +111,9 @@ public class JoiApi implements DisposableBean {
     private BodyService bodyService;
 
     @Autowired
+    private ProfileService profileService;
+
+    @Autowired
     private ModelService modelService;
 
     @Autowired
@@ -412,7 +415,10 @@ public class JoiApi implements DisposableBean {
     // ----------------------------------------------------------------------------------------------------------------
 
     private BodyInfo bodyInfo(ApiCall call, Joi joi) throws Exception {
-        Body body = bodyService.active(joi);
+        // the body of the profile the node (its stable id, ?node=) is in
+        String node = call.query().get("node");
+        String profile = StringUtils.isBlank(node) ? null : profileService.profileOf(joi, node);
+        Body body = bodyService.active(joi, profile);
         if (body == null) {
             throw new ApiException(404, "no_body", joiService.name(joi) + " is in no body");
         }
@@ -422,7 +428,7 @@ public class JoiApi implements DisposableBean {
         List<BodyToggle> toggles = new ArrayList<>();
         ModelCapabilities capabilities = model == null ? null : ModelCapabilities.fromJson(model.getCapabilities());
         if (capabilities != null) {
-            Map<String, String> states = body.partStateMap();
+            Map<String, String> states = bodyService.partStates(body, profile);
             ToggleTree tree = ToggleTree.of(model, capabilities);
             for (DescribedPart part : DescribedPart.of(model, capabilities)) {
                 DescribedPart.State in = BodyState.stateOf(model, part, states);
@@ -449,8 +455,19 @@ public class JoiApi implements DisposableBean {
         Download joia = download(base + "/bodies/" + body.getUuid() + "/joia", bodyService.animationsFile(body),
                 body.getAnimationsResourceId(), body.getAnimationsExportedAt(), !joiaService.needsBodyExport(body));
         return new BodyInfo(body.getUuid(), StringUtils.defaultIfBlank(body.getName(), null), bodyModel(base, model),
-                bodyModel(base, model(body.getLookingGlassModel())), parts, toggles, StringUtils.defaultIfBlank(bodyService.appearance(body), null),
-                new BodyAnimations(body.animationUuids() == null, animations, joia));
+                bodyModel(base, model(body.getLookingGlassModel())), parts, toggles, StringUtils.defaultIfBlank(bodyService.appearance(body, profile), null),
+                new BodyAnimations(body.animationUuids() == null, animations, joia), outfits(body, profile));
+    }
+
+    /** The outfits of the body, the one she wears in the profile marked. */
+    private List<com.github.enerccio.joi.protocol.http.BodyOutfit> outfits(Body body, String profile) throws Exception {
+        com.github.enerccio.joi.domain.bodies.Outfit wearing = bodyService.currentOutfit(body, profile);
+        List<com.github.enerccio.joi.protocol.http.BodyOutfit> outfits = new ArrayList<>();
+        for (com.github.enerccio.joi.domain.bodies.Outfit outfit : bodyService.outfits(body)) {
+            outfits.add(new com.github.enerccio.joi.protocol.http.BodyOutfit(outfit.id(), outfit.name(),
+                    StringUtils.defaultIfBlank(outfit.description(), null), wearing != null && wearing.id().equals(outfit.id())));
+        }
+        return outfits;
     }
 
     /** A model of a body (a lazy reference), read by its id; null for none or a deleted one. */

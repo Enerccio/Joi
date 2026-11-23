@@ -13,6 +13,9 @@ only the combinations do.
 
 ![The outfits of a body](../../images/body-dialog.png)
 
+On the node, the controls panel next to the chat has an **Her outfit** choice under her parts: choose one and she puts it on, on every node
+that is in the same [profile](profiles.md). She is told, as for a part you switch.
+
 ## Making one
 
 In the body dialog, under **Outfits**, press **Add outfit**. The outfit dialog has:

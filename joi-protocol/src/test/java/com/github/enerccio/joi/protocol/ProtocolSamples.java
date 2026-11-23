@@ -62,6 +62,8 @@ public final class ProtocolSamples {
                 "Silver hair.", new BodyAnimations(false, List.of(new BodyAnimation("a1", "Wave", null, true)),
                 new Download("http://h/api/v1/bodies/b1/joia", "b".repeat(64), 5000, "2026-11-19T12:00:00Z", false))));
         out.add(new BodyInfo("b1", null, new BodyModel("m1", null, null), null, List.of(), null, null, new BodyAnimations(true, List.of(), null)));
+        out.add(new BodyInfo("b1", "Street", null, null, List.of(), null, null, new BodyAnimations(true, List.of(), null),
+                List.of(new BodyOutfit("o1", "Casual", "A pink hoodie.", true), new BodyOutfit("o2", "Sailor", null, false))));
         out.add(new ChatRequest("Hi!", null, null, null, null));
         out.add(new ChatRequest("", null, null, null, null, List.of("img1", "img2")));
         out.add(new ChatRequest("Hi!", false, true, true, "kitchen"));
@@ -117,6 +119,7 @@ public final class ProtocolSamples {
         out.add(new Stop("t1"));
         out.add(new Display(true));
         out.add(new PartSwitch("group:eyes", "bare"));
+        out.add(new OutfitSwitch("o2"));
         out.add(new PartKept("group:eyes", "bare", true));
         out.add(new PartRefused("group:eyes", "bare", "Not in front of the guests."));
         out.add(new PartRefused("group:eyes", "bare", null));

@@ -113,13 +113,24 @@ public class BodyDialog extends Dialog {
     private Checkbox allAnimations;
     private MultiSelectComboBox<String> animationSelect;
     private Div joiaInfo;
+    /** The profile it shows the state of (null: the default one), see {@code ProfileService}. */
+    private final String profile;
 
     /**
      * @param body the stored body, null for a new one
      */
     public BodyDialog(Joi joi, Body body) {
+        this(joi, body, null);
+    }
+
+    /**
+     * @param body    the stored body, null for a new one
+     * @param profile the profile whose state of the body's parts and outfit it shows and changes, null for the default one
+     */
+    public BodyDialog(Joi joi, Body body, String profile) {
         this.joi = joi;
         this.body = body;
+        this.profile = profile;
     }
 
     /** What runs when the dialog closes (the table of her bodies refreshes). */
@@ -427,13 +438,21 @@ public class BodyDialog extends Dialog {
 
     /** The states of the body's switched parts ({@code BodyState}), empty while a new body is not stored. */
     private Map<String, String> partStates() {
-        return body == null ? Map.of() : body.partStateMap();
+        if (body == null) {
+            return Map.of();
+        }
+        try {
+            return bodyService.partStates(body, profile);
+        } catch (Exception e) {
+            UIUtils.internalServerError(loc, e);
+            return Map.of();
+        }
     }
 
     private void showDescription(Model model) {
         try {
             description.setValue(StringUtils.defaultString(model == null ? null
-                    : body != null ? bodyService.appearance(body) : Appearance.of(model, BodyState.toggles(model, partStates()))));
+                    : body != null ? bodyService.appearance(body, profile) : Appearance.of(model, BodyState.toggles(model, partStates()))));
         } catch (Exception e) {
             UIUtils.internalServerError(loc, e);
         }
@@ -449,7 +468,7 @@ public class BodyDialog extends Dialog {
             return;
         }
         try {
-            Outfit wearing = bodyService.currentOutfit(body);
+            Outfit wearing = bodyService.currentOutfit(body, profile);
             for (Outfit outfit : bodyService.outfits(body)) {
                 boolean worn = wearing != null && wearing.id().equals(outfit.id());
                 Span name = new Span(outfit.name() + (worn ? " · " + loc.getValue(J_L.LABEL_OUTFIT_WORN) : ""));
@@ -485,7 +504,7 @@ public class BodyDialog extends Dialog {
     /** The user puts an outfit on the body: stored (she is told when she is in the body), shown everywhere in the dialog. */
     private void wear(Outfit outfit) {
         try {
-            bodyService.wear(body, outfit.id());
+            bodyService.wear(body, profile, outfit.id());
             body = bodyService.find(body.getId());
             Model model = modelSelect.getValue() == null ? null : models.get(modelSelect.getValue());
             showParts(model, model == null ? null : ModelCapabilities.fromJson(model.getCapabilities()));
@@ -507,7 +526,7 @@ public class BodyDialog extends Dialog {
             if (body == null || model == null) {
                 return;
             }
-            OutfitDialog dialog = new OutfitDialog(body, model, outfit, () -> {
+            OutfitDialog dialog = new OutfitDialog(body, profile, model, outfit, () -> {
                 showOutfits();
                 showDescription(model);
             });
@@ -571,7 +590,7 @@ public class BodyDialog extends Dialog {
             if (body == null) {
                 return;
             }
-            bodyService.switchPart(body, part.id(), stateId);
+            bodyService.switchPart(body, profile, part.id(), stateId);
             body = bodyService.find(body.getId());
             showDescription(model);
             showOutfits();

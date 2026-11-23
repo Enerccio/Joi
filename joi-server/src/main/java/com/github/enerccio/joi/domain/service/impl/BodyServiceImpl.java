@@ -6,6 +6,7 @@ import com.github.enerccio.joi.domain.bodies.BodyState;
 import com.github.enerccio.joi.domain.bodies.DescribedPart;
 import com.github.enerccio.joi.domain.bodies.ModelCapabilities;
 import com.github.enerccio.joi.domain.bodies.Outfit;
+import com.github.enerccio.joi.domain.bodies.Profiles;
 import com.github.enerccio.joi.domain.bodies.ToggleTree;
 import com.github.enerccio.joi.domain.events.JoiEvents;
 import com.github.enerccio.joi.domain.model.impl.AnimationPack;
@@ -20,6 +21,7 @@ import com.github.enerccio.joi.domain.service.AnimationPackService;
 import com.github.enerccio.joi.domain.service.BodyService;
 import com.github.enerccio.joi.domain.service.ChatMessageService;
 import com.github.enerccio.joi.domain.service.JoiService;
+import com.github.enerccio.joi.domain.service.ProfileService;
 import com.github.enerccio.joi.domain.service.NodeService;
 import com.github.enerccio.joi.domain.service.ModelService;
 import com.github.enerccio.joi.domain.service.PersonaService;
@@ -69,6 +71,9 @@ public class BodyServiceImpl extends ExtendableServiceImpl<Body, BodyRepository>
     private JoiService joiService;
 
     @Autowired
+    private ProfileService profileService;
+
+    @Autowired
     private AnimationPackService packService;
 
     @Autowired
@@ -100,10 +105,163 @@ public class BodyServiceImpl extends ExtendableServiceImpl<Body, BodyRepository>
                 .anyMatch(other -> wanted.equalsIgnoreCase(StringUtils.strip(other.getName())));
     }
 
+    // ----------------------------------------------------------------------------------------------------------------
+    // the default profile: the same calls with no profile (each in its own transaction: a call through the interface
+    // does not go through the proxy a second time)
+    // ----------------------------------------------------------------------------------------------------------------
+
     @Override
     @CommonTxReadOnly
     public Body active(Joi joi) throws Exception {
-        return getRepository().findByJoi(joi).stream().filter(Body::isActive).findFirst().orElse(null);
+        return active(joi, null);
+    }
+
+    @Override
+    @CommonTx
+    public List<QueuedEvent> activate(Joi joi, Body body) throws Exception {
+        return activate(joi, null, body);
+    }
+
+    @Override
+    @CommonTxReadOnly
+    public String appearance(Body body) throws Exception {
+        return appearance(body, null);
+    }
+
+    @Override
+    @CommonTxReadOnly
+    public Map<String, Boolean> toggles(Body body) throws Exception {
+        return toggles(body, null);
+    }
+
+    @Override
+    @CommonTx
+    public List<QueuedEvent> switchPart(Body body, String partId, String stateId) throws Exception {
+        return switchPart(body, null, partId, stateId);
+    }
+
+    @Override
+    @CommonTx
+    public String changePart(Body body, String partName, String stateName) throws Exception {
+        return changePart(body, null, partName, stateName);
+    }
+
+    @Override
+    @CommonTxReadOnly
+    public PartRequest partRequest(Body body, String partId, String stateId) throws Exception {
+        return partRequest(body, null, partId, stateId);
+    }
+
+    @Override
+    @CommonTxReadOnly
+    public String prompt(Joi joi) throws Exception {
+        return prompt(joi, null, null);
+    }
+
+    @Override
+    @CommonTxReadOnly
+    public Outfit currentOutfit(Body body) throws Exception {
+        return currentOutfit(body, null);
+    }
+
+    @Override
+    @CommonTx
+    public Outfit addOutfit(Body body, String name, String description, Map<String, Boolean> toggles) throws Exception {
+        return addOutfit(body, null, name, description, toggles);
+    }
+
+    @Override
+    @CommonTx
+    public List<QueuedEvent> wear(Body body, String outfitId) throws Exception {
+        return wear(body, null, outfitId);
+    }
+
+    @Override
+    @CommonTx
+    public String wearOutfit(Body body, String outfitName) throws Exception {
+        return wearOutfit(body, null, outfitName);
+    }
+
+    @Override
+    @CommonTxReadOnly
+    public List<BodyInfo> bodyInfos(Joi joi) throws Exception {
+        return bodyInfos(joi, null);
+    }
+
+    @Override
+    @CommonTx
+    public String switchBody(Joi joi, String bodyName) throws Exception {
+        return switchBody(joi, null, bodyName);
+    }
+
+    @Override
+    @CommonTxReadOnly
+    public Body active(Joi joi, String profile) throws Exception {
+        List<Body> bodies = getRepository().findByJoi(joi);
+        Body byDefault = bodies.stream().filter(Body::isActive).findFirst().orElse(null);
+        if (Profiles.isDefault(profile)) {
+            return byDefault;
+        }
+        String uuid = profiles(joi).activeIn(profile, byDefault == null ? null : byDefault.getUuid());
+        return bodies.stream().filter(body -> !body.isDeleted() && body.getUuid().equals(uuid)).findFirst().orElse(byDefault);
+    }
+
+    /** Her profiles as stored now. */
+    private Profiles profiles(Joi joi) {
+        try {
+            Joi stored = joiService.find(joi.getId());
+            return stored == null ? new Profiles() : stored.profileSet();
+        } catch (RuntimeException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new IllegalStateException(e);
+        }
+    }
+
+    /** Whether she is in the body in the profile. */
+    private boolean isActive(Body stored, String profile) throws Exception {
+        if (Profiles.isDefault(profile)) {
+            return stored.isActive();
+        }
+        Body active = active(stored.getJoi(), profile);
+        return active != null && active.getId().equals(stored.getId());
+    }
+
+    /** The state of the body's parts in the profile, a copy to change. */
+    private Map<String, String> states(Body stored, String profile) {
+        return Profiles.isDefault(profile) ? stored.partStateMap() : profiles(stored.getJoi()).statesOf(profile, stored.getUuid());
+    }
+
+    @Override
+    @CommonTxReadOnly
+    public Map<String, String> partStates(Body body, String profile) throws Exception {
+        return states(find(body.getId()), profile);
+    }
+
+    /** Keeps the state of the body's parts in the profile; returns the body as stored. */
+    private Body putStates(Body stored, String profile, Map<String, String> states) throws Exception {
+        if (Profiles.isDefault(profile)) {
+            stored.setPartStateMap(states);
+            return save(stored);
+        }
+        String uuid = stored.getUuid();
+        joiService.update(stored.getJoi(), joi -> {
+            Profiles set = joi.profileSet();
+            set.putStates(profile, uuid, states);
+            joi.setProfileSet(set);
+        });
+        return stored;
+    }
+
+    @Override
+    @CommonTxReadOnly
+    public String currentProfile(Joi joi) throws Exception {
+        return profiles(joi).last();
+    }
+
+    /** Whether her last turn or change was in the profile: what changes in another one is not told as it happens. */
+    private boolean isCurrent(Joi joi, String profile) {
+        return Profiles.idOf(profile).equals(profiles(joi).last());
     }
 
     @Override
@@ -125,7 +283,7 @@ public class BodyServiceImpl extends ExtendableServiceImpl<Body, BodyRepository>
         Body saved = save(body);
         if (saved.isActive()) {
             // her first body: she is in it at once, and told so when she has chatted
-            switched(joi, null, saved);
+            switched(joi, null, null, saved);
             bodyChanged(joi);
         }
         return saved;
@@ -133,21 +291,30 @@ public class BodyServiceImpl extends ExtendableServiceImpl<Body, BodyRepository>
 
     @Override
     @CommonTx
-    public List<QueuedEvent> activate(Joi joi, Body body) throws Exception {
-        Body before = active(joi);
+    public List<QueuedEvent> activate(Joi joi, String profile, Body body) throws Exception {
+        Body before = active(joi, profile);
         if (body != null && !body.getJoi().getId().equals(joi.getId())) {
             throw new IllegalArgumentException("not a body of hers");
         }
-        for (Body other : getRepository().findByJoi(joi)) {
-            boolean active = body != null && other.getId().equals(body.getId());
-            if (other.isActive() != active) {
-                other.setActive(active);
-                save(other);
+        if (Profiles.isDefault(profile)) {
+            for (Body other : getRepository().findByJoi(joi)) {
+                boolean active = body != null && other.getId().equals(body.getId());
+                if (other.isActive() != active) {
+                    other.setActive(active);
+                    save(other);
+                }
             }
+        } else {
+            String uuid = body == null ? null : body.getUuid();
+            joiService.update(joi, stored -> {
+                Profiles set = stored.profileSet();
+                set.activate(profile, uuid);
+                stored.setProfileSet(set);
+            });
         }
         Body after = body == null ? null : find(body.getId());
-        bodyChanged(joi);
-        return switched(joi, before, after);
+        bodyChanged(joi, profile, Profiles.isDefault(profile));
+        return switched(joi, profile, before, after);
     }
 
     @Override
@@ -162,10 +329,20 @@ public class BodyServiceImpl extends ExtendableServiceImpl<Body, BodyRepository>
             stored.setAnimationsResourceId(null);
         }
         delete(save(stored), false);
-        if (wasActive) {
-            bodyChanged(joi);
-        }
-        return wasActive ? switched(joi, stored, null) : List.of();
+        // the profiles that had it forget it: they are in the default profile's body again
+        String uuid = stored.getUuid();
+        joiService.update(joi, owner -> {
+            Profiles set = owner.profileSet();
+            for (Profiles.Profile other : set.others()) {
+                if (uuid.equals(other.active())) {
+                    set.activate(other.id(), null);
+                }
+                set.putStates(other.id(), uuid, null);
+            }
+            owner.setProfileSet(set);
+        });
+        bodyChanged(joi);
+        return wasActive ? switched(joi, null, stored, null) : List.of();
     }
 
     /**
@@ -173,9 +350,18 @@ public class BodyServiceImpl extends ExtendableServiceImpl<Body, BodyRepository>
      * the node would read what was before it; never a failure of the change itself.
      */
     private void bodyChanged(Joi joi) {
+        bodyChanged(joi, null, true);
+    }
+
+    /** As above for a change in one profile: the nodes of the others are not told (the default profile's body is theirs too when they have none). */
+    private void bodyChanged(Joi joi, String profile) {
+        bodyChanged(joi, profile, false);
+    }
+
+    private void bodyChanged(Joi joi, String profile, boolean all) {
         Runnable tell = () -> {
             try {
-                nodeService.notify(joi, "body");
+                nodeService.notify(joi, "body", all ? null : Profiles.idOf(profile));
             } catch (RuntimeException e) {
                 log.debug("The nodes of an assistant were not told that her body changed: {}", e.getMessage());
             }
@@ -212,16 +398,16 @@ public class BodyServiceImpl extends ExtendableServiceImpl<Body, BodyRepository>
     }
 
     /** The event of her switch from one body to another (each may be null), when she has chatted and it changed. */
-    private List<QueuedEvent> switched(Joi joi, Body from, Body to) throws Exception {
+    private List<QueuedEvent> switched(Joi joi, String profile, Body from, Body to) throws Exception {
         List<QueuedEvent> events = new ArrayList<>();
         Long fromId = from == null ? null : from.getId();
         Long toId = to == null ? null : to.getId();
-        if (Objects.equals(fromId, toId) || !chatMessageService.hasAny(joi)) {
+        if (Objects.equals(fromId, toId) || !chatMessageService.hasAny(joi) || !isCurrent(joi, profile)) {
             return events;
         }
         JoiDefaults defaults = personaService.defaults();
         events.add(queue(joi, JoiEvents.BODY_SWITCHED, defaults.eventBodySwitched(from == null ? null : name(from),
-                        to == null ? null : name(to), to == null ? null : appearance(to)),
+                        to == null ? null : name(to), to == null ? null : appearance(to, profile)),
                 from == null ? null : from.getUuid(), to == null ? null : to.getUuid()));
         return events;
     }
@@ -245,20 +431,20 @@ public class BodyServiceImpl extends ExtendableServiceImpl<Body, BodyRepository>
 
     @Override
     @CommonTxReadOnly
-    public String appearance(Body body) throws Exception {
+    public String appearance(Body body, String profile) throws Exception {
         // the outfits and the state are the stored ones, whatever the caller holds
         Body stored = body.getId() == null ? body : find(body.getId());
         Model model = stored.getModel() == null ? null : modelService.find(stored.getModel().getId());
         if (model == null || model.isDeleted()) {
             return null;
         }
-        Outfit outfit = currentOutfit(stored, model);
+        Outfit outfit = currentOutfit(stored, model, profile);
         if (outfit != null && StringUtils.isNotBlank(outfit.description())) {
             // an outfit is described as a whole: the model's description, what never changes, and what she wears
             return StringUtils.isBlank(model.getAppearance()) ? outfit.description().strip()
                     : model.getAppearance().strip() + " " + outfit.description().strip();
         }
-        return Appearance.of(model, BodyState.toggles(model, stored.partStateMap()));
+        return Appearance.of(model, BodyState.toggles(model, states(stored, profile)));
     }
 
     /** The body's full model, null for none or a deleted one. */
@@ -269,17 +455,18 @@ public class BodyServiceImpl extends ExtendableServiceImpl<Body, BodyRepository>
 
     @Override
     @CommonTxReadOnly
-    public Map<String, Boolean> toggles(Body body) throws Exception {
+    public Map<String, Boolean> toggles(Body body, String profile) throws Exception {
         Model model = model(body);
-        return model == null ? new LinkedHashMap<>() : BodyState.toggles(model, body.partStateMap());
+        return model == null ? new LinkedHashMap<>() : BodyState.toggles(model, states(body, profile));
     }
 
     @Override
     @CommonTx
-    public List<QueuedEvent> switchPart(Body body, String partId, String stateId) throws Exception {
-        Switched switched = doSwitch(body, partId, stateId);
+    public List<QueuedEvent> switchPart(Body body, String profile, String partId, String stateId) throws Exception {
+        Switched switched = doSwitch(body, profile, partId, stateId);
         List<QueuedEvent> events = new ArrayList<>();
-        if (switched.stored().isActive() && switched.changed() && chatMessageService.hasAny(switched.stored().getJoi())) {
+        if (isActive(switched.stored(), profile) && isCurrent(switched.stored().getJoi(), profile) && switched.changed()
+                && chatMessageService.hasAny(switched.stored().getJoi())) {
             switched.payload().addProperty("by", "user");
             events.add(queue(switched.stored().getJoi(), JoiEvents.PART_SWITCHED, switched.text(), switched.payload()));
         }
@@ -288,7 +475,7 @@ public class BodyServiceImpl extends ExtendableServiceImpl<Body, BodyRepository>
 
     @Override
     @CommonTx
-    public String changePart(Body body, String partName, String stateName) throws Exception {
+    public String changePart(Body body, String profile, String partName, String stateName) throws Exception {
         Body stored = find(body.getId());
         Model model = model(stored);
         ModelCapabilities capabilities = model == null ? null : ModelCapabilities.fromJson(model.getCapabilities());
@@ -306,12 +493,12 @@ public class BodyServiceImpl extends ExtendableServiceImpl<Body, BodyRepository>
             throw new IllegalArgumentException(part.name() + " can be: " + String.join(", ", part.states().stream()
                     .map(candidate -> stateName(part, candidate)).toList()));
         }
-        DescribedPart.State before = BodyState.stateOf(model, part, stored.partStateMap());
+        DescribedPart.State before = BodyState.stateOf(model, part, states(stored, profile));
         if (before != null && before.id().equals(state.id())) {
             return part.name() + " is already " + stateName(part, state) + ".";
         }
         // she did it herself: she is told what it looks like and what went with it, not again as an event
-        return doSwitch(stored, part.id(), state.id()).text();
+        return doSwitch(stored, profile, part.id(), state.id()).text();
     }
 
     @Override
@@ -346,7 +533,7 @@ public class BodyServiceImpl extends ExtendableServiceImpl<Body, BodyRepository>
     private record Switched(Body stored, boolean changed, String text, JsonObject payload) {
     }
 
-    private Switched doSwitch(Body body, String partId, String stateId) throws Exception {
+    private Switched doSwitch(Body body, String profile, String partId, String stateId) throws Exception {
         Body stored = find(body.getId());
         Model model = model(stored);
         ModelCapabilities capabilities = model == null ? null : ModelCapabilities.fromJson(model.getCapabilities());
@@ -356,7 +543,7 @@ public class BodyServiceImpl extends ExtendableServiceImpl<Body, BodyRepository>
         if (state == null) {
             throw new IllegalArgumentException("no such part or state: " + partId + " / " + stateId);
         }
-        Map<String, String> states = stored.partStateMap();
+        Map<String, String> states = states(stored, profile);
         DescribedPart.State before = BodyState.stateOf(model, part, states);
         ToggleTree tree = ToggleTree.of(model, capabilities);
         Map<String, Boolean> seenBefore = tree.effective(BodyState.toggles(model, states));
@@ -367,10 +554,9 @@ public class BodyServiceImpl extends ExtendableServiceImpl<Body, BodyRepository>
         } else {
             states.put(part.id(), state.id());
         }
-        stored.setPartStateMap(states);
-        stored = save(stored);
-        if (stored.isActive()) {
-            bodyChanged(stored.getJoi());
+        stored = putStates(stored, profile, states);
+        if (isActive(stored, profile)) {
+            bodyChanged(stored.getJoi(), profile);
         }
         JsonObject payload = new JsonObject();
         payload.addProperty("to", stored.getUuid());
@@ -415,7 +601,7 @@ public class BodyServiceImpl extends ExtendableServiceImpl<Body, BodyRepository>
 
     @Override
     @CommonTxReadOnly
-    public PartRequest partRequest(Body body, String partId, String stateId) throws Exception {
+    public PartRequest partRequest(Body body, String profile, String partId, String stateId) throws Exception {
         Body stored = find(body.getId());
         Model model = model(stored);
         ModelCapabilities capabilities = model == null ? null : ModelCapabilities.fromJson(model.getCapabilities());
@@ -425,7 +611,7 @@ public class BodyServiceImpl extends ExtendableServiceImpl<Body, BodyRepository>
         if (state == null) {
             throw new IllegalArgumentException("no such part or state: " + partId + " / " + stateId);
         }
-        DescribedPart.State before = BodyState.stateOf(model, part, stored.partStateMap());
+        DescribedPart.State before = BodyState.stateOf(model, part, states(stored, profile));
         if (before != null && before.id().equals(state.id())) {
             return null;
         }
@@ -451,9 +637,9 @@ public class BodyServiceImpl extends ExtendableServiceImpl<Body, BodyRepository>
 
     @Override
     @CommonTxReadOnly
-    public String prompt(Joi joi) throws Exception {
+    public String prompt(Joi joi, String profile, String from) throws Exception {
         List<Body> bodies = getRepository().findByJoi(joi);
-        Body active = bodies.stream().filter(Body::isActive).findFirst().orElse(null);
+        Body active = active(joi, profile);
         if (active == null) {
             return null;
         }
@@ -468,7 +654,7 @@ public class BodyServiceImpl extends ExtendableServiceImpl<Body, BodyRepository>
                 }
             }
             // only the parts described apart can be switched; each in the state the body is in
-            Map<String, String> states = active.partStateMap();
+            Map<String, String> states = states(active, profile);
             for (DescribedPart part : DescribedPart.of(model, capabilities)) {
                 DescribedPart.State in = BodyState.stateOf(model, part, states);
                 if (part.group()) {
@@ -479,15 +665,20 @@ public class BodyServiceImpl extends ExtendableServiceImpl<Body, BodyRepository>
                 }
             }
         }
-        List<String> others = bodies.stream().filter(body -> !body.isActive()).map(this::name).sorted(String.CASE_INSENSITIVE_ORDER).toList();
-        Outfit wearing = model == null ? null : currentOutfit(active, model);
+        List<String> others = bodies.stream().filter(body -> !body.getId().equals(active.getId())).map(this::name).sorted(String.CASE_INSENSITIVE_ORDER).toList();
+        Outfit wearing = model == null ? null : currentOutfit(active, model, profile);
         List<String> outfits = active.outfitList().stream().filter(outfit -> wearing == null || !outfit.id().equals(wearing.id()))
                 .map(Outfit::name).toList();
         BodyTemplateData data = new BodyTemplateData();
         data.setOutfit(wearing == null ? null : wearing.name());
         data.setOutfits(outfits.isEmpty() ? null : String.join(", ", outfits));
+        Profiles set = profiles(joi);
+        if (set.several()) {
+            data.setProfile(set.nameOf(profile));
+            data.setProfileFrom(from == null || Profiles.idOf(from).equals(Profiles.idOf(profile)) ? null : set.nameOf(from));
+        }
         data.setBodyName(name(active));
-        data.setAppearance(StringUtils.defaultIfBlank(StringUtils.strip(appearance(active)), null));
+        data.setAppearance(StringUtils.defaultIfBlank(StringUtils.strip(appearance(active, profile)), null));
         data.setExpressions(expressions.isEmpty() ? null : String.join(", ", expressions));
         data.setParts(parts.isEmpty() ? null : String.join(", ", parts));
         data.setOtherBodies(others.isEmpty() ? null : String.join(", ", others));
@@ -516,16 +707,16 @@ public class BodyServiceImpl extends ExtendableServiceImpl<Body, BodyRepository>
 
     @Override
     @CommonTxReadOnly
-    public Outfit currentOutfit(Body body) throws Exception {
+    public Outfit currentOutfit(Body body, String profile) throws Exception {
         Body stored = find(body.getId());
         Model model = model(stored);
-        return model == null ? null : currentOutfit(stored, model);
+        return model == null ? null : currentOutfit(stored, model, profile);
     }
 
     /** The outfit the toggles of the body's model are in the state of, null for none. */
-    private Outfit currentOutfit(Body body, Model model) {
+    private Outfit currentOutfit(Body body, Model model, String profile) {
         ModelCapabilities capabilities = ModelCapabilities.fromJson(model.getCapabilities());
-        Map<String, Boolean> state = BodyState.toggles(model, body.partStateMap());
+        Map<String, Boolean> state = BodyState.toggles(model, states(body, profile));
         return body.outfitList().stream().filter(outfit -> outfit.matches(model, capabilities, state)).findFirst().orElse(null);
     }
 
@@ -535,7 +726,7 @@ public class BodyServiceImpl extends ExtendableServiceImpl<Body, BodyRepository>
 
     @Override
     @CommonTx
-    public Outfit addOutfit(Body body, String name, String description, Map<String, Boolean> toggles) throws Exception {
+    public Outfit addOutfit(Body body, String profile, String name, String description, Map<String, Boolean> toggles) throws Exception {
         Body stored = find(body.getId());
         String named = StringUtils.strip(name);
         if (StringUtils.isBlank(named)) {
@@ -547,7 +738,7 @@ public class BodyServiceImpl extends ExtendableServiceImpl<Body, BodyRepository>
         }
         Model model = model(stored);
         Outfit outfit = Outfit.create(named, description, toggles != null ? toggles
-                : model == null ? Map.of() : BodyState.shownNow(model, stored.partStateMap()));
+                : model == null ? Map.of() : BodyState.shownNow(model, states(stored, profile)));
         outfits.add(outfit);
         stored.setOutfitList(outfits);
         save(stored);
@@ -594,33 +785,33 @@ public class BodyServiceImpl extends ExtendableServiceImpl<Body, BodyRepository>
 
     @Override
     @CommonTx
-    public List<QueuedEvent> wear(Body body, String outfitId) throws Exception {
+    public List<QueuedEvent> wear(Body body, String profile, String outfitId) throws Exception {
         Body stored = find(body.getId());
         Outfit outfit = stored.outfitList().stream().filter(candidate -> candidate.id().equals(outfitId)).findFirst().orElse(null);
         if (outfit == null) {
             throw new IllegalArgumentException("The body has no such outfit");
         }
-        Outfit before = currentOutfit(stored);
-        stored.setPartStateMap(BodyState.wearing(outfit));
-        stored = save(stored);
-        if (stored.isActive()) {
-            bodyChanged(stored.getJoi());
+        Outfit before = currentOutfit(stored, profile);
+        stored = putStates(stored, profile, BodyState.wearing(outfit));
+        if (isActive(stored, profile)) {
+            bodyChanged(stored.getJoi(), profile);
         }
         List<QueuedEvent> events = new ArrayList<>();
-        if (stored.isActive() && (before == null || !before.id().equals(outfit.id())) && chatMessageService.hasAny(stored.getJoi())) {
+        if (isActive(stored, profile) && isCurrent(stored.getJoi(), profile) && (before == null || !before.id().equals(outfit.id()))
+                && chatMessageService.hasAny(stored.getJoi())) {
             JsonObject payload = new JsonObject();
             payload.addProperty("to", stored.getUuid());
             payload.addProperty("outfit", outfit.id());
             payload.addProperty("by", "user");
             events.add(queue(stored.getJoi(), JoiEvents.OUTFIT_CHANGED,
-                    personaService.defaults().eventOutfitChanged(outfit.name(), appearance(stored)), payload));
+                    personaService.defaults().eventOutfitChanged(outfit.name(), appearance(stored, profile)), payload));
         }
         return events;
     }
 
     @Override
     @CommonTx
-    public String wearOutfit(Body body, String outfitName) throws Exception {
+    public String wearOutfit(Body body, String profile, String outfitName) throws Exception {
         Body stored = find(body.getId());
         List<Outfit> outfits = stored.outfitList();
         Outfit outfit = outfitByName(outfits, outfitName);
@@ -628,17 +819,16 @@ public class BodyServiceImpl extends ExtendableServiceImpl<Body, BodyRepository>
             throw new IllegalArgumentException(outfits.isEmpty() ? "This body has no outfits."
                     : "You have no outfit called \"" + outfitName + "\". Your outfits: " + String.join(", ", outfits.stream().map(Outfit::name).toList()));
         }
-        Outfit before = currentOutfit(stored);
+        Outfit before = currentOutfit(stored, profile);
         if (before != null && before.id().equals(outfit.id())) {
             return "You wear " + outfit.name() + " already.";
         }
-        stored.setPartStateMap(BodyState.wearing(outfit));
-        stored = save(stored);
-        if (stored.isActive()) {
-            bodyChanged(stored.getJoi());
+        stored = putStates(stored, profile, BodyState.wearing(outfit));
+        if (isActive(stored, profile)) {
+            bodyChanged(stored.getJoi(), profile);
         }
         // she did it herself: she is told how she looks, not again as an event
-        String look = appearance(stored);
+        String look = appearance(stored, profile);
         return "You put on " + outfit.name() + "." + (StringUtils.isBlank(look) ? "" : " How you look now: " + look.strip());
     }
 
@@ -721,41 +911,53 @@ public class BodyServiceImpl extends ExtendableServiceImpl<Body, BodyRepository>
 
     @Override
     @CommonTxReadOnly
-    public List<BodyInfo> bodyInfos(Joi joi) throws Exception {
+    public List<BodyInfo> bodyInfos(Joi joi, String profile) throws Exception {
         List<BodyInfo> infos = new ArrayList<>();
+        Body active = active(joi, profile);
         for (Body body : findForJoi(joi)) {
-            Outfit wearing = body.isActive() ? currentOutfit(body) : null;
+            boolean in = active != null && active.getId().equals(body.getId());
+            Outfit wearing = in ? currentOutfit(body, profile) : null;
             List<OutfitInfo> outfits = body.outfitList().stream()
                     .map(outfit -> new OutfitInfo(outfit.name(), outfit.description(), wearing != null && wearing.id().equals(outfit.id()))).toList();
-            infos.add(new BodyInfo(name(body), description(body), body.isActive(), outfits));
+            infos.add(new BodyInfo(name(body), description(body), in, outfits));
         }
         return infos;
     }
 
     @Override
     @CommonTx
-    public String switchBody(Joi joi, String bodyName) throws Exception {
+    public String switchBody(Joi joi, String profile, String bodyName) throws Exception {
         List<Body> bodies = findForJoi(joi);
         Body target = bodies.stream().filter(body -> name(body).equalsIgnoreCase(StringUtils.strip(bodyName))).findFirst().orElse(null);
         if (target == null) {
             throw new IllegalArgumentException("You have no body called \"" + bodyName + "\". Your bodies: "
                     + String.join(", ", bodies.stream().map(this::name).toList()));
         }
-        if (target.isActive()) {
+        Body in = active(joi, profile);
+        if (in != null && in.getId().equals(target.getId())) {
             return "You are in " + name(target) + " already.";
         }
         // she did it herself: no event, she is told what she looks like now
-        for (Body other : getRepository().findByJoi(joi)) {
-            boolean active = other.getId().equals(target.getId());
-            if (other.isActive() != active) {
-                other.setActive(active);
-                save(other);
+        if (Profiles.isDefault(profile)) {
+            for (Body other : getRepository().findByJoi(joi)) {
+                boolean active = other.getId().equals(target.getId());
+                if (other.isActive() != active) {
+                    other.setActive(active);
+                    save(other);
+                }
             }
+        } else {
+            String uuid = target.getUuid();
+            joiService.update(joi, stored -> {
+                Profiles set = stored.profileSet();
+                set.activate(profile, uuid);
+                stored.setProfileSet(set);
+            });
         }
         Body now = find(target.getId());
-        bodyChanged(joi);
-        String look = appearance(now);
-        Outfit wearing = currentOutfit(now);
+        bodyChanged(joi, profile, Profiles.isDefault(profile));
+        String look = appearance(now, profile);
+        Outfit wearing = currentOutfit(now, profile);
         List<Outfit> outfits = now.outfitList();
         return "You moved into " + name(now) + "." + (StringUtils.isBlank(look) ? "" : " How you look now: " + look.strip())
                 + (outfits.isEmpty() ? "" : " Its outfits: " + String.join(", ", outfits.stream()

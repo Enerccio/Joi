@@ -46,6 +46,7 @@ public class NodeSession {
     private final String authorization;
     private final long openedAt = System.currentTimeMillis();
     private volatile long lastSeen = openedAt;
+    private volatile long lastActive = openedAt;
 
     private volatile Principal principal;
     private volatile ApiRequestAttributes attributes;
@@ -131,6 +132,16 @@ public class NodeSession {
 
     public long openedAt() {
         return openedAt;
+    }
+
+    /** When the user last did something on this node (said something, switched a part, moved her), epoch millis; when it opened before that. */
+    public long lastActive() {
+        return lastActive;
+    }
+
+    /** The user did something on this node. */
+    public void active() {
+        lastActive = System.currentTimeMillis();
     }
 
     public long lastSeen() {

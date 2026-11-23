@@ -69,6 +69,11 @@ public final class ChatModel: AvatarOutput {
     public private(set) var questionNote: String?
     /// The server kept a change of a part: her body is read again.
     @ObservationIgnored public var onPartKept: (@MainActor () -> Void)?
+    /// The outfit being put on (its id), nil when none: it ends when the server tells that her body changed, or answers with an error.
+    public private(set) var wearingOutfit: String?
+    /// Why the last outfit was not put on, nil when it was (or none was tried).
+    public private(set) var outfitFailure: String?
+    private var outfitRef: String?
     private var partWaiters: [String: CheckedContinuation<PartAnswer, Never>] = [:]
     private var partCounter = 0
     /// The server tells that something changed (`body`, `joi`: the app loads it again).
@@ -129,6 +134,34 @@ public final class ChatModel: AvatarOutput {
         switchingPart = nil
         if case .kept = answer { onPartKept?() }
         return answer
+    }
+
+    /// The user puts an outfit of hers on (since 1.12). The server keeps it for this node's profile and tells her; its answer is the event
+    /// `body` (her body is read again, which ends this) or an `error`. One at a time, and without an answer in 20 s it is `outfitFailure`.
+    public func wearOutfit(_ id: String) async {
+        guard wearingOutfit == nil else { return }
+        partCounter += 1
+        let ref = "o-\(partCounter)"
+        outfitRef = ref
+        wearingOutfit = id
+        outfitFailure = nil
+        do {
+            try await link.send(Frame.outfit(OutfitSwitch(outfit: id), id: ref))
+        } catch {
+            endOutfit(ref, failure: Self.describe(error))
+            return
+        }
+        Task { [weak self] in
+            try? await Task.sleep(for: .seconds(20))
+            self?.endOutfit(ref, failure: "The server did not answer.")
+        }
+    }
+
+    private func endOutfit(_ ref: String?, failure: String?) {
+        guard let ref, ref == outfitRef else { return }
+        outfitRef = nil
+        wearingOutfit = nil
+        outfitFailure = failure
     }
 
     private func answerPart(_ id: String?, _ answer: PartAnswer) {
@@ -340,6 +373,8 @@ public final class ChatModel: AvatarOutput {
         case .error(let error):
             if let ref = incoming.ref, partWaiters[ref] != nil {
                 answerPart(ref, .failed(error.message))
+            } else if let ref = incoming.ref, ref == outfitRef {
+                endOutfit(ref, failure: error.message)
             } else {
                 director.failed(incoming.ref, error)
             }
@@ -348,6 +383,8 @@ public final class ChatModel: AvatarOutput {
         case .mood(let mood):
             player?.setMood(mood)
         case .event(let event):
+            // her body was read again: the outfit is on
+            if event.name == "body" { endOutfit(outfitRef, failure: nil) }
             onServerEvent?(event.name)
         case .task(let task):
             take(task)
@@ -420,6 +457,7 @@ public final class ChatModel: AvatarOutput {
     private func endRunningTurn(note: String) {
         director.disconnected()
         for id in Array(partWaiters.keys) { answerPart(id, .failed("The connection was lost.")) }
+        endOutfit(outfitRef, failure: "The connection was lost.")
         guard let turn = runningTurn else { return }
         finish(turn)
         messages.append(ChatMessage(role: .note, text: note))

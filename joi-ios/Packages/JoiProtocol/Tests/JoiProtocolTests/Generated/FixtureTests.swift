@@ -142,14 +142,21 @@ import Testing
 
     @Test func bodyInfo1() throws {
         let json = #"""
-{"id":"b1","name":"Street","model":{"id":"m1","name":"Ryuu","joim":{"url":"http://h/api/v1/models/m1/joim","sha256":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","size":120000000,"writtenAt":"2026-11-19T12:00:00Z","current":true}},"lookingGlassModel":null,"parts":[{"id":"group:eyes","name":"eyes","state":"bare","stateName":"bare","default":true,"states":[{"id":"bare","name":"bare","default":true,"toggles":[{"mesh":"Band","key":null,"hides":false,"shown":false,"parent":null}]}]},{"id":"t1","name":"halo","state":null,"stateName":null,"default":false,"states":null}],"toggles":[{"mesh":"Band","key":null,"hides":false,"shown":true,"parent":null},{"mesh":"Body","key":"Hide Halo","hides":true,"shown":true,"parent":null}],"appearance":"Silver hair.","animations":{"all":false,"animations":[{"id":"a1","name":"Wave","description":null,"loop":true}],"joia":{"url":"http://h/api/v1/bodies/b1/joia","sha256":"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb","size":5000,"writtenAt":"2026-11-19T12:00:00Z","current":false}}}
+{"id":"b1","name":"Street","model":{"id":"m1","name":"Ryuu","joim":{"url":"http://h/api/v1/models/m1/joim","sha256":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","size":120000000,"writtenAt":"2026-11-19T12:00:00Z","current":true}},"lookingGlassModel":null,"parts":[{"id":"group:eyes","name":"eyes","state":"bare","stateName":"bare","default":true,"states":[{"id":"bare","name":"bare","default":true,"toggles":[{"mesh":"Band","key":null,"hides":false,"shown":false,"parent":null}]}]},{"id":"t1","name":"halo","state":null,"stateName":null,"default":false,"states":null}],"toggles":[{"mesh":"Band","key":null,"hides":false,"shown":true,"parent":null},{"mesh":"Body","key":"Hide Halo","hides":true,"shown":true,"parent":null}],"appearance":"Silver hair.","animations":{"all":false,"animations":[{"id":"a1","name":"Wave","description":null,"loop":true}],"joia":{"url":"http://h/api/v1/bodies/b1/joia","sha256":"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb","size":5000,"writtenAt":"2026-11-19T12:00:00Z","current":false}},"outfits":null}
 """#
         try roundTrip(BodyInfo.self, json)
     }
 
     @Test func bodyInfo2() throws {
         let json = #"""
-{"id":"b1","name":null,"model":{"id":"m1","name":null,"joim":null},"lookingGlassModel":null,"parts":[],"toggles":null,"appearance":null,"animations":{"all":true,"animations":[],"joia":null}}
+{"id":"b1","name":null,"model":{"id":"m1","name":null,"joim":null},"lookingGlassModel":null,"parts":[],"toggles":null,"appearance":null,"animations":{"all":true,"animations":[],"joia":null},"outfits":null}
+"""#
+        try roundTrip(BodyInfo.self, json)
+    }
+
+    @Test func bodyInfo3() throws {
+        let json = #"""
+{"id":"b1","name":"Street","model":null,"lookingGlassModel":null,"parts":[],"toggles":null,"appearance":null,"animations":{"all":true,"animations":[],"joia":null},"outfits":[{"id":"o1","name":"Casual","description":"A pink hoodie.","worn":true},{"id":"o2","name":"Sailor","description":null,"worn":false}]}
 """#
         try roundTrip(BodyInfo.self, json)
     }
@@ -254,7 +261,7 @@ import Testing
 
     @Test func hello1() throws {
         let json = #"""
-{"protocol":"1.11","nodeId":"6f1d-4c2a","name":"desk","kind":"desktop","software":"joi-node 0.1.0","joi":"2f0c","parts":["tools","audio-out","approvals"],"token":null,"resumed":null,"resume":null}
+{"protocol":"1.12","nodeId":"6f1d-4c2a","name":"desk","kind":"desktop","software":"joi-node 0.1.0","joi":"2f0c","parts":["tools","audio-out","approvals"],"token":null,"resumed":null,"resume":null}
 """#
         try roundTrip(Hello.self, json)
     }
@@ -362,6 +369,13 @@ import Testing
 {"part":"group:eyes","state":"bare"}
 """#
         try roundTrip(PartSwitch.self, json)
+    }
+
+    @Test func outfitSwitch1() throws {
+        let json = #"""
+{"outfit":"o2"}
+"""#
+        try roundTrip(OutfitSwitch.self, json)
     }
 
     @Test func partKept1() throws {
@@ -506,7 +520,7 @@ import Testing
 
     @Test func frame1() throws {
         let json = #"""
-{"type":"hello","id":null,"ref":null,"data":{"protocol":"1.11","nodeId":"6f1d-4c2a","name":"desk","kind":"desktop","software":"joi-node 0.1.0","joi":"2f0c","parts":["tools","audio-out","approvals"],"token":null,"resumed":null,"resume":null}}
+{"type":"hello","id":null,"ref":null,"data":{"protocol":"1.12","nodeId":"6f1d-4c2a","name":"desk","kind":"desktop","software":"joi-node 0.1.0","joi":"2f0c","parts":["tools","audio-out","approvals"],"token":null,"resumed":null,"resume":null}}
 """#
         try roundTrip(Frame.self, json)
         try typedFrame(json)

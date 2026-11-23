@@ -1,7 +1,7 @@
 asyncapi: 3.0.0
 info:
   title: Joi node WebSocket
-  version: "1.11"
+  version: "1.12"
   description: |
     The live connection between a node and a Joi server: who the node is, the tools it offers and their calls, the
     user talking to her through it and her answer in text and speech, approvals, and what changes on the server. The
@@ -66,6 +66,17 @@ info:
          node's manifest, and each time her mood changes: the daily roll, the user switching it in her dialog, she
          choosing it with her `set_mood` function, the user editing the mood. The node shows it as a soft expression on
          her body; an animation's own face and her state (shut eyes while she sleeps) win over it. It may ignore it.
+       - **Her outfits** (since 1.12). `GET .../body` lists the body's outfits (`BodyInfo.outfits`: id, name, description, and
+         which one she `worn`). The node sends `outfit` (an `OutfitSwitch`: the outfit's id) when the user puts one on. The server
+         keeps it in the profile of the node, tells her as it does a part (a turn with the cause `part_switched`, her events), and
+         sends the `event` `body` to every node of that profile, the sender too: the node shows the outfit when it reads her body
+         again. An outfit the body does not have is answered by `error` (`bad_message`) with the frame's id.
+       - **Profiles** (since 1.12). The user may give her profiles (home, work), each with its own body and state of its
+         parts, and assign each node to one by the `nodeId` of its `hello`. A node needs nothing for it but to read her
+         body with `?node=<its nodeId>` (`GET .../body`): the server sends it the `event` `body` only when its own profile
+         changed, and a part or an outfit it switches changes its profile only. What she is told follows the profile of the
+         node that talks to her: a turn from a node in another profile than her last turn says she moved (with how she looks
+         there), and a change in a profile she is not in is not told as it happens.
        - **Notes in her conversation** (since 1.6). The server sends `log` (id, time, kind, text) when something should be
          seen in the transcript without being said to her: the user's approval of a task of hers, for one. It is not an
          exchange: it is never given to the model and does not count as her being talked to. A node shows it or ignores
@@ -154,6 +165,7 @@ channels:
       say: { $ref: "#/components/messages/say" }
       stop: { $ref: "#/components/messages/stop" }
       display: { $ref: "#/components/messages/display" }
+      outfit: { $ref: "#/components/messages/outfit" }
       part: { $ref: "#/components/messages/part" }
       part_kept: { $ref: "#/components/messages/part_kept" }
       part_refused: { $ref: "#/components/messages/part_refused" }
@@ -188,6 +200,7 @@ operations:
       - { $ref: "#/channels/node/messages/stop" }
       - { $ref: "#/channels/node/messages/display" }
       - { $ref: "#/channels/node/messages/part" }
+      - { $ref: "#/channels/node/messages/outfit" }
       - { $ref: "#/channels/node/messages/tool_progress" }
       - { $ref: "#/channels/node/messages/tool_result" }
       - { $ref: "#/channels/node/messages/approval" }
@@ -253,6 +266,10 @@ components:
       name: part
       summary: The user put a part of her body in another state (since 1.5)
       payload: { $ref: "#/components/schemas/partFrame" }
+    outfit:
+      name: outfit
+      summary: The user put an outfit of her body on, on the node (since 1.12)
+      payload: { $ref: "#/components/schemas/outfitFrame" }
     part_kept:
       name: part_kept
       summary: The server kept a part in the state the node asked for (since 1.5)
@@ -377,6 +394,11 @@ components:
       allOf:
         - $ref: "schemas/Frame.schema.json"
         - properties: { type: { const: part }, id: { type: string }, data: { $ref: "schemas/PartSwitch.schema.json" } }
+          required: [ data ]
+    outfitFrame:
+      allOf:
+        - $ref: "schemas/Frame.schema.json"
+        - properties: { type: { const: outfit }, id: { type: string }, data: { $ref: "schemas/OutfitSwitch.schema.json" } }
           required: [ data ]
     partKeptFrame:
       allOf:

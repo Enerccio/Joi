@@ -74,6 +74,11 @@ public class Joi extends ExtendableEntity implements PersonaAttributes {
     @Transient
     private String outfitImagePrompt;
 
+    /** Her profiles (home, work: the body she is in and the state of its parts there, the nodes in each), JSON ({@code Profiles}); null for none. */
+    @ExtendedAttribute
+    @Transient
+    private String profiles;
+
     /** The section of her system prompt about the body she is in ({@code {{#body}}}). */
     @ExtendedAttribute
     @Transient
@@ -560,6 +565,23 @@ public class Joi extends ExtendableEntity implements PersonaAttributes {
     @Override
     public void setSummaryEvent(String summaryEvent) {
         this.summaryEvent = summaryEvent;
+    }
+
+    public String getProfiles() {
+        return profiles;
+    }
+
+    public void setProfiles(String profiles) {
+        this.profiles = profiles;
+    }
+
+    /** Her profiles, as stored. */
+    public com.github.enerccio.joi.domain.bodies.Profiles profileSet() {
+        return com.github.enerccio.joi.domain.bodies.Profiles.fromJson(profiles);
+    }
+
+    public void setProfileSet(com.github.enerccio.joi.domain.bodies.Profiles set) {
+        this.profiles = set == null ? null : set.toJson();
     }
 
     public String getMood() {

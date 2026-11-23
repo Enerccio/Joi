@@ -36,6 +36,30 @@ public class BodyTemplateData extends JoiTemplateData {
     @JoiTemplateDescription(loc = J_L.DESC_TEMPLATE_OTHER_BODIES)
     private String otherBodies;
 
+    /** The profile she is in (where: home, work); empty when she has only the default one. */
+    @JoiTemplateDescription(loc = J_L.DESC_TEMPLATE_WHERE_SHE_IS)
+    private String profile;
+
+    /** The profile she was in until this turn, when this turn is in another one; empty otherwise. */
+    @JoiTemplateDescription(loc = J_L.DESC_TEMPLATE_WHERE_SHE_WAS)
+    private String profileFrom;
+
+    public String getProfile() {
+        return profile;
+    }
+
+    public void setProfile(String profile) {
+        this.profile = profile;
+    }
+
+    public String getProfileFrom() {
+        return profileFrom;
+    }
+
+    public void setProfileFrom(String profileFrom) {
+        this.profileFrom = profileFrom;
+    }
+
     public String getBodyName() {
         return bodyName;
     }

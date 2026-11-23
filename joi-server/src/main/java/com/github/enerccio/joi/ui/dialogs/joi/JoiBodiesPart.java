@@ -4,7 +4,10 @@ import com.flowingcode.vaadin.addons.fontawesome.FontAwesome.Solid;
 import com.github.enerccio.joi.domain.model.impl.Body;
 import com.github.enerccio.joi.domain.model.impl.Joi;
 import com.github.enerccio.joi.domain.model.impl.Model;
+import com.github.enerccio.joi.domain.bodies.Profiles;
 import com.github.enerccio.joi.domain.service.BodyService;
+import com.github.enerccio.joi.domain.service.ProfileService;
+import com.vaadin.flow.component.combobox.ComboBox;
 import com.github.enerccio.joi.domain.service.ModelService;
 import com.github.enerccio.joi.loc.J_L;
 import com.github.enerccio.joi.ui.dialogs.BodyDialog;
@@ -44,10 +47,20 @@ public class JoiBodiesPart implements JoiDialogPart {
     @Autowired
     private ModelService modelService;
 
+    @Autowired
+    private ProfileService profileService;
+
     private Joi joi;
     private Grid<Body> grid;
     private Span empty;
     private Button addButton;
+    private ComboBox<String> profileSelect;
+    private Profiles profiles = new Profiles();
+    /** The profile whose body and state are shown and changed here; null for the default one. */
+    private String profile;
+    /** The body she is in in that profile. */
+    private Long activeId;
+    private boolean filling;
 
     @Override
     public J_L caption() {
@@ -60,7 +73,23 @@ public class JoiBodiesPart implements JoiDialogPart {
         hint.addClassName(CssStyles.HINT_TEXT);
         addButton = new Button(loc.getValue(J_L.LABEL_ADD_BODY), Solid.PLUS.create(), e -> open(null));
         addButton.setThemeName("primary");
-        HorizontalLayout header = new HorizontalLayout(hint, addButton);
+        // the profile whose body and state are changed here: only when she has more than the default one
+        profileSelect = new ComboBox<>(loc.getValue(J_L.LABEL_PROFILE));
+        profileSelect.setItemLabelGenerator(id -> profiles.nameOf(id));
+        profileSelect.setAllowCustomValue(false);
+        profileSelect.setClearButtonVisible(false);
+        profileSelect.setVisible(false);
+        profileSelect.addValueChangeListener(e -> {
+            if (!filling && e.getValue() != null) {
+                profile = Profiles.isDefault(e.getValue()) ? null : e.getValue();
+                try {
+                    refresh();
+                } catch (Exception ex) {
+                    UIUtils.internalServerError(loc, ex);
+                }
+            }
+        });
+        HorizontalLayout header = new HorizontalLayout(hint, profileSelect, addButton);
         header.setWidthFull();
         header.setAlignItems(FlexComponent.Alignment.CENTER);
         header.setJustifyContentMode(FlexComponent.JustifyContentMode.BETWEEN);
@@ -97,12 +126,12 @@ public class JoiBodiesPart implements JoiDialogPart {
 
     /** A mark on the body she is in, a button to put her into another one. */
     private Component active(Body body) {
-        if (body.isActive()) {
+        if (body.getId().equals(activeId)) {
             return Solid.CHECK_CIRCLE.create();
         }
         Button button = new Button(Solid.PERSON_WALKING_ARROW_RIGHT.create(), e -> {
             try {
-                bodyService.activate(joi, bodyService.find(body.getId()));
+                bodyService.activate(joi, profile, bodyService.find(body.getId()));
                 refresh();
             } catch (Exception ex) {
                 UIUtils.internalServerError(loc, ex);
@@ -147,7 +176,7 @@ public class JoiBodiesPart implements JoiDialogPart {
     /** Shows the dialog of the body, a new one (null; stored once it has a name or a model) or a stored one. */
     private void open(Body body) {
         try {
-            BodyDialog dialog = new BodyDialog(joi, body == null ? null : bodyService.find(body.getId()));
+            BodyDialog dialog = new BodyDialog(joi, body == null ? null : bodyService.find(body.getId()), profile);
             dialog.setOnClose(() -> {
                 try {
                     refresh();
@@ -173,10 +202,37 @@ public class JoiBodiesPart implements JoiDialogPart {
         refresh();
     }
 
+    /** The profiles were added, renamed or removed (the Profiles tab): the choice of the one to edit follows. */
+    public void profilesChanged() throws Exception {
+        if (joi == null) {
+            return;
+        }
+        profiles = profileService.profiles(joi);
+        if (profile != null && !profiles.exists(profile)) {
+            profile = null;
+        }
+        filling = true;
+        try {
+            profileSelect.setItems(profiles.ids());
+            profileSelect.setValue(Profiles.idOf(profile));
+            profileSelect.setVisible(profiles.several());
+        } finally {
+            filling = false;
+        }
+    }
+
     private void refresh() throws Exception {
+        profilesChanged();
+        Body active = bodyService.active(joi, profile);
+        activeId = active == null ? null : active.getId();
         List<Body> bodies = bodyService.findForJoi(joi);
         grid.setItems(bodies);
         empty.setVisible(bodies.isEmpty());
+    }
+
+    /** The choice of the profile, for tests. */
+    public ComboBox<String> getProfileSelect() {
+        return profileSelect;
     }
 
     /** The table, for tests. */
