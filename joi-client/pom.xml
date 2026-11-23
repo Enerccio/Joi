@@ -1,0 +1,185 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <!--
+    The client app of Joi: the node alone (the avatar, the microphone, the tools of this computer) as a self-contained native app,
+    for a computer whose server runs somewhere else. No server, no WAR, no Jetty: the build does not touch joi-server. Part of
+    the build only with the root POM's profile `client`:
+
+      mvn -B -DskipTests -Pfx,client -Dclient.skipInstaller=true package -pl joi-client -am
+
+    Result in target/client/package: JoiNode.app (macOS), JoiNode/ (Linux and Windows), made by jpackage with a jlink runtime of this
+    OS and CPU (build on the target platform). The node's home is its own (~/.joi-client, as the node run from Maven); the
+    desktop app (joi-desktop) is the one with the server in it.
+  -->
+  <parent>
+    <groupId>io.github.enerccio</groupId>
+    <artifactId>joi-parent</artifactId>
+    <version>0.1.0-SNAPSHOT</version>
+  </parent>
+
+  <artifactId>joi-client</artifactId>
+  <packaging>pom</packaging>
+  <name>joi-client</name>
+
+  <properties>
+    <client.dir>${project.build.directory}/client</client.dir>
+    <!-- jpackage: a number of one to three parts, the first above 0 (macOS) -->
+    <client.appVersion>1.0.0</client.appVersion>
+    <!-- the node's modules (as joi-desktop: found with jdeps over the node's jars) -->
+    <client.modules>java.base,java.compiler,java.datatransfer,java.desktop,java.instrument,java.logging,java.management,java.naming,java.net.http,java.prefs,java.scripting,java.security.jgss,java.security.sasl,java.sql,java.xml,java.xml.crypto,jdk.charsets,jdk.crypto.ec,jdk.httpserver,jdk.jfr,jdk.localedata,jdk.management,jdk.naming.dns,jdk.net,jdk.unsupported,jdk.zipfs</client.modules>
+    <client.javaOptions>--enable-native-access=ALL-UNNAMED</client.javaOptions>
+    <client.microphone>Joi listens for her name and for what you say to her.</client.microphone>
+  </properties>
+
+  <dependencies>
+    <!-- the node's program with everything it runs on (copied into app/): build with -Pfx, the classes of its JavaFX app are not
+         compiled without it -->
+    <dependency>
+      <groupId>io.github.enerccio</groupId>
+      <artifactId>joi-node</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>org.openjfx</groupId>
+      <artifactId>javafx-controls</artifactId>
+      <version>${javafx.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>org.openjfx</groupId>
+      <artifactId>javafx-media</artifactId>
+      <version>${javafx.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>me.friwi</groupId>
+      <artifactId>jcefmaven</artifactId>
+      <version>${jcef.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>me.friwi</groupId>
+      <artifactId>jcef-natives-${jcef.platform}</artifactId>
+      <version>${jcef.natives.version}</version>
+    </dependency>
+  </dependencies>
+
+  <build>
+    <plugins>
+      <plugin>
+        <artifactId>maven-dependency-plugin</artifactId>
+        <version>3.7.0</version>
+        <executions>
+          <execution>
+            <id>client-jars</id>
+            <phase>prepare-package</phase>
+            <goals>
+              <goal>copy-dependencies</goal>
+            </goals>
+            <configuration>
+              <outputDirectory>${client.dir}/app</outputDirectory>
+              <includeScope>runtime</includeScope>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+
+      <plugin>
+        <artifactId>maven-antrun-plugin</artifactId>
+        <version>3.1.0</version>
+        <executions>
+          <execution>
+            <id>client-package</id>
+            <phase>package</phase>
+            <goals>
+              <goal>run</goal>
+            </goals>
+            <configuration>
+              <target>
+                <condition property="client.os" value="windows">
+                  <os family="windows"/>
+                </condition>
+                <condition property="client.os" value="macos">
+                  <os family="mac"/>
+                </condition>
+                <property name="client.os" value="linux"/>
+                <!-- the icons are joi-desktop's (drawn from the SVG master by tools/MakeIcons.java) -->
+                <condition property="client.icon" value="../joi-desktop/src/main/icons/joi.icns">
+                  <equals arg1="${client.os}" arg2="macos"/>
+                </condition>
+                <condition property="client.icon" value="../joi-desktop/src/main/icons/joi.ico">
+                  <equals arg1="${client.os}" arg2="windows"/>
+                </condition>
+                <property name="client.icon" value="../joi-desktop/src/main/icons/joi.png"/>
+                <!-- JCEF on macOS reaches into AWT's internals -->
+                <condition property="client.javaOptions.all" value="${client.javaOptions} --add-opens=java.desktop/sun.awt=ALL-UNNAMED --add-opens=java.desktop/sun.lwawt=ALL-UNNAMED --add-opens=java.desktop/sun.lwawt.macosx=ALL-UNNAMED">
+                  <equals arg1="${client.os}" arg2="macos"/>
+                </condition>
+                <property name="client.javaOptions.all" value="${client.javaOptions}"/>
+
+                <delete dir="${client.dir}/runtime"/>
+                <delete dir="${client.dir}/package"/>
+
+                <exec executable="${java.home}/bin/jlink" failonerror="true">
+                  <arg value="--add-modules"/>
+                  <arg value="${client.modules}"/>
+                  <arg value="--strip-debug"/>
+                  <arg value="--no-header-files"/>
+                  <arg value="--no-man-pages"/>
+                  <arg value="--compress=zip-6"/>
+                  <arg value="--output"/>
+                  <arg value="${client.dir}/runtime"/>
+                </exec>
+
+                <exec executable="${java.home}/bin/jpackage" failonerror="true">
+                  <arg value="--type"/>
+                  <arg value="app-image"/>
+                  <arg value="--name"/>
+                  <arg value="JoiNode"/>
+                  <arg value="--app-version"/>
+                  <arg value="${client.appVersion}"/>
+                  <arg value="--vendor"/>
+                  <arg value="enerccio"/>
+                  <arg value="--description"/>
+                  <arg value="The Joi node: the avatar, the microphone and the tools of this computer"/>
+                  <arg value="--icon"/>
+                  <arg value="${client.icon}"/>
+                  <arg value="--input"/>
+                  <arg value="${client.dir}/app"/>
+                  <arg value="--main-jar"/>
+                  <arg value="joi-node-${project.version}.jar"/>
+                  <arg value="--main-class"/>
+                  <arg value="com.github.enerccio.joi.node.fx.Launcher"/>
+                  <arg value="--runtime-image"/>
+                  <arg value="${client.dir}/runtime"/>
+                  <arg value="--java-options"/>
+                  <arg value="${client.javaOptions.all}"/>
+                  <arg value="--dest"/>
+                  <arg value="${client.dir}/package"/>
+                </exec>
+
+                <!-- macOS asks for the microphone only of an application whose Info.plist says what it is for; the plist changes
+                     the signature jpackage made: signed again, ad hoc -->
+                <exec executable="plutil" os="Mac OS X" failonerror="true">
+                  <arg value="-replace"/>
+                  <arg value="NSMicrophoneUsageDescription"/>
+                  <arg value="-string"/>
+                  <arg value="${client.microphone}"/>
+                  <arg value="${client.dir}/package/JoiNode.app/Contents/Info.plist"/>
+                </exec>
+                <exec executable="codesign" os="Mac OS X" failonerror="true">
+                  <arg value="--force"/>
+                  <arg value="--deep"/>
+                  <arg value="--sign"/>
+                  <arg value="-"/>
+                  <arg value="${client.dir}/package/JoiNode.app"/>
+                </exec>
+              </target>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+    </plugins>
+  </build>
+</project>

@@ -1,14 +1,13 @@
 #!/bin/sh
-# Builds the desktop app (server + node, see manual/developer/desktop.md) from the checkout and installs it as Joi.app on this Mac,
-# in ~/Applications (the user's place for apps; --dest moves it). The data folder (~/.joi-bundled-client) is never touched: the new
-# version upgrades its database when it starts.
+# Builds the client app (the node alone, no server: joi-client, see manual/developer/desktop.md) from the checkout and installs it as
+# JoiNode.app on this Mac, in ~/Applications (the user's place for apps; --dest moves it). The node's home (~/.joi-client) is never touched.
 #
-#   tools/upgrade_mac_client.sh              build, stop a running Joi, replace Joi.app, start it
-#   tools/upgrade_mac_client.sh --no-build   install what joi-desktop/target/desktop/package already holds
+#   tools/upgrade_mac_client.sh              build, stop a running JoiNode, replace JoiNode.app, start it
+#   tools/upgrade_mac_client.sh --no-build   install what joi-client/target/client/package already holds
 #   tools/upgrade_mac_client.sh --no-start   do not start it afterwards
 #   tools/upgrade_mac_client.sh --dest DIR   install into DIR instead of ~/Applications
 #
-# Only the desktop app is stopped: a dev server (jetty:run) or a node of the checkout is left alone.
+# Only the installed app is stopped: a dev server (jetty:run), the desktop app with its server (Joi.app) or a node of the checkout is left alone.
 set -e
 cd "$(dirname "$0")/.."
 
@@ -31,19 +30,18 @@ if [ -z "$JAVA_HOME" ] || ! "$JAVA_HOME/bin/java" -version 2>&1 | grep -q '"2[5-
     export JAVA_HOME
 fi
 
-image="joi-desktop/target/desktop/package/Joi.app"
-target="$dest/Joi.app"
+image="joi-client/target/client/package/JoiNode.app"
+target="$dest/JoiNode.app"
 
 if [ "$build" = 1 ]; then
-    # the installer (.dmg) is not needed for an install from the same machine
-    mvn -B -DskipTests -Pfx,production,desktop -Ddesktop.skipInstaller=true package -pl joi-desktop -am
+    mvn -B -DskipTests -Pfx,client package -pl joi-client -am
 fi
 [ -d "$image" ] || { echo "no $image: build first (without --no-build)" >&2; exit 1; }
 
 # stop the installed app: ask it to quit, then end what is left that runs from it
 if pgrep -f "$target/Contents" >/dev/null 2>&1; then
-    echo "Stopping the running Joi..."
-    osascript -e 'tell application "Joi" to quit' >/dev/null 2>&1 || true
+    echo "Stopping the running JoiNode..."
+    osascript -e 'tell application "JoiNode" to quit' >/dev/null 2>&1 || true
     for _ in 1 2 3 4 5 6 7 8 9 10; do
         pgrep -f "$target/Contents" >/dev/null 2>&1 || break
         sleep 1

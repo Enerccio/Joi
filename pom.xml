@@ -91,6 +91,14 @@
       </modules>
     </profile>
 
+    <!-- The client app (joi-client): the node alone as a native app, no server. Build: mvn -B -DskipTests -Pfx,client package -pl joi-client -am -->
+    <profile>
+      <id>client</id>
+      <modules>
+        <module>joi-client</module>
+      </modules>
+    </profile>
+
     <!-- The iOS app (joi-ios): Xcode and XcodeGen, macOS only. Build: mvn -Pswift,ios verify -pl joi-ios -am
          (swift: the protocol's Swift package, written by joi-protocol), see joi-ios/pom.xml and manual/developer/ios-app.md. -->
     <profile>
