@@ -331,7 +331,7 @@ components:
       payload: { $ref: "#/components/schemas/emptyFrame" }
     error:
       name: error
-      summary: A frame that could not be taken (ref is it), the end of a failed turn (ref is the turn), or, with no ref, a fault of the assistant the node is told about (code no_model: she has no chat model, so the server starts no greeting turn)
+      summary: "A frame that could not be taken (ref is it), the end of a failed turn (ref is the turn), or, with no ref, a fault of the assistant the node is told about (code no_model: she has no chat model, so the server starts no greeting turn)"
       payload: { $ref: "#/components/schemas/errorFrame" }
   schemas:
     helloFrame:
