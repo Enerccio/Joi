@@ -7,7 +7,7 @@ covers:
   - joi-protocol/src/main/java/com/github/enerccio/joi/protocol
   - joi-protocol/src/test/java/com/github/enerccio/joi/protocol/swift
   - joi-ios/Packages/JoiProtocol
-verified: b338033
+verified: 47509ca
 ---
 
 # The protocol

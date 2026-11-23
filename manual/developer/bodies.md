@@ -5,7 +5,7 @@ order: 720
 covers:
   - joi-server/src/main/java/com/github/enerccio/joi/domain/bodies
   - joi-server/src/main/java/com/github/enerccio/joi/domain/animations
-verified: 714077a
+verified: 47509ca
 ---
 
 # Bodies and models
