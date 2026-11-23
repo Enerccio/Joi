@@ -128,10 +128,10 @@ Run it with `exec:exec@run` (`fx/Launcher`), not `javafx:run`, which leaves the 
 ## Schema changes
 
 Every entity change has a Flyway migration in `joi-server/src/main/resources/migration` (Hibernate only validates), including the
-platform's tables. While Joi is not running in production the first migration, `V1__platform.sql`, is edited in place instead of adding a
-version. A development database built from an older V1 fails Flyway's checksum: do not delete it, upgrade it with
-`python3 tools/upgrade_dev_db.py` (server stopped; it backs the database up, rebuilds it from the current V1, copies the data by shared
-columns and sets the checksum; `--dry-run` only reports).
+platform's tables. The first migration, `V1__platform.sql`, is frozen since 2026-11-23: it is never edited again, not even a comment, because Flyway
+checks its checksum in every existing database. A schema change is a new migration next to it (`V2__<what>.sql`, `V3__...`), written
+so that it runs on a database that already holds data (a default for a new `NOT NULL` column, a backfill; SQLite rebuilds a table to
+drop or retype a column). `tools/upgrade_dev_db.py` belongs to the time before the freeze and is no longer used.
 
 A column that refers to another entity (an owner such as `joi_id`, too) stays nullable in SQL, even when the entity says
 `nullable = false`: the administrator's cleanup sets the references of the purged rows to null before it removes them, and a `NOT NULL`

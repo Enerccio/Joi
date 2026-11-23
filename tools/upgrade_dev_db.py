@@ -1,8 +1,11 @@
 #!/usr/bin/env python3
 """Brings a dev database up to the current V1__platform.sql without losing its data.
 
-While V1 stays open (CLAUDE.md), schema changes are edited into V1 in place, so a dev database made from an older V1
-fails Flyway's checksum at start. This tool rebuilds the database from the current V1 and copies the data over:
+RETIRED: V1 has been frozen since 2026-11-23 (CLAUDE.md), schema changes are new Flyway migrations now. Kept for a
+database made before the freeze.
+
+While V1 was open, schema changes were edited into V1 in place, so a dev database made from an older V1
+failed Flyway's checksum at start. This tool rebuilds the database from the current V1 and copies the data over:
 
 1. a copy of the database goes to <data>/db-backups/joi-before-v1-upgrade-<time>.sqlite;
 2. a new database is made from the current V1 (every table, index and sequence row);

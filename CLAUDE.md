@@ -53,7 +53,7 @@ and node code is written, it follows the same rules unless `DESIGN.md` says othe
   Boot (a new service / repository needs its bean in `services-config.xml`); Hibernate + SQLite + Flyway
   (`hbm2ddl=validate`, every entity change has a migration).
 - `BaseEntity` / `OwnedEntity` / `ExtendableEntity` with `id` + stable `uuid`, soft deletes, `@ExtendedAttribute` for
-  fields nobody queries in SQL; `Jpa*Repository`, `*ServiceImpl`, `@CommonTx` / `@CommonTxReadOnly`; ownership checked
+  fields nobody queries in SQL (the default for a new field: no migration, see the frozen database below); `Jpa*Repository`, `*ServiceImpl`, `@CommonTx` / `@CommonTxReadOnly`; ownership checked
   through `findForUser`, never raw ids.
 - UI classes created with `new`, `@Configurable` with compile-time AspectJ weaving (plain javac leaves injected fields
   `null`); UI updates from other threads through `ui.access(...)`.
@@ -97,11 +97,15 @@ with the code.
 - `joi-server/` — the server WAR. Packages under `com.github.enerccio.joi`. Its own Spring XML
   (`src/main/resources/META-INF/spring`), persistence unit (`src/main/webapp/config/persistence.xml`) and Flyway history
   (`src/main/resources/migration`, the platform's tables included: a platform entity change needs a Joi migration too).
-  **V1 stays open:** until the user says Joi runs on their production server, every schema change is edited into
-  `V1__platform.sql` instead of a new version. Don't add V2 before that. A dev database from an older V1 fails
-  Flyway's checksum: never delete it, upgrade it with `python3 tools/upgrade_dev_db.py` (server stopped; it backs the
-  database up into `~/.joi/db-backups`, rebuilds it from the current V1, copies the data by shared columns and sets
-  the checksum; `--dry-run` reports only). Run it after each V1 change, and say so to the user.
+  **The database is frozen (2026-11-23):** never edit `V1__platform.sql` again, not even a comment or whitespace
+  (Flyway's checksum would fail on every existing database). **Prefer extended attributes to a schema change:** a new
+  field on an `ExtendableEntity` that no SQL query, index, join, uniqueness or foreign key needs is an `@ExtendedAttribute`
+  (stored in the entity's extended content), with no migration. Add a column only when the database must see the value
+  (filtering, sorting, joining, constraints, a relation) and say why in the commit or the migration's comment. Every real schema change is a new Flyway migration
+  (`V2__<what>.sql`, then V3, ...) next to it: a platform entity change too. Write it so it runs on a database that already has
+  data (defaults for a new NOT NULL column, `ALTER TABLE`, backfills; SQLite rebuilds a table to drop or retype a column),
+  and add a test that migrates a database from the previous version when the change moves data. Never delete a user's
+  database to apply a change.
   The page after the login is `ui/workspace/JoiWorkspace` (tabs of `WorkspacePart`s, state kept by
   `WorkspaceAutosave`; parts in `ui/workspace/parts`). Speech is in `tts/` (servers, voices; copied from Marginalia's
   audiobook plugin, see `MARGINALIA.md`), with `TtsService` keeping the user's TTS models and voice actors as JSON in
@@ -137,7 +141,7 @@ with the code.
 - `screenshots/` — the scripted environment that takes the pictures of the manual (see `screenshots/SCREENSHOTS.md`): its
   own server (8099), a fake model (8098), Playwright for the UI, and the JavaFX node's screenshot mode (8097,
   `Launcher shots`, `fx/NodeShots`). Run one heavy thing at a time.
-- `tools/upgrade_dev_db.py` — upgrades a dev database to the current V1 without losing its data (see above).
+- `tools/upgrade_dev_db.py` — retired with the V1 freeze: it rebuilt a dev database from an edited V1. Don't use it on a database that Flyway can migrate.
 - `MARGINALIA.md` — what Joi uses from Marginalia's platform and what it provides itself.
 - `DESIGN.md` — the design (architecture, server, node, avatar, spikes and their results, roadmap, open decisions).
 - `joi-server/src/main/resources/com/github/enerccio/joi/domain/bodies/convert_avatar.py` — FBX → VRM 1.0 converter,

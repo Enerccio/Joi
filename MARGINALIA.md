@@ -105,8 +105,8 @@ Done in Joi (2026-11-18): the submodule `marginalia/` (URL `../marginalia`, so i
 - `services-config.xml` is the platform's part of the test wiring (43 beans), with `JoiUserSetting`. **No OSGi and no
   runtime instrumentation** at first; since 2026-11-21 OSGi runs in production (`extensions-config.xml`, not in the tests) and
   the Claude, Gemini and Grok providers are `joi-extensions/` (see DESIGN.md → Extensions). Still no instrumentation. No `BuildTimeWeaver` step either: Joi has no `@Extendable` classes.
-- `V1__platform.sql` is the platform's test migration copied. Joi's own tables go into the same V1 until the first
-  production install (then V2 and on).
+- `V1__platform.sql` is the platform's test migration copied, with Joi's own tables added. It is frozen since 2026-11-23:
+  every later change is a new migration (V2 and on).
 - `JoiDatabase.SCHEMA` (`classpath:migration`, the platform's core tables for now), data folder `~/.joi` (`JOI_DATA`).
 - The platform's `SessionPoint` as it is (no Joi session state yet).
 - `Main` extends `LoginCheckRoute`: the platform's login and first-user dialog, then `JoiWorkspace` (Joi's own
