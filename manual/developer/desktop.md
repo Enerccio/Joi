@@ -13,7 +13,7 @@ covers:
   - joi-node/src/main/java/com/github/enerccio/joi/node/local
   - joi-node/src/main/java/com/github/enerccio/joi/node/LocalMode.java
   - joi-node/src/main/java/com/github/enerccio/joi/node/NodeInstance.java
-verified: da3bc3c
+verified: d150187
 ---
 
 # The desktop app

@@ -5,7 +5,7 @@ order: 750
 covers:
   - joi-server/src/main/java/com/github/enerccio/joi/domain/chat
   - joi-server/src/main/java/com/github/enerccio/joi/domain/service/impl/ChatImageServiceImpl.java
-verified: 13054e1
+verified: d150187
 ---
 
 # A chat turn

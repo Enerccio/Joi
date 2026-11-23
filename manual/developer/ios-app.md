@@ -4,7 +4,7 @@ icon: device-mobile
 order: 765
 covers:
   - joi-ios
-verified: da3bc3c
+verified: d150187
 ---
 
 # The iOS app
