@@ -10,7 +10,8 @@
       "description": "The state's id (shown or hidden for a single toggle)."
     },
     "name": {
-      "type": "string"
+      "type": "string",
+      "description": "What she calls the state: a group's name of it, for a single toggle the words the user gave the state (worn, taken off), else shown or hidden. Show it; match on the id."
     },
     "default": {
       "type": "boolean",

@@ -11,6 +11,7 @@ public struct BodyPart: Codable, Hashable, Sendable {
     public var name: String
     /// The id of the state it is in (for a single toggle shown or hidden), null when it can't be told.
     public var state: String?
+    /// The name of that state (see BodyPartState.name), null when it can't be told.
     public var stateName: String?
     /// Whether that is the part's default state.
     public var `default`: Bool

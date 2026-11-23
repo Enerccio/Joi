@@ -23,7 +23,8 @@
       "type": [
         "string",
         "null"
-      ]
+      ],
+      "description": "The name of that state (see BodyPartState.name), null when it can't be told."
     },
     "default": {
       "type": "boolean",

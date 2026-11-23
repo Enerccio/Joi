@@ -8,6 +8,7 @@ import Foundation
 public struct BodyPartState: Codable, Hashable, Sendable {
     /// The state's id (shown or hidden for a single toggle).
     public var id: String
+    /// What she calls the state: a group's name of it, for a single toggle the words the user gave the state (worn, taken off), else shown or hidden. Show it; match on the id.
     public var name: String
     /// Whether it is the part's default state.
     public var `default`: Bool
