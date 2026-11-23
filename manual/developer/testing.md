@@ -21,6 +21,10 @@ mvn test -pl joi-server -Dtest=ChatTurnTest
 mvn test -pl joi-node
 ```
 
+The test classes share one application (the same database and the same in-memory state), so a test that looks at everything (the administrator's list of what the
+assistants do, a count of all animations) can fail depending on which classes ran before it: on CI the order is the file system's, here it is another. Run the whole suite
+in alphabetical order to find such tests (`mvn test -pl joi-server -Dsurefire.runOrder=alphabetical`), and let a test look only at what its own user created.
+
 ## The base class
 
 Tests extend the platform's `PlatformTestBase` (from the platform's test-jar, so install it after each submodule bump) and start
