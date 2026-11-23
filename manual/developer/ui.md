@@ -5,7 +5,7 @@ order: 700
 covers:
   - joi-server/src/main/java/com/github/enerccio/joi/ui
   - joi-server/src/main/java/com/github/enerccio/joi/loc
-verified: 446f8b5
+verified: b338033
 ---
 
 # The UI
