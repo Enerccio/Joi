@@ -80,7 +80,8 @@ The model that writes a summary is given no images: `SummarizerServiceImpl.trans
 ## The event
 
 Each summary a model wrote is told to her through `NodeService.tell` with the cause `summary_created` (see [Events](events.md)), or queued as
-`summary.created` when no node is connected. A part that only took the whole day, and a week made of one summary, are not new: no event.
+`summary.created` when no node is connected. `settle(joi)` queues what is due now and completes when no job of hers waits or runs: a node's
+greeting waits for it, so a summary due as the node connects is told in the greeting's turn (see [Nodes](nodes.md)). A part that only took the whole day, and a week made of one summary, are not new: no event.
 
 ## The UI
 

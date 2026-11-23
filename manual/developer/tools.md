@@ -103,4 +103,5 @@ messages (`ChatMessageService.findLatest`), newest first, at most 12, none that 
 of the workspace (the image size too) hold. `view_image` is added only when `event.getAi().isMultimodal()`; `WorkspaceTools` puts the turn's `ShownImages` in `TurnProperties.SHOWN_IMAGES`, and `CallToolsStep.afterCalls` adds the message from `shownImages` to the payload before the
 next round. A task does the same in `WebResearch.run` (`withImages`, only when the task's model is multimodal; `MAX_IMAGE_CALLS` more rounds). `list_chat_images` and `view_image` are read-only for `ToolEffects`; `save_chat_image` is not.
 
-The user's view is the **Files** tab of the Joi dialog (`ui/dialogs/joi/JoiFilesPart`), the platform's `WorkspaceBrowser` over a `Source` that goes through the service.
+The user's view is the **Files** tab of the Joi dialog (`ui/dialogs/joi/JoiFilesPart`), the platform's `WorkspaceBrowser` over a `Source` that goes through the service. Its content is built in `load`, once the part has her: the browser lists the
+files as it is built (`JoiFilesPartTest`).
