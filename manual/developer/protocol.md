@@ -7,7 +7,7 @@ covers:
   - joi-protocol/src/main/java/com/github/enerccio/joi/protocol
   - joi-protocol/src/test/java/com/github/enerccio/joi/protocol/swift
   - joi-ios/Packages/JoiProtocol
-verified: 47509ca
+verified: d276400
 ---
 
 # The protocol
@@ -29,7 +29,7 @@ changes the schema, the record and the docs together with the code.**
 
 ## Versioning
 
-`JoiProtocol.VERSION` is `major.minor` (now 1.11), sent in the handshake. A minor version only adds things; both sides ignore fields and message types they
+`JoiProtocol.VERSION` is `major.minor` (now 1.12), sent in the handshake. A minor version only adds things; both sides ignore fields and message types they
 do not know. The server supports at least the previous major version and says so when a node is too old.
 
 ## The HTTP API
@@ -41,7 +41,7 @@ do not know. The server supports at least the previous major version and says so
 | `POST /api/v1/jois/{id}/chat` | `{"text": ...}`: she answers in text and speech. Whole, or streamed as server-sent events with `"stream": true` or `Accept: text/event-stream` (text pieces, `reply`, `audio` pieces, `done`, `error`, keep-alives every 15 s) |
 | `POST /api/v1/jois/{id}/images`, `GET /api/v1/images/{id}` | an image for her: the raw body, streamed to a file; answer `ImageUpload` (id, size, width, height). The id goes in `ChatRequest.images` / `Say.images`; `GET` gives the image back (ETag = id) |
 | `GET /api/v1/jois/{id}/chat` | her history, the latest 50 exchanges (`limit` up to 200) oldest first; `more` and `before` page back |
-| `GET /api/v1/jois/{id}/body` | the body she is in: models with their `.joim`, the parts that can be switched, how she looks, the animations with their `.joia`; 404 `no_body` for none |
+| `GET /api/v1/jois/{id}/body` | the body she is in: models with their `.joim`, the parts that can be switched, how she looks, the animations with their `.joia`, her outfits (`outfits`, the worn one marked; 1.12); `?node=<nodeId>` (1.12) gives the body of the profile that node is in; 404 `no_body` for none |
 | `GET /api/v1/models/{id}/joim`, `GET /api/v1/bodies/{id}/joia` | stream the files from disk, with the hash as the ETag (304 to `If-None-Match`) |
 | `GET .../tasks`, `.../tasks/{task}`, `POST .../approve`, `.../deny`, `.../cancel` | her tasks; answer one (`approve` with `{always: true}` is the standing approval) |
 | `GET/PUT/DELETE .../auto-approved[/{tool}]` | the standing approvals |
@@ -56,6 +56,10 @@ is the device grant (RFC 8628): the device asks `/oauth/device_authorization` fo
 `/oauth/token` and gets an access token (`joia_...`, an hour by default) and a refresh token (`joir_...`, 90 days; each refresh gives a new pair). **No auth** is the
 configuration's (`joi.api.no-auth`): a call without credentials acts as `joi.api.no-auth-user`, else the first administrator; a credential that is sent must
 still be valid. Credentials are `AccessToken` rows (prefix and SHA-256).
+
+**Profiles and outfits (1.12).** `GET .../body?node=<nodeId>` answers the body of the node's profile (see [Bodies and models](bodies.md)), `BodyInfo.outfits` lists the outfits (`BodyOutfit`), and the
+node frame `outfit` (`OutfitSwitch`, node to server) puts one on in the node's profile; `NodeServiceImpl.outfitSwitch` wears it, tells her as for a part and the `body` event goes to the nodes of that profile.
+The Swift types are generated from the schemas as for every other message.
 
 **Images (1.11).** `POST /api/v1/jois/{id}/images` is the one call whose body `JoiApiServlet` does not read: for it (`JoiApi.isImageUpload`) the servlet passes the request's stream on
 (`ApiCall.stream`, `bodyStream()`) and refuses by `Content-Length` over 20 MB (413 `bad_image`) before anything is read; `JoiApi.upload` checks the credentials first, streams the body to a

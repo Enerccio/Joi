@@ -5,12 +5,16 @@ order: 750
 covers:
   - joi-server/src/main/java/com/github/enerccio/joi/domain/chat
   - joi-server/src/main/java/com/github/enerccio/joi/domain/service/impl/ChatImageServiceImpl.java
-verified: 446f8b5
+verified: d276400
 ---
 
 # A chat turn
 
-A turn follows the design of Marginalia's story generation, simplified and without its UI. It is in `domain/chat/turn`, run by `ChatServiceImpl`.
+A turn follows the design of Marginalia's story generation, simplified and without its UI.
+
+A turn is in a **profile** (`TurnInput.profile`, see [Bodies and models](bodies.md)): a node's turn gets the profile of its node, `ChatServiceImpl.chat` gives the one of her last turn to a turn
+from no node, and `PrepareStep` renders her body section for that profile (`BodyService.prompt(joi, profile, last)`, with `{{profile}}` and `{{profileFrom}}` when she moved) and remembers it. Her
+body functions (`BodyTools`, `AnimationTools`) read the profile from the turn's input. It is in `domain/chat/turn`, run by `ChatServiceImpl`.
 
 ## The steps
 

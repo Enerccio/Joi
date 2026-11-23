@@ -5,7 +5,7 @@ order: 770
 covers:
   - joi-server/src/main/java/com/github/enerccio/joi/domain
   - joi-server/src/main/resources/META-INF/spring
-verified: 47509ca
+verified: d276400
 ---
 
 # Project structure
@@ -26,7 +26,7 @@ See the [Developer guide](index.md). The server's Java is under `com.github.ener
 | `domain.chat`, `.turn` | the chat service, `ChatImages` (an image of the user made ready; `ChatImageService` keeps them), the steps and events of a turn, her functions (`MemoryTools`, `BodyTools`, `AnimationTools`, `MoodTools`, `WebTools`, `WorkspaceTools`) |
 | `domain.persona` | `JoiPromptField`, personalities, moods (`Mood` with its `MoodFace`, the user's `MoodSetting`) and the attributes of an assistant |
 | `domain.templates` | the data of every prompt template (`*TemplateData`) |
-| `domain.bodies`, `.animations` | models, capabilities, appearance, outfits, spring bones, animation steps |
+| `domain.bodies`, `.animations` | models, capabilities, appearance, outfits, profiles (`Profiles`, kept by `ProfileService`), spring bones, animation steps |
 | `domain.tools`, `domain.web` | server tools and their permissions; web search and page reading |
 | `domain.events`, `domain.node` | queued events and their merge; a node's session |
 | `extensions`, `domain.extensions` | the API of Joi's extensions and what they registered (see [Extensions](extensions.md)) |
