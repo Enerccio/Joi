@@ -10,6 +10,11 @@ public final class SpringBonesTestFiles {
     }
 
     public static File vrm(File file) throws IOException {
-        return SpringBonesTest.glb(file, SpringBonesTest.vrm1Json(), new byte[]{1, 2, 3, 4});
+        return vrm(file, 4);
+    }
+
+    /** As {@link #vrm(File)}, with another content for another variant (the platform shares the file of two resources with the same content). */
+    public static File vrm(File file, int variant) throws IOException {
+        return SpringBonesTest.glb(file, SpringBonesTest.vrm1Json(), new byte[]{1, 2, 3, (byte) variant});
     }
 }

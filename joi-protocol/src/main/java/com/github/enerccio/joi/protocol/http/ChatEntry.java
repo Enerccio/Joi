@@ -11,6 +11,12 @@ package com.github.enerccio.joi.protocol.http;
  * @param event  the kind of the event ({@code node.connected}, {@code node.first_boot}...), null for the user's words
  * @param node   the node it came from, null when it came through the HTTP API or the server
  * @param reply  her reply, null when she has not answered (a failed or stopped turn)
+ * @param images the ids of the images the user sent with the words (since 1.11), each given by {@code GET /api/v1/images/{id}}; null for none
  */
-public record ChatEntry(String id, String sentAt, String type, String text, String event, String node, String reply) {
+public record ChatEntry(String id, String sentAt, String type, String text, String event, String node, String reply,
+                        java.util.List<String> images) {
+
+    public ChatEntry(String id, String sentAt, String type, String text, String event, String node, String reply) {
+        this(id, sentAt, type, text, event, node, reply, null);
+    }
 }

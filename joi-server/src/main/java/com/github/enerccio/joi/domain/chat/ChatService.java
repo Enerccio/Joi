@@ -88,15 +88,37 @@ public interface ChatService {
     }
 
     /**
+     * Images came with the message and she cannot look at them: her chat model does not take images and no model of the user that does
+     * is set up to describe them for it. The turn is not started and nothing is stored, so the client tells the user.
+     */
+    class NoVisionException extends Exception {
+        public NoVisionException(String message) {
+            super(message);
+        }
+    }
+
+    /**
      * Talks to the assistant. Returns at once; the turn starts when her turn before it is over.
      *
      * @param input what to say: {@link TurnInput#pieces()} speaks in pieces ({@link Listener#onAudio}) instead of the
      *              whole reply ({@link Result#audio()})
      * @return the result; it fails with the failure of the turn, and with a {@code CancellationException} when the
      * turn was stopped (cancelling the future stops it)
-     * @throws NoModelException when she has no chat model
+     * @throws NoModelException  when she has no chat model
+     * @throws NoVisionException when images came with the words and she cannot look at them
      */
     CompletableFuture<Result> chat(Joi joi, TurnInput input, Listener listener) throws Exception;
+
+    /**
+     * Checks images that are to go with a message ({@link TurnInput#images()}) before a turn is asked for: she has a chat model, can
+     * look at images, and each image is the user's own, kept, and not used by a message already.
+     *
+     * @return the ids, each once
+     * @throws NoModelException     when she has no chat model
+     * @throws NoVisionException    when she cannot look at images
+     * @throws IllegalArgumentException when an image is not valid for a message
+     */
+    java.util.List<String> checkImages(Joi joi, java.util.List<String> images) throws Exception;
 
     /**
      * A listener of an event of every turn, called after the ones registered before it. Remove it when its owner goes

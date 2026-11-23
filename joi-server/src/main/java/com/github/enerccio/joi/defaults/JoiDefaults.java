@@ -433,6 +433,27 @@ React to it in a sentence.""";
     }
 
     /**
+     * What the chat model is told of an image of the user when it cannot see ({@code ImageNoteTemplateData}): the description a model
+     * that can see wrote, put after the words of the message.
+     */
+    public String imageNote() {
+        return """
+[The user attached an image. You cannot see it, but this is what it shows: {{shows}}]""";
+    }
+
+    /**
+     * The request to a model that can see, to describe an image of the user for an assistant that cannot
+     * ({@code ImageDescriptionTemplateData}).
+     */
+    public String imageDescriptionPrompt() {
+        return """
+{{user}} sent this image to {{char}}, an assistant who cannot see images, and {{char}} will only have your description of it.
+{{#text}}{{user}} wrote with it: "{{.}}"
+{{/text}}Describe what the image shows so that {{char}} can answer as if she saw it: what is in it, the people and what they do, the place, \
+any text in it written out in full, colours and the mood where they matter. Be exact and plain, and write only the description.""";
+    }
+
+    /**
      * The event of the server being down and back ({@code NodeEventTemplateData}: {@code howLost}, {@code downFor}): a node
      * reconnected to a server that started since it lost the connection.
      */

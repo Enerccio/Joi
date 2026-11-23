@@ -7,7 +7,9 @@ import com.github.enerccio.joi.domain.bodies.ToggleTree;
 import com.github.enerccio.joi.domain.bodies.ModelCapabilities;
 import com.github.enerccio.joi.domain.bodies.joim.JoimMetadata;
 import com.github.enerccio.joi.domain.chat.ChatService;
+import com.github.enerccio.joi.domain.chat.ChatImages;
 import com.github.enerccio.joi.domain.chat.ChatService.NoModelException;
+import com.github.enerccio.joi.domain.chat.ChatService.NoVisionException;
 import com.github.enerccio.joi.domain.chat.turn.TurnInput;
 import com.github.enerccio.joi.domain.collections.ChatMessageType;
 import com.github.enerccio.joi.domain.collections.JoiTaskStatus;
@@ -48,6 +50,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.nio.file.Files;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.concurrent.*;
@@ -94,6 +99,9 @@ public class JoiApi implements DisposableBean {
     private ChatService chatService;
 
     @Autowired
+    private ChatImageService chatImageService;
+
+    @Autowired
     private WebTaskService webTaskService;
 
     @Autowired
@@ -136,6 +144,11 @@ public class JoiApi implements DisposableBean {
             this.status = status;
             this.code = code;
         }
+    }
+
+    /** Whether the path is the image upload ({@code /api/v1/jois/{id}/images}): its body is streamed to the disk, not read whole. */
+    static boolean isImageUpload(String path) {
+        return path != null && path.matches("/api/v1/jois/[^/]+/images/?");
     }
 
     public void handle(ApiCall call, ApiSink sink) throws IOException {
@@ -189,6 +202,10 @@ public class JoiApi implements DisposableBean {
                 error(sink, e.status, e.code, e.getMessage());
             } catch (NoModelException e) {
                 error(sink, 409, "no_model", e.getMessage());
+            } catch (NoVisionException e) {
+                error(sink, 409, "no_vision", e.getMessage());
+            } catch (ChatImages.BadImageException e) {
+                error(sink, e.tooLarge() ? 413 : 400, "bad_image", e.getMessage());
             } catch (IllegalStateException e) {
                 error(sink, 409, "conflict", StringUtils.defaultIfBlank(e.getMessage(), "Conflict"));
             } catch (IllegalArgumentException | JsonParseException e) {
@@ -213,6 +230,11 @@ public class JoiApi implements DisposableBean {
             json(sink, 200, history(call, joi(path.get(1))));
         } else if (post && path.size() == 3 && path.getFirst().equals("jois") && path.get(2).equals("chat")) {
             chat(call, joi(path.get(1)), sink);
+        } else if (post && path.size() == 3 && path.getFirst().equals("jois") && path.get(2).equals("images")) {
+            joi(path.get(1));
+            json(sink, 200, upload(call));
+        } else if (get && path.size() == 2 && path.getFirst().equals("images")) {
+            image(call, path.get(1), sink);
         } else if (get && path.size() == 3 && path.getFirst().equals("jois") && path.get(2).equals("body")) {
             json(sink, 200, bodyInfo(call, joi(path.get(1))));
         } else if (get && path.size() == 3 && path.getFirst().equals("jois") && path.get(2).equals("auto-approved")) {
@@ -265,7 +287,7 @@ public class JoiApi implements DisposableBean {
                 persona.personalityKey() == null ? null : new Personality(persona.personalityKey(), persona.personalityName()),
                 joi.getMood(), StringUtils.defaultIfBlank(joi.getWakeWord(), "Hey " + name), iso(last),
                 model == null ? null : model.getName(), tts == null || actor == null ? null : new Voice(tts.getName(), actor.getName(),
-                        StringUtils.defaultIfBlank(actor.getDescription(), null)), animations(joi));
+                        StringUtils.defaultIfBlank(actor.getDescription(), null)), animations(joi), model != null && chatImageService.canSee(model));
     }
 
     /**
@@ -304,7 +326,8 @@ public class JoiApi implements DisposableBean {
             boolean note = message.getType() == ChatMessageType.LOG;
             entries.add(new ChatEntry(message.getUuid(), iso(message.getSentAt()), note ? "log" : event ? "event" : "user",
                     event ? null : message.getInput(), event || note ? message.getEventKind() : null,
-                    StringUtils.defaultIfBlank(message.getNode(), null), StringUtils.defaultIfBlank(message.getResponse(), null)));
+                    StringUtils.defaultIfBlank(message.getNode(), null), StringUtils.defaultIfBlank(message.getResponse(), null),
+                    message.imageUuids().isEmpty() ? null : message.imageUuids()));
         }
         return new ChatHistory(entries, more);
     }
@@ -506,15 +529,50 @@ public class JoiApi implements DisposableBean {
     }
 
     // ----------------------------------------------------------------------------------------------------------------
+    // images
+    // ----------------------------------------------------------------------------------------------------------------
+
+    /** Streams the body into a file of the user's, keeps it as the scaled JPEG it is made into and answers its id. */
+    private ImageUpload upload(ApiCall call) throws Exception {
+        File file = chatImageService.newUploadFile();
+        try (InputStream in = call.bodyStream(); OutputStream out = Files.newOutputStream(file.toPath())) {
+            byte[] buffer = new byte[64 * 1024];
+            long total = 0;
+            int n;
+            while ((n = in.read(buffer)) > 0) {
+                total += n;
+                if (total > ChatImages.MAX_BYTES) {
+                    throw new ApiException(413, "bad_image", "The image is larger than " + (ChatImages.MAX_BYTES / 1024 / 1024) + " MB");
+                }
+                out.write(buffer, 0, n);
+            }
+        } catch (IOException | RuntimeException | ApiException e) {
+            Files.deleteIfExists(file.toPath());
+            throw e;
+        }
+        ChatImageService.Image image = chatImageService.store(file);
+        return new ImageUpload(image.id(), image.mimeType(), image.size(), image.width(), image.height());
+    }
+
+    /** The image of the user as it is kept; it never changes, so its id is its ETag. */
+    private void image(ApiCall call, String id, ApiSink sink) throws Exception {
+        File file = chatImageService.file(id);
+        if (file == null) {
+            throw new ApiException(404, "not_found", "No image " + id);
+        }
+        file(call, sink, file, id, "image/jpeg", "image-" + id + ".jpg");
+    }
+
+    // ----------------------------------------------------------------------------------------------------------------
     // chat
     // ----------------------------------------------------------------------------------------------------------------
 
     private void chat(ApiCall call, Joi joi, ApiSink sink) throws Exception {
         ChatRequest request = gson.fromJson(call.text(), ChatRequest.class);
-        if (request == null || StringUtils.isBlank(request.text())) {
+        if (request == null || (StringUtils.isBlank(request.text()) && request.imagesOrEmpty().isEmpty())) {
             throw new IllegalArgumentException("The text is missing");
         }
-        if (request.text().length() > MAX_TEXT) {
+        if (request.text() != null && request.text().length() > MAX_TEXT) {
             throw new IllegalArgumentException("The text is longer than " + MAX_TEXT + " characters");
         }
         String accept = StringUtils.defaultString(call.header("Accept"));
@@ -522,14 +580,17 @@ public class JoiApi implements DisposableBean {
         if (chatService.chatModel(joi) == null) {
             throw new NoModelException(joiService.name(joi) + " has no chat model: choose one in her About tab or in User Settings");
         }
+        // 409 no_vision before anything is streamed
+        List<String> images = chatService.checkImages(joi, request.imagesOrEmpty());
         if (stream) {
-            stream(joi, request, sink.events());
+            stream(joi, request, images, sink.events());
             return;
         }
         ChatService.Result result;
         try {
-            result = await(chatService.chat(joi, new TurnInput(request.text(), request.node(), request.speakOrDefault(), false), null));
-        } catch (NoModelException | IllegalArgumentException e) {
+            result = await(chatService.chat(joi, new TurnInput(StringUtils.defaultString(request.text()), request.node(), request.speakOrDefault(), false,
+                    null, images), null));
+        } catch (NoModelException | NoVisionException | IllegalArgumentException e) {
             throw e;
         } catch (Exception e) {
             log.warn("API: the chat of {} failed", joi.getUuid(), e);
@@ -539,7 +600,7 @@ public class JoiApi implements DisposableBean {
         json(sink, 200, reply(result.message(), request.reasoningOrDefault(), audio, result.speechError(), result.speechMs()));
     }
 
-    private void stream(Joi joi, ChatRequest request, ApiSink.EventStream events) {
+    private void stream(Joi joi, ChatRequest request, List<String> images, ApiSink.EventStream events) {
         boolean reasoning = request.reasoningOrDefault();
         ScheduledFuture<?> alive = keepAlive.scheduleAtFixedRate(() -> {
             try {
@@ -550,7 +611,8 @@ public class JoiApi implements DisposableBean {
         }, KEEP_ALIVE_SECONDS, KEEP_ALIVE_SECONDS, TimeUnit.SECONDS);
         try {
             ChatService.Result result = await(chatService.chat(joi,
-                    new TurnInput(request.text(), request.node(), request.speakOrDefault(), true), new ChatService.Listener() {
+                    new TurnInput(StringUtils.defaultString(request.text()), request.node(), request.speakOrDefault(), true, null, images),
+                    new ChatService.Listener() {
                         @Override
                         public void onReasoning(String delta) throws Exception {
                             if (reasoning) {
@@ -577,7 +639,8 @@ public class JoiApi implements DisposableBean {
         } catch (Exception e) {
             log.warn("API: the streamed chat of {} failed", joi.getUuid(), e);
             try {
-                String code = e instanceof NoModelException ? "no_model" : e instanceof IllegalArgumentException ? "bad_request" : "model_failed";
+                String code = e instanceof NoModelException ? "no_model" : e instanceof NoVisionException ? "no_vision"
+                        : e instanceof IllegalArgumentException ? "bad_request" : "model_failed";
                 send(events, StreamEvent.ERROR, new ApiError(code, reason(e)));
             } catch (IOException gone) {
                 // nobody to tell

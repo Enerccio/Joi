@@ -8,10 +8,12 @@ import com.github.enerccio.joi.domain.chat.turn.TurnStepBase;
 import com.github.enerccio.joi.domain.chat.turn.TurnStepType;
 import com.github.enerccio.joi.domain.collections.ChatMessageType;
 import com.github.enerccio.joi.domain.model.impl.ChatMessage;
+import com.github.enerccio.joi.domain.service.ChatImageService;
 import com.github.enerccio.joi.domain.service.ChatMessageService;
 import com.github.enerccio.joi.domain.service.MessagePromptService;
 import com.github.enerccio.marginalia.domain.service.impl.generation.dto.LLMChatMessage;
 import com.github.enerccio.marginalia.domain.service.impl.generation.dto.LLMToolCall;
+import com.github.enerccio.marginalia.domain.service.impl.generation.dto.LLMAttachment;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import org.apache.commons.lang3.StringUtils;
@@ -34,6 +36,9 @@ public class StoreStep extends TurnStepBase {
     @Autowired
     private MessagePromptService messagePromptService;
 
+    @Autowired
+    private ChatImageService chatImageService;
+
     @Override
     protected void onStep(TurnController controller) throws Exception {
         controller.emitEvent(TurnEvents.BEFORE_STORE, () -> {
@@ -48,6 +53,10 @@ public class StoreStep extends TurnStepBase {
             message.setResponse(StringUtils.defaultString(controller.getReply()));
             message.setResponseReasoning(StringUtils.defaultIfBlank(controller.getReasoning(), null));
             message.setToolCalls(ToolUsage.toJson(controller.getToolUsages()));
+            message.setImages(ChatMessage.toJson(controller.getInput().images()));
+            @SuppressWarnings("unchecked")
+            List<String> imageNotes = (List<String>) controller.getProperties().get(TurnProperties.IMAGE_NOTES);
+            message.setImageNotes(ChatMessage.toJson(imageNotes));
             message.setMood(controller.getMood().key());
             message.setModelUsed(controller.getAi().getName());
             message.setPromptTokens(controller.getPromptTokens());
@@ -58,6 +67,13 @@ public class StoreStep extends TurnStepBase {
             }
             message.setResponseEnd(new Date(sent.getTime() + Math.max(0, controller.getTextMs())));
             message = chatMessageService.save(message);
+            if (!controller.getInput().images().isEmpty()) {
+                try {
+                    chatImageService.attach(message, controller.getInput().images());
+                } catch (Exception e) {
+                    log.warn("The images of a message could not be linked to it", e);
+                }
+            }
             messagePromptService.store(message, promptText(controller.getPayload()));
             controller.setMessage(message);
             try {
@@ -94,6 +110,18 @@ public class StoreStep extends TurnStepBase {
                     calls.add(c);
                 }
                 entry.add("tool_calls", calls);
+            }
+            if (message.hasAttachments()) {
+                // what was attached, never the bytes: the prompt is stored with the message and the image is its own resource
+                JsonArray attachments = new JsonArray();
+                for (LLMAttachment attachment : message.getAttachments()) {
+                    JsonObject a = new JsonObject();
+                    a.addProperty("name", attachment.getName());
+                    a.addProperty("mimeType", attachment.getMimeType());
+                    a.addProperty("size", attachment.getData() == null ? 0 : attachment.getData().length);
+                    attachments.add(a);
+                }
+                entry.add("attachments", attachments);
             }
             if (message.getToolCallId() != null) {
                 entry.addProperty("tool_call_id", message.getToolCallId());

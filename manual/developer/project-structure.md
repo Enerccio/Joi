@@ -23,7 +23,7 @@ See the [Developer guide](index.md). The server's Java is under `com.github.ener
 | `domain.model.impl` | the entities (below) |
 | `domain.repository`, `.impl` | repository interfaces and their `Jpa*Repository` classes |
 | `domain.service`, `.impl` | service interfaces and `*ServiceImpl` |
-| `domain.chat`, `.turn` | the chat service, the steps and events of a turn, her functions (`MemoryTools`, `BodyTools`, `AnimationTools`, `MoodTools`, `WebTools`, `WorkspaceTools`) |
+| `domain.chat`, `.turn` | the chat service, `ChatImages` (an image of the user made ready; `ChatImageService` keeps them), the steps and events of a turn, her functions (`MemoryTools`, `BodyTools`, `AnimationTools`, `MoodTools`, `WebTools`, `WorkspaceTools`) |
 | `domain.persona` | `JoiPromptField`, personalities, moods (`Mood` with its `MoodFace`, the user's `MoodSetting`) and the attributes of an assistant |
 | `domain.templates` | the data of every prompt template (`*TemplateData`) |
 | `domain.bodies`, `.animations` | models, capabilities, appearance, outfits, spring bones, animation steps |

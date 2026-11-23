@@ -50,6 +50,16 @@
         "null"
       ],
       "description": "Her reply, null when she has not answered (a failed or stopped turn)."
+    },
+    "images": {
+      "type": [
+        "array",
+        "null"
+      ],
+      "items": {
+        "type": "string"
+      },
+      "description": "The images the user sent with the words (since 1.11), their ids: `GET /api/v1/images/{id}` gives each."
     }
   },
   "required": [

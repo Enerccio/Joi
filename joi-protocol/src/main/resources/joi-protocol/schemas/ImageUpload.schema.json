@@ -1,0 +1,39 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Enerccio/joi/protocol/v1/ImageUpload.schema.json",
+  "title": "ImageUpload",
+  "description": "POST /api/v1/jois/{id}/images (since 1.11): an image the server took, to be sent with a message in `ChatRequest.images` or `Say.images`.",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string",
+      "description": "The image's stable id."
+    },
+    "mimeType": {
+      "type": "string",
+      "description": "What the server keeps it as (image/jpeg): a large image is scaled down to 1568 pixels on its longest side and written as JPEG, which is also what the model gets."
+    },
+    "size": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Its size in bytes, as kept."
+    },
+    "width": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Its width in pixels, as kept."
+    },
+    "height": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Its height in pixels, as kept."
+    }
+  },
+  "required": [
+    "id",
+    "mimeType",
+    "size",
+    "width",
+    "height"
+  ]
+}

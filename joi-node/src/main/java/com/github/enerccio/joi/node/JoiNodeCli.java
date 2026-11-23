@@ -48,7 +48,7 @@ import java.util.concurrent.atomic.AtomicReference;
  * {@code /clipboard off|ask|allow} sets whether she may put text on the clipboard ({@link ClipboardOffers}; with {@code ask} each
  * offer is shown and asked about, {@code /yes} or {@code /no}),
  * {@code /notify off|ask|allow} sets whether she gets the notification tool ({@link Notifications}), {@code /notify test}
- * shows one.
+ * shows one; {@code /image <file> [words]} sends an image (streamed to the server) with the words.
  * <p>
  * {@code java ... JoiNodeCli [http://server:port]}
  */
@@ -281,6 +281,8 @@ public final class JoiNodeCli {
                 default -> {
                     if (line.startsWith("/no ")) {
                         answer(client, chosen.id(), questions, "/no", line.substring(4).strip());
+                    } else if (line.startsWith("/image ")) {
+                        image(client, chosen.id(), socket, line.substring(7).strip());
                     } else if (line.startsWith("/auto ")) {
                         String[] words = line.substring(6).strip().split("\\s+");
                         autoApproved(client, chosen.id(), words[0], words.length > 1 ? words[1] : null);
@@ -292,6 +294,26 @@ public final class JoiNodeCli {
         }
         socket.close();
         later.shutdownNow();
+    }
+
+    /**
+     * {@code /image <file> [words]}: sends the image with the words (it is streamed to the server, which keeps it scaled and shows it to her).
+     */
+    private void image(ServerClient client, String joi, NodeSocket socket, String rest) {
+        String[] parts = rest.split("\\s+", 2);
+        java.nio.file.Path file = java.nio.file.Path.of(parts[0].replaceFirst("^~", System.getProperty("user.home")));
+        if (!java.nio.file.Files.isRegularFile(file)) {
+            out.println("[no such file: " + file + "]");
+            return;
+        }
+        try {
+            String id = client.uploadImage(joi, file).id();
+            socket.say(parts.length > 1 ? parts[1] : "", false, false, false, java.util.List.of(id));
+        } catch (ServerClient.ServerException e) {
+            out.println("[the image was not sent: " + e.getMessage() + "]");
+        } catch (IOException | InterruptedException e) {
+            out.println("[the image was not sent: " + e.getMessage() + "]");
+        }
     }
 
     /** Asks the user a yes or no on the terminal (answered with /yes or /no); no answer in time is a no. */

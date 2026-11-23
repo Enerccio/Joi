@@ -48,6 +48,14 @@ toggles, animations (`playSequence`), snapshots (`takeSnapshots`) and the spring
 file. The animation dialog also sets the face an animation forces (`Eyes`, `Expression`; its preview passes them with the sequence: `ClipPreview.setFace`, `ModelViewer.setAnimationFace`), and the
 viewer's face layer (`setFace`) and mouth (`setMouth`) are off until a page calls them: see [Writing a node](nodes.md).
 
+## The chat input
+
+`JoiChatsPart` (the Chats tab) has the compose row: a text area (Enter sends: `Shortcuts`; its value change mode is `EAGER`, or the Enter would send the value of the last blur and lose the words), a `Upload` as the attach button (`image/*`, at most 4, 20 MB, `UploadHandler.toFile`), paste and drop
+(`JoiJavascriptLibrary.takeImages` hands the files of a paste or drop to the `vaadin-upload`), the waiting images as thumbnails with a remove button, and Send. `send()` checks the images
+(`ChatService.checkImages`: a `no_vision` is the notification `MSG_CHAT_NO_VISION`, nothing is lost), then runs the turn in a virtual thread with `ApiRequestAttributes` and `InRequestScope`, as
+the API's chat does; the tab shows the waiting message when the turn starts and the exchange when it is stored. Attach is disabled when `ChatImageService.canSee` is false. The cards show the
+images as `Anchor` + `Image` on a `StreamResource` of the stored file (`ChatImageService.file`); the styles are `.chat-images`, `.chat-image`, `.chat-compose*`.
+
 ## Prompts
 
 Every prompt sent to a model is a template, so the user can change it: a `JoiPromptField` (fields on `Joi`, `JoiUserSetting` and

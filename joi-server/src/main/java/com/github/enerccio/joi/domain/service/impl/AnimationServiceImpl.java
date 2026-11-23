@@ -11,13 +11,11 @@ import com.github.enerccio.marginalia.domain.service.ResourceService;
 import com.github.enerccio.marginalia.domain.service.impl.ExtendableServiceImpl;
 import com.github.enerccio.marginalia.domain.traits.CommonTx;
 import com.github.enerccio.marginalia.domain.traits.CommonTxReadOnly;
-import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.commons.io.FilenameUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 
 import java.io.File;
-import java.io.InputStream;
 import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -62,15 +60,7 @@ public class AnimationServiceImpl extends ExtendableServiceImpl<Animation, Anima
             throw new IllegalArgumentException("not a VRM animation: " + fileName);
         }
 
-        Resource resource = new Resource();
-        resource.setOriginalName(fileName);
-        resource.setMimeType(VrmaFiles.CONTENT_TYPE);
-        resource.setPath(file.getName());
-        resource.setSize(file.length());
-        try (InputStream in = Files.newInputStream(file.toPath())) {
-            resource.setHash(DigestUtils.sha256Hex(in));
-        }
-        resource = resourceService.save(resource);
+        Resource resource = resourceService.saveFile(file, fileName, VrmaFiles.CONTENT_TYPE);
 
         Animation animation = new Animation();
         animation.setUuid(uuid);

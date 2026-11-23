@@ -8,7 +8,9 @@ import com.github.enerccio.joi.domain.chat.turn.TurnInput;
 import com.github.enerccio.joi.domain.collections.ChatMessageType;
 import com.github.enerccio.joi.domain.model.impl.ChatMessage;
 import com.github.enerccio.joi.domain.model.impl.Joi;
+import com.github.enerccio.joi.domain.service.ChatImageService;
 import com.github.enerccio.joi.domain.service.ChatMessageService;
+import com.github.enerccio.joi.domain.chat.ChatImages;
 import com.github.enerccio.joi.domain.service.SummarizerService;
 import com.github.enerccio.joi.loc.J_L;
 import com.github.enerccio.joi.ui.JoiCssStyles;
@@ -29,7 +31,20 @@ import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.checkbox.Checkbox;
 import com.vaadin.flow.component.details.Details;
+import com.vaadin.flow.component.html.Anchor;
 import com.vaadin.flow.component.html.Div;
+import com.vaadin.flow.component.html.Image;
+import com.vaadin.flow.component.textfield.TextArea;
+import com.vaadin.flow.component.upload.Upload;
+import com.vaadin.flow.component.Key;
+import com.vaadin.flow.component.Shortcuts;
+import com.vaadin.flow.data.value.ValueChangeMode;
+import com.vaadin.flow.server.streams.UploadHandler;
+import com.github.enerccio.marginalia.bound.ApiRequestAttributes;
+import com.github.enerccio.marginalia.bound.SessionPoint;
+import com.github.enerccio.marginalia.domain.security.model.User;
+import com.github.enerccio.marginalia.domain.security.service.UserService;
+import com.github.enerccio.marginalia.ui.components.ThreadCopyRequestAttributes.InRequestScope;
 import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.markdown.Markdown;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
@@ -78,6 +93,15 @@ public class JoiChatsPart implements JoiDialogPart {
     @Autowired
     private SummarizerService summarizerService;
 
+    @Autowired
+    private ChatImageService chatImageService;
+
+    @Autowired
+    private UserService userService;
+
+    @Autowired
+    private User currentUser;
+
     private final DateFormat format = DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT);
     private VerticalLayout layout;
     private ScrollPanel panel;
@@ -100,6 +124,14 @@ public class JoiChatsPart implements JoiDialogPart {
     private Registration watching;
     /** The one player of the tab: a clip played stops the one before it. */
     private final Element audio = new Element("audio");
+    /** What the user writes to her: the field, the images waiting to go with it, the attach button and Send. */
+    private TextArea messageField;
+    private Div pendingImages;
+    private Upload attach;
+    private Button sendButton;
+    private final List<ChatImageService.Image> pending = new ArrayList<>();
+    /** Whether she can look at images (her chat model takes them, or a model that does describes them for it), see {@link #load}. */
+    private boolean canSee;
 
     private record Waiting(TurnInput input, Date at, Div card) {
     }
@@ -132,7 +164,7 @@ public class JoiChatsPart implements JoiDialogPart {
         toolbar = new Div(hint, summarizeButton, deleteSelectedButton);
         toolbar.addClassName(JoiCssStyles.CHAT_TOOLBAR);
 
-        layout = new VerticalLayout(empty, toolbar, panel);
+        layout = new VerticalLayout(empty, toolbar, panel, compose());
         layout.setSizeFull();
         layout.setPadding(false);
         layout.setFlexGrow(1, panel);
@@ -142,9 +174,190 @@ public class JoiChatsPart implements JoiDialogPart {
         return layout;
     }
 
+    /** The row under the transcript where the user writes to her, with the images that go along (uploaded, pasted or dropped). */
+    private Component compose() {
+        messageField = new TextArea();
+        messageField.setPlaceholder(loc.getValue(J_L.PLACEHOLDER_CHAT_MESSAGE));
+        messageField.setWidthFull();
+        messageField.setMinRows(1);
+        messageField.setMaxRows(6);
+        // the words are on the server when Enter is pressed: a field sends its value when it loses the focus otherwise
+        messageField.setValueChangeMode(ValueChangeMode.EAGER);
+        pendingImages = new Div();
+        pendingImages.addClassName(JoiCssStyles.CHAT_COMPOSE_IMAGES);
+        Div field = new Div(pendingImages, messageField);
+        field.addClassName(JoiCssStyles.CHAT_COMPOSE_FIELD);
+
+        UploadHandler handler = UploadHandler.toFile((metadata, file) -> imageUploaded(UI.getCurrent(), file), metadata -> {
+            try {
+                return chatImageService.newUploadFile();
+            } catch (Exception e) {
+                throw new IllegalStateException(e);
+            }
+        });
+        attach = new Upload(handler);
+        attach.addClassName(JoiCssStyles.CHAT_COMPOSE_UPLOAD);
+        attach.setAcceptedFileTypes("image/*");
+        attach.setMaxFiles(ChatImageService.MAX_IMAGES);
+        attach.setMaxFileSize((int) ChatImages.MAX_BYTES);
+        attach.setDropAllowed(false);
+        attach.setUploadButton(new Button(Solid.IMAGE.create()));
+        attach.getElement().setAttribute("title", loc.getValue(J_L.LABEL_ATTACH_IMAGE));
+        attach.addAllFinishedListener(e -> attach.clearFileList());
+        attach.addFileRejectedListener(e -> Notification.warning(String.format(loc.getValue(J_L.MSG_CHAT_IMAGE_FAILED), e.getErrorMessage())));
+        JoiJavascriptLibrary.takeImages(messageField, attach);
+
+        sendButton = new Button(loc.getValue(J_L.LABEL_SEND_MESSAGE), Solid.PAPER_PLANE.create(), e -> send());
+        sendButton.setThemeName("primary");
+        // Enter sends, Shift+Enter is a new line
+        Shortcuts.addShortcutListener(messageField, this::send, Key.ENTER).listenOn(messageField);
+        Div compose = new Div(field, attach, sendButton);
+        compose.addClassName(JoiCssStyles.CHAT_COMPOSE);
+        compose.setWidthFull();
+        return compose;
+    }
+
+    /** An image arrived (chosen, pasted or dropped): it is kept, and waits next to the field to go with the next message. */
+    private void imageUploaded(UI ui, File file) {
+        try {
+            if (pending.size() >= ChatImageService.MAX_IMAGES) {
+                file.delete();
+                ui.access(() -> Notification.warning(String.format(loc.getValue(J_L.MSG_CHAT_IMAGES_FULL), ChatImageService.MAX_IMAGES)));
+                return;
+            }
+            ChatImageService.Image image = chatImageService.store(file);
+            ui.access(() -> {
+                pending.add(image);
+                showPending();
+            });
+        } catch (ChatImages.BadImageException e) {
+            ui.access(() -> Notification.warning(String.format(loc.getValue(J_L.MSG_CHAT_IMAGE_FAILED), e.getMessage())));
+        } catch (Exception e) {
+            ui.access(() -> UIUtils.internalServerError(loc, e));
+        }
+    }
+
+    /** The images waiting to go with the message, each with a button that takes it away. */
+    private void showPending() {
+        pendingImages.removeAll();
+        for (ChatImageService.Image image : pending) {
+            Div thumb = new Div();
+            thumb.addClassName(JoiCssStyles.CHAT_COMPOSE_IMAGE);
+            Button remove = new Button(Solid.XMARK.create(), e -> {
+                pending.remove(image);
+                showPending();
+            });
+            remove.setThemeName("tertiary small");
+            remove.setAriaLabel(loc.getValue(L.LABEL_REMOVE));
+            thumb.add(imageOf(image.id()), remove);
+            pendingImages.add(thumb);
+        }
+    }
+
+    /** The image of the user as a component, a thumbnail the size of the card's (it is the stored JPEG, scaled by the browser). */
+    private Image imageOf(String uuid) {
+        StreamResource resource = new StreamResource("image-" + uuid + ".jpg", () -> {
+            try {
+                File file = chatImageService.file(uuid);
+                return file == null ? java.io.InputStream.nullInputStream() : Files.newInputStream(file.toPath());
+            } catch (Exception e) {
+                throw new java.io.UncheckedIOException(new java.io.IOException(e));
+            }
+        });
+        resource.setContentType("image/jpeg");
+        Image image = new Image(resource, loc.getValue(J_L.LABEL_CHAT_IMAGE));
+        image.addClassName(JoiCssStyles.CHAT_IMAGE);
+        return image;
+    }
+
+    /** The images of a message in the transcript: each a link to the whole image. */
+    private Component imagesOf(List<String> uuids) {
+        Div images = new Div();
+        images.addClassName(JoiCssStyles.CHAT_IMAGES);
+        for (String uuid : uuids) {
+            Image image = imageOf(uuid);
+            Anchor link = new Anchor(image.getSrc(), "");
+            link.setTarget("_blank");
+            link.add(image);
+            images.add(link);
+        }
+        return images;
+    }
+
+    /** Sends what is in the field, with the images that wait. */
+    private void send() {
+        String text = StringUtils.strip(messageField.getValue());
+        List<String> images = pending.stream().map(ChatImageService.Image::id).toList();
+        if (joi == null || (StringUtils.isEmpty(text) && images.isEmpty())) {
+            return;
+        }
+        try {
+            // what can be refused is refused here, while the user is looking: no model, no way to look at images, an image that is gone
+            chatService.checkImages(joi, images);
+        } catch (ChatService.NoVisionException e) {
+            Notification.warning(loc.getValue(J_L.MSG_CHAT_NO_VISION));
+            return;
+        } catch (ChatService.NoModelException | IllegalArgumentException e) {
+            Notification.warning(String.format(loc.getValue(J_L.MSG_CHAT_SEND_FAILED), e.getMessage()));
+            return;
+        } catch (Exception e) {
+            UIUtils.internalServerError(loc, e);
+            return;
+        }
+        messageField.clear();
+        pending.clear();
+        showPending();
+        ask(new TurnInput(StringUtils.defaultString(text), null, false, false, null, images));
+    }
+
+    /**
+     * Asks her the turn in the request scope of the user, which must outlive the turn (the one of this request ends with it): the
+     * conversation shows it as it shows every turn ({@link #watch}), so nothing is told here but a failure.
+     */
+    private void ask(TurnInput input) {
+        UI ui = UI.getCurrent();
+        Joi asked = joi;
+        User owner;
+        try {
+            owner = userService.find(currentUser.getId());
+        } catch (Exception e) {
+            UIUtils.internalServerError(loc, e);
+            return;
+        }
+        Thread.ofVirtual().name("joi-web-chat").start(() -> {
+            try (ApiRequestAttributes attributes = new ApiRequestAttributes(owner, new SessionPoint());
+                 InRequestScope _ = new InRequestScope(attributes)) {
+                chatService.chat(asked, input, null).get();
+            } catch (java.util.concurrent.CancellationException | InterruptedException e) {
+                // stopped
+            } catch (Exception e) {
+                Throwable cause = e instanceof java.util.concurrent.ExecutionException && e.getCause() != null ? e.getCause() : e;
+                ui.access(() -> Notification.warning(String.format(loc.getValue(J_L.MSG_CHAT_SEND_FAILED), StringUtils.defaultIfBlank(cause.getMessage(),
+                        cause.getClass().getSimpleName()))));
+            }
+        });
+    }
+
+    /** For tests: writes and sends as the user does. */
+    void sendForTest(String text, List<String> images) {
+        messageField.setValue(text);
+        pending.clear();
+        for (String id : images) {
+            try {
+                pending.add(chatImageService.find(id));
+            } catch (Exception e) {
+                throw new IllegalStateException(e);
+            }
+        }
+        send();
+    }
+
     @Override
     public void load(Joi joi) throws Exception {
         this.joi = joi;
+        canSee = chatImageService.canSee(chatService.chatModel(joi));
+        attach.setEnabled(canSee);
+        attach.getElement().setAttribute("title", loc.getValue(canSee ? J_L.LABEL_ATTACH_IMAGE : J_L.MSG_CHAT_NO_VISION));
         shown.clear();
         cards.clear();
         boxes.clear();
@@ -296,6 +509,9 @@ public class JoiChatsPart implements JoiDialogPart {
             Span kind = new Span(loc.getValue(J_L.LABEL_EVENT) + " · " + input.eventKind());
             kind.addClassName(JoiCssStyles.CHAT_EVENT_KIND);
             text.add(kind);
+        }
+        if (!input.images().isEmpty()) {
+            text.add(imagesOf(input.images()));
         }
         text.add(new Text(StringUtils.defaultString(input.text())));
         Span state = new Span(loc.getValue(J_L.MSG_CHAT_WAITING));
@@ -535,7 +751,7 @@ public class JoiChatsPart implements JoiDialogPart {
 
         boolean event = message.getType() == com.github.enerccio.joi.domain.collections.ChatMessageType.EVENT;
         boolean note = message.getType() == com.github.enerccio.joi.domain.collections.ChatMessageType.LOG;
-        if (StringUtils.isNotBlank(message.getInput()) || event) {
+        if (StringUtils.isNotBlank(message.getInput()) || event || !message.imageUuids().isEmpty()) {
             Div input = new Div();
             input.addClassNames(JoiCssStyles.CHAT_INPUT, note ? JoiCssStyles.CHAT_INPUT_LOG : event ? JoiCssStyles.CHAT_INPUT_EVENT : JoiCssStyles.CHAT_INPUT_USER);
             if (event || note) {
@@ -543,6 +759,9 @@ public class JoiChatsPart implements JoiDialogPart {
                         + (StringUtils.isBlank(message.getEventKind()) ? "" : " · " + message.getEventKind()));
                 kind.addClassName(JoiCssStyles.CHAT_EVENT_KIND);
                 input.add(kind);
+            }
+            if (!message.imageUuids().isEmpty()) {
+                input.add(imagesOf(message.imageUuids()));
             }
             input.add(new Text(StringUtils.defaultString(message.getInput())));
             card.add(input);

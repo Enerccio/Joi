@@ -64,6 +64,9 @@ public class ChatServiceImpl implements ChatService, InitializingBean, Disposabl
     private ChatMessageService chatMessageService;
 
     @Autowired
+    private com.github.enerccio.joi.domain.service.ChatImageService chatImageService;
+
+    @Autowired
     private com.github.enerccio.joi.domain.service.QueuedEventService queuedEventService;
 
     @Autowired
@@ -196,16 +199,20 @@ public class ChatServiceImpl implements ChatService, InitializingBean, Disposabl
 
     @Override
     public CompletableFuture<Result> chat(Joi joi, TurnInput input, Listener listener) throws Exception {
-        if (input == null || StringUtils.isBlank(input.text())) {
+        if (input == null || (StringUtils.isBlank(input.text()) && input.images().isEmpty())) {
             throw new IllegalArgumentException("There is nothing to say");
         }
         AI ai = chatModel(joi);
         if (ai == null) {
             throw new NoModelException(joiService.name(joi) + " has no chat model: choose one in her About tab or in User Settings");
         }
+        if (input.isEvent() && !input.images().isEmpty()) {
+            throw new IllegalArgumentException("An event has no images");
+        }
+        List<String> images = checkImages(joi, input.images());
         TurnEngine engine = new TurnEngine(joi, ai,
-                new TurnInput(input.text().strip(), StringUtils.defaultIfBlank(input.node(), null), input.speak(), input.pieces(),
-                        StringUtils.defaultIfBlank(input.eventKind(), null)),
+                new TurnInput(StringUtils.defaultString(input.text()).strip(), StringUtils.defaultIfBlank(input.node(), null), input.speak(),
+                        input.pieces(), StringUtils.defaultIfBlank(input.eventKind(), null), images),
                 listener == null ? new Listener() {
                 } : listener, RequestContextHolder.getRequestAttributes());
         running.add(engine);
@@ -227,6 +234,22 @@ public class ChatServiceImpl implements ChatService, InitializingBean, Disposabl
         });
         before.whenCompleteAsync((_, _) -> engine.start(), executor);
         return engine.result;
+    }
+
+    @Override
+    public List<String> checkImages(Joi joi, List<String> images) throws Exception {
+        if (images == null || images.isEmpty()) {
+            return List.of();
+        }
+        AI ai = chatModel(joi);
+        if (ai == null) {
+            throw new NoModelException(joiService.name(joi) + " has no chat model: choose one in her About tab or in User Settings");
+        }
+        if (!chatImageService.canSee(ai)) {
+            throw new NoVisionException(joiService.name(joi) + " cannot look at images: her chat model does not take images, and none of your "
+                    + "models that do is set as the deep reasoning model to describe them for her. Mark a model Multimodal in the Models tab.");
+        }
+        return chatImageService.check(images);
     }
 
     @Override

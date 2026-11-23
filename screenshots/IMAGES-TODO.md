@@ -10,6 +10,7 @@ Status: `[ ]` to take, `[x]` taken and published, `[-]` dropped (why).
 
 | | Picture | Page | Flow | Shows |
 |---|---|---|---|---|
+| [ ] | `joi-chats` (retake) and `joi-chats-image` | jois/chats.md | `08-conversation` | the Chats tab now has the input row (field, attach button, Send); the second picture is the tab with a message that has an image and the waiting thumbnails (needs a multimodal fake model: `llm/rules.mjs`) |
 | [x] | `settings-prompts` | settings.md | `shoot-settings` | User Settings, Prompts tab |
 | [x] | `settings-personalities` | settings.md, jois/persona.md | `shoot-settings` | Personalities tab with the built-in ones |
 | [x] | `settings-moods` | jois/persona.md | `shoot-settings`, `shoot-moods` | Moods tab |

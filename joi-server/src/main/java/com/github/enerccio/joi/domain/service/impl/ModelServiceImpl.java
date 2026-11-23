@@ -30,7 +30,6 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
-import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.LinkedHashMap;
@@ -100,25 +99,12 @@ public class ModelServiceImpl extends ExtendableServiceImpl<Model, ModelReposito
         return saved;
     }
 
-    /** A resource of the current user for a file already in their folder of resources. */
+    /**
+     * A resource of the current user for a file already in their folder of resources. The platform hashes it and keeps the file of an
+     * earlier resource with the same content; the file given is moved (or deleted), read the content through {@code getResourceFile}.
+     */
     private Resource store(File file, String originalName, String contentType) throws Exception {
-        return store(file, originalName, contentType, null);
-    }
-
-    /** As {@link #store(File, String, String)}, with the file's SHA-256 when it is known (null: read to hash it). */
-    private Resource store(File file, String originalName, String contentType, String hash) throws Exception {
-        Resource resource = new Resource();
-        resource.setOriginalName(originalName);
-        resource.setMimeType(contentType);
-        resource.setPath(file.getName());
-        resource.setSize(file.length());
-        if (hash == null) {
-            try (InputStream in = Files.newInputStream(file.toPath())) {
-                hash = DigestUtils.sha256Hex(in);
-            }
-        }
-        resource.setHash(hash);
-        return resourceService.save(resource);
+        return resourceService.saveFile(file, originalName, contentType);
     }
 
     @Override
@@ -163,23 +149,18 @@ public class ModelServiceImpl extends ExtendableServiceImpl<Model, ModelReposito
 
     /** Links the VRM as the model's converted file, in place of the one before (deleted); reads its capabilities. */
     private void linkConverted(Model model, File vrm) throws Exception {
-        linkConverted(model, vrm, null);
-    }
-
-    /** As {@link #linkConverted(Model, File)}, with the VRM's SHA-256 when it is known. */
-    private void linkConverted(Model model, File vrm, String hash) throws Exception {
         File folder = configuration.getResourcesFolder(currentUser).getCanonicalFile();
         if (!folder.equals(vrm.getCanonicalFile().getParentFile())) {
             throw new IllegalArgumentException("not in the folder of resources: " + vrm);
         }
         String name = StringUtils.defaultIfBlank(model.getName(), "model") + ".vrm";
-        Resource resource = store(vrm, name, ModelFormat.VRM.contentType(), hash);
+        Resource resource = store(vrm, name, ModelFormat.VRM.contentType());
         resourceService.link(resource, Model.class, model.getId());
         Long previous = model.getConvertedResourceId();
         model.setConvertedResourceId(resource.getId());
         model.setConvertedFileSize(resource.getSize());
         try {
-            model.setCapabilities(ModelCapabilities.read(vrm).toJson());
+            model.setCapabilities(ModelCapabilities.read(resourceService.getResourceFile(resource)).toJson());
         } catch (IOException e) {
             // stored anyway: the preview tells what is wrong with it
             model.setCapabilities(null);
@@ -328,11 +309,7 @@ public class ModelServiceImpl extends ExtendableServiceImpl<Model, ModelReposito
      * images, where the platform keeps the files of images.
      */
     private Resource storeImage(File file, String originalName, String contentType) throws Exception {
-        File images = configuration.getImagesFolder(currentUser);
-        Files.createDirectories(images.toPath());
-        File moved = new File(images, file.getName());
-        Files.move(file.toPath(), moved.toPath(), StandardCopyOption.REPLACE_EXISTING);
-        return store(moved, originalName, contentType);
+        return store(file, originalName, contentType);
     }
 
     /** Deletes the resources (by id) the model no longer has. */
@@ -386,7 +363,7 @@ public class ModelServiceImpl extends ExtendableServiceImpl<Model, ModelReposito
     public Model linkExport(Model model, File joim, String fingerprint, String hash) throws Exception {
         Model stored = find(model.getId());
         checkUploadFolder(joim);
-        linkExportFile(stored, joim, JoimMetadata.fileName(stored.getName()), hash);
+        linkExportFile(stored, joim, JoimMetadata.fileName(stored.getName()));
         stored.setExportFingerprint(fingerprint);
         return save(stored);
     }
@@ -411,9 +388,9 @@ public class ModelServiceImpl extends ExtendableServiceImpl<Model, ModelReposito
         model.setUploadRemoved(false);
         model.setConversionStatus(ConversionStatus.DONE);
         Model saved = save(model);
-        linkConverted(saved, vrm, vrmHash);
+        linkConverted(saved, vrm);
         saved.setConvertedAt(new java.util.Date());
-        linkExportFile(saved, joim, fileName, joimHash);
+        linkExportFile(saved, joim, fileName);
         saved.setExportFingerprint(exportFingerprint(saved));
         saved = save(saved);
         if (previous != null) {
@@ -491,8 +468,8 @@ public class ModelServiceImpl extends ExtendableServiceImpl<Model, ModelReposito
     }
 
     /** Links the file as the model's {@code .joim}, in place of the one before (deleted). */
-    private void linkExportFile(Model model, File joim, String name, String hash) throws Exception {
-        Resource resource = store(joim, name, JoimFile.CONTENT_TYPE, hash);
+    private void linkExportFile(Model model, File joim, String name) throws Exception {
+        Resource resource = store(joim, name, JoimFile.CONTENT_TYPE);
         resourceService.link(resource, Model.class, model.getId());
         Long previous = model.getExportResourceId();
         model.setExportResourceId(resource.getId());

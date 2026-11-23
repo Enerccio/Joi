@@ -6,14 +6,38 @@ order: 880
 
 # Chats
 
-The **Chats** tab of her dialog shows the conversation as a transcript, oldest at the top. You talk to her in a
-[node](../node/index.md); this tab is where you read it back and clean it up.
+The **Chats** tab of her dialog shows the conversation as a transcript, oldest at the top. You can talk to her here, below the
+transcript, or in a [node](../node/index.md) or the phone app; this tab is where you read it back and clean it up.
+
+## Saying something
+
+Below the transcript is a field for your words. **Enter** sends them, **Shift+Enter** starts a new line. Your message shows dimmed while she
+answers, and is replaced by the exchange when her reply is stored.
+
+### Showing her an image
+
+Press the picture button next to the field and choose an image, or paste one (**Ctrl+V** / **Cmd+V** while the field is focused) or drop
+one on it. At most four go with one message, each at most 20 MB; PNG, JPEG, GIF, BMP and WebP are read. The images wait under the field as small
+pictures, with a button to take one away. Send them with words ("What is this error?"), or alone.
+
+She looks at them with your words, in the same turn, and the image stays part of the conversation: she sees it in later turns too, and it
+shows in the transcript, small (click it to open it). A photo is turned upright and scaled to at most 1568 pixels on its longest side before it is
+kept, so a large one costs no more than a small one. Deleting the message deletes the image.
+
+She can only look at images when a model of hers takes them:
+
+- her **chat model** is marked **Multimodal (accepts images)** in the [Models tab](../models/text-models.md): she looks at the image herself; or
+- her **deep reasoning model** is marked **Multimodal** and her chat model is not: it describes each image once, when you send it, and she
+  gets that description in place of the picture (`[The user attached an image. You cannot see it, but this is what it shows: ...]`). The texts
+  of both prompts are in the Templates tabs and can be changed.
+
+When neither is the case the attach button is off, and a message with an image is refused with a note that says why.
 
 ## What a card shows
 
 ![Her Chats tab: two exchanges, with reasoning and the functions she used](../../images/joi-chats.png)
 
-- **What you said** on the right, or an **event** in the middle with its kind (a part of her was switched, a task finished;
+- **What you said** on the right, with the images you sent, or an **event** in the middle with its kind (a part of her was switched, a task finished;
   see [Events](events.md)).
 - **Her reasoning**, folded, when the model thought.
 - **Her reply** as formatted text, with when it was said, which model answered and which node it came through.
@@ -33,7 +57,7 @@ replaced by the exchange when her reply is stored. The turns of one assistant ru
 
 ## Deleting
 
-A message has a trash button. Or check messages and delete them together; shift-click checks a range. A deleted message is
+A message has a trash button. A message with images takes them with it: the files are deleted. Or check messages and delete them together; shift-click checks a range. A deleted message is
 gone from what she is shown next time: the prompt is built from the stored history on every turn.
 
 ## Summarizing

@@ -6,7 +6,7 @@ import Foundation
 
 /// say: what the user said at the node. The frame's id is the id of the turn; her answer comes in frames that refer to it.
 public struct Say: Codable, Hashable, Sendable {
-    /// The words of the user.
+    /// The words of the user. May be empty (since 1.11) when `images` has an image.
     public var text: String
     /// Speak the reply too, in audio frames (default true).
     public var speak: Bool?
@@ -14,11 +14,14 @@ public struct Say: Codable, Hashable, Sendable {
     public var reasoning: Bool?
     /// Take along what waits to be told to her (since 1.5: the changes of her parts sent just before): one turn about these words and those events, with this frame's id (default false).
     public var withEvents: Bool?
+    /// Images to look at with the words (since 1.11): the ids `POST /api/v1/jois/{id}/images` gave, in this order, at most 4. An `error` frame `no_vision` when she cannot look at images.
+    public var images: [String]?
 
-    public init(text: String, speak: Bool? = nil, reasoning: Bool? = nil, withEvents: Bool? = nil) {
+    public init(text: String, speak: Bool? = nil, reasoning: Bool? = nil, withEvents: Bool? = nil, images: [String]? = nil) {
         self.text = text
         self.speak = speak
         self.reasoning = reasoning
         self.withEvents = withEvents
+        self.images = images
     }
 }

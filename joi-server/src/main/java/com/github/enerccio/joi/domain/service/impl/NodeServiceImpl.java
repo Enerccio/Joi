@@ -7,6 +7,7 @@ import com.github.enerccio.joi.api.JoiApi;
 import com.github.enerccio.joi.domain.chat.ChatService;
 import com.github.enerccio.joi.domain.chat.ToolEffects;
 import com.github.enerccio.joi.domain.chat.ChatService.NoModelException;
+import com.github.enerccio.joi.domain.chat.ChatService.NoVisionException;
 import com.github.enerccio.joi.domain.chat.turn.TurnControllerEvent.Registration;
 import com.github.enerccio.joi.domain.chat.turn.TurnEvents;
 import com.github.enerccio.joi.domain.chat.turn.TurnInput;
@@ -917,9 +918,9 @@ public class NodeServiceImpl implements NodeService, InitializingBean, Disposabl
     private void say(NodeSession session, Frame frame) throws Exception {
         require(frame.id() != null && ID.matcher(frame.id()).matches(), "A say needs an id: it is the id of the turn");
         Say say = data(frame, Say.class);
-        require(StringUtils.isNotBlank(say.text()), "say.text is what the user said");
+        require(StringUtils.isNotBlank(say.text()) || !say.imagesOrEmpty().isEmpty(), "say.text is what the user said (or say.images has what she looks at)");
         Joi joi;
-        String input = say.text();
+        String input = StringUtils.defaultString(say.text());
         List<Integer> asked = List.of();
         try (InRequestScope _ = new InRequestScope(session.attributes())) {
             joi = joiService.find(session.joiId());
@@ -928,12 +929,12 @@ public class NodeServiceImpl implements NodeService, InitializingBean, Disposabl
                 List<NodeSession.Pending> pending = session.takeAllPending();
                 if (!pending.isEmpty()) {
                     asked = pending.stream().map(NodeSession.Pending::request).filter(Objects::nonNull).toList();
-                    input = say.text() + "\n\n" + told(joi, pending);
+                    input = StringUtils.isBlank(say.text()) ? told(joi, pending) : say.text() + "\n\n" + told(joi, pending);
                 }
             }
         }
         session.told(asked, frame.id());
-        if (!startTurn(session, frame.id(), joi, new TurnInput(input, session.name(), say.speakOrDefault(), true),
+        if (!startTurn(session, frame.id(), joi, new TurnInput(input, session.name(), say.speakOrDefault(), true, null, say.imagesOrEmpty()),
                 say.reasoningOrDefault())) {
             decideLeft(session, frame.id());
         }
@@ -990,6 +991,9 @@ public class NodeServiceImpl implements NodeService, InitializingBean, Disposabl
             });
         } catch (NoModelException e) {
             session.error(turn, "no_model", e.getMessage());
+            return false;
+        } catch (NoVisionException e) {
+            session.error(turn, "no_vision", e.getMessage());
             return false;
         }
         session.turnStarted(turn, result);

@@ -49,6 +49,14 @@ class NodeSocketTest {
         JsonObject say = sent.poll(1, TimeUnit.SECONDS);
         assertThat(say.get("type").getAsString()).isEqualTo("say");
         assertThat(say.get("id").getAsString()).isEqualTo(turn);
+        assertThat(say.getAsJsonObject("data").has("images")).isFalse();
+
+        // an image goes as its id: the words may be empty
+        socket.say("", false, false, false, java.util.List.of("img1"));
+        JsonObject withImage = sent.poll(1, TimeUnit.SECONDS).getAsJsonObject("data");
+        assertThat(withImage.get("text").getAsString()).isEmpty();
+        assertThat(withImage.getAsJsonArray("images").get(0).getAsString()).isEqualTo("img1");
+        assertThat(seen.removeLast()).startsWith("turn t-");
 
         socket.receive("{\"type\":\"turn\",\"data\":{\"turn\":\"s1\",\"cause\":\"first_boot\"}}");
         socket.receive("{\"type\":\"text\",\"ref\":\"s1\",\"data\":{\"delta\":\"Hel\"}}");

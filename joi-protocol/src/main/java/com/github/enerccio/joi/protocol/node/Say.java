@@ -10,11 +10,21 @@ package com.github.enerccio.joi.protocol.node;
  * @param reasoning whether to send the thinking of the model (default false)
  * @param withEvents whether to take along what waits to be told to her (since 1.5: the changes of her parts the node just
  *                   sent): her turn is about the words and those events together, and this frame's id is its id (default false)
+ * @param images     the ids of the images to look at with the words (since 1.11, from {@code POST /api/v1/jois/{id}/images}), at most 4;
+ *                   the text may then be empty
  */
-public record Say(String text, Boolean speak, Boolean reasoning, Boolean withEvents) {
+public record Say(String text, Boolean speak, Boolean reasoning, Boolean withEvents, java.util.List<String> images) {
 
     public Say(String text, Boolean speak, Boolean reasoning) {
-        this(text, speak, reasoning, null);
+        this(text, speak, reasoning, null, null);
+    }
+
+    public Say(String text, Boolean speak, Boolean reasoning, Boolean withEvents) {
+        this(text, speak, reasoning, withEvents, null);
+    }
+
+    public java.util.List<String> imagesOrEmpty() {
+        return images == null ? java.util.List.of() : images;
     }
 
     public boolean withEventsOrDefault() {

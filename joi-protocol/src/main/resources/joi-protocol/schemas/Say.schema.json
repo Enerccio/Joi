@@ -7,8 +7,8 @@
   "properties": {
     "text": {
       "type": "string",
-      "description": "The words of the user.",
-      "minLength": 1
+      "description": "The words of the user. May be empty (since 1.11) when `images` has an image.",
+      "minLength": 0
     },
     "speak": {
       "type": [
@@ -30,6 +30,16 @@
         "null"
       ],
       "description": "Take along what waits to be told to her (since 1.5: the changes of her parts sent just before): one turn about these words and those events, with this frame's id (default false)."
+    },
+    "images": {
+      "type": [
+        "array",
+        "null"
+      ],
+      "items": {
+        "type": "string"
+      },
+      "description": "Images to look at with the words (since 1.11): the ids `POST /api/v1/jois/{id}/images` gave, in this order, at most 4. An `error` frame `no_vision` when she cannot look at images."
     }
   },
   "required": [

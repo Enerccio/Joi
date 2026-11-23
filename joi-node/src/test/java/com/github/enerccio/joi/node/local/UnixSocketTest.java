@@ -121,6 +121,30 @@ class UnixSocketTest {
     }
 
     @Test
+    void aFileIsStreamedAsTheBodyWithItsLength() throws Exception {
+        byte[] content = new byte[100_000];
+        new java.util.Random(1).nextBytes(content);
+        Path file = Files.createTempFile("joi-image", ".bin");
+        Files.write(file, content);
+        java.util.concurrent.atomic.AtomicReference<byte[]> got = new java.util.concurrent.atomic.AtomicReference<>();
+        serve((in, out) -> {
+            ByteArrayOutputStream head = new ByteArrayOutputStream();
+            while (!head.toString(StandardCharsets.ISO_8859_1).endsWith("\r\n\r\n")) {
+                head.write(in.read());
+            }
+            int length = Integer.parseInt(head.toString(StandardCharsets.ISO_8859_1).replaceAll("(?is).*content-length: *(\\d+).*", "$1"));
+            got.set(in.readNBytes(length));
+            out.write("HTTP/1.1 200 OK\r\nContent-Length: 2\r\n\r\n{}".getBytes(StandardCharsets.UTF_8));
+        });
+
+        UnixHttp.Reply reply = new UnixHttp(socket).sendFile("POST", "/api/v1/jois/j/images", Map.of(), file, Duration.ofSeconds(5));
+
+        Files.delete(file);
+        assertThat(reply.status()).isEqualTo(200);
+        assertThat(got.get()).isEqualTo(content);
+    }
+
+    @Test
     void anAnswerInChunksOrUntilTheConnectionClosesIsRead() throws Exception {
         serve((in, out) -> {
             readRequest(in, new ByteArrayOutputStream());

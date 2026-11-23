@@ -99,6 +99,8 @@ public class JoiLocalizationBundleEN extends TextBundleBase<J_L> {
         setValue(J_L.LABEL_CONNECTED_EVENT, "User is back (the event when the user comes back to her on a node)");
         setValue(J_L.LABEL_LOOKING_GLASS_ENTERED_EVENT, "On the Looking Glass (the event when the user moves her onto a Looking Glass)");
         setValue(J_L.LABEL_MESSAGE_STAMP, "Time of a message (the line before a message of the user or an event: when it was said)");
+        setValue(J_L.LABEL_IMAGE_NOTE, "An image of the user, for a chat model that cannot see (added to the message of the user)");
+        setValue(J_L.LABEL_IMAGE_DESCRIPTION_PROMPT, "Describing an image of the user (the request to a model that can see, for a chat model that cannot)");
         setValue(J_L.LABEL_RECALLED_MEMORIES, "Memories that fit a message (added to the message of the user)");
         setValue(J_L.LABEL_SERVER_RESTARTED_EVENT, "Server was down (the event when the server was down and a node connected to it again)");
         setValue(J_L.LABEL_WEB_TASK_PROMPT, "Web task (what the stronger model is told when it searches the web or reads a page for her)");
@@ -429,6 +431,9 @@ public class JoiLocalizationBundleEN extends TextBundleBase<J_L> {
         setValue(J_L.LABEL_REMOVE_FROM_PACK, "Remove the step");
         setValue(J_L.LABEL_IN_PACKS, "In animations");
         setValue(J_L.LABEL_ANIMATION_SOURCE, "Converted from");
+        setValue(J_L.LABEL_ATTACH_IMAGE, "Attach an image (or paste one)");
+        setValue(J_L.LABEL_SEND_MESSAGE, "Send");
+        setValue(J_L.LABEL_CHAT_IMAGE, "An image the user sent");
 
         // --- ENUM ---
         setValue(J_L.ENUM_TEXT_LLM_TYPE_AUXILIARY, "Auxiliary");
@@ -510,6 +515,7 @@ public class JoiLocalizationBundleEN extends TextBundleBase<J_L> {
         setValue(J_L.PLACEHOLDER_VOICE, "A clip, or a voice file of the server (Henry.wav)");
         setValue(J_L.PLACEHOLDER_STORED_KEY, "Stored. Type to replace it.");
         setValue(J_L.PLACEHOLDER_SAMPLE_TEXT, "Hello, this is how I sound. Shall we begin?");
+        setValue(J_L.PLACEHOLDER_CHAT_MESSAGE, "Say something to her (Enter sends). Paste or drop an image.");
 
         // --- MSG ---
         setValue(J_L.MSG_TTS_MODEL_LOADED, "The server answers, the model is loaded (%s)");
@@ -601,6 +607,10 @@ public class JoiLocalizationBundleEN extends TextBundleBase<J_L> {
         setValue(J_L.MSG_ANIMATION_DESCRIPTION_HINT, "What it shows and when it fits, for her: she picks a clip by what it says.");
         setValue(J_L.MSG_ANIMATION_BLEND_HINT, "Seconds to blend from where the step before left her into this clip, so a pose that doesn't match flows into it; 0 cuts.");
         setValue(J_L.MSG_STEP_ROTATION_HINT, "Turns the whole clip of this step around her hips where it starts, for a clip made facing or lying another way. Degrees around X, Y and Z (Y turns her around), or drag the rings in the preview. The clip itself stays as it is.");
+        setValue(J_L.MSG_CHAT_NO_VISION, "She cannot look at images: her chat model does not take images, and no model of yours that does is set as the deep reasoning model to describe them for her. Mark a model Multimodal in the Models tab.");
+        setValue(J_L.MSG_CHAT_IMAGE_FAILED, "The image was not taken: %s");
+        setValue(J_L.MSG_CHAT_SEND_FAILED, "The message was not sent: %s");
+        setValue(J_L.MSG_CHAT_IMAGES_FULL, "At most %d images go with a message.");
         setValue(J_L.MSG_JOI_ANIMATIONS_HINT, "The animations of your library she plays in her states, on a node. They play from her body's animations: a body that plays only some of them needs these among them.");
         setValue(J_L.MSG_ANIMATION_IDLE_HINT, "While she waits; the node plays one of them at a time.");
         setValue(J_L.MSG_ANIMATION_TALKING_HINT, "While she speaks; the node plays one of them at a time.");
@@ -612,6 +622,8 @@ public class JoiLocalizationBundleEN extends TextBundleBase<J_L> {
         setValue(J_L.DESC_TEMPLATE_PERSONALITY, "The personality, rendered ({{user}} and {{char}} work in it).");
         setValue(J_L.DESC_TEMPLATE_MOOD, "Today's mood as it sounds in the personality.");
         setValue(J_L.DESC_TEMPLATE_PROFILE, "The short block about the user that is always in the prompt.");
+        setValue(J_L.DESC_TEMPLATE_IMAGE_DESCRIPTION, "What a model that can see wrote about the image.");
+        setValue(J_L.DESC_TEMPLATE_USER_TEXT, "What the user wrote with the image, empty when nothing.");
         setValue(J_L.DESC_TEMPLATE_MEMORIES, "What the assistant remembers that matters now: facts and past episodes.");
         setValue(J_L.DESC_TEMPLATE_CONVERSATIONS, "Short summaries of the other open conversations.");
         setValue(J_L.DESC_TEMPLATE_BODY, "The current body (avatar): what it can do and its state.");

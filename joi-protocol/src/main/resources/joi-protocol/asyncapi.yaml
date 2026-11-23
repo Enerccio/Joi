@@ -1,7 +1,7 @@
 asyncapi: 3.0.0
 info:
   title: Joi node WebSocket
-  version: "1.10"
+  version: "1.11"
   description: |
     The live connection between a node and a Joi server: who the node is, the tools it offers and their calls, the
     user talking to her through it and her answer in text and speech, approvals, and what changes on the server. The
@@ -28,7 +28,10 @@ info:
          `ref` is that id: `reasoning` and `text` pieces while the model writes, `tool` when she used a tool,
          `reply` when the text is whole and stored, `audio` pieces (each a whole file, play them in order), then
          `done`. `error` ends a turn that failed or was stopped (`stopped`). Turns of one assistant run one at a
-         time: a `say` while another turn runs waits. `stop` stops a turn of this node (barge-in). The server may
+         time: a `say` while another turn runs waits. **Images** (since 1.11): `say.images` lists the ids of images the node
+         gave the HTTP call `POST /api/v1/jois/{id}/images` (streamed from the disk, with the same credentials), at most 4;
+         she looks at them with the words, which may be empty then. When she cannot (`JoiInfo.images` is false) the answer
+         is an `error` `no_vision` and nothing is stored. `stop` stops a turn of this node (barge-in). The server may
          start a turn itself with `turn` (its id and the cause: `first_boot` when she wakes up for the very first
          time, `connected` when the user is back, sent after the manifest, but not for a `hello` with `resumed`); her answer
          follows the same way.
@@ -86,7 +89,7 @@ info:
 
     **Errors.** A frame that cannot be taken is answered by `error` (`ApiError`) with its `ref`; the connection stays
     open. Codes: `bad_message` (not a frame, or data not valid by its schema), `not_found` (an unknown turn or call),
-    `no_model`, `model_failed`, `stopped`, `internal`. Close codes:
+    `no_model`, `no_vision`, `bad_image`, `model_failed`, `stopped`, `internal`. Close codes:
     - `4001` unauthorized: no or bad credentials.
     - `4002` unsupported version: the major version of `hello.protocol` is not served (the reason names the ones that
       are).

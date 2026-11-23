@@ -13,14 +13,25 @@ import java.util.Map;
  * @param query   the parameters of the query string, the first value of each
  * @param headers the headers, names in lower case
  * @param baseUrl the URL of the server as the client reached it ({@code http://host:port}, no slash at the end)
+ * @param stream  the body as a stream, for a call that is read to the disk (an image upload: {@code body} is empty then), null otherwise
  * @param local   whether it arrived on the server's local socket (see {@link ApiConfiguration#getLocalSocket()}), so it is from the
  *                machine the server runs on
  */
 public record ApiCall(String method, String path, Map<String, String> query, Map<String, String> headers, byte[] body, String baseUrl,
-                      boolean local) {
+                      boolean local, java.io.InputStream stream) {
 
     public ApiCall(String method, String path, Map<String, String> query, Map<String, String> headers, byte[] body, String baseUrl) {
-        this(method, path, query, headers, body, baseUrl, false);
+        this(method, path, query, headers, body, baseUrl, false, null);
+    }
+
+    public ApiCall(String method, String path, Map<String, String> query, Map<String, String> headers, byte[] body, String baseUrl,
+                   boolean local) {
+        this(method, path, query, headers, body, baseUrl, local, null);
+    }
+
+    /** The body of a call that is streamed to the disk instead of read whole (an upload): the stream, or the bytes of a call made without HTTP. */
+    public java.io.InputStream bodyStream() {
+        return stream != null ? stream : new java.io.ByteArrayInputStream(body);
     }
 
     public String header(String name) {

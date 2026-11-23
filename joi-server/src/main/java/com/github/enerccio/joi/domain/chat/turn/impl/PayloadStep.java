@@ -12,7 +12,11 @@ import com.github.enerccio.joi.domain.chat.turn.TurnEvents;
 import com.github.enerccio.joi.domain.chat.turn.TurnStepBase;
 import com.github.enerccio.joi.domain.chat.turn.TurnStepType;
 import com.github.enerccio.joi.domain.model.impl.ChatMessage;
+import com.github.enerccio.joi.domain.service.ChatImageService;
 import com.github.enerccio.joi.domain.service.ChatMessageService;
+import com.github.enerccio.joi.domain.templates.ImageNoteTemplateData;
+import com.github.enerccio.joi.domain.chat.turn.TurnProperties;
+import com.github.enerccio.marginalia.domain.service.impl.generation.dto.LLMAttachment;
 import com.github.enerccio.joi.domain.service.PersonaService;
 import com.github.enerccio.marginalia.domain.service.impl.generation.dto.LLMChatMessage;
 import com.github.enerccio.marginalia.domain.service.impl.generation.dto.LLMRole;
@@ -28,6 +32,9 @@ public class PayloadStep extends TurnStepBase {
 
     @Autowired
     private PersonaService personaService;
+
+    @Autowired
+    private ChatImageService chatImageService;
 
     @Autowired
     private ChatMessageService chatMessageService;
@@ -59,10 +66,13 @@ public class PayloadStep extends TurnStepBase {
         // the first message of the prompt always has its time line, so she knows the day; the others when a pause was
         // before them, see MessageStamps
         boolean first = true;
+        boolean sees = controller.getAi().isMultimodal();
         for (ChatMessage earlier : window) {
-            if (StringUtils.isNotBlank(earlier.getInput())) {
-                payload.add(LLMChatMessage.of(LLMRole.USER,
-                        MessageStamps.stamped(personaService, joi, earlier.getInput(), earlier.getSentAt(), previous, first)));
+            if (StringUtils.isNotBlank(earlier.getInput()) || !earlier.imageUuids().isEmpty()) {
+                // an image is in the message the same way in every prompt that holds it: the file as it was kept, or the note written once
+                payload.add(withImages(LLMChatMessage.of(LLMRole.USER,
+                                MessageStamps.stamped(personaService, joi, StringUtils.defaultString(earlier.getInput()), earlier.getSentAt(), previous, first)),
+                        joi, earlier.imageUuids(), earlier.imageNoteTexts(), sees));
                 first = false;
             }
             if (StringUtils.isNotBlank(earlier.getResponse())) {
@@ -74,6 +84,20 @@ public class PayloadStep extends TurnStepBase {
         // this prompt only; the always recalled ones are in the system prompt)
         String said = controller.getInput().text();
         StringBuilder text = new StringBuilder(MessageStamps.stamped(personaService, joi, said, controller.getSent(), previous, first));
+        List<String> images = controller.getInput().images();
+        List<String> notes = List.of();
+        if (!images.isEmpty() && !sees) {
+            // the chat model cannot see: a model that can writes what the image shows, once, and the note is stored with the message
+            notes = new ArrayList<>();
+            for (String image : images) {
+                try {
+                    notes.add(chatImageService.describe(joi, image, said));
+                } catch (Exception e) {
+                    throw new IllegalStateException("The image could not be described for her: " + e.getMessage(), e);
+                }
+            }
+            controller.getProperties().put(TurnProperties.IMAGE_NOTES, notes);
+        }
         String recalled = memoryService.recalled(joi, said, RECALLED);
         if (recalled != null) {
             RecalledMemoriesTemplateData data = new RecalledMemoriesTemplateData();
@@ -83,9 +107,40 @@ public class PayloadStep extends TurnStepBase {
                 text.append('\n').append(block);
             }
         }
-        payload.add(LLMChatMessage.of(LLMRole.USER, text.toString()));
+        payload.add(withImages(LLMChatMessage.of(LLMRole.USER, text.toString()), joi, images, notes, sees));
         controller.setPayload(payload);
         controller.emitEvent(TurnEvents.AFTER_PREPARE_PAYLOAD, controller::next);
+    }
+
+    /**
+     * The images of a message: as attachments when the chat model can see, else as the notes written about them, put after the words.
+     * A message of the history whose note was never written (the model was changed since) says so, as it says it in every prompt.
+     */
+    private LLMChatMessage withImages(LLMChatMessage message, Joi joi, List<String> images, List<String> notes, boolean sees)
+            throws Exception {
+        if (images.isEmpty()) {
+            return message;
+        }
+        if (sees) {
+            for (String image : images) {
+                LLMAttachment attachment = chatImageService.attachment(image);
+                if (attachment != null) {
+                    message.addAttachment(attachment);
+                }
+            }
+            return message;
+        }
+        StringBuilder text = new StringBuilder(StringUtils.defaultString(message.getContent()));
+        for (int i = 0; i < images.size(); i++) {
+            ImageNoteTemplateData data = new ImageNoteTemplateData();
+            data.setShows(i < notes.size() && StringUtils.isNotBlank(notes.get(i)) ? notes.get(i) : "(it was not described)");
+            String note = personaService.render(joi, JoiPromptField.IMAGE_NOTE, data);
+            if (StringUtils.isNotBlank(note)) {
+                text.append(text.isEmpty() ? "" : "\n").append(note);
+            }
+        }
+        message.setContent(text.toString());
+        return message;
     }
 
     @Override

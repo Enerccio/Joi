@@ -13,7 +13,13 @@ package com.github.enerccio.joi.protocol.http;
  * @param chatModel   the name of the model she chats with, null when none is set up (chat then fails)
  * @param voice       how she speaks, null when no speech is set up (replies are text only)
  * @param animations  the animations she plays in her states (since 1.2)
+ * @param images      whether she can look at images sent with a message (since 1.11)
  */
 public record JoiInfo(String id, String name, String userName, Personality personality, String mood, String wakeWord,
-                      String lastChatted, String chatModel, Voice voice, JoiAnimations animations) {
+                      String lastChatted, String chatModel, Voice voice, JoiAnimations animations, Boolean images) {
+
+    public JoiInfo(String id, String name, String userName, Personality personality, String mood, String wakeWord,
+                   String lastChatted, String chatModel, Voice voice, JoiAnimations animations) {
+        this(id, name, userName, personality, mood, wakeWord, lastChatted, chatModel, voice, animations, null);
+    }
 }

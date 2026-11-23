@@ -208,5 +208,6 @@ Don't add adult content from avatar packages to anything (the converter drops it
   review. A feature without its docs is not finished.
 - **Files go through the disk, not memory:** uploads stream into a file (`UploadHandler.toFile`), downloads and what
   the client or a node gets stream from a file (`DownloadHandler.forFile`), exports and imports are written and read
-  as streams through temp files on disk. Models, images and archives can be large: never read a whole file into a
+  as streams through temp files on disk. A file already on the disk becomes a `Resource` with `ResourceService.saveFile` (upload file from
+  `ResourceService.newUploadFile()`; unused uploads swept with `deleteUnlinked`), never by building the `Resource` by hand. Models, images and archives can be large: never read a whole file into a
   byte array or a string when a stream or a file will do.

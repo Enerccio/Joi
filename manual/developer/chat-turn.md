@@ -4,6 +4,7 @@ icon: sync
 order: 750
 covers:
   - joi-server/src/main/java/com/github/enerccio/joi/domain/chat
+  - joi-server/src/main/java/com/github/enerccio/joi/domain/service/impl/ChatImageServiceImpl.java
 verified: 13054e1
 ---
 
@@ -92,6 +93,20 @@ seldom as it can:
   stored) comes before a message of the user or an event for the first message of the prompt, after a pause of 10 minutes or more, and when
   the day changes.
 - The memories that fit a message (`MemoryService.recalled`) come **after the message**, from `RECALLED_MEMORIES`.
+
+## Images
+
+A message may carry images (`TurnInput.images`, the uuids of uploads: see *Images* in [The protocol](protocol.md)). `ChatServiceImpl.chat` checks them first (`checkImages`: the user's own, at most 4, and
+`ChatImageService.canSee`, else `NoVisionException`) and lets the words be empty when there is an image; an event never has images. `StoreStep` writes their uuids into the message's
+extended attribute `images` and `ChatImageService.attach` ties the uploads to it (they are no longer swept); its prompt record keeps the attachments' name, type and size, never the bytes.
+
+`PayloadStep.withImages` gives every message of the history and the current one the same form **in every turn**, because the form is part of the cached prompt: a multimodal chat model
+(`AI.isMultimodal`) gets each image as an `LLMAttachment` (the stored JPEG, so the same data URL every time) after the words; any other model gets the template `IMAGE_NOTE` once for each image,
+with the text the describer wrote. The describer is her deep reasoning model, else her chat model, when it is multimodal (`ChatImageService.describer` = `AppearanceService.model`); for the current message of a chat model that cannot see, `PayloadStep` has it
+describe the images (`describe`: one blocking round of `IMAGE_DESCRIPTION_PROMPT` with the image and the user's words, five minutes at most) and keeps the notes in the turn's properties
+(`TurnProperties.IMAGE_NOTES`); `StoreStep` stores them as the message's `imageNotes`, so the next prompts read the note and never ask the describer again. A message of the history that has
+images and no words is in the history like any other. The summarizer's transcript has "[attached an image: note]"; deleting a message deletes its files (`ChatMessageServiceImpl.deleteMessages`
+→ `ChatImageService.deleteOf`). `ChatImages` is the pure part (decoding, EXIF orientation, scaling to 1568 pixels, JPEG) and has its own test.
 
 ## Inference
 

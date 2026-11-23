@@ -30,7 +30,7 @@ import Testing
 
     @Test func chatHistory1() throws {
         let json = #"""
-{"messages":[{"id":"m1","sentAt":"2026-11-18T19:00:00Z","type":"event","text":null,"event":"node.first_boot","node":"desk","reply":"I\u0027m awake."},{"id":"m2","sentAt":"2026-11-18T19:01:00Z","type":"user","text":"Hi","event":null,"node":null,"reply":null}],"more":true}
+{"messages":[{"id":"m1","sentAt":"2026-11-18T19:00:00Z","type":"event","text":null,"event":"node.first_boot","node":"desk","reply":"I\u0027m awake.","images":null},{"id":"m2","sentAt":"2026-11-18T19:01:00Z","type":"user","text":"Hi","event":null,"node":null,"reply":null,"images":null},{"id":"m4","sentAt":"2026-11-18T19:02:00Z","type":"user","text":"Look","event":null,"node":null,"reply":"Nice.","images":["img1"]}],"more":true}
 """#
         try roundTrip(ChatHistory.self, json)
     }
@@ -58,7 +58,7 @@ import Testing
 
     @Test func chatHistory2() throws {
         let json = #"""
-{"messages":[{"id":"m3","sentAt":"2026-11-20T10:00:00Z","type":"log","text":"Approved","event":"task.approved","node":null,"reply":null}],"more":false}
+{"messages":[{"id":"m3","sentAt":"2026-11-20T10:00:00Z","type":"log","text":"Approved","event":"task.approved","node":null,"reply":null,"images":null}],"more":false}
 """#
         try roundTrip(ChatHistory.self, json)
     }
@@ -114,16 +114,30 @@ import Testing
 
     @Test func joiInfo1() throws {
         let json = #"""
-{"id":"2f0c","name":"Joi","userName":"Peter","personality":{"key":"warm","name":"Warm"},"mood":null,"wakeWord":"Hey Joi","lastChatted":null,"chatModel":"Gemma","voice":{"model":"Higgs","actor":"C","description":"low and warm"},"animations":{"sleeping":"p1","fallingAsleep":null,"wakingUp":"p2","idle":["p3","p4"],"talking":[]}}
+{"id":"2f0c","name":"Joi","userName":"Peter","personality":{"key":"warm","name":"Warm"},"mood":null,"wakeWord":"Hey Joi","lastChatted":null,"chatModel":"Gemma","voice":{"model":"Higgs","actor":"C","description":"low and warm"},"animations":{"sleeping":"p1","fallingAsleep":null,"wakingUp":"p2","idle":["p3","p4"],"talking":[]},"images":null}
 """#
         try roundTrip(JoiInfo.self, json)
     }
 
     @Test func joiInfo2() throws {
         let json = #"""
-{"id":"2f0c","name":"Joi","userName":"Peter","personality":null,"mood":"cheerful","wakeWord":"Hey Joi","lastChatted":null,"chatModel":null,"voice":null,"animations":null}
+{"id":"2f0c","name":"Joi","userName":"Peter","personality":null,"mood":"cheerful","wakeWord":"Hey Joi","lastChatted":null,"chatModel":null,"voice":null,"animations":null,"images":null}
 """#
         try roundTrip(JoiInfo.self, json)
+    }
+
+    @Test func joiInfo3() throws {
+        let json = #"""
+{"id":"2f0c","name":"Joi","userName":"Peter","personality":null,"mood":null,"wakeWord":"Hey Joi","lastChatted":null,"chatModel":"Gemma","voice":null,"animations":null,"images":true}
+"""#
+        try roundTrip(JoiInfo.self, json)
+    }
+
+    @Test func imageUpload1() throws {
+        let json = #"""
+{"id":"i1","mimeType":"image/jpeg","size":183000,"width":1568,"height":1176}
+"""#
+        try roundTrip(ImageUpload.self, json)
     }
 
     @Test func bodyInfo1() throws {
@@ -142,14 +156,21 @@ import Testing
 
     @Test func chatRequest1() throws {
         let json = #"""
-{"text":"Hi!","speak":null,"stream":null,"reasoning":null,"node":null}
+{"text":"Hi!","speak":null,"stream":null,"reasoning":null,"node":null,"images":null}
 """#
         try roundTrip(ChatRequest.self, json)
     }
 
     @Test func chatRequest2() throws {
         let json = #"""
-{"text":"Hi!","speak":false,"stream":true,"reasoning":true,"node":"kitchen"}
+{"text":"","speak":null,"stream":null,"reasoning":null,"node":null,"images":["img1","img2"]}
+"""#
+        try roundTrip(ChatRequest.self, json)
+    }
+
+    @Test func chatRequest3() throws {
+        let json = #"""
+{"text":"Hi!","speak":false,"stream":true,"reasoning":true,"node":"kitchen","images":null}
 """#
         try roundTrip(ChatRequest.self, json)
     }
@@ -233,7 +254,7 @@ import Testing
 
     @Test func hello1() throws {
         let json = #"""
-{"protocol":"1.10","nodeId":"6f1d-4c2a","name":"desk","kind":"desktop","software":"joi-node 0.1.0","joi":"2f0c","parts":["tools","audio-out","approvals"],"token":null,"resumed":null,"resume":null}
+{"protocol":"1.11","nodeId":"6f1d-4c2a","name":"desk","kind":"desktop","software":"joi-node 0.1.0","joi":"2f0c","parts":["tools","audio-out","approvals"],"token":null,"resumed":null,"resume":null}
 """#
         try roundTrip(Hello.self, json)
     }
@@ -289,21 +310,28 @@ import Testing
 
     @Test func say1() throws {
         let json = #"""
-{"text":"What\u0027s on my calendar?","speak":null,"reasoning":null,"withEvents":null}
+{"text":"What\u0027s on my calendar?","speak":null,"reasoning":null,"withEvents":null,"images":null}
 """#
         try roundTrip(Say.self, json)
     }
 
     @Test func say2() throws {
         let json = #"""
-{"text":"Hi","speak":false,"reasoning":true,"withEvents":null}
+{"text":"Hi","speak":false,"reasoning":true,"withEvents":null,"images":null}
 """#
         try roundTrip(Say.self, json)
     }
 
     @Test func say3() throws {
         let json = #"""
-{"text":"Hi","speak":null,"reasoning":null,"withEvents":true}
+{"text":"Hi","speak":null,"reasoning":null,"withEvents":true,"images":null}
+"""#
+        try roundTrip(Say.self, json)
+    }
+
+    @Test func say4() throws {
+        let json = #"""
+{"text":"","speak":null,"reasoning":null,"withEvents":null,"images":["img1"]}
 """#
         try roundTrip(Say.self, json)
     }
@@ -478,7 +506,7 @@ import Testing
 
     @Test func frame1() throws {
         let json = #"""
-{"type":"hello","id":null,"ref":null,"data":{"protocol":"1.10","nodeId":"6f1d-4c2a","name":"desk","kind":"desktop","software":"joi-node 0.1.0","joi":"2f0c","parts":["tools","audio-out","approvals"],"token":null,"resumed":null,"resume":null}}
+{"type":"hello","id":null,"ref":null,"data":{"protocol":"1.11","nodeId":"6f1d-4c2a","name":"desk","kind":"desktop","software":"joi-node 0.1.0","joi":"2f0c","parts":["tools","audio-out","approvals"],"token":null,"resumed":null,"resume":null}}
 """#
         try roundTrip(Frame.self, json)
         try typedFrame(json)
@@ -486,7 +514,7 @@ import Testing
 
     @Test func frame2() throws {
         let json = #"""
-{"type":"say","id":"t1","ref":null,"data":{"text":"Hi","speak":null,"reasoning":null,"withEvents":null}}
+{"type":"say","id":"t1","ref":null,"data":{"text":"Hi","speak":null,"reasoning":null,"withEvents":null,"images":null}}
 """#
         try roundTrip(Frame.self, json)
         try typedFrame(json)

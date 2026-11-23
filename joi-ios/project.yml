@@ -52,6 +52,8 @@ targets:
         NSAppTransportSecurity:
           NSAllowsLocalNetworking: true
         NSLocalNetworkUsageDescription: Joi connects to your Joi server on the local network.
+        # a photo taken to show her (the library needs no string: the picker runs outside the app)
+        NSCameraUsageDescription: Joi uses the camera to take a photo you send to your assistant.
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: io.github.enerccio.joi

@@ -20,6 +20,31 @@ import JoiProtocol
         #expect(http.recorded.first?.authorization == "Bearer joi_abc")
     }
 
+    @Test func anImageIsUploadedAsTheBodyOfItsFile() async throws {
+        let http = FakeHTTP { _ in (200, #"{"id":"i1","mimeType":"image/jpeg","size":3,"width":10,"height":20}"#) }
+        let client = JoiClient(server: server, store: MemoryCredentialStore(Credentials(token: "joi_abc")), transport: http)
+        let file = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString + ".jpg")
+        try Data("abc".utf8).write(to: file)
+        defer { try? FileManager.default.removeItem(at: file) }
+        let upload = try await client.uploadImage("j 1", file: file)
+        #expect(upload.id == "i1" && upload.width == 10 && upload.height == 20)
+        let call = http.recorded[0]
+        #expect(call.method == "POST" && call.path == "/api/v1/jois/j%201/images")
+        #expect(call.authorization == "Bearer joi_abc" && call.contentType == "application/octet-stream")
+        #expect(call.body == "abc")
+    }
+
+    @Test func anImageTheServerRefusesIsItsError() async throws {
+        let http = FakeHTTP { _ in (400, #"{"code":"bad_image","message":"This is not an image the server reads"}"#) }
+        let client = JoiClient(server: server, store: MemoryCredentialStore(Credentials(token: "t")), transport: http)
+        let file = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString + ".jpg")
+        try Data("x".utf8).write(to: file)
+        defer { try? FileManager.default.removeItem(at: file) }
+        await #expect(throws: ServerError(status: 400, code: "bad_image", message: "This is not an image the server reads")) {
+            try await client.uploadImage("j1", file: file)
+        }
+    }
+
     @Test func infoNeedsNoCredentials() async throws {
         let http = FakeHTTP { _ in (200, #"{"protocol":"1.8","server":"joi-server","version":"0.1.0","auth":{"methods":["none"],"oauth":null}}"#) }
         let client = JoiClient(server: server, store: MemoryCredentialStore(Credentials(token: "joi_abc")), transport: http)

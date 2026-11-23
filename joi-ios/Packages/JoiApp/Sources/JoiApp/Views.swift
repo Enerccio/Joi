@@ -263,6 +263,8 @@ struct ChatColumn: View {
     let model: AppModel
     @FocusState.Binding var focused: Bool
     @State private var input = ""
+    /// Files of the images waiting to be sent with the words.
+    @State private var images: [URL] = []
 
     var body: some View {
         VStack(spacing: 0) {
@@ -284,23 +286,44 @@ struct ChatColumn: View {
                     if let last = chat.messages.last { proxy.scrollTo(last.id, anchor: .bottom) }
                 }
             }
+            if !images.isEmpty {
+                PendingImages(images: $images).padding(.horizontal)
+            }
             HStack {
+                if chat.canSeeImages {
+                    ImageAttachButton(images: $images, limit: ChatModel.maxImages).font(.title3)
+                }
                 TextField("Say something to \(chat.joiName)", text: $input, axis: .vertical)
                     .lineLimit(1...4)
                     .textFieldStyle(.roundedBorder)
                     .focused($focused)
                     .onSubmit(send)
                 Button("Send", action: send)
-                    .disabled(input.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                    .disabled(!canSend)
             }
             .padding()
         }
     }
 
+    private var canSend: Bool {
+        !chat.sending && (!input.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || !images.isEmpty)
+    }
+
+    /// The words and the images leave the field at once and come back when the message was not sent.
     private func send() {
+        guard canSend else { return }
         let text = input
+        let files = images
         input = ""
-        Task { await chat.send(text) }
+        images = []
+        Task {
+            if await chat.send(text, images: files) {
+                for file in files { try? FileManager.default.removeItem(at: file) }
+            } else {
+                if input.isEmpty { input = text }
+                images = files
+            }
+        }
     }
 }
 
@@ -337,7 +360,7 @@ struct MessageRow: View {
     var body: some View {
         switch message.role {
         case .user:
-            bubble(message.text, color: .accentColor.opacity(0.25), alignment: .trailing)
+            bubble(userText, color: .accentColor.opacity(0.25), alignment: .trailing)
         case .joi:
             bubble(message.text.isEmpty && message.streaming ? "…" : message.text, color: .gray.opacity(0.2), alignment: .leading)
         case .note:
@@ -345,6 +368,13 @@ struct MessageRow: View {
         case .error:
             Text(message.text).font(.footnote).foregroundStyle(.red).frame(maxWidth: .infinity)
         }
+    }
+
+    /// The words, with a line for the images that went with them.
+    private var userText: String {
+        guard message.imageCount > 0 else { return message.text }
+        let line = "📷 " + (message.imageCount == 1 ? "1 image" : "\(message.imageCount) images")
+        return message.text.isEmpty ? line : message.text + "\n" + line
     }
 
     private func bubble(_ text: String, color: Color, alignment: HorizontalAlignment) -> some View {

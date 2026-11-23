@@ -633,14 +633,20 @@ public class SummarizerServiceImpl implements SummarizerService, InitializingBea
             StringBuilder out = new StringBuilder();
             for (ChatMessage message : messages) {
                 String when = config.text().moment(message.getSentAt().toInstant());
-                if (StringUtils.isNotBlank(message.getInput())) {
+                if (StringUtils.isNotBlank(message.getInput()) || !message.imageUuids().isEmpty()) {
                     out.append('[').append(when).append("] ");
                     if (message.getType() == ChatMessageType.EVENT) {
                         out.append("(event").append(StringUtils.isBlank(message.getEventKind()) ? "" : " " + message.getEventKind()).append(") ");
                     } else {
                         out.append(user).append(": ");
                     }
-                    out.append(message.getInput().strip()).append('\n');
+                    out.append(StringUtils.defaultString(message.getInput()).strip());
+                    // the image is not in a summary: what a model that sees wrote about it, else that there was one
+                    List<String> notes = message.imageNoteTexts();
+                    for (int i = 0; i < message.imageUuids().size(); i++) {
+                        out.append(" [attached an image").append(i < notes.size() && StringUtils.isNotBlank(notes.get(i)) ? ": " + notes.get(i).strip() : "").append(']');
+                    }
+                    out.append('\n');
                 }
                 if (StringUtils.isNotBlank(message.getResponse())) {
                     out.append(character).append(": ").append(message.getResponse().strip()).append('\n');

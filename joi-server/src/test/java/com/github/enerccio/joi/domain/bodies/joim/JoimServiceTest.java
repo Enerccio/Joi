@@ -122,7 +122,8 @@ class JoimServiceTest extends PlatformTestBase {
         assertThat(imported.getCapabilities()).isNotNull();
         // the same VRM: the description stays current, and the uploaded file is its export
         assertThat(imported.getDescribedHash()).isEqualTo(modelService.bodyHash(imported));
-        assertThat(modelService.exportFile(imported)).isEqualTo(upload);
+        // (the platform keeps the file of an equal one: the export of the model it came from)
+        assertThat(modelService.exportFile(imported)).isEqualTo(modelService.exportFile(model));
         assertThat(joimService.needsExport(imported)).isFalse();
         assertThat(modelService.convertedFile(imported)).exists();
     }

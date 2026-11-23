@@ -11,14 +11,10 @@ import com.github.enerccio.marginalia.domain.traits.CommonTxReadOnly;
 import com.github.enerccio.marginalia.Configuration;
 import com.github.enerccio.marginalia.domain.model.impl.Resource;
 import com.github.enerccio.marginalia.domain.service.ResourceService;
-import org.apache.commons.codec.digest.DigestUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 
 import java.io.File;
-import java.io.InputStream;
-import java.nio.file.Files;
 import java.util.Collection;
-import java.util.UUID;
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
@@ -31,33 +27,19 @@ public class ChatMessageServiceImpl extends ExtendableServiceImpl<ChatMessage, C
     @Autowired
     private ResourceService resourceService;
 
+    @Autowired
+    private com.github.enerccio.joi.domain.service.ChatImageService chatImageService;
+
     @Override
     public File newClipFile() throws Exception {
-        File folder = configuration.getResourcesFolder(currentUser);
-        Files.createDirectories(folder.toPath());
-        return new File(folder, UUID.randomUUID() + ".part");
+        return resourceService.newUploadFile();
     }
 
     @Override
     @CommonTx
     public ChatMessage attachClip(ChatMessage message, File clip, String extension, String mime) throws Exception {
-        File folder = configuration.getResourcesFolder(currentUser).getCanonicalFile();
-        if (!folder.equals(clip.getCanonicalFile().getParentFile())) {
-            throw new IllegalArgumentException("not in the folder of resources: " + clip);
-        }
-        File named = new File(folder, UUID.randomUUID() + "." + extension);
-        Files.move(clip.toPath(), named.toPath());
-        Resource resource = new Resource();
-        resource.setOriginalName("voice." + extension);
-        resource.setMimeType(mime);
-        resource.setPath(named.getName());
-        resource.setSize(named.length());
-        try (InputStream in = Files.newInputStream(named.toPath())) {
-            resource.setHash(DigestUtils.sha256Hex(in));
-        }
-        resource = resourceService.save(resource);
         ChatMessage own = find(message.getId());
-        resourceService.link(resource, ChatMessage.class, own.getId());
+        Resource resource = resourceService.saveFile(clip, "voice." + extension, mime, ChatMessage.class, own.getId());
         own.setClipResourceId(resource.getId());
         return save(own);
     }
@@ -131,6 +113,7 @@ public class ChatMessageServiceImpl extends ExtendableServiceImpl<ChatMessage, C
     @CommonTx
     public int deleteMessages(Joi joi, Collection<Long> ids) throws Exception {
         int deleted = 0;
+        java.util.List<ChatMessage> gone = new java.util.ArrayList<>();
         for (Long id : ids) {
             ChatMessage message = id == null ? null : find(id);
             if (message == null || message.isDeleted() || message.getJoi() == null
@@ -138,8 +121,11 @@ public class ChatMessageServiceImpl extends ExtendableServiceImpl<ChatMessage, C
                 continue;
             }
             delete(message, false);
+            gone.add(message);
             deleted++;
         }
+        // the images of a message go with it
+        chatImageService.deleteOf(gone);
         return deleted;
     }
 }

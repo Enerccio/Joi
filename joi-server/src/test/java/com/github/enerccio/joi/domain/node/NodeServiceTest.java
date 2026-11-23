@@ -56,6 +56,10 @@ class NodeServiceTest extends PlatformTestBase {
     @Autowired
     private NodeService nodeService;
     @Autowired
+    private com.github.enerccio.joi.domain.service.ChatImageService imageService;
+    @Autowired
+    private com.github.enerccio.marginalia.domain.service.AIService aiService;
+    @Autowired
     private com.github.enerccio.joi.domain.chat.ChatService chatService;
     @Autowired
     private JoiService joiService;
@@ -244,6 +248,45 @@ class NodeServiceTest extends PlatformTestBase {
         assertThat(error.getAsJsonObject("data").get("code").getAsString()).isEqualTo("not_found");
         assertThat(node.closedWith).isEqualTo(4004);
         assertThat(nodeService.sessions(joi)).isEmpty();
+    }
+
+    /** An image uploaded for the assistant's user, as the HTTP call keeps it. */
+    private String image() throws Exception {
+        java.awt.image.BufferedImage picture = new java.awt.image.BufferedImage(40, 30, java.awt.image.BufferedImage.TYPE_INT_RGB);
+        java.io.File file = imageService.newUploadFile();
+        javax.imageio.ImageIO.write(picture, "png", file);
+        return imageService.store(file).id();
+    }
+
+    @Test
+    void aSayWithAnImageIsAnsweredByAModelThatSeesItAndRefusedWhenNothingCan() throws Exception {
+        Node node = connect("Bearer " + token);
+        node.hello("n1", "desk", joi.getUuid(), "1.11");
+        node.next("welcome");
+        node.manifest(1);
+        node.next("mood");
+        String first = image();
+        // her chat model does not take images and none describes them: an error, nothing is stored, no request is made
+        node.frame("say", "t0", "{\"text\": \"Look\", \"speak\": false, \"images\": [\"" + first + "\"]}");
+        JsonObject refused = node.next("error");
+        assertThat(refused.get("ref").getAsString()).isEqualTo("t0");
+        assertThat(refused.getAsJsonObject("data").get("code").getAsString()).isEqualTo("no_vision");
+        assertThat(chatMessageService.findLatest(joi, 10)).isEmpty();
+
+        com.github.enerccio.marginalia.domain.model.impl.OpenAICompatible ai = createAI();
+        ai.setMultimodal(true);
+        ai = (com.github.enerccio.marginalia.domain.model.impl.OpenAICompatible) aiService.save(ai);
+        joi.setChatModel(ai.getId());
+        joi = joiService.save(joi);
+        llm.enqueue(MockLLMResponse.text("A black picture."), MockLLMResponse.text("Only words."));
+        // the image alone, with no words
+        node.frame("say", "t1", "{\"text\": \"\", \"speak\": false, \"images\": [\"" + first + "\"]}");
+        node.next("done");
+        assertThat(llm.getCompletionRequests().getFirst().getRawBody()).contains("\"type\":\"image_url\"");
+        assertThat(chatMessageService.findLatest(joi, 10).getFirst().imageUuids()).containsExactly(first);
+        // no words and no image is no message
+        node.frame("say", "t2", "{\"text\": \"\", \"speak\": false}");
+        assertThat(node.next("error").getAsJsonObject("data").get("code").getAsString()).isEqualTo("bad_message");
     }
 
     @Test

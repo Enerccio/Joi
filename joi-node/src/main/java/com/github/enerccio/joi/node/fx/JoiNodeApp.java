@@ -1109,6 +1109,23 @@ public class JoiNodeApp extends Application {
             }
         });
         chat.setOnSay(text -> socket.say(text, true, false));
+        chat.setCanSeeImages(Boolean.TRUE.equals(loaded.joi().images()));
+        chat.setOnSayImages((text, files) -> {
+            // the images go to the server first (streamed from the disk), then the words with their ids
+            Thread.ofVirtual().name("joi-image-upload").start(() -> {
+                try {
+                    List<String> ids = new ArrayList<>();
+                    for (java.nio.file.Path file : files) {
+                        ids.add(client.uploadImage(loaded.summary().id(), file).id());
+                    }
+                    socket.say(text, true, false, false, ids);
+                } catch (ServerClient.ServerException e) {
+                    Platform.runLater(() -> chat.note("The image was not sent: " + e.getMessage()));
+                } catch (IOException | InterruptedException e) {
+                    Platform.runLater(() -> chat.note("The image was not sent: " + e.getMessage()));
+                }
+            });
+        });
         chat.setOnSayWithParts(text -> socket.say(text, true, false, true));
         chat.setOnStop(() -> {
             // talked over: her words and her voice stop
@@ -1305,6 +1322,14 @@ public class JoiNodeApp extends Application {
         private javafx.animation.Timeline countdown;
         private int left;
         private final Button send = new Button("Send");
+        /** Choosing an image to send with the words, or pasting one (Ctrl/Cmd+V with an image on the clipboard). */
+        private final Button attach = new Button("Image…");
+        private final HBox pendingBox = new HBox(8);
+        private final List<java.nio.file.Path> pendingImages = new ArrayList<>();
+        private boolean online = true;
+        private boolean canSeeImages = true;
+        private java.util.function.BiConsumer<String, List<java.nio.file.Path>> onSayImages = (text, files) -> {
+        };
         private final Button stop = new Button("Stop");
         private final String name;
         private final Map<String, Label> streaming = new HashMap<>();
@@ -1324,7 +1349,21 @@ public class JoiNodeApp extends Application {
             input.setOnAction(e -> send());
             send.setOnAction(e -> send());
             stop.setOnAction(e -> onStop.run());
-            HBox bottom = new HBox(8, input, send, stop);
+            attach.setOnAction(e -> chooseImage());
+            // a picture on the clipboard is attached instead of pasted (text still pastes as text)
+            input.addEventFilter(javafx.scene.input.KeyEvent.KEY_PRESSED, e -> {
+                if ((e.isShortcutDown() && e.getCode() == KeyCode.V) && canSeeImages) {
+                    javafx.scene.input.Clipboard clipboard = javafx.scene.input.Clipboard.getSystemClipboard();
+                    if (clipboard.hasImage() && !clipboard.hasString()) {
+                        pasteImage(clipboard.getImage());
+                        e.consume();
+                    }
+                }
+            });
+            pendingBox.setPadding(new Insets(6, 8, 0, 8));
+            pendingBox.setVisible(false);
+            pendingBox.setManaged(false);
+            HBox bottom = new HBox(8, input, attach, send, stop);
             HBox.setHgrow(input, Priority.ALWAYS);
             bottom.setPadding(new Insets(8));
             offline.setPadding(new Insets(6, 8, 0, 8));
@@ -1332,11 +1371,84 @@ public class JoiNodeApp extends Application {
             offline.setVisible(false);
             offline.setManaged(false);
             setCenter(scroll);
-            setBottom(new VBox(offline, bottom));
+            setBottom(new VBox(offline, pendingBox, bottom));
+        }
+
+        /** Whether she can look at images (her info says): the attach button is there only then. */
+        void setCanSeeImages(boolean canSee) {
+            this.canSeeImages = canSee;
+            attach.setDisable(!canSee || !online);
+            attach.setTooltip(new Tooltip(canSee ? "Send an image with your words" : name + " cannot look at images: her chat model does not take them"));
+        }
+
+        void setOnSayImages(java.util.function.BiConsumer<String, List<java.nio.file.Path>> onSayImages) {
+            this.onSayImages = onSayImages;
+        }
+
+        private void chooseImage() {
+            javafx.stage.FileChooser chooser = new javafx.stage.FileChooser();
+            chooser.setTitle("Choose an image");
+            chooser.getExtensionFilters().add(new javafx.stage.FileChooser.ExtensionFilter("Images", "*.png", "*.jpg", "*.jpeg", "*.gif", "*.bmp", "*.webp"));
+            java.io.File file = chooser.showOpenDialog(getScene() == null ? null : getScene().getWindow());
+            if (file != null) {
+                addImage(file.toPath());
+            }
+        }
+
+        /** A picture from the clipboard is written to a temp file (PNG) and waits like a chosen one. */
+        private void pasteImage(javafx.scene.image.Image image) {
+            try {
+                java.nio.file.Path file = java.nio.file.Files.createTempFile("joi-paste", ".png");
+                file.toFile().deleteOnExit();
+                javax.imageio.ImageIO.write(buffered(image), "png", file.toFile());
+                addImage(file);
+            } catch (IOException e) {
+                note("The picture on the clipboard was not taken: " + e.getMessage());
+            }
+        }
+
+        /** The picture as an AWT image, to write it as PNG (JavaFX has no writer of its own, and the swing bridge is not a dependency). */
+        private static java.awt.image.BufferedImage buffered(javafx.scene.image.Image image) {
+            int width = (int) image.getWidth();
+            int height = (int) image.getHeight();
+            java.awt.image.BufferedImage out = new java.awt.image.BufferedImage(width, height, java.awt.image.BufferedImage.TYPE_INT_ARGB);
+            javafx.scene.image.PixelReader reader = image.getPixelReader();
+            for (int y = 0; y < height; y++) {
+                for (int x = 0; x < width; x++) {
+                    out.setRGB(x, y, reader.getArgb(x, y));
+                }
+            }
+            return out;
+        }
+
+        private void addImage(java.nio.file.Path file) {
+            if (pendingImages.size() >= 4) {
+                note("At most 4 images go with a message.");
+                return;
+            }
+            pendingImages.add(file);
+            showPending();
+        }
+
+        private void showPending() {
+            pendingBox.getChildren().clear();
+            for (java.nio.file.Path file : List.copyOf(pendingImages)) {
+                javafx.scene.image.ImageView view = new javafx.scene.image.ImageView(new javafx.scene.image.Image(file.toUri().toString(), 0, 48, true, true, true));
+                Hyperlink remove = new Hyperlink("✕");
+                remove.setOnAction(e -> {
+                    pendingImages.remove(file);
+                    showPending();
+                });
+                pendingBox.getChildren().add(new HBox(2, view, remove));
+            }
+            pendingBox.setVisible(!pendingImages.isEmpty());
+            pendingBox.setManaged(!pendingImages.isEmpty());
         }
 
         /** Offline she can't be talked to (nor stopped): what is typed stays where it is until the connection is back. */
         void setOnline(boolean online) {
+            this.online = online;
+            attach.setDisable(!online || !canSeeImages);
             input.setDisable(!online);
             send.setDisable(!online);
             stop.setDisable(!online);
@@ -1429,7 +1541,19 @@ public class JoiNodeApp extends Application {
 
         private void send() {
             String text = input.getText().strip();
-            if (!text.isEmpty()) {
+            if (!pendingImages.isEmpty()) {
+                List<java.nio.file.Path> files = List.copyOf(pendingImages);
+                input.clear();
+                pendingImages.clear();
+                showPending();
+                Label line = add("You: " + (text.isEmpty() ? "" : text + " ") + "[" + files.size() + (files.size() == 1 ? " image]" : " images]"));
+                HBox thumbs = new HBox(4);
+                for (java.nio.file.Path file : files) {
+                    thumbs.getChildren().add(new javafx.scene.image.ImageView(new javafx.scene.image.Image(file.toUri().toString(), 0, 96, true, true, true)));
+                }
+                lines.getChildren().add(thumbs);
+                onSayImages.accept(text, files);
+            } else if (!text.isEmpty()) {
                 input.clear();
                 add("You: " + text);
                 onSay.accept(text);
@@ -1439,8 +1563,9 @@ public class JoiNodeApp extends Application {
         /** Her history from the server: the chat goes on where it was. */
         void history(List<ChatEntry> entries) {
             for (ChatEntry entry : entries) {
-                if (entry.text() != null) {
-                    add("You: " + entry.text());
+                if (entry.text() != null || (entry.images() != null && !entry.images().isEmpty())) {
+                    add("You: " + (entry.text() == null ? "" : entry.text())
+                            + (entry.images() == null || entry.images().isEmpty() ? "" : " [" + entry.images().size() + (entry.images().size() == 1 ? " image]" : " images]")));
                 }
                 if (entry.reply() != null) {
                     add(name + ": " + entry.reply());

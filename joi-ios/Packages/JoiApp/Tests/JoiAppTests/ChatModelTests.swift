@@ -9,6 +9,7 @@ final class FakeLink: NodeLink, @unchecked Sendable {
     private let continuation: AsyncStream<NodeConnection.Event>.Continuation
     private let lock = NSLock()
     private var said: [String] = []
+    private var sentImages: [[String]?] = []
     private var frames: [Frame] = []
     var connectError: Error?
     var sayError: Error?
@@ -19,6 +20,7 @@ final class FakeLink: NodeLink, @unchecked Sendable {
     }
 
     var sentWords: [String] { lock.withLock { said } }
+    var sentImageIDs: [[String]?] { lock.withLock { sentImages } }
     var sentFrames: [Frame] { lock.withLock { frames } }
 
     func connect() async throws -> Welcome {
@@ -26,9 +28,9 @@ final class FakeLink: NodeLink, @unchecked Sendable {
         return Welcome(protocol: "1.8", server: "joi-server", version: "dev", session: "s1", joi: JoiSummary(id: "j1", name: "Joi"), heartbeatSeconds: 30)
     }
 
-    func say(_ text: String, speak: Bool?, reasoning: Bool?, withEvents: Bool?) async throws -> String {
+    func say(_ text: String, speak: Bool?, reasoning: Bool?, withEvents: Bool?, images: [String]?) async throws -> String {
         if let sayError { throw sayError }
-        return lock.withLock { said.append(text); return "t\(said.count)" }
+        return lock.withLock { said.append(text); sentImages.append(images); return "t\(said.count)" }
     }
 
     func send(_ frame: Frame) async throws {
@@ -44,6 +46,12 @@ final class FakeLink: NodeLink, @unchecked Sendable {
 struct FakeHistory: HistorySource {
     var page = ChatHistory(messages: [], more: false)
     var error: Error?
+    var uploadError: Error?
+
+    func uploadImage(_ joi: String, file: URL) async throws -> ImageUpload {
+        if let uploadError { throw uploadError }
+        return ImageUpload(id: "img-" + file.pathExtension, mimeType: "image/jpeg", size: Int((try? Data(contentsOf: file).count) ?? 0), width: 1, height: 1)
+    }
 
     func history(_ joi: String, limit: Int, before: String?) async throws -> ChatHistory {
         if let error { throw error }
@@ -164,6 +172,65 @@ struct FakeHistory: HistorySource {
         await chat.send("Hi")
         #expect(chat.messages.map(\.role) == [.user, .error])
         #expect(chat.messages[1].text.hasPrefix("Not sent"))
+    }
+
+    /// A small picture on disk, as the camera or the library would hand it over.
+    private func photo(width: Int = 40, height: Int = 20) throws -> URL {
+        try TestImages.png(width: width, height: height)
+    }
+
+    @Test func anImageIsPreparedUploadedAndSentWithTheWords() async throws {
+        let chat = model()
+        chat.setCanSeeImages(true)
+        await chat.start()
+        let file = try photo()
+        let sent = await chat.send("What is this?", images: [file])
+        #expect(sent)
+        // uploaded as a JPEG (the preparer's), and its id goes with the words
+        #expect(link.sentWords == ["What is this?"])
+        #expect(link.sentImageIDs == [["img-jpg"]])
+        #expect(chat.messages[0].role == .user && chat.messages[0].imageCount == 1)
+    }
+
+    @Test func aMessageMayHaveOnlyAnImage() async throws {
+        let chat = model()
+        chat.setCanSeeImages(true)
+        await chat.start()
+        #expect(await chat.send("  ", images: [try photo()]))
+        #expect(link.sentWords == [""])
+    }
+
+    @Test func anImageIsNotSentWhenSheCannotLookAtOne() async throws {
+        let chat = model()
+        await chat.start()
+        #expect(await chat.send("Hi", images: [try photo()]) == false)
+        #expect(link.sentWords.isEmpty)
+        #expect(chat.messages.map(\.role) == [.error])
+    }
+
+    @Test func tooManyImagesAreNotSent() async throws {
+        let chat = model()
+        chat.setCanSeeImages(true)
+        await chat.start()
+        let files = try (0..<5).map { _ in try photo() }
+        #expect(await chat.send("Hi", images: files) == false)
+        #expect(link.sentWords.isEmpty)
+    }
+
+    @Test func anImageTheServerRefusesIsNotSentAndTheReasonIsShown() async throws {
+        let chat = model(history: FakeHistory(uploadError: ServerError(status: 400, code: "bad_image", message: "Not an image")))
+        chat.setCanSeeImages(true)
+        await chat.start()
+        #expect(await chat.send("Hi", images: [try photo()]) == false)
+        #expect(link.sentWords.isEmpty)
+        #expect(chat.messages.map(\.role) == [.error])
+        #expect(chat.messages[0].text == "Not sent: Not an image")
+    }
+
+    @Test func theHistoryShowsHowManyImagesWentWithWords() {
+        let entry = ChatEntry(id: "e1", sentAt: Date(), type: "user", text: "", images: ["a", "b"])
+        let messages = ChatModel.messages(of: [entry])
+        #expect(messages.count == 1 && messages[0].imageCount == 2)
     }
 
     @Test func emptyWordsAreNotSent() async {

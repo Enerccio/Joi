@@ -79,6 +79,30 @@ public actor JoiClient {
         try await call("POST", JoiProtocolInfo.api + "/jois/" + escaped(joi) + "/chat", body: request)
     }
 
+    /// An image of the user for her (since 1.11), streamed from `file`; the server reads it by its content (PNG, JPEG, GIF, BMP, WebP),
+    /// turns it upright and scales it down. The id in the answer goes into `ChatRequest.images` or `Say.images`. 413 / 400 `bad_image`
+    /// when it is too large or no image.
+    public func uploadImage(_ joi: String, file: URL) async throws -> ImageUpload {
+        let path = JoiProtocolInfo.api + "/jois/" + escaped(joi) + "/images"
+        let used = try await authorization()
+        var (data, response) = try await sendFile(path, file: file, authorization: used)
+        if response.statusCode == 401, try await refreshAfter(used) {
+            (data, response) = try await sendFile(path, file: file, authorization: store.load().authorization)
+        }
+        guard (200..<300).contains(response.statusCode) else { throw apiError(data, response) }
+        return try decoder.decode(ImageUpload.self, from: data)
+    }
+
+    private func sendFile(_ path: String, file: URL, authorization: String?) async throws -> (Data, HTTPURLResponse) {
+        // a photo takes longer than a call of JSON
+        var request = URLRequest(url: url(path), timeoutInterval: 120)
+        request.httpMethod = "POST"
+        if let authorization { request.setValue(authorization, forHTTPHeaderField: "Authorization") }
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
+        request.setValue("application/octet-stream", forHTTPHeaderField: "Content-Type")
+        return try await transport.upload(request, file: file)
+    }
+
     /// Her tasks, the newest first; `status` (`waiting`...) limits them.
     public func tasks(_ joi: String, status: String? = nil) async throws -> TaskList {
         let query = status.map { "?status=" + escaped($0) } ?? ""

@@ -42,6 +42,9 @@ ends.
 - **The chat** starts with her history from the server, so a conversation goes on where it was. Type, press **Send**; **Stop**
   interrupts her. Her reply streams in; when she has a voice, the text of a reply waits for its first piece of speech so the
   chat does not run ahead of her. Her voice plays as it arrives.
+- **Images.** The **Image…** button next to the field chooses an image file; **Ctrl+V** / **Cmd+V** pastes one from the clipboard (when it
+  holds a picture and no text). The images wait as small pictures with a ✕ to take one away; **Send** sends them with your words, or alone (at most
+  four, 20 MB each). The button is off when she cannot look at images: see [Chats](../jois/chats.md#showing-her-an-image).
 - **The controls** panel between the chat and her body (see below).
 - **On the Looking Glass** moves her onto a Looking Glass display: see [The Looking Glass](looking-glass.md).
 - Messages of the system show as notes in the chat.

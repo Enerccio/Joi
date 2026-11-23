@@ -82,6 +82,7 @@ the output goes to `desktop/logs/node.log`. Quit destroys the node it started.
 
 - `ApiConfiguration.localSocket` (`joi.api.local-socket`) and `isLocalSocket(localAddress, localPort)`: a request on a Unix socket has the socket path as its local address
   and port -1 (checked against a real Jetty `UnixDomainServerConnector`); the path must equal the configured one.
+- The node streams an image to the server over the socket the same way: `UnixHttp.sendFile` writes the headers and the file with its Content-Length (no body in memory); `JoiApiServlet` passes the stream of the image upload on.
 - `ApiCall.local` is set by `JoiApiServlet` from that, nothing the caller sends counts. `JoiApi.local` answers `POST /oauth/local` for a local call only (404 otherwise, 405 for
   another method, 409 `no_user`) with a `LocalToken`.
 - `AccessTokenServiceImpl.issueLocal(name, clientId)` makes or renews the user's `LOCAL` token of that `clientId` (`joil_` prefix, SHA-256 of the secret, an hour, no refresh

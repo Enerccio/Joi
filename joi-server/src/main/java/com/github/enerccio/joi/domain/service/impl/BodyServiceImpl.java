@@ -788,14 +788,8 @@ public class BodyServiceImpl extends ExtendableServiceImpl<Body, BodyRepository>
             if (!modelService.uploadFolder().getCanonicalFile().equals(joia.getCanonicalFile().getParentFile())) {
                 throw new IllegalArgumentException("not in the folder of resources: " + joia);
             }
-            Resource resource = new Resource();
-            resource.setOriginalName(JoiaFile.fileName(stored.getName()));
-            resource.setMimeType(JoiaFile.CONTENT_TYPE);
-            resource.setPath(joia.getName());
-            resource.setSize(joia.length());
-            resource.setHash(hash);
-            resource = resourceService.save(resource);
-            resourceService.link(resource, Body.class, stored.getId());
+            Resource resource = resourceService.saveFile(joia, JoiaFile.fileName(stored.getName()), JoiaFile.CONTENT_TYPE, Body.class,
+                    stored.getId());
             stored.setAnimationsResourceId(resource.getId());
         }
         stored.setAnimationsFingerprint(fingerprint);

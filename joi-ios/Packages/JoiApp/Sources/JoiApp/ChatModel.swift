@@ -17,11 +17,14 @@ public struct ChatMessage: Identifiable, Equatable, Sendable {
     /// The turn her words belong to, while they are written (`ref` of her frames).
     public var turn: String?
     public var streaming: Bool
+    /// How many images the user sent with the words (since 1.11).
+    public var imageCount: Int
 
-    public init(role: Role, text: String, turn: String? = nil, streaming: Bool = false, id: UUID = UUID()) {
+    public init(role: Role, text: String, turn: String? = nil, streaming: Bool = false, imageCount: Int = 0, id: UUID = UUID()) {
         self.id = id
         self.role = role
         self.text = text
+        self.imageCount = imageCount
         self.turn = turn
         self.streaming = streaming
     }
@@ -74,6 +77,10 @@ public final class ChatModel: AvatarOutput {
     /// The turn the user's last words started: only one at a time.
     private var runningTurn: String?
     private var started = false
+    /// Whether she can look at an image (`JoiInfo.images`, since 1.11): the app offers no way to attach one when not.
+    public private(set) var canSeeImages = false
+    /// The user is sending a message with images (they are uploaded first): one at a time.
+    public private(set) var sending = false
 
     public init(joiID: String, joiName: String, history: HistorySource, link: NodeLink, speech: SpeechPlaying? = nil,
                 player: AnimationPlayer? = nil, roles: JoiAnimations? = nil) {
@@ -164,6 +171,10 @@ public final class ChatModel: AvatarOutput {
         }
     }
 
+    public func setCanSeeImages(_ value: Bool) {
+        canSeeImages = value
+    }
+
     /// The animations chosen in her dialog changed.
     public func setRoles(_ roles: JoiAnimations?) {
         director.roles(roles)
@@ -203,21 +214,54 @@ public final class ChatModel: AvatarOutput {
     }
 
     /// The user says something. Nothing is kept for later when it is not connected: it fails and they say it again.
-    public func send(_ text: String) async {
+    ///
+    /// `images` are files of photos (the camera's, the library's): each is made ready (`ImagePreparer`: upright, at most 1568 pixels,
+    /// JPEG), uploaded and sent with the words (at most four); a message may have only images. Returns whether it was sent
+    /// (when not, the text is for the user to keep in the field and the reason is in the chat).
+    @discardableResult
+    public func send(_ text: String, images: [URL] = []) async -> Bool {
         let words = text.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !words.isEmpty else { return }
+        guard !words.isEmpty || !images.isEmpty, !sending else { return false }
+        guard images.count <= Self.maxImages else {
+            messages.append(ChatMessage(role: .error, text: "Not sent: at most \(Self.maxImages) images go with one message."))
+            return false
+        }
+        var ids: [String] = []
+        if !images.isEmpty {
+            guard canSeeImages else {
+                messages.append(ChatMessage(role: .error, text: "Not sent: \(joiName) cannot look at images (she has no model that sees)."))
+                return false
+            }
+            sending = true
+            defer { sending = false }
+            do {
+                for image in images {
+                    let ready = try ImagePreparer.prepare(image)
+                    defer { try? FileManager.default.removeItem(at: ready) }
+                    ids.append(try await history.uploadImage(joiID, file: ready).id)
+                }
+            } catch {
+                messages.append(ChatMessage(role: .error, text: "Not sent: " + Self.describe(error)))
+                return false
+            }
+        }
         speech?.stop()
         director.speechEnded() // what she was saying is over
         director.expectSpeech(speech != nil)
-        messages.append(ChatMessage(role: .user, text: words))
+        messages.append(ChatMessage(role: .user, text: words, imageCount: ids.count))
         do {
-            let turn = try await link.say(words, speak: true, reasoning: nil, withEvents: nil)
+            let turn = try await link.say(words, speak: true, reasoning: nil, withEvents: nil, images: ids.isEmpty ? nil : ids)
             runningTurn = turn
             messages.append(ChatMessage(role: .joi, text: "", turn: turn, streaming: true))
+            return true
         } catch {
             messages.append(ChatMessage(role: .error, text: "Not sent: " + Self.describe(error)))
+            return false
         }
     }
+
+    /// What goes with one message at most (`ChatRequest.MAX_IMAGES`).
+    public static let maxImages = 4
 
     // MARK: history
 
@@ -236,7 +280,8 @@ public final class ChatModel: AvatarOutput {
         for entry in entries {
             switch entry.type {
             case "user":
-                if let text = entry.text { out.append(ChatMessage(role: .user, text: text)) }
+                let count = entry.images?.count ?? 0
+                if let text = entry.text, !text.isEmpty || count > 0 { out.append(ChatMessage(role: .user, text: text, imageCount: count)) }
             case "log":
                 if let text = entry.text { out.append(ChatMessage(role: .note, text: text)) }
             default:

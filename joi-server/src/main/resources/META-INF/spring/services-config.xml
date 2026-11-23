@@ -291,6 +291,9 @@
         <property name="blender" value="${joi.blender:}" />
     </bean>
 
+    <!-- the images the user sends with a message: kept as scaled JPEGs, described by a model that sees when the chat model cannot -->
+    <bean class="com.github.enerccio.joi.domain.service.impl.ChatImageServiceImpl" />
+
     <!-- how she looks in a model: a multimodal model describes it from its snapshots; one request at a time -->
     <bean class="com.github.enerccio.joi.domain.service.impl.AppearanceServiceImpl" />
 

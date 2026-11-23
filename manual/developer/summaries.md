@@ -73,6 +73,10 @@ The settings are a chain (the assistant, the user setting, the default): `pauseM
 `weeklySummaryTime`, `monthlySummaryTime`, `yearlySummaryTime`, `summaryModel` (else the auxiliary, the deep reasoning, the chat model). The prompts:
 `SUMMARY_PROMPT` (messages), `DAY_SUMMARY_PROMPT`, `WEEK_SUMMARY_PROMPT`, `MONTH_SUMMARY_PROMPT`, `YEAR_SUMMARY_PROMPT`, `SUMMARY_EVENT`.
 
+## Images
+
+The model that writes a summary is given no images: `SummarizerServiceImpl.transcript` writes "[attached an image: note]" for a message that had one, with the note the describer made when there is one.
+
 ## The event
 
 Each summary a model wrote is told to her through `NodeService.tell` with the cause `summary_created` (see [Events](events.md)), or queued as

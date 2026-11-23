@@ -63,4 +63,6 @@ Marginalia is a submodule pinned at a commit on its `dev` branch. Bump it on pur
 
 One data folder (`JOI_DATA`, default `~/.joi`) holds the SQLite database, `secret.key` (AES-GCM for stored secrets) and the files of the
 users as platform `Resource`s. Files go through the disk, never through memory: uploads stream into a file, downloads stream
-from a file, exports and imports are streams through temp files.
+from a file, exports and imports are streams through temp files. A file that is on the disk becomes a `Resource` with `ResourceService.saveFile`
+(the platform hashes it, shares the file of an equal one and picks the folder); a service never builds a `Resource` by hand, and an upload handler writes into
+`ResourceService.newUploadFile()`.

@@ -119,10 +119,11 @@ public actor NodeConnection {
     }
 
     /// The user said something: returns the id of the turn her answer will refer to.
-    public func say(_ text: String, speak: Bool? = nil, reasoning: Bool? = nil, withEvents: Bool? = nil) async throws -> String {
+    public func say(_ text: String, speak: Bool? = nil, reasoning: Bool? = nil, withEvents: Bool? = nil,
+                    images: [String]? = nil) async throws -> String {
         turns += 1
         let id = "t\(turns)"
-        try await send(Frame.say(Say(text: text, speak: speak, reasoning: reasoning, withEvents: withEvents), id: id))
+        try await send(Frame.say(Say(text: text, speak: speak, reasoning: reasoning, withEvents: withEvents, images: images), id: id))
         return id
     }
 

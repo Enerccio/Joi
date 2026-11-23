@@ -76,6 +76,14 @@ public interface PersonaAttributes {
 
     void setRecalledMemories(String recalledMemories);
 
+    String getImageNote();
+
+    void setImageNote(String imageNote);
+
+    String getImageDescriptionPrompt();
+
+    void setImageDescriptionPrompt(String imageDescriptionPrompt);
+
     String getServerRestartedEvent();
 
     void setServerRestartedEvent(String serverRestartedEvent);

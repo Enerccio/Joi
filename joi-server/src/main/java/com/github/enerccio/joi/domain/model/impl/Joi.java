@@ -114,6 +114,16 @@ public class Joi extends ExtendableEntity implements PersonaAttributes {
     @Transient
     private String recalledMemories;
 
+    /** How a description of an image is put into a message when the chat model cannot see ({@code ImageNoteTemplateData}). */
+    @ExtendedAttribute
+    @Transient
+    private String imageNote;
+
+    /** The request to a model that can see, to describe an image for one that cannot ({@code ImageDescriptionTemplateData}). */
+    @ExtendedAttribute
+    @Transient
+    private String imageDescriptionPrompt;
+
     /** What she is told when the user asks to change parts of her body and her personality lets her decide ({@code PartRequestTemplateData}). */
     @ExtendedAttribute
     @Transient
@@ -640,6 +650,22 @@ public class Joi extends ExtendableEntity implements PersonaAttributes {
 
     public void setRecalledMemories(String recalledMemories) {
         this.recalledMemories = recalledMemories;
+    }
+
+    public String getImageNote() {
+        return imageNote;
+    }
+
+    public void setImageNote(String imageNote) {
+        this.imageNote = imageNote;
+    }
+
+    public String getImageDescriptionPrompt() {
+        return imageDescriptionPrompt;
+    }
+
+    public void setImageDescriptionPrompt(String imageDescriptionPrompt) {
+        this.imageDescriptionPrompt = imageDescriptionPrompt;
     }
 
     public String getServerRestartedEvent() {

@@ -35,6 +35,7 @@ class ModelCleanupTest extends PlatformTestBase {
     private Model model;
     private File upload;
     private File firstVrm;
+    private int conversions;
 
     @BeforeEach
     void setUp() throws Exception {
@@ -55,7 +56,8 @@ class ModelCleanupTest extends PlatformTestBase {
 
     private void convert() throws Exception {
         File vrm = ModelFiles.uploadFile(modelService.uploadFolder(), "model.vrm");
-        SpringBonesTestFiles.vrm(vrm);
+        // another content every time: the platform shares the file of two resources with the same content, and the first one would stay
+        SpringBonesTestFiles.vrm(vrm, 4 + conversions++);
         Model stored = modelService.find(model.getId());
         modelService.attachConverted(stored, vrm);
         model = modelService.save(stored);

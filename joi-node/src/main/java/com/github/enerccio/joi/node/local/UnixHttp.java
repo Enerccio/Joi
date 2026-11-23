@@ -73,13 +73,26 @@ public final class UnixHttp {
      */
     public Reply send(String method, String path, Map<String, String> headers, byte[] body, Duration timeout)
             throws IOException, InterruptedException {
+        return send(method, path, headers, body, null, timeout);
+    }
+
+    /**
+     * One request whose body is a file, streamed from the disk (an image), and the whole answer.
+     */
+    public Reply sendFile(String method, String path, Map<String, String> headers, Path file, Duration timeout)
+            throws IOException, InterruptedException {
+        return send(method, path, headers, null, file, timeout);
+    }
+
+    private Reply send(String method, String path, Map<String, String> headers, byte[] body, Path file, Duration timeout)
+            throws IOException, InterruptedException {
         SocketChannel channel = connect(socket);
         AtomicBoolean timedOut = new AtomicBoolean();
         ScheduledFuture<?> cut = WATCHDOG.schedule(() -> {
             timedOut.set(true);
             close(channel);
         }, timeout.toMillis(), TimeUnit.MILLISECONDS);
-        try (Stream stream = exchange(channel, method, path, headers, body)) {
+        try (Stream stream = exchange(channel, method, path, headers, body, file)) {
             ByteArrayOutputStream out = new ByteArrayOutputStream();
             stream.body().transferTo(out);
             return new Reply(stream.status(), stream.headers(), out.toString(StandardCharsets.UTF_8));
@@ -104,7 +117,7 @@ public final class UnixHttp {
     public Stream open(String method, String path, Map<String, String> headers, byte[] body) throws IOException {
         SocketChannel channel = connect(socket);
         try {
-            return exchange(channel, method, path, headers, body);
+            return exchange(channel, method, path, headers, body, null);
         } catch (IOException | RuntimeException e) {
             close(channel);
             throw e;
@@ -132,7 +145,7 @@ public final class UnixHttp {
         }
     }
 
-    private static Stream exchange(SocketChannel channel, String method, String path, Map<String, String> headers, byte[] body)
+    private static Stream exchange(SocketChannel channel, String method, String path, Map<String, String> headers, byte[] body, Path file)
             throws IOException {
         StringBuilder head = new StringBuilder();
         head.append(token(method)).append(' ').append(target(path)).append(" HTTP/1.1\r\n");
@@ -141,12 +154,14 @@ public final class UnixHttp {
             head.append(token(header.getKey())).append(": ").append(value(header.getValue())).append("\r\n");
         }
         if (body != null || method.equalsIgnoreCase("POST") || method.equalsIgnoreCase("PUT")) {
-            head.append("Content-Length: ").append(body == null ? 0 : body.length).append("\r\n");
+            head.append("Content-Length: ").append(file != null ? java.nio.file.Files.size(file) : body == null ? 0 : body.length).append("\r\n");
         }
         head.append("\r\n");
         OutputStream out = Channels.newOutputStream(channel);
         out.write(head.toString().getBytes(StandardCharsets.ISO_8859_1));
-        if (body != null) {
+        if (file != null) {
+            java.nio.file.Files.copy(file, out);
+        } else if (body != null) {
             out.write(body);
         }
         out.flush();

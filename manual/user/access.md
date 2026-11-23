@@ -36,6 +36,13 @@ address on your network, or the server's public one). The code works once, and o
 The device then gets an access token (an hour by default) and a refresh token (90 days; each refresh gives a new pair). Revoke the
 device in the list to cut it off.
 
+### Sending her a photo from the phone
+
+When she can look at images (see [Chats](jois/chats.md#showing-her-an-image)), the chat of the phone app has a button next to the field: **Take a photo**
+(the app asks for the camera the first time) or **Choose from the library**. Up to four photos wait as small pictures with a button to take one
+away, and go with your words or alone. The phone scales a photo before it sends it, so it uploads less. Without a model of hers that takes images the
+button is not there.
+
 ## This computer
 
 A node on the same computer as the server needs no token and no pairing when the server offers a **local socket**: the

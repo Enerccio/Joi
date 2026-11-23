@@ -28,6 +28,8 @@ public final class TurnProperties {
     public static final String SPEECH_ERROR = "joi.speechError";
     /** {@code Boolean.TRUE} when a round failed after others had answered and what the turn had done was stored anyway, see {@code ChatServiceImpl}. */
     public static final String PARTIAL = "joi.partial";
+    /** What a model that can see wrote about each image of the user's message ({@code List<String>}), set by the payload when the chat model cannot see. */
+    public static final String IMAGE_NOTES = "joi.imageNotes";
     /** How the turn went ({@link TurnOutcome}), at {@link TurnEvents#AFTER_CLEANUP}. */
     public static final String OUTCOME = "joi.outcome";
 

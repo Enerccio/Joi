@@ -153,10 +153,11 @@ class ModelConversionTest extends PlatformTestBase {
                 "Assets/Ryuu/Ryuu.fbx.meta", "\"name\":\"Ryuu\"");
 
         // a second conversion replaces the VRM
-        File first = modelService.convertedFile(model);
+        Long first = modelService.find(model.getId()).getConvertedResourceId();
         convertAndWait(model);
         model = modelService.find(model.getId());
-        assertThat(modelService.convertedFile(model)).isNotEqualTo(first).hasContent("glTF-converted");
+        assertThat(model.getConvertedResourceId()).isNotEqualTo(first);
+        assertThat(modelService.convertedFile(model)).hasContent("glTF-converted");
     }
 
     @Test

@@ -72,6 +72,21 @@ class ServerClientTasksTest {
     }
 
     @Test
+    void anImageIsStreamedToTheServerAndItsIdIsGivenBack() throws Exception {
+        body = "{\"id\":\"i1\",\"mimeType\":\"image/jpeg\",\"size\":120,\"width\":8,\"height\":6}";
+        Path file = dir.resolve("photo.jpg");
+        java.nio.file.Files.writeString(file, "image-bytes");
+
+        com.github.enerccio.joi.protocol.http.ImageUpload upload = client().uploadImage("j1", file);
+
+        assertThat(upload.id()).isEqualTo("i1");
+        assertThat(upload.width()).isEqualTo(8);
+        assertThat(calls.get(0)).isEqualTo("POST /api/v1/jois/j1/images Bearer tok [image-bytes]");
+        status = 400;
+        assertThatThrownBy(() -> client().uploadImage("j1", file)).isInstanceOf(ServerClient.ServerException.class);
+    }
+
+    @Test
     void aDenialCarriesTheReasonAndAnAnsweredTaskIsAConflict() throws Exception {
         client().denyTask("j1", "t1", "Not now");
         assertThat(calls.get(0)).startsWith("POST /api/v1/jois/j1/tasks/t1/deny").contains("Not now");

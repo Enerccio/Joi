@@ -23,7 +23,7 @@ Open **Models → Text Models** and press **Add model** (the pencil edits, the c
 | **Max Context Size**, **Max Response Tokens** | the limits of the model |
 | **Enable Reasoning**, **Reasoning Effort** | whether and how much the model thinks, for models that support it |
 | **Send the thinking back** | whether the model's thinking goes back to it in the next request (none, between tool calls, always); most models want none |
-| **Multimodal (accepts images)** | the model takes images. Needed to describe a body and an outfit |
+| **Multimodal (accepts images)** | the model takes images. Needed to describe a body and an outfit, and for her to look at the images you send in the [chat](../jois/chats.md#showing-her-an-image) |
 | **Image placement**, **Function definitions** | where images and function definitions go in a request, for models that care |
 | **Function call rule**, **Rule placement** | a sentence added to every request that offers functions, such as *You act only through function calls*, for models that write a call as text instead of making it |
 | **Ask again when a reply opens with a call written as text** | holds back the first words of a reply and asks again when it opens with a written call |
@@ -41,6 +41,7 @@ Open **Models → Text Models** and press **Add model** (the pencil edits, the c
   with strong reasoning is better here. It is also the first choice for describing images when it is **Multimodal**.
 - For [appearance](../bodies/appearance.md) and the [outfit photoshoot](../bodies/outfits.md) one of your deep reasoning or chat
   models must be marked **Multimodal**.
+- For [images in the chat](../jois/chats.md#showing-her-an-image) her chat model, or else her deep reasoning model, must be marked **Multimodal**.
 
 ## Thinking and chat
 

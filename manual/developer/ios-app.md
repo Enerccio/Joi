@@ -24,11 +24,13 @@ and the coders (`JoiJSON.makeDecoder()` / `makeEncoder()`, ISO 8601 dates with o
 The client of a server, on `JoiProtocol`. It has no UI and uses only Foundation (and the Keychain for the credentials), and it does not know
 `URLSession` where the logic is: the network is behind `HTTPTransport` and `FrameChannel`, so the tests have a fake server and no network.
 
-- **`JoiClient`** (an actor): the HTTP API (`info`, `me`, `jois`, `joi`, `history`, `body`, `chat`, `tasks`, `approveTask`, `denyTask`) and the pairing, the OAuth
+- **`JoiClient`** (an actor): the HTTP API (`info`, `me`, `jois`, `joi`, `history`, `body`, `chat`, `uploadImage`, `tasks`, `approveTask`, `denyTask`) and the pairing, the OAuth
   device grant (`startDeviceGrant`, `pollDeviceGrant`, `waitForApproval`). It follows the reference node's `ServerClient`: an access token that is about to
   end is made again from the refresh token before a call, and after a 401 (once, and not when another call did it meanwhile); **one refresh at a time**, since a
   second one would use the refresh token the first one replaced, which ends the pairing; a refresh the server refuses clears the credentials, so the user pairs
   again. A server on a path (`https://example.com/joi`) is allowed. Errors are `ServerError` (the API's `code`, OAuth's `error`, else `http_<status>`).
+- **`uploadImage(_:file:)`** (1.11): the image as the body of `POST .../images`, streamed from the file (`HTTPTransport.upload`, `URLSession.upload(for:fromFile:)`; a fake gets the file as
+  `httpBody`), with the refresh after a 401 like every call; the answer is an `ImageUpload`. `NodeConnection.say` has `images`.
 - **`CredentialStore`**: `KeychainCredentialStore` on the phone (`AfterFirstUnlockThisDeviceOnly`, so a node in the background can sign in), `MemoryCredentialStore`
   in tests.
 - **`NodeConnection`** (an actor): the node WebSocket as `NodeSocket` has it. `connect()` says `hello`, waits for `welcome` (15 s), sends the manifest, and starts
@@ -59,6 +61,13 @@ The app's own code, so that it builds and is tested on the Mac: SwiftUI and the 
   started, `turn`, makes its own), `reply` setting the whole text, `audio` handed to the `SpeechPlaying` (`SpeechPlayer`: `AVAudioPlayer` one piece after the
   other), the status of the connection (`connecting`, `connected`, `reconnecting`, `offline`) and a note when a turn is cut off by a lost connection. It needs
   `NodeLink` and `HistorySource` (which `NodeConnection` and `JoiClient` are), so its tests have neither server nor socket.
+- **Images.** `ChatModel.send(_:images:)` takes files: each goes through `ImagePreparer` (ImageIO: a thumbnail at 1568 pixels with the orientation applied, written as JPEG; nothing is held whole in
+  memory), is uploaded (`HistorySource.uploadImage`) and its id goes in `say`; it returns whether the message was sent, and the view keeps the words and images in the field when it was not. It refuses
+  without an upload when `canSeeImages` is false (`JoiInfo.images`, read by `AppModel` and again on the server's `joi` event) or when there are more than four. `ChatMessage.imageCount` is what the
+  user sent (the history's `ChatEntry.images`): the bubble says "📷 2 images", the pictures themselves are not shown on the phone yet. The views are in `ImageInput.swift`: `ImageAttachButton` (a menu:
+  *Take a photo* with `CameraPicker`, a `UIImagePickerController` (iOS only, and only when there is a camera), or *Choose from the library* with `PhotosPicker`, which hands the photo over as a file:
+  `PickedImage`, a `FileRepresentation`) and `PendingImages` (thumbnails with a button to remove). `project.yml` has `NSCameraUsageDescription`; the library needs no string. The camera and the picker are
+  only built for iOS, so `swift test` on the Mac covers `ImagePreparer` and `ChatModel`, and `mvn -Pswift,ios verify` the views.
 - **Her mouth.** The page reads it from her voice (see *Her mouth* in [Writing a node](nodes.md)). `SpeechPlayer` numbers the pieces it plays and has `onQueued`, `onStarted` and
   `onStopped`; `AppModel` hands them to `RendererBridge.speech`, `speechStarted` and `speechStopped`, which send the `speech`, `speech-start` and `speech-stop` messages (the
   piece's bytes in Base64; not kept for a page that opens later).

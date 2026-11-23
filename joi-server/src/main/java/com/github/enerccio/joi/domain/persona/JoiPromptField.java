@@ -5,6 +5,8 @@ import com.github.enerccio.joi.domain.model.impl.settings.JoiUserSetting;
 import com.github.enerccio.joi.domain.templates.BodyTemplateData;
 import com.github.enerccio.joi.domain.templates.ChatTemplateData;
 import com.github.enerccio.joi.domain.templates.MessageStampTemplateData;
+import com.github.enerccio.joi.domain.templates.ImageDescriptionTemplateData;
+import com.github.enerccio.joi.domain.templates.ImageNoteTemplateData;
 import com.github.enerccio.joi.domain.templates.RecalledMemoriesTemplateData;
 import com.github.enerccio.joi.domain.templates.DaySummaryTemplateData;
 import com.github.enerccio.joi.domain.templates.FactsTemplateData;
@@ -68,6 +70,10 @@ public enum JoiPromptField {
             PersonaAttributes::setMessageStamp, JoiDefaults::messageStamp),
     RECALLED_MEMORIES("recalledMemories", RecalledMemoriesTemplateData.class, PersonaAttributes::getRecalledMemories,
             PersonaAttributes::setRecalledMemories, JoiDefaults::recalledMemories),
+    IMAGE_NOTE("imageNote", ImageNoteTemplateData.class, PersonaAttributes::getImageNote,
+            PersonaAttributes::setImageNote, JoiDefaults::imageNote),
+    IMAGE_DESCRIPTION_PROMPT("imageDescriptionPrompt", ImageDescriptionTemplateData.class, PersonaAttributes::getImageDescriptionPrompt,
+            PersonaAttributes::setImageDescriptionPrompt, JoiDefaults::imageDescriptionPrompt),
     PART_REQUEST_EVENT("partRequestEvent", PartRequestTemplateData.class, PersonaAttributes::getPartRequestEvent,
             PersonaAttributes::setPartRequestEvent, JoiDefaults::partRequestEvent),
     WEB_TASK_PROMPT("webTaskPrompt", WebTaskTemplateData.class, PersonaAttributes::getWebTaskPrompt,

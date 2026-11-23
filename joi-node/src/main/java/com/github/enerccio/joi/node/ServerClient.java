@@ -6,6 +6,7 @@ import com.github.enerccio.joi.protocol.http.AutoApprovalList;
 import com.github.enerccio.joi.protocol.http.BodyInfo;
 import com.github.enerccio.joi.protocol.http.ChatHistory;
 import com.github.enerccio.joi.protocol.http.Download;
+import com.github.enerccio.joi.protocol.http.ImageUpload;
 import com.github.enerccio.joi.protocol.http.JoiInfo;
 import com.github.enerccio.joi.protocol.http.JoiList;
 import com.github.enerccio.joi.protocol.http.Me;
@@ -218,6 +219,42 @@ public class ServerClient {
     public AutoApprovalList autoApprove(String joi, String tool, boolean on) throws IOException, InterruptedException {
         return callJson(on ? "PUT" : "DELETE", JoiProtocol.API + "/jois/" + joi + "/auto-approved/" + URLEncoder.encode(tool, StandardCharsets.UTF_8),
                 null, AutoApprovalList.class);
+    }
+
+    /**
+     * Gives the server an image to look at with the next message: the file is streamed from the disk, never read whole (the server
+     * keeps it as a scaled JPEG). The id is for {@code say}'s {@code images}.
+     *
+     * @throws ServerException {@code bad_image} for a file the server cannot read, {@code too large} (413) for more than 20 MB
+     */
+    public ImageUpload uploadImage(String joi, Path file) throws IOException, InterruptedException {
+        String path = JoiProtocol.API + "/jois/" + joi + "/images";
+        String type = Files.probeContentType(file) == null ? "application/octet-stream" : Files.probeContentType(file);
+        String used = settings.credentials().authorization();
+        Answer response = sendFile(path, type, file, used);
+        if (response.status() == 401 && refreshAfter(used)) {
+            response = sendFile(path, type, file, settings.credentials().authorization());
+        }
+        return answer(response, ImageUpload.class);
+    }
+
+    private Answer sendFile(String path, String contentType, Path file, String authorization) throws IOException, InterruptedException {
+        if (unix != null) {
+            Map<String, String> headers = new LinkedHashMap<>();
+            headers.put("Content-Type", contentType);
+            if (authorization != null) {
+                headers.put("Authorization", authorization);
+            }
+            UnixHttp.Reply reply = unix.sendFile("POST", path, headers, file, Duration.ofSeconds(120));
+            return new Answer(reply.status(), reply.body());
+        }
+        HttpRequest.Builder request = HttpRequest.newBuilder(URI.create(server + path)).timeout(Duration.ofSeconds(120))
+                .header("Content-Type", contentType).POST(HttpRequest.BodyPublishers.ofFile(file));
+        if (authorization != null) {
+            request.header("Authorization", authorization);
+        }
+        HttpResponse<String> response = http.send(request.build(), HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
+        return new Answer(response.statusCode(), response.body());
     }
 
     private <T> T postJson(String path, Object body, Class<T> type) throws IOException, InterruptedException {

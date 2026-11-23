@@ -1,5 +1,6 @@
 package com.github.enerccio.joi.api;
 
+import com.github.enerccio.joi.domain.chat.ChatImages;
 import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -37,11 +38,18 @@ public class JoiApiServlet extends HttpServlet {
             JoiApi.error(sink, 503, "unavailable", "The server is starting");
             return;
         }
-        if (request.getContentLengthLong() > MAX_BODY_BYTES) {
+        String path = request.getRequestURI().substring(request.getContextPath().length());
+        // an image is streamed to the disk by the call itself, after its credentials were checked: not read here
+        boolean upload = "POST".equalsIgnoreCase(request.getMethod()) && JoiApi.isImageUpload(path);
+        if (upload && request.getContentLengthLong() > ChatImages.MAX_BYTES) {
+            JoiApi.error(sink, 413, "bad_image", "The image is larger than " + (ChatImages.MAX_BYTES / 1024 / 1024) + " MB");
+            return;
+        }
+        if (!upload && request.getContentLengthLong() > MAX_BODY_BYTES) {
             JoiApi.error(sink, 413, "bad_request", "The body is larger than " + MAX_BODY_BYTES + " bytes");
             return;
         }
-        byte[] body = read(request.getInputStream());
+        byte[] body = upload ? new byte[0] : read(request.getInputStream());
         if (body == null) {
             JoiApi.error(sink, 413, "bad_request", "The body is larger than " + MAX_BODY_BYTES + " bytes");
             return;
@@ -50,9 +58,9 @@ public class JoiApiServlet extends HttpServlet {
         for (String name : Collections.list(request.getHeaderNames())) {
             headers.put(name.toLowerCase(Locale.ROOT), request.getHeader(name));
         }
-        String path = request.getRequestURI().substring(request.getContextPath().length());
         boolean local = context.getBean(ApiConfiguration.class).isLocalSocket(request.getLocalAddr(), request.getLocalPort());
-        ApiCall call = new ApiCall(request.getMethod(), path, ApiCall.parse(request.getQueryString()), headers, body, baseUrl(request), local);
+        ApiCall call = new ApiCall(request.getMethod(), path, ApiCall.parse(request.getQueryString()), headers, body, baseUrl(request), local,
+                upload ? request.getInputStream() : null);
         context.getBean(JoiApi.class).handle(call, sink);
     }
 

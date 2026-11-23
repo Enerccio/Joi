@@ -7,8 +7,8 @@
   "properties": {
     "text": {
       "type": "string",
-      "description": "The words of the user.",
-      "minLength": 1
+      "description": "The words of the user. May be empty (since 1.11) when `images` has an image: she then looks at it with no words.",
+      "minLength": 0
     },
     "speak": {
       "type": [
@@ -37,6 +37,16 @@
         "null"
       ],
       "description": "The node the words came from."
+    },
+    "images": {
+      "type": [
+        "array",
+        "null"
+      ],
+      "items": {
+        "type": "string"
+      },
+      "description": "Images to look at with the words (since 1.11): the ids `POST /api/v1/jois/{id}/images` gave, in this order, at most 4. 409 `no_vision` when she cannot look at images."
     }
   },
   "required": [

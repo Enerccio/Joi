@@ -44,6 +44,16 @@ public final class JoiCssStyles {
     public static final String CHAT_META = "chat-meta";
     /** The bottom row of an exchange: its checkbox, the meta and its delete button. */
     public static final String CHAT_FOOTER = "chat-footer";
+    /** The images of a message of the user, and one of them. */
+    public static final String CHAT_IMAGES = "chat-images";
+    public static final String CHAT_IMAGE = "chat-image";
+    /** The row under the transcript where the user writes to her: the field, the images waiting to go with it, the buttons. */
+    public static final String CHAT_COMPOSE = "chat-compose";
+    public static final String CHAT_COMPOSE_FIELD = "chat-compose-field";
+    public static final String CHAT_COMPOSE_IMAGES = "chat-compose-images";
+    public static final String CHAT_COMPOSE_IMAGE = "chat-compose-image";
+    /** The upload component that the paste and the attach button drive: its own buttons are hidden. */
+    public static final String CHAT_COMPOSE_UPLOAD = "chat-compose-upload";
     /** An exchange checked for the mass delete. */
     public static final String CHAT_MESSAGE_CHECKED = "chat-message-checked";
     /** The row above the transcript: the hint and the delete of the checked messages. */

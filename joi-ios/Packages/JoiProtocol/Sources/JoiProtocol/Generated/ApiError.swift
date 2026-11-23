@@ -6,7 +6,7 @@ import Foundation
 
 /// The body of a failed call, the error event of a stream and the error frame of the node WebSocket.
 public struct ApiError: Codable, Hashable, Sendable {
-    /// A stable word: unauthorized, forbidden, not_found, bad_request, no_model, model_failed, busy, internal; on the node WebSocket also stopped, unsupported_version, bad_message.
+    /// A stable word: unauthorized, forbidden, not_found, bad_request, no_model, no_vision, bad_image, model_failed, busy, internal; on the node WebSocket also stopped, unsupported_version, bad_message.
     public var code: String
     /// For people.
     public var message: String

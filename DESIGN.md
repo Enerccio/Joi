@@ -111,6 +111,11 @@ one; the server treats every node the same.
     first administrator; a credential that is sent must still be valid. Turning a way off stops its credentials at
     once. Credentials are `AccessToken` rows (prefix + SHA-256, like Marginalia's API keys), listed and revoked under
     Access.
+  - **Images in a message (1.11, built).** `POST /api/v1/jois/{id}/images` takes the image as the raw body (streamed to a file, never held
+    in memory; 20 MB, 80 megapixels) and answers an `ImageUpload` (id, size, width, height); the id goes in `ChatRequest.images` or
+    `Say.images` (at most 4), the words may then be empty. `GET /api/v1/images/{id}` gives the image (ETag, the user's own only), and the
+    history's `ChatEntry.images` and `JoiInfo.images` (whether she can look at images at all) tell the rest. Errors: `no_vision` (409; the
+    `error` frame on the node socket) and `bad_image` (400, 413). See *Images in the chat*.
   - **Her mood as a frame (1.10, built).** The node frame `mood` (`MoodState`: the mood's `mood` key, its `name`, the `expression` with its `weight`
     and the `eyes`, as the user has them set) is sent after the manifest and on every change of her mood (`ChatService.watchMoods`,
     `NodeService.mood`): the day's roll, the user's switch in the Joi dialog, her own `set_mood`, a change of the mood's face in User Settings. The
@@ -344,12 +349,14 @@ check) is in [MARGINALIA.md](MARGINALIA.md).
     chosen. The API gives them with her (`JoiInfo.animations`).
   - **Templates:** her master system template, the memory prompts, the body section and the self-image prompt, with
     the preview of the system prompt.
-  - **Chats (built, read only):** her conversation as a transcript, oldest at the top: the input (the user's words on
+  - **Chats (built):** her conversation as a transcript, oldest at the top: the input (the user's words on
     the right, an event in the middle with its kind), her reasoning folded when she thought, her response in Markdown,
     and when, which model, which node. It opens with the last 30 messages at the bottom; scrolling to the top loads
     the 30 before, keeping the message the user reads in place (the platform's lazy edges, as in Marginalia's story;
     nothing is dropped, unlike there). A message is deleted by its trash button, or checked (shift-click checks a
-    range) and deleted with the others. Editing and branching come with the conversation work. The tab follows the
+    range) and deleted with the others. Below the transcript is the **input** (since images, 2026-11-23): a text field (Enter sends, Shift+Enter is a new line), an attach button
+    (the user's own images, at most 4) and a Send button; an image can also be pasted or dropped on it; the images wait as small pictures with a button to take one away; the transcript
+    shows the images of a message small, a click opens them (see *Images in the chat*). Editing and branching come with the conversation work. The tab follows the
     conversation while it is open (`ChatService.watch`): what is asked for shows at once, dimmed, "waiting for her
     reply" (a turn waits for the one before it), and is replaced by the exchange when her reply is stored. When her reply
     was spoken, the pieces of speech are copied into one clip as they are rendered (`ClipWriter`: wav pieces under one
@@ -591,6 +598,42 @@ run by `ChatServiceImpl`). Marginalia's agent runner is not used.
     still ends her turn at once and sends what is held. The server also refuses a message that arrives while a turn runs, with an error that
     says so, so a client that does not hold messages gets a clear answer and not a lost one.
   - **Open:** whether speech heard while she thinks is held like text or counts as barge-in; whether held messages of two clients are merged.
+
+### Images in the chat
+
+The user shows her a picture: the web UI (the Chats tab has an input now: a text field, an attach button, paste and drop), the JavaFX node
+(Image… and paste), the node's terminal client (`/image <file> [words]`) and the iOS app (take a photo or choose one) send an image with the words;
+she looks at it like a person would: with the words, in the same turn.
+
+- **How it travels.** First `POST /api/v1/jois/{id}/images` (the body is the file, streamed to the disk by `JoiApi`, never a byte array; over
+  20 MB or 80 megapixels is refused: `bad_image`), then the chat call or the `say` frame names it by id. Two steps, so that the frame stays small,
+  the upload can be retried alone and the same image can be in a UI and a node. A phone prepares the picture first (`ImagePreparer`: upright,
+  at most 1568 pixels, JPEG) only to send less; the server does it again.
+- **What the server keeps.** `ChatImages.normalize`: the format is found by the content (PNG, JPEG, GIF, BMP, WebP; never by what the client said),
+  a big photo is decoded subsampled, turned upright by its EXIF orientation, scaled down to **1568 pixels on its longest side** (what the models
+  take without scaling it again) and written as a **JPEG on white** (quality 0.88). So the stored bytes are the bytes the model gets. The
+  file is a platform `Resource` (`ResourceService.saveFile`: in the user's images folder, named by a uuid, the file of an image with the same
+  content shared); the upload is not yet tied to a message: a sweep (`ResourceService.deleteUnlinked`) deletes an upload that no message took after an hour.
+- **Where it lives and for how long.** The `ChatMessage` keeps the uuids in the extended attribute `images` (and `imageNotes`, below), the
+  transcript shows them (the Chats tab; the history of the API as `ChatEntry.images`), and the image is the message's: **deleting the message
+  deletes the file** (`ChatMessageServiceImpl.deleteMessages` → `ChatImageService.deleteOf`). Nothing else cleans it; there is no retention setting yet.
+  A summary of the message says "[attached an image: …]" with the note when there is one, so the image is not lost to the memory (the model that
+  writes a summary does not get images).
+- **The model that cannot see.** `JoiInfo.images` is true when her chat model is multimodal, or when her deep reasoning model (else her chat model: the same pick as for the look of the bodies, `AppearanceService.model`) is
+  multimodal and can describe it for the chat model. When it is false a client offers no attach button and the
+  server answers `no_vision` (409) before it stores anything. When the chat model cannot see but the describer can, the describer gets the
+  image and one prompt (`JoiPromptField.IMAGE_DESCRIPTION_PROMPT`, the user's words in it) **once**, when the message is sent; its text is kept
+  in the message (`imageNotes`) and every later prompt shows it as `[The user attached an image. You cannot see it, but this is what it shows: …]`
+  (`IMAGE_NOTE`, a template of the user's too). It is a blocking round with a five-minute limit that fails the turn with the model's error.
+- **The prompt cache.** Her prompt must be the same bytes in every turn, or the model's cache of it is lost from the changed part on. So the form
+  of an image in the history **never changes**: a multimodal model gets the same attachment (the same JPEG bytes, so the same data URL) at the
+  same place in every prompt, whatever the window or the turn; a model that cannot see gets the same stored note. Whether the model sees is a
+  property of the chat model, not of the turn. `ChatImageApiTest` compares the data URLs of two prompts. Switching her chat model changes the
+  form of the old images (and loses the cache once); that is the user's doing.
+- **Costs.** An image is some 1,000 to 1,600 input tokens at this size, in every prompt it is in. The history window (the last messages) bounds that;
+  a client may send at most 4 with a message. The web UI and the nodes show the image small.
+- **Not yet:** images from her (tools that return an image), the user's retention setting, an image in an event, a *describe it again* for a
+  changed model, and the node's screen capture (see *Seeing the screen*), which will use the same upload.
 
 ### Persona
 
@@ -1818,13 +1861,14 @@ Search and fetch can run **on the server** (when enabled for the assistant) or *
 When a model with vision is available, the node can give Joi images of what you see:
 
 - **From you:** a hotkey to capture the screen / a window / a dragged region, pasting or dropping an image into the
-  HUD or the chat, the clipboard ("look at this"), files from the share sheet on the phone.
+  HUD or the chat (**built** for the chat: the Chats tab, the JavaFX node and the iOS app send an image with a message; see *Images in the chat*),
+  the clipboard ("look at this"), files from the share sheet on the phone.
 - **From Joi:** a `capture_screen` tool (display, window, region; the node reports what it can capture — on macOS
   ScreenCaptureKit with the Screen Recording permission). Harness rules apply: **ASK** by default; **ALLOW** only right
   after you asked her to look ("what's this error?"). Never silently in the background, and a capture indicator shows on
   the HUD whenever one is taken.
-- **Routing:** if the live conversation model has no vision, the image goes to a multimodal model (the heavy one, or a
-  local vision model) which describes it for the conversation. In **privacy mode** images only go to local models.
+- **Routing:** if the live conversation model has no vision, the image goes to a multimodal model (her deep reasoning model, else her chat model, when it is marked Multimodal) which
+  describes it for the conversation (**built**, *Images in the chat*). In **privacy mode** images only go to local models.
 - Screenshots are attached to the conversation (viewable in the UI) with a retention setting; denied paths of the
   harness have a counterpart here — windows of listed apps (password manager, banking) are never captured.
 
@@ -2019,7 +2063,7 @@ writes into the source tree or needs Xcode:
 **Stages:**
 
 1. The generator and the Swift package with its fixtures (**built**: `SwiftGenerator`, `joi-ios/Packages/JoiProtocol`); the client (**built**: `joi-ios/Packages/JoiClient`, an actor for the HTTP API and the device-grant pairing with the reference node's refresh rules, `NodeConnection` for the node WebSocket with the heartbeat and the new tries, tested against a fake server and a real one); the app shell (**built**: `JoiApp` and `joi-ios/project.yml`, pairing, history, chat with her answer streaming and her voice, run in the Simulator against a server, built by `mvn -Pswift,ios verify`). her body (**built**: `AvatarModel` downloads and unpacks her `.joim` / `.joia` with the hash check, the node's renderer page runs in a `WKWebView` in a native mode of `main.js` and is fed through `joiReceive` and a `WKURLSchemeHandler` for `joi-body://`, `AvatarDirector` is ported to Swift, the body takes half of the screen above the chat; tried in the Simulator with a real body). Together this proves the protocol with a node that is not Java.
-2. The App Intents (*Ask*, *Tell*, *Listen*, approvals), the Vocal Shortcut guide, push-to-talk with on-device speech
+2. The App Intents (*Ask*, *Tell*, *Listen*, approvals), a photo from the camera or the library sent with a message (**built**: `ImageAttachButton`, `ImagePreparer`, `JoiClient.uploadImage`), the Vocal Shortcut guide, push-to-talk with on-device speech
    to text, the registered-shortcut tools, `notify` and the first native tools; approval cards (**built** for her tasks that wait: the
    `task` frames and `approve` / `deny` over HTTP, a card over the chat while the app is open; the ASK cards of other nodes' tools and the push notification are not).
 3. The always-listening mode (a battery measurement on a real phone first), reconnect-safe tool calls, the APNs relay,

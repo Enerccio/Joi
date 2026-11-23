@@ -27,6 +27,7 @@ Type a line and press Return: it is your message. Her reply streams in; her anim
 
 | Command | What it does |
 |---|---|
+| `/image <file> [words]` | sends an image file with the words (or alone); she must be able to look at images: see [Chats](../jois/chats.md#showing-her-an-image) |
 | `/stop` | stops her reply |
 | `/sleep` | she falls asleep |
 | `/quit` | ends the node |

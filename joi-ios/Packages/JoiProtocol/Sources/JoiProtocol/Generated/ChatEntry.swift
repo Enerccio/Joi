@@ -20,8 +20,10 @@ public struct ChatEntry: Codable, Hashable, Sendable {
     public var node: String?
     /// Her reply, null when she has not answered (a failed or stopped turn).
     public var reply: String?
+    /// The images the user sent with the words (since 1.11), their ids: `GET /api/v1/images/{id}` gives each.
+    public var images: [String]?
 
-    public init(id: String, sentAt: Date, type: String, text: String? = nil, event: String? = nil, node: String? = nil, reply: String? = nil) {
+    public init(id: String, sentAt: Date, type: String, text: String? = nil, event: String? = nil, node: String? = nil, reply: String? = nil, images: [String]? = nil) {
         self.id = id
         self.sentAt = sentAt
         self.type = type
@@ -29,5 +31,6 @@ public struct ChatEntry: Codable, Hashable, Sendable {
         self.event = event
         self.node = node
         self.reply = reply
+        self.images = images
     }
 }

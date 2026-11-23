@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Joi API
-  version: "1.10"
+  version: "1.11"
   description: |
     The HTTP API of a Joi server for nodes and other clients: the assistants of the user, chat with one of them,
     answered in text and speech, and the body she is in with the files to show it (`.joim`, `.joia`). The message shapes are the JSON Schemas in `schemas/` (the source of truth); the Java
@@ -111,6 +111,11 @@ paths:
         Why both: the speech starts once the text is whole and stored, and a streamed reply is spoken piece by piece,
         the first sentence first, so a voice node starts playing after the first piece instead of after the whole
         reply. A simple client takes the whole reply.
+
+        **Images** (since 1.11): `images` lists the ids `POST /api/v1/jois/{id}/images` gave (at most 4, each once);
+        she looks at them with the words, and the words may be empty then. Whether she can is `JoiInfo.images`; when
+        she cannot, the call is answered `409 no_vision` and nothing is stored, so the client says so and does not
+        drop the image silently.
       parameters:
         - { $ref: "#/components/parameters/JoiId" }
       requestBody:
@@ -132,7 +137,7 @@ paths:
         "401": { $ref: "#/components/responses/Unauthorized" }
         "404": { $ref: "#/components/responses/NotFound" }
         "409":
-          description: "`no_model`: she has no chat model set up"
+          description: "`no_model`: she has no chat model set up; `no_vision` (since 1.11): images were sent and neither her chat model nor a model of the user that takes images can look at them"
           content:
             application/json:
               schema: { $ref: "schemas/ApiError.schema.json" }
@@ -141,6 +146,62 @@ paths:
           content:
             application/json:
               schema: { $ref: "schemas/ApiError.schema.json" }
+  /api/v1/jois/{id}/images:
+    post:
+      summary: Give her an image to look at with the next message (since 1.11)
+      description: |
+        The body is the image itself (`Content-Type: image/jpeg`, `image/png`, `image/gif` or `image/bmp`; the type sent is
+        not trusted, the content is), at most 20 MB and 80 megapixels. It is streamed to the disk, never held in memory, so a
+        client streams it too. The server decodes it, scales it down so that its longest side is at most 1568 pixels and keeps it
+        as JPEG: those are the bytes the model gets, and what `GET /api/v1/images/{id}` gives back. The answer is the id to put
+        in `ChatRequest.images` (or `Say.images` on the node WebSocket). An image that no message used within an hour is deleted.
+        A phone sends HEIC as JPEG (the system converts it); WebP is read.
+      parameters:
+        - { $ref: "#/components/parameters/JoiId" }
+      requestBody:
+        required: true
+        content:
+          image/jpeg: { schema: { type: string, format: binary } }
+          image/png: { schema: { type: string, format: binary } }
+          image/gif: { schema: { type: string, format: binary } }
+          application/octet-stream: { schema: { type: string, format: binary } }
+      responses:
+        "200":
+          description: The image as kept
+          content:
+            application/json:
+              schema: { $ref: "schemas/ImageUpload.schema.json" }
+        "400":
+          description: "`bad_image`: not an image the server reads, or too many pixels"
+          content:
+            application/json:
+              schema: { $ref: "schemas/ApiError.schema.json" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "413":
+          description: "`bad_image`: larger than 20 MB"
+          content:
+            application/json:
+              schema: { $ref: "schemas/ApiError.schema.json" }
+  /api/v1/images/{id}:
+    get:
+      summary: An image of the user, as it is kept (since 1.11)
+      description: |
+        The JPEG of an image sent with a message (`ChatEntry.images`) or uploaded (`ImageUpload.id`); only the user's own. The
+        file never changes, so the hash is its ETag and a client caches it.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: The image
+          content:
+            image/jpeg: { schema: { type: string, format: binary } }
+        "304": { description: The client has it }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
   /api/v1/jois/{id}/body:
     get:
       summary: The body she is in, the state of its parts and its animations (since 1.1)

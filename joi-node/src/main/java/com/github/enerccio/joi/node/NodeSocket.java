@@ -326,8 +326,16 @@ public class NodeSocket {
      * changes of her parts sent just before: one turn about the words and those, whose id is the one returned.
      */
     public String say(String text, boolean speak, boolean reasoning, boolean withEvents) {
+        return say(text, speak, reasoning, withEvents, List.of());
+    }
+
+    /**
+     * As {@link #say(String, boolean, boolean, boolean)} with images to look at (since 1.11): the ids {@link ServerClient#uploadImage}
+     * gave, at most 4; the text may be empty then.
+     */
+    public String say(String text, boolean speak, boolean reasoning, boolean withEvents, List<String> images) {
         String turn = "t-" + ids.incrementAndGet();
-        Say say = new Say(text, speak, reasoning, withEvents ? true : null);
+        Say say = new Say(text, speak, reasoning, withEvents ? true : null, images == null || images.isEmpty() ? null : images);
         if (!testing && !connected()) {
             // offline nothing is said: it is not kept to be sent later, the user says it again once she is there
             listener.failed(turn, new ApiError("disconnected", "Not connected to the server: nothing was sent"));

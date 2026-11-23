@@ -26,7 +26,8 @@ answers. Unknown types and fields are ignored.
    connection.
 2. **Manifest.** `manifest` after `welcome` and again on every change, with a growing `version`: OS, architecture, capabilities, and the tools (name,
    description, JSON Schema of the arguments, tier `allow`, `ask`, `deny` or `depends`). She sees them as `<node>__<tool>` while the node is connected.
-3. **Talking.** `say` (text, speak, reasoning); the frame's id is the turn, and the answer is the streamed chat as frames that refer to it: `reasoning`, `text`, `tool`,
+3. **Talking.** `say` (text, speak, reasoning, `images`: the ids of images uploaded with `POST /api/v1/jois/{id}/images`, since 1.11; `text` may then be empty, and a node whose
+   assistant cannot look at images gets an `error` frame `no_vision` for that turn); the frame's id is the turn, and the answer is the streamed chat as frames that refer to it: `reasoning`, `text`, `tool`,
    `reply`, `audio`, then `done`, or `error`. `stop` ends a turn. The server starts a turn itself with `turn` (an id and a cause), answered the same way: after the
    first manifest of a connection she wakes up for the first time or greets the user who is back, but not for a node that only lost the connection
    (`hello.resumed`). With no chat model there is no greeting, and the node gets an `error` frame without a `ref` (code `no_model`) instead of silence.
@@ -40,6 +41,14 @@ answers. Unknown types and fields are ignored.
 7. **Heartbeat.** `ping` and `pong` both ways; a connection silent for twice the heartbeat is closed. `log` carries a note of the system.
 8. **Errors.** An `error` frame keeps the connection. Close codes: 4001 unauthorized, 4002 unsupported version, 4003 replaced, 4004 no such assistant (also once she is deleted: the next frame gets `error` `not_found` first), 4008 timeout,
    4009 revoked.
+
+## Images
+
+A node that lets the user attach an image uploads each with `ServerClient.uploadImage` (the file is the body, streamed: `BodyPublishers.ofFile`, or `UnixHttp.sendFile` on the local socket, with
+the 401 refresh as every call) and puts the ids in `NodeSocket.say(..., images)`. `JoiInfo.images` says whether to offer it at all (`ServerClient.joi`). The JavaFX node's `ChatPane` has an
+*Image…* button (a file chooser) and takes an image from the clipboard (Ctrl/Cmd+V when it has an image and no text; written to a temporary PNG), shows the waiting images as small pictures with a
+button to take one away, and uploads on a virtual thread before it sends; the terminal client has `/image <file> [words]`. Nothing is done to the picture on the node: the server turns it upright
+and scales it.
 
 ## Reconnecting
 

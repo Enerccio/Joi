@@ -6,7 +6,7 @@ import Foundation
 
 /// POST /api/v1/jois/{id}/chat: what the user said.
 public struct ChatRequest: Codable, Hashable, Sendable {
-    /// The words of the user.
+    /// The words of the user. May be empty (since 1.11) when `images` has an image: she then looks at it with no words.
     public var text: String
     /// Speak the reply too (default true).
     public var speak: Bool?
@@ -16,12 +16,15 @@ public struct ChatRequest: Codable, Hashable, Sendable {
     public var reasoning: Bool?
     /// The node the words came from.
     public var node: String?
+    /// Images to look at with the words (since 1.11): the ids `POST /api/v1/jois/{id}/images` gave, in this order, at most 4. 409 `no_vision` when she cannot look at images.
+    public var images: [String]?
 
-    public init(text: String, speak: Bool? = nil, stream: Bool? = nil, reasoning: Bool? = nil, node: String? = nil) {
+    public init(text: String, speak: Bool? = nil, stream: Bool? = nil, reasoning: Bool? = nil, node: String? = nil, images: [String]? = nil) {
         self.text = text
         self.speak = speak
         self.stream = stream
         self.reasoning = reasoning
         self.node = node
+        self.images = images
     }
 }

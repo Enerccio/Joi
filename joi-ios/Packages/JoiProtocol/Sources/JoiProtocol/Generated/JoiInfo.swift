@@ -22,8 +22,10 @@ public struct JoiInfo: Codable, Hashable, Sendable {
     public var voice: Voice?
     /// The animations she plays in her states (since 1.2).
     public var animations: JoiAnimations?
+    /// Whether she can look at images sent with a message (since 1.11): her chat model takes images, or a model of the user that does describes them for it. A client offers no way to attach an image when it is false.
+    public var images: Bool?
 
-    public init(id: String, name: String, userName: String, personality: Personality? = nil, mood: String? = nil, wakeWord: String, lastChatted: Date? = nil, chatModel: String? = nil, voice: Voice? = nil, animations: JoiAnimations? = nil) {
+    public init(id: String, name: String, userName: String, personality: Personality? = nil, mood: String? = nil, wakeWord: String, lastChatted: Date? = nil, chatModel: String? = nil, voice: Voice? = nil, animations: JoiAnimations? = nil, images: Bool? = nil) {
         self.id = id
         self.name = name
         self.userName = userName
@@ -34,5 +36,6 @@ public struct JoiInfo: Codable, Hashable, Sendable {
         self.chatModel = chatModel
         self.voice = voice
         self.animations = animations
+        self.images = images
     }
 }

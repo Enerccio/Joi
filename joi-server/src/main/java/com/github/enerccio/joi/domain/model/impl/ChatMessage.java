@@ -61,6 +61,23 @@ public class ChatMessage extends ExtendableEntity {
     @Transient
     private String node;
 
+    /**
+     * The images the user sent with the words, as the uuids of their resources (JSON array, in the order sent), null for none. Each
+     * resource is linked to the message and kept until it goes (see {@code ChatImageService}).
+     */
+    @ExtendedAttribute
+    @Transient
+    private String images;
+
+    /**
+     * What a model that can see wrote about each image (JSON array, one text per image in the order of {@link #images}), null when
+     * nothing was written: the chat model could see them itself. It is made once, in the turn of the message, and then shown the same
+     * in every prompt after, so the model's cache of the prompt keeps it.
+     */
+    @ExtendedAttribute
+    @Transient
+    private String imageNotes;
+
     @ExtendedAttribute
     @Fulltextable
     @Transient
@@ -196,6 +213,51 @@ public class ChatMessage extends ExtendableEntity {
 
     public void setNode(String node) {
         this.node = node;
+    }
+
+    public String getImages() {
+        return images;
+    }
+
+    public void setImages(String images) {
+        this.images = images;
+    }
+
+    public String getImageNotes() {
+        return imageNotes;
+    }
+
+    public void setImageNotes(String imageNotes) {
+        this.imageNotes = imageNotes;
+    }
+
+    /** The uuids of the images of the message, in the order sent; empty for none. */
+    public java.util.List<String> imageUuids() {
+        return jsonStrings(images);
+    }
+
+    /** What was written about each image (see {@link #imageNotes}), empty for none. */
+    public java.util.List<String> imageNoteTexts() {
+        return jsonStrings(imageNotes);
+    }
+
+    /** A list of strings as the JSON array the message keeps; null for an empty list. */
+    public static String toJson(java.util.List<String> strings) {
+        if (strings == null || strings.isEmpty()) {
+            return null;
+        }
+        com.google.gson.JsonArray array = new com.google.gson.JsonArray();
+        strings.forEach(array::add);
+        return array.toString();
+    }
+
+    private static java.util.List<String> jsonStrings(String json) {
+        if (json == null || json.isBlank()) {
+            return java.util.List.of();
+        }
+        java.util.List<String> list = new java.util.ArrayList<>();
+        com.google.gson.JsonParser.parseString(json).getAsJsonArray().forEach(e -> list.add(e.isJsonNull() ? "" : e.getAsString()));
+        return list;
     }
 
     public String getResponse() {

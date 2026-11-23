@@ -36,7 +36,7 @@ class SchemaContractTest {
             BodyAnimation.class, BodyAnimations.class, BodyInfo.class, JoiAnimations.class, Frame.class, Hello.class, Resume.class, Welcome.class, Manifest.class,
             ToolDefinition.class, Say.class, Stop.class, Display.class, ToolUse.class, ToolCall.class, ToolProgress.class, ToolResult.class,
             ToolCancel.class, Approval.class, ServerEvent.class, TurnStart.class, ChatEntry.class, ChatHistory.class,
-            ChatLog.class, TaskStep.class, TaskInfo.class, TaskList.class, TaskDenial.class, TaskApproval.class, AutoApproval.class, AutoApprovalList.class);
+            ChatLog.class, TaskStep.class, TaskInfo.class, TaskList.class, TaskDenial.class, TaskApproval.class, AutoApproval.class, AutoApprovalList.class, ImageUpload.class);
 
     /** The enums with a schema of their own: the values are the schema's enum. */
     static final List<Class<? extends Enum<?>>> ENUMS = List.of(AuthMethod.class, NodePart.class, ToolTier.class,
@@ -140,12 +140,12 @@ class SchemaContractTest {
         assertThat(errors(ToolDefinition.class, "{\"name\": \"shell\", \"description\": \"d\", \"parameters\": {}, \"tier\": \"maybe\"}"))
                 .isNotEmpty();
         assertThat(errors(ToolResult.class, "{\"callId\": \"c1\", \"ok\": true}")).isNotEmpty();
-        assertThat(errors(Say.class, "{\"text\": \"\"}")).isNotEmpty();
+        assertThat(errors(Say.class, "{\"speak\": true}")).isNotEmpty();
     }
 
     @Test
     void invalidMessagesAreCaught() {
-        assertThat(errors(ChatRequest.class, "{\"text\": \"\"}")).isNotEmpty();
+        assertThat(errors(ChatRequest.class, "{\"text\": \"\", \"images\": [3]}")).isNotEmpty();
         assertThat(errors(ChatRequest.class, "{\"speak\": true}")).isNotEmpty();
         assertThat(errors(Download.class, "{\"url\": \"u\", \"sha256\": \"x\", \"size\": 1, \"writtenAt\": \"2026-11-19T12:00:00Z\", \"current\": true}"))
                 .isNotEmpty();

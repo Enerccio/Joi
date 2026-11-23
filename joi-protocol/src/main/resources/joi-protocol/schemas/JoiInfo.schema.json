@@ -71,6 +71,13 @@
         }
       ],
       "description": "The animations she plays in her states (since 1.2)."
+    },
+    "images": {
+      "type": [
+        "boolean",
+        "null"
+      ],
+      "description": "Whether she can look at images sent with a message (since 1.11): her chat model takes images, or a model of the user that does describes them for it. A client offers no way to attach an image when it is false."
     }
   },
   "required": [

@@ -32,7 +32,8 @@ public final class ProtocolSamples {
         out.add(new ServerInfo("1.0", "joi-server", "0.1.0", new AuthInfo(List.of(AuthMethod.NONE), null)));
         out.add(new Me("peter", "Peter", AuthMethod.NONE));
         out.add(new ChatHistory(List.of(new ChatEntry("m1", "2026-11-18T19:00:00Z", "event", null, "node.first_boot", "desk", "I'm awake."),
-                new ChatEntry("m2", "2026-11-18T19:01:00Z", "user", "Hi", null, null, null)), true));
+                new ChatEntry("m2", "2026-11-18T19:01:00Z", "user", "Hi", null, null, null),
+                new ChatEntry("m4", "2026-11-18T19:02:00Z", "user", "Look", null, null, "Nice.", List.of("img1"))), true));
         out.add(new TaskList(List.of(new TaskInfo("t1", "Weather in Prague", "web_search", "Search the web", "waiting", "What is the weather in Prague?", null,
                 null, null, "2026-11-20T10:00:00Z", null, null, null))));
         out.add(new TaskInfo("t2", "Read the page", "fetch_page", null, "done", "What does it say?", "https://example.com/", "It says hello.", null,
@@ -51,6 +52,8 @@ public final class ProtocolSamples {
         out.add(new JoiInfo("2f0c", "Joi", "Peter", new Personality("warm", "Warm"), null, "Hey Joi", null, "Gemma", new Voice("Higgs", "C", "low and warm"),
                 new JoiAnimations("p1", null, "p2", List.of("p3", "p4"), List.of())));
         out.add(new JoiInfo("2f0c", "Joi", "Peter", null, "cheerful", "Hey Joi", null, null, null, null));
+        out.add(new JoiInfo("2f0c", "Joi", "Peter", null, null, "Hey Joi", null, "Gemma", null, null, true));
+        out.add(new ImageUpload("i1", "image/jpeg", 183_000, 1568, 1176));
         Download joim = new Download("http://h/api/v1/models/m1/joim", "a".repeat(64), 120_000_000, "2026-11-19T12:00:00Z", true);
         out.add(new BodyInfo("b1", "Street", new BodyModel("m1", "Ryuu", joim), null,
                 List.of(new BodyPart("group:eyes", "eyes", "bare", "bare", true, List.of(new BodyPartState("bare", "bare", true,
@@ -60,6 +63,7 @@ public final class ProtocolSamples {
                 new Download("http://h/api/v1/bodies/b1/joia", "b".repeat(64), 5000, "2026-11-19T12:00:00Z", false))));
         out.add(new BodyInfo("b1", null, new BodyModel("m1", null, null), null, List.of(), null, null, new BodyAnimations(true, List.of(), null)));
         out.add(new ChatRequest("Hi!", null, null, null, null));
+        out.add(new ChatRequest("", null, null, null, null, List.of("img1", "img2")));
         out.add(new ChatRequest("Hi!", false, true, true, "kitchen"));
         out.add(new ChatReply("m1", "Hello.", null, "cheerful", "Gemma", audio, null, usage));
         out.add(new ChatReply("m1", "Hello.", "hm", null, null, null, "The speech server is down", usage));
@@ -108,6 +112,7 @@ public final class ProtocolSamples {
         out.add(new Say("What's on my calendar?", null, null));
         out.add(new Say("Hi", false, true));
         out.add(new Say("Hi", null, null, true));
+        out.add(new Say("", null, null, null, List.of("img1")));
         out.add(new Stop(null));
         out.add(new Stop("t1"));
         out.add(new Display(true));

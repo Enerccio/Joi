@@ -64,6 +64,74 @@
     font-size: var(--lumo-font-size-s);
 }
 
+.chat-images {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--lumo-space-xs);
+    margin-bottom: var(--lumo-space-xs);
+}
+
+.chat-image {
+    display: block;
+    max-width: 260px;
+    max-height: 200px;
+    border-radius: var(--lumo-border-radius-m);
+    object-fit: contain;
+}
+
+.chat-compose {
+    display: flex;
+    align-items: flex-end;
+    gap: var(--lumo-space-s);
+    padding: var(--lumo-space-s);
+    border-top: 1px solid var(--lumo-contrast-10pct);
+}
+
+.chat-compose-field {
+    flex: 1;
+    min-width: 0;
+}
+
+.chat-compose-images {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--lumo-space-xs);
+}
+
+.chat-compose-image {
+    position: relative;
+}
+
+.chat-compose-image img {
+    display: block;
+    height: 56px;
+    border-radius: var(--lumo-border-radius-m);
+}
+
+.chat-compose-image vaadin-button {
+    position: absolute;
+    top: 0;
+    right: 0;
+    margin: 0;
+}
+
+/* the upload component is only the attach button of the row: no frame, no list of files (a finished one is cleared) */
+.chat-compose-upload {
+    border: none;
+    padding: 0;
+    flex: none;
+}
+
+.chat-compose-upload::part(drop-label),
+.chat-compose-upload::part(drop-label-icon) {
+    display: none;
+}
+
+.chat-compose-upload vaadin-upload-file-list,
+.chat-compose-upload [slot="file-list"] {
+    display: none;
+}
+
 .chat-event-kind {
     display: block;
     font-weight: 600;

@@ -26,6 +26,10 @@ class JoiChatsPartTest extends PlatformTestBase {
     private ChatMessageService chatMessageService;
     @Autowired
     private com.github.enerccio.joi.domain.chat.ChatService chatService;
+    @Autowired
+    private com.github.enerccio.joi.domain.service.ChatImageService imageService;
+    @Autowired
+    private com.github.enerccio.marginalia.domain.service.AIService aiService;
 
     private UI ui;
 
@@ -98,6 +102,37 @@ class JoiChatsPartTest extends PlatformTestBase {
         com.vaadin.flow.component.Component card = part.card(note);
         assertThat(card.getElement().getOuterHTML()).contains("chat-input-log").contains("Approved by the user");
         assertThat(card.getElement().getOuterHTML()).doesNotContain("chat-reply");
+    }
+
+    @Test
+    void aMessageWithAnImageShowsItAndTheUserCanSendAnImageWithWordsToHer() throws Exception {
+        Joi joi = joiService.create("Mira");
+        com.github.enerccio.marginalia.domain.model.impl.OpenAICompatible ai = createAI();
+        ai.setMultimodal(true);
+        ai = (com.github.enerccio.marginalia.domain.model.impl.OpenAICompatible) aiService.save(ai);
+        joi.setChatModel(ai.getId());
+        joi = joiService.save(joi);
+        java.io.File file = imageService.newUploadFile();
+        javax.imageio.ImageIO.write(new java.awt.image.BufferedImage(40, 30, java.awt.image.BufferedImage.TYPE_INT_RGB), "png", file);
+        String image = imageService.store(file).id();
+        llm.enqueue(com.github.enerccio.marginalia.test.llm.MockLLMResponse.text("A black picture."));
+        JoiChatsPart part = chats(joi);
+
+        part.sendForTest("What is this?", java.util.List.of(image));
+
+        // the turn runs in the background; the exchange comes with its image
+        long end = System.currentTimeMillis() + 30_000;
+        while (chatMessageService.findLatest(joi, 10).isEmpty() && System.currentTimeMillis() < end) {
+            Thread.sleep(50);
+        }
+        ChatMessage stored = chatMessageService.findLatest(joi, 10).getFirst();
+        assertThat(stored.getInput()).isEqualTo("What is this?");
+        assertThat(stored.imageUuids()).containsExactly(image);
+        assertThat(stored.getNode()).isNull();
+        assertThat(llm.getCompletionRequests().getFirst().getRawBody()).contains("\"type\":\"image_url\"");
+        String html = part.card(stored).getElement().getOuterHTML();
+        assertThat(html).contains("chat-image").contains("What is this?");
+        assertThat(stored.getResponse()).isEqualTo("A black picture.");
     }
 
     @Test
