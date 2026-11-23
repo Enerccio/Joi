@@ -50,8 +50,13 @@ class AssistantsRunsTest extends PlatformTestBase {
         UI.setCurrent(null);
     }
 
+    /**
+     * What the assistants of this test's user do. The list itself is the administrator's view of every user's assistants, and the turns and
+     * tasks that other test classes left running or waiting are in it (the order the classes run in decides), so the test looks at its own.
+     */
     private List<AssistantsRunsGrid.Activity> activities() throws Exception {
-        return new AssistantsRunsGrid().activities();
+        String mine = joi.getOwner().getLogin();
+        return new AssistantsRunsGrid().activities().stream().filter(row -> row.user().equals(mine)).toList();
     }
 
     @Test
