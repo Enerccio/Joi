@@ -17,7 +17,7 @@ covers:
   - .github/workflows/server.yml
   - .github/workflows/test.yml
   - .github/dependabot.yml
-verified: 7df1caf
+verified: 143fdff
 ---
 
 # Building
@@ -66,6 +66,10 @@ stage runs it, started by `docker-entrypoint.sh` (it hands the data folder to th
 ```bash
 docker compose up -d --build
 ```
+
+The version the login footer and `GET /api/v1/version` show is `joi-version` in `joi-server/src/main/resources/META-INF/build-info/build-info.properties`,
+which the pom filters to `${project.version}` (the one file filtered); `JoiApplicationInitializer` installs it as the platform's `BuildInfo`. A bump of
+the `marginalia` submodule is a commit of its own pointer: build the platform again (`mvn install -DskipTests -pl marginalia/marginalia/platform,joi-protocol`).
 
 ## The extensions
 

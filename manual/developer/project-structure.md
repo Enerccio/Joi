@@ -5,7 +5,7 @@ order: 770
 covers:
   - joi-server/src/main/java/com/github/enerccio/joi/domain
   - joi-server/src/main/resources/META-INF/spring
-verified: 01d3230
+verified: 143fdff
 ---
 
 # Project structure
@@ -58,7 +58,7 @@ All are owned by the user, and each belongs to an assistant where it makes sense
 
 ## Wiring
 
-Spring XML in `src/main/resources/META-INF/spring`: `application-config.xml`, `container-config.xml` (the configuration, the API),
+Spring XML in `src/main/resources/META-INF/spring`: `application-config.xml`, `container-config.xml` (the localization with `JoiLocalizationOverride`, the configuration with its cookie namespace, the API),
 `datasources-config.xml` and `services-config.xml`. A new service or repository needs its bean there. Transactions are `@CommonTx` and
 `@CommonTxReadOnly`. Ownership is checked through `findForUser`, never by raw ids.
 
