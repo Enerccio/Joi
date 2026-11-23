@@ -2,7 +2,7 @@
 # production frontend bundle), extensions-build and extensions (the extensions that come with Joi, as JARs) and runtime (the image, the default target, so it must stay the last stage). The node is
 # not part of the image: it runs on the user's machines. Build from the repository root, with the submodule checked out
 # (git clone --recurse-submodules, or git submodule update --init).
-FROM maven:3.9-eclipse-temurin-25 AS builder
+FROM maven:3.9-eclipse-temurin-26 AS builder
 
 WORKDIR /build
 
