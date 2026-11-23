@@ -4,6 +4,9 @@ icon: desktop-download
 order: 770
 covers:
   - joi-desktop
+  - tools/upgrade_mac_client.sh
+  - tools/MakeIcons.java
+  - joi-server/src/main/webapp/icons/joi.svg
   - pom.xml
   - .github/workflows/desktop.yml
   - joi-server/src/main/java/com/github/enerccio/joi/api/ApiConfiguration.java
@@ -89,6 +92,15 @@ the output goes to `desktop/logs/node.log`. Quit destroys the node it started.
   token; `clientId` is an extended attribute, so no schema change), and `authenticate` accepts `joil_` tokens regardless of the administrator's switches for tokens and OAuth
   (they are of the computer's socket, not of the network). Access shows them as *This computer*.
 - The data folder is the trust boundary: the socket sits in a `0700` folder, and whoever can open it can read the database anyway.
+
+## The icon, and upgrading the Mac's app
+
+The icon is drawn once as an SVG, `joi-server/src/main/webapp/icons/joi.svg` (a round tile, a ring, a "J"). The web page's favicon is that file
+(`JoiAppShell` adds it with `addFavIcon`). `tools/MakeIcons.java` draws the same shapes with Java2D into `joi-desktop/src/main/icons` (`joi.png`, `joi.ico`, `joi.icns`, which
+jpackage and the tray icon use): after a change of the SVG, change the shapes there too and run `java tools/MakeIcons.java joi-desktop/src/main/icons`.
+
+`tools/upgrade_mac_client.sh` builds the app with `-Pfx,production,desktop` (no installer), stops a Joi that runs from `~/Applications/Joi.app`, replaces it and starts it; the data
+folder is not touched. The scheduled task `upgrade-joi-mac-client` of the developer's Claude runs it on demand.
 
 ## Tests and what is not tested
 

@@ -1,11 +1,11 @@
 import java.awt.BasicStroke;
 import java.awt.Color;
-import java.awt.Font;
-import java.awt.FontMetrics;
 import java.awt.GradientPaint;
 import java.awt.Graphics2D;
 import java.awt.RenderingHints;
+import java.awt.geom.Arc2D;
 import java.awt.geom.Ellipse2D;
+import java.awt.geom.Path2D;
 import java.awt.geom.RoundRectangle2D;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayOutputStream;
@@ -20,9 +20,9 @@ import javax.imageio.ImageIO;
 
 /**
  * Draws the icon of the desktop app and writes it in the three formats jpackage wants: joi.png (Linux, and the tray icon the
- * launcher reads from its JAR), joi.ico (Windows) and joi.icns (macOS). The icon is a placeholder: a round tile with a "J".
- * Replace the three files in joi-desktop/src/main/icons with a drawn one whenever there is one; this tool is only here so they can
- * be made again.
+ * launcher reads from its JAR), joi.ico (Windows) and joi.icns (macOS). The icon is a placeholder: a round tile with a ring and a "J", the
+ * same drawing as the SVG that is the web page's favicon (joi-server/.../webapp/icons/joi.svg, the master). Run this
+ * again after a change of the SVG, with the same shapes written here.
  *
  * <pre>java tools/MakeIcons.java joi-desktop/src/main/icons</pre>
  */
@@ -53,20 +53,23 @@ public final class MakeIcons {
         g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
         g.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
         g.setRenderingHint(RenderingHints.KEY_STROKE_CONTROL, RenderingHints.VALUE_STROKE_PURE);
-        double pad = size * 0.06;
-        double side = size - 2 * pad;
-        g.setPaint(new GradientPaint(0, 0, new Color(0x5b, 0x4b, 0xd6), 0, size, new Color(0x1f, 0x9d, 0xc7)));
-        g.fill(new RoundRectangle2D.Double(pad, pad, side, side, side * 0.28, side * 0.28));
+        // the shapes of joi-server/src/main/webapp/icons/joi.svg, the master: change both together
+        double k = size / 1024.0;
+        g.scale(k, k);
+        g.setPaint(new GradientPaint(0, 0, new Color(0x5b, 0x4b, 0xd6), 0, 1024, new Color(0x1f, 0x9d, 0xc7)));
+        g.fill(new RoundRectangle2D.Double(61, 61, 902, 902, 504, 504));
         // a soft ring behind the letter, as the glow of a hologram
-        g.setColor(new Color(255, 255, 255, 70));
-        g.setStroke(new BasicStroke((float) (size * 0.035)));
-        double ring = side * 0.66;
-        g.draw(new Ellipse2D.Double((size - ring) / 2, (size - ring) / 2, ring, ring));
+        g.setColor(new Color(255, 255, 255, 69));
+        g.setStroke(new BasicStroke(36f));
+        g.draw(new Ellipse2D.Double(512 - 297, 512 - 297, 594, 594));
+        // the "J": a stem and a half circle, one round stroke
         g.setColor(Color.WHITE);
-        g.setFont(new Font(Font.SANS_SERIF, Font.BOLD, (int) (size * 0.58)));
-        FontMetrics metrics = g.getFontMetrics();
-        String letter = "J";
-        g.drawString(letter, (size - metrics.stringWidth(letter)) / 2f, (size - metrics.getHeight()) / 2f + metrics.getAscent());
+        g.setStroke(new BasicStroke(110f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
+        Path2D j = new Path2D.Double();
+        j.moveTo(640, 280);
+        j.lineTo(640, 610);
+        j.append(new Arc2D.Double(380, 480, 260, 260, 0, -180, Arc2D.OPEN), true);
+        g.draw(j);
         g.dispose();
         return image;
     }

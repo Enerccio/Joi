@@ -86,7 +86,8 @@ with the code.
   web UI on a loopback port with its login, the API on a Unix socket in the data folder where the node of this machine needs no key
   (`POST /oauth/local`, `joi.api.local-socket`), a tray icon that starts the node, one node per home by the lock `node.lock`), and the POM that
   makes the portable folder, the jpackage app with two launchers (`Joi`, `JoiNode`) and the installers (`src/main/installer.xml`); the icons are
-  drawn by `tools/MakeIcons.java`. The node side of the socket is `joi-node/.../node/local` (`UnixHttp`, `UnixWebSocket`), `LocalMode`, `NodeInstance`.
+  drawn by `tools/MakeIcons.java` from the same shapes as the SVG `joi-server/.../webapp/icons/joi.svg` (the master, also the page's favicon);
+  `tools/upgrade_mac_client.sh` builds and installs the app as `~/Applications/Joi.app` (the scheduled task `upgrade-joi-mac-client` runs it). The node side of the socket is `joi-node/.../node/local` (`UnixHttp`, `UnixWebSocket`), `LocalMode`, `NodeInstance`.
   See `manual/developer/desktop.md`. Only macOS arm64 is tried locally; the other platforms are built by `desktop.yml`.
 - `.github/workflows/` (`test.yml`, `server.yml`: the WAR, the extension JARs and the multi-arch image on ghcr.io; `desktop.yml`: the desktop app per platform; `manual.yml`), `dependabot.yml`, `tools/version_from_tag.sh` (a `v*` tag is the version of Joi's POMs, not the platform's); see `manual/developer/building.md`.
 - `Dockerfile`, `docker-compose.yml`, `docker-entrypoint.sh` — the server's image (the platform, the protocol and the server built into the WAR,

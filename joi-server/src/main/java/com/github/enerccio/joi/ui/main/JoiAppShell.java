@@ -26,5 +26,7 @@ public class JoiAppShell implements AppShellConfigurator {
     @Override
     public void configurePage(AppShellSettings settings) {
         settings.setPageTitle("Joi");
+        // the icon of the tab: webapp/icons/joi.svg, the master of the desktop app's icons too
+        settings.addFavIcon("icon", "icons/joi.svg", "any");
     }
 }
