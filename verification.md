@@ -126,3 +126,5 @@ Optional. A commit that has no row here is simply not recorded.
 | `6cd1275` | `claude-opus-5-5` |
 | `b338033` | `claude-opus-5-5` |
 | `9ff36e8` | `claude-opus-5-5` |
+| `84e38b9` | `claude-opus-5-5` |
+| `7df1caf` | `claude-opus-5-5` |
