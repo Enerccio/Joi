@@ -188,7 +188,7 @@ one; the server treats every node the same.
     same moment, the utterance is sent as one `say` with `withEvents` after the `part` frames: nobody is asked, since
     speaking and clicking are meant as one message.
     **Her own changes (built).** Every turn of hers, on a node or not, is offered the function `change_body_part` (`part`,
-    `state`; `domain/chat/BodyTools`) when her body has parts described apart: she takes off or puts on a part herself
+    `state`; `domain/chat/BodyTools`), even when her body has no parts described apart (then it fails and says so): she takes off or puts on a part herself
     when she decides to or agrees to what the user asks. The part is one her prompt lists under "Parts you can
     switch", by the name she knows; the state is its name for a group, `shown` or `hidden` for a toggle (case does not
     matter); a wrong name is answered with what is valid. It is her choice, so no consent is asked (that is for the
@@ -212,7 +212,7 @@ one; the server treats every node the same.
     prompt (blank keeps the built-in one, which is blank), and a clone keeps it. With a text, a `part` is a **request**:
     the body stays as it is, the server tells her (`PART_REQUEST_EVENT`, a template: the requests with a number each,
     what else happened, `{{consent}}`) and she answers each with the tool `decide_part_change` (the request's number,
-    `allow` or `refuse` with a reason she says); the tool is only offered in the turn that told her. On allow the
+    `allow` or `refuse` with a reason she says); the tool is offered in every turn (see *A prompt the model's cache keeps*) and answers that there is no such request when none is open. On allow the
     server stores it and answers `part_kept` (`told` false); on refuse `part_refused` (her reason), and the node shows
     the control as it was. A request she leaves unanswered, a turn that fails, and the case where she has not chatted or
     has no chat model are all **allowed**: the body is the user's, and a failed call is no refusal. A request that
@@ -550,6 +550,15 @@ run by `ChatServiceImpl`). Marginalia's agent runner is not used.
     `SummarizerService.prompt`) and the history is the latest `ChatService.HISTORY` messages **no summary covers**
     (`findLatestExchangesSince`). A summary comes in steps: after a pause, or when the unsummarized messages pass the limit
     and then only the oldest half of them, never one a turn, so the prefix the cache keeps moves rarely.
+  - **The tools are the same every turn (built).** A model renders the functions into the prompt before the history, so a
+    function that comes and goes (the part-request answer while a request is open, the outfit and body tools with a
+    second body, the animation of a body, a file in her workspace, a node that connects) made the cache start over:
+    nine thousand tokens done again for a simple message. The functions of Joi itself (`decide_part_change`,
+    `change_body_part`, `play_animation`, `set_mood`, the outfit and body functions, `list_workspace_files`,
+    `offer_file_to_clipboard`) are always offered; with nothing to work on they fail and say so, and a schema takes an
+    `enum` of names only when there is a name. What stays conditional is what the user or the nodes decide: a tool
+    the permission chain denies, a search with no source, and the tools in a node's manifest (changing those still
+    moves the cache once).
 - **Warming the cache (designed, not built).** With the prompt stable, a request that generates nothing and only
   reads the prompt (llama.cpp `n_predict: 0`, with the prompt cache on) can be sent right after something changes the
   stable part (a memory approved or edited, a summary written, a mood, a personality or a body changed), so the next
@@ -1338,7 +1347,7 @@ UI — nothing is deleted):
     a whole** (`AppearanceService.describeOutfit`, the *Outfit prompt* template: the renders, the meshes shown, the
     model's description so as not to repeat it, the user's notes, the description it has). It fills the description
     field; the user reviews and saves it. The description may also be written by hand.
-  - **Her tools** (offered whenever there is something to choose, like `change_body_part`; her choice, no consent, the
+  - **Her tools** (offered in every turn, even when there is nothing to choose, like `change_body_part`; her choice, no consent, the
     nodes read her body again, the answer says how she looks now and no event follows): `list_outfits` (each outfit with
     its description and the one she wears), `set_outfit`, `list_bodies` (each body with its description, outfits and the
     one she is in) and `switch_body`. A **body's description** is the user's (the body dialog), else its model's. Her
@@ -1445,8 +1454,7 @@ UI — nothing is deleted):
     **Next:** more face targets (ARKit shapes), looking at the user rather than the camera.
   - **Both ways:** Joi plays them with a tool (`play_animation`, listing what fits the active body and shot), e.g. waves
     hello, shrugs, dances when asked; you trigger them from the UI or a Stream Deck key and she is told.
-    **Built (her side):** `play_animation` (`domain/chat/AnimationTools`) is offered to every turn when her active body
-    plays animations: the animation by its name, the function lists the names with their descriptions, so she picks by
+    **Built (her side):** `play_animation` (`domain/chat/AnimationTools`) is offered to every turn (with no animation it fails and says so): the animation by its name, the function lists the names with their descriptions, so she picks by
     what they show. Her master template asks her to use it **often**, in most replies, before or while she speaks, and
     not to repeat the last one, and not to announce it. It sends an `animation` frame (`PlayAnimation`, protocol 1.5) to
     her nodes at once and answers her that it played (or that no node shows her). A node plays it **once on top of her
@@ -1847,9 +1855,11 @@ When a model with vision is available, the node can give Joi images of what you 
 - **Joi and Marginalia on one GPU:** each keeps its locks in its own database, so neither knows what the other left
   loaded. A lock's **steps before every job** check it each time, without marking the whole GPU as used outside:
   on a shared `llama-server` router, the voice lock runs `tools/gpu-control`'s `POST /llama/unload` with
-  `{"keep": ["{{model | strip:openai/}}"]}` before every job. It unloads the other program's big model and does
-  nothing when only Joi's model is loaded, so a model in use is never unloaded for nothing. A TTS model's lock gets
-  its model as `{{model}}` too (an AI gets its model id from the platform), so one step serves every model. For
+  `{"keep": ["{{last_text_model | strip:openai/}}"]}` before every job. It unloads the other program's big model and does
+  nothing when only Joi's model is loaded, so a model in use is never unloaded for nothing. `{{model}}` would not do: for
+  a speech job it is the TTS model, which no router model matches, so the language model was unloaded after every reply.
+  `{{last_text_model}}` is the platform's: the model of the lock's last text generation, set when a text job is taken (empty
+  before the first one, so a speech job that runs first unloads every other model), the same for jobs of both kinds. For
   ComfyUI, `POST /comfy/ensure` as a step before every job starts or restarts it when it does not answer.
 - **Measured (2026-11-19, AMD R9700, ROCm 7.2, Gemma 4 12B without thinking for the text):** 15 streamed chats per
   setup through the API, medians, times from sending the message.

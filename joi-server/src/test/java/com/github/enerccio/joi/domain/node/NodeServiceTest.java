@@ -336,14 +336,15 @@ class NodeServiceTest extends PlatformTestBase {
         node.frame("tool_result", null, "{\"callId\": \"" + data.get("callId").getAsString() + "\", \"ok\": true, \"content\": \"Copied to the user's clipboard (6 characters).\"}");
         node.next("done");
 
-        // she had the node's tool from its manifest; the workspace functions were not offered, there is no file
+        // she had the node's tool from its manifest; the workspace functions are offered anyway, there is no file (a tool that comes and
+        // goes moves the cache of the prompt)
         String first = llm.getCompletionRequests().getFirst().getRawBody();
-        assertThat(first).contains("desk__offer_to_clipboard").doesNotContain("offer_file_to_clipboard").doesNotContain("list_workspace_files");
+        assertThat(first).contains("desk__offer_to_clipboard").contains("offer_file_to_clipboard").contains("list_workspace_files");
         assertThat(llm.getCompletionRequests().get(1).getLastMessage().content()).startsWith("Copied to the user's clipboard");
     }
 
     @Test
-    void theOfferIsNotMadeWhenNoNodeHasTheToolAndAFileThatIsNotThereIsSaidSo() throws Exception {
+    void theOfferIsOfferedAlwaysAndSaysSoWhenNoNodeHasTheToolAndAFileThatIsNotThereIsSaid() throws Exception {
         workspace.write(joi, "hello.sh", "echo hi");
         Node node = connect("Bearer " + token);
         node.hello("n1", "desk", joi.getUuid(), "1.2");
@@ -353,7 +354,7 @@ class NodeServiceTest extends PlatformTestBase {
         llm.enqueue(MockLLMResponse.text("I cannot offer it."));
         node.frame("say", "t1", "{\"text\": \"Put the script on my clipboard\", \"speak\": false}");
         node.next("done");
-        assertThat(llm.getCompletionRequests().getFirst().getRawBody()).contains("list_workspace_files").doesNotContain("offer_file_to_clipboard");
+        assertThat(llm.getCompletionRequests().getFirst().getRawBody()).contains("list_workspace_files").contains("offer_file_to_clipboard");
 
         // the user allows it on the node: a new manifest, and a turn later she has it; a file that is not there is answered with the list
         node.manifestWithClipboard(2);
@@ -943,6 +944,32 @@ class NodeServiceTest extends PlatformTestBase {
         node.frame("say", "t1", "{\"text\": \"Hi\", \"speak\": false}");
         node.next("done");
         return node;
+    }
+
+    /** The names of the functions a request offered, in order. */
+    private static List<String> toolNames(String rawBody) {
+        List<String> names = new ArrayList<>();
+        var tools = com.google.gson.JsonParser.parseString(rawBody).getAsJsonObject().getAsJsonArray("tools");
+        if (tools != null) {
+            tools.forEach(tool -> names.add(tool.getAsJsonObject().getAsJsonObject("function").get("name").getAsString()));
+        }
+        return names;
+    }
+
+    @Test
+    void theToolsAreTheSameWhetherARequestIsOpenOrNot() throws Exception {
+        // the model renders the tools before the history: a tool that comes and goes makes the server's cache of the prompt start over
+        stubbornJoi();
+        llm.enqueue(MockLLMResponse.text("Hello."), MockLLMResponse.text("Hmm."));
+        Node node = chattedNode();
+        node.frame("part", "p1", "{\"part\": \"key:Headgear/Hide Halo\", \"state\": \"hidden\"}");
+        node.next("turn");
+        node.next("done");
+
+        List<String> without = toolNames(llm.getCompletionRequests().get(0).getRawBody());
+        List<String> with = toolNames(llm.getCompletionRequests().get(1).getRawBody());
+        assertThat(without).contains("decide_part_change", "play_animation", "set_mood", "set_outfit", "switch_body", "list_workspace_files");
+        assertThat(with).isEqualTo(without);
     }
 
     @Test

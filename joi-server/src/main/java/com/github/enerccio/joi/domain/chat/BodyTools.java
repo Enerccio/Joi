@@ -58,23 +58,16 @@ public class BodyTools implements InitializingBean, DisposableBean {
                 Joi joi = event.getJoi();
                 Body body = bodyService.active(joi);
                 List<BodyService.PartOption> options = body == null ? List.of() : bodyService.partOptions(body);
-                List<FunctionDefinition> functions = new ArrayList<>();
-                if (!options.isEmpty()) {
-                    functions.add(changeBodyPart(joi, options));
-                }
+                // always offered, with or without parts, outfits or a second body: the model renders the tools before the history, so a
+                // list that comes and goes makes the server's cache of the prompt start over (the functions say so when there is nothing)
                 List<Body> bodies = bodyService.findForJoi(joi);
-                // she may move into another body in this very turn: the outfits of any of her bodies make these useful
-                if (bodies.stream().anyMatch(candidate -> !candidate.outfitList().isEmpty())) {
-                    functions.add(listOutfits(joi));
-                    functions.add(setOutfit(joi));
-                }
-                if (bodies.size() > 1) {
-                    functions.add(listBodies(joi));
-                    functions.add(switchBody(joi, bodies));
-                }
-                if (!functions.isEmpty()) {
-                    event.setFunctions(event.getFunctions().and(FunctionSet.bind(functions, this)));
-                }
+                List<FunctionDefinition> functions = new ArrayList<>();
+                functions.add(changeBodyPart(joi, options));
+                functions.add(listOutfits(joi));
+                functions.add(setOutfit(joi));
+                functions.add(listBodies(joi));
+                functions.add(switchBody(joi, bodies));
+                event.setFunctions(event.getFunctions().and(FunctionSet.bind(functions, this)));
             } catch (Exception e) {
                 // no function this turn: she can still talk
                 log.warn("The functions of her body could not be offered: {}", e.getMessage(), e);
@@ -94,8 +87,10 @@ public class BodyTools implements InitializingBean, DisposableBean {
         ObjectNode schema = jackson.createObjectNode();
         schema.put("type", "object");
         ObjectNode properties = schema.putObject("properties");
-        var names = properties.putObject("part").put("type", "string")
-                .put("description", "The part of your body, as in the parts you can switch.").putArray("enum");
+        var partProperty = properties.putObject("part").put("type", "string")
+                .put("description", "The part of your body, as in the parts you can switch.");
+        // an empty enum is not a valid schema: with no part the value is any string, and the call fails
+        var names = options.isEmpty() ? null : partProperty.putArray("enum");
         Map<String, List<String>> states = new LinkedHashMap<>();
         for (BodyService.PartOption option : options) {
             if (!states.containsKey(option.part())) {
@@ -221,10 +216,12 @@ public class BodyTools implements InitializingBean, DisposableBean {
         ObjectNode schema = jackson.createObjectNode();
         schema.put("type", "object");
         ObjectNode properties = schema.putObject("properties");
-        var names = properties.putObject("body").put("type", "string").put("description", "The body to move into, as in your bodies.")
-                .putArray("enum");
+        var bodyProperty = properties.putObject("body").put("type", "string").put("description", "The body to move into, as in your bodies.");
         // two bodies of one name are one value: a schema's enum lists each once (the first of them is the one moved into)
-        bodies.stream().map(other -> StringUtils.defaultIfBlank(other.getName(), "unnamed")).distinct().forEach(names::add);
+        if (!bodies.isEmpty()) {
+            var names = bodyProperty.putArray("enum");
+            bodies.stream().map(other -> StringUtils.defaultIfBlank(other.getName(), "unnamed")).distinct().forEach(names::add);
+        }
         schema.putArray("required").add("body");
         return FunctionDefinition.dynamic(SWITCH_BODY, "Moves you into another of your bodies, the way you choose: use it when you feel "
                 + "like it, and when the user asks and you agree. The change is made at once and the user sees it; you keep what you "

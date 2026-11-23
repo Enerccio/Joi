@@ -48,9 +48,8 @@ public class MoodTools implements InitializingBean, DisposableBean {
             try {
                 Joi joi = event.getJoi();
                 List<Mood> moods = personaService.moods();
-                if (!moods.isEmpty()) {
-                    event.setFunctions(event.getFunctions().and(FunctionSet.bind(List.of(setMood(joi, moods)), this)));
-                }
+                // always offered (see AnimationTools): the tools come before the history in the prompt
+                event.setFunctions(event.getFunctions().and(FunctionSet.bind(List.of(setMood(joi, moods)), this)));
             } catch (Exception e) {
                 // no function this turn: she can still talk
                 log.warn("Her moods could not be offered: {}", e.getMessage(), e);
@@ -73,9 +72,11 @@ public class MoodTools implements InitializingBean, DisposableBean {
         }
         ObjectNode schema = jackson.createObjectNode();
         schema.put("type", "object");
-        var names = schema.putObject("properties").putObject("mood").put("type", "string")
-                .put("description", "The mood to be in now.").putArray("enum");
-        byName.keySet().forEach(names::add);
+        var property = schema.putObject("properties").putObject("mood").put("type", "string")
+                .put("description", "The mood to be in now.");
+        if (!byName.isEmpty()) {
+            byName.keySet().forEach(property.putArray("enum")::add);
+        }
         schema.putArray("required").add("mood");
         return FunctionDefinition.dynamic(SET_MOOD, "Changes your mood now. Your mood is how you are today: it shapes how you talk "
                 + "and it shows on your face. It was rolled for the day, and it stays until you change it or the next day. Change it "

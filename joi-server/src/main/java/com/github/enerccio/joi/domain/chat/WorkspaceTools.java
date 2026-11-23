@@ -21,7 +21,6 @@ import org.springframework.beans.factory.DisposableBean;
 import org.springframework.beans.factory.InitializingBean;
 import org.springframework.beans.factory.annotation.Autowired;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -58,15 +57,9 @@ public class WorkspaceTools implements InitializingBean, DisposableBean {
         registration = chatService.addEventListener(TurnEvents.COLLECT_TOOLS, (event, chain) -> {
             try {
                 Joi joi = event.getJoi();
-                List<Entry> files = workspace.list(joi);
-                if (!files.isEmpty()) {
-                    List<FunctionDefinition> offered = new ArrayList<>();
-                    offered.add(list(joi));
-                    if (!nodeService.sessionsWithTool(joi, NODE_TOOL).isEmpty()) {
-                        offered.add(offer(joi));
-                    }
-                    event.setFunctions(event.getFunctions().and(FunctionSet.bind(offered, this)));
-                }
+                // both always offered, whatever the workspace holds and whichever node is connected: the model renders the tools before
+                // the history, so a list that comes and goes makes the server's cache of the prompt start over (they say so when it fails)
+                event.setFunctions(event.getFunctions().and(FunctionSet.bind(List.of(list(joi), offer(joi)), this)));
             } catch (Exception e) {
                 // no function this turn: she can still talk
                 log.warn("The functions of the workspace could not be offered: {}", e.getMessage(), e);

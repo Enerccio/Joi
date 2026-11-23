@@ -89,6 +89,6 @@ task, and the rounds of the loop grow by that), and `WebTaskServiceImpl` adds th
 `web_search` and `fetch_page` say in their descriptions that a file is asked for in the question.
 
 `WorkspaceTools` is hers: `list_workspace_files`, and `offer_file_to_clipboard(file, node?)`, which reads the file and calls the node's `offer_to_clipboard`
-(`NodeService.callTool`) with the text, so the text does not pass through her turn. Each is offered only when there is something to offer it for: any file for
-the list, and a connected node that has `offer_to_clipboard` for the offer. Neither is a `ServerTool`: they touch only her own files, so the chain has nothing to
+(`NodeService.callTool`) with the text, so the text does not pass through her turn. Both are offered in every turn (a tool that comes and goes moves the server's cache of the prompt, see `chat-turn.md`); with no file, or no connected node that has
+`offer_to_clipboard`, they fail and say so. Neither is a `ServerTool`: they touch only her own files, so the chain has nothing to
 decide; the user's decision is on the node. `ToolEffects` lists the list as read-only; the offer changes the user's machine, so a turn that did it is finished.

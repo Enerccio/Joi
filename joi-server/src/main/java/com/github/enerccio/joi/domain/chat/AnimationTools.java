@@ -54,9 +54,9 @@ public class AnimationTools implements InitializingBean, DisposableBean {
                 Joi joi = event.getJoi();
                 Body body = bodyService.active(joi);
                 List<AnimationPack> animations = body == null ? List.of() : bodyService.animations(body);
-                if (!animations.isEmpty()) {
-                    event.setFunctions(event.getFunctions().and(FunctionSet.bind(List.of(playAnimation(joi, animations)), this)));
-                }
+                // always offered, even with no animation: the model renders the tools before the history, so a list that comes and goes
+                // makes the server's cache of the prompt start over (the function says so when she has none)
+                event.setFunctions(event.getFunctions().and(FunctionSet.bind(List.of(playAnimation(joi, animations)), this)));
             } catch (Exception e) {
                 // no function this turn: she can still talk
                 log.warn("The animations of her body could not be offered: {}", e.getMessage(), e);
@@ -79,8 +79,10 @@ public class AnimationTools implements InitializingBean, DisposableBean {
         }
         ObjectNode schema = jackson.createObjectNode();
         schema.put("type", "object");
-        var names = schema.putObject("properties").putObject("animation").put("type", "string")
-                .put("description", "The animation to play.").putArray("enum");
+        var property = schema.putObject("properties").putObject("animation").put("type", "string")
+                .put("description", "The animation to play.");
+        // an empty enum is not a valid schema: with no animation the value is any string, and the call fails
+        var names = byName.isEmpty() ? null : property.putArray("enum");
         StringBuilder list = new StringBuilder();
         byName.forEach((name, pack) -> {
             names.add(name);
@@ -97,7 +99,8 @@ public class AnimationTools implements InitializingBean, DisposableBean {
             Object value = arguments == null ? null : arguments.get("animation");
             AnimationPack pack = value instanceof String name ? byName.get(name) : null;
             if (pack == null) {
-                continuation.fail("You have no such animation. Your animations: " + String.join(", ", byName.keySet()));
+                continuation.fail(byName.isEmpty() ? "You have no animations now."
+                        : "You have no such animation. Your animations: " + String.join(", ", byName.keySet()));
                 return;
             }
             try {

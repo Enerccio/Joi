@@ -165,12 +165,9 @@ public class NodeServiceImpl implements NodeService, InitializingBean, Disposabl
                     }
                 }
             }
-            for (NodeSession session : sessions(event.getJoi().getId())) {
-                if (session.hasOpenRequests()) {
-                    functions.add(decidePartChange(session));
-                    break;
-                }
-            }
+            // always offered, with a request open or not (and with a node or not): the model renders the tools before the history, so a
+            // tool that comes and goes makes the server's cache of the prompt start over; with no request open it answers so
+            functions.add(decidePartChange(event.getJoi().getId()));
             if (!functions.isEmpty()) {
                 event.setFunctions(event.getFunctions().and(FunctionSet.bind(functions, this)));
             }
@@ -867,8 +864,8 @@ public class NodeServiceImpl implements NodeService, InitializingBean, Disposabl
         }
     }
 
-    /** The tool she decides on the requests she was told with. */
-    private FunctionDefinition decidePartChange(NodeSession session) {
+    /** The tool she decides on the requests she was told with: the requests are looked for when she calls it. */
+    private FunctionDefinition decidePartChange(Long joiId) {
         ObjectNode schema = jackson.createObjectNode();
         schema.put("type", "object");
         ObjectNode properties = schema.putObject("properties");
@@ -886,7 +883,8 @@ public class NodeServiceImpl implements NodeService, InitializingBean, Disposabl
                 continuation.fail("Give the number of the request and allow or refuse");
                 return;
             }
-            NodeSession.PartRequest request = session.take(json.get("request").getAsInt());
+            NodeSession session = sessions(joiId).stream().filter(NodeSession::hasOpenRequests).findFirst().orElse(null);
+            NodeSession.PartRequest request = session == null ? null : session.take(json.get("request").getAsInt());
             if (request == null) {
                 continuation.fail("There is no such request, or it was answered already");
                 return;

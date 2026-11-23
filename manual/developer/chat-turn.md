@@ -67,6 +67,12 @@ Who hooks in: her memories in the prompt, the server tools (`remember`, `recall`
 `set_outfit`, `list_bodies`, `switch_body`, `web_search`, `fetch_page`, `list_workspace_files`, `offer_file_to_clipboard`) and the nodes' tools and approvals (`NodeService` registers a
 `COLLECT_TOOLS` listener).
 
+**The tools are the same every turn.** The model renders the functions into the prompt before the history, so a function that comes and goes makes the server's cache of the prompt start over (a part
+request that opens, a body with no outfit, a file in the workspace, a node that connects). Joi's own functions (`decide_part_change`, `change_body_part`, `play_animation`, `set_mood`, the outfit and
+body functions, `list_workspace_files`, `offer_file_to_clipboard`) are therefore offered in every turn and fail with a message when there is nothing to work on; a schema carries an `enum` of names only
+when it has a name (an empty `enum` is no schema). What the user or a node decides stays conditional: a denied server tool, a search with no source, the tools of a node's manifest.
+`NodeServiceTest.theToolsAreTheSameWhetherARequestIsOpenOrNot` has the case.
+
 ## Her mood
 
 A mood changes in one place, `ChatService.changeMood(joi, key, byUser)`: it saves the mood (`JoiService.saveMood`), writes a note (`log`, never given to the model), tells

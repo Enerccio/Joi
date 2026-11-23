@@ -358,7 +358,15 @@ class ChatTurnTest extends PlatformTestBase {
             continuation.complete("done");
         });
         registrations.add(chatService.addEventListener(TurnEvents.COLLECT_TOOLS, (event, chain) -> {
-            event.setFunctions(event.getFunctions().and(FunctionSet.bind(List.of(gesture), this)));
+            if (event.getFunctions().contains(name)) {
+                // Joi's own function of that name (play_animation is always offered) gives way to the stand-in
+                List<FunctionDefinition> others = new ArrayList<>(event.getFunctions().getDefinitions().stream()
+                        .filter(definition -> !definition.getName().equals(name)).toList());
+                others.add(gesture);
+                event.setFunctions(FunctionSet.bind(others, this));
+            } else {
+                event.setFunctions(event.getFunctions().and(FunctionSet.bind(List.of(gesture), this)));
+            }
             chain.next();
         }));
     }
