@@ -471,7 +471,7 @@ CREATE TABLE chat_messages
     extendedContent blob,
     _fulltext       clob,
     userId          bigint,
-    joi_id          bigint      not null REFERENCES assistants (id),
+    joi_id          bigint               REFERENCES assistants (id),
     type            varchar(16) not null,
     sentAt          timestamp   not null,
     pinned          boolean     not null default 0,
@@ -504,7 +504,7 @@ CREATE TABLE summaries
     extendedContent blob,
     _fulltext       clob,
     userId          bigint,
-    joi_id          bigint      not null REFERENCES assistants (id),
+    joi_id          bigint               REFERENCES assistants (id),
     summaryType     varchar(16) not null,
     coverFrom       timestamp   not null,
     coverTo         timestamp   not null,
@@ -522,7 +522,7 @@ CREATE TABLE joi_tasks
     extendedContent blob,
     _fulltext       clob,
     userId          bigint,
-    joi_id            bigint      not null REFERENCES assistants (id),
+    joi_id            bigint               REFERENCES assistants (id),
     origin_message_id bigint      REFERENCES chat_messages (id),
     result_message_id bigint      REFERENCES chat_messages (id),
     status            varchar(16) not null
@@ -539,7 +539,7 @@ CREATE TABLE joi_task_messages
     extendedContent blob,
     _fulltext       clob,
     userId          bigint,
-    task_id         bigint      not null REFERENCES joi_tasks (id),
+    task_id         bigint               REFERENCES joi_tasks (id),
     ordinal         integer     not null,
     role            varchar(16) not null
 );
@@ -555,7 +555,7 @@ CREATE TABLE memories
     extendedContent blob,
     _fulltext       clob,
     userId          bigint,
-    joi_id            bigint      not null REFERENCES assistants (id),
+    joi_id            bigint               REFERENCES assistants (id),
     importance        varchar(16) not null,
     privateMode       boolean     not null default 0,
     source_message_id bigint      REFERENCES chat_messages (id)
@@ -589,7 +589,7 @@ CREATE TABLE queued_events
     extendedContent blob,
     _fulltext       clob,
     userId          bigint,
-    joi_id               bigint      not null REFERENCES assistants (id),
+    joi_id               bigint               REFERENCES assistants (id),
     kind                 varchar(64) not null,
     occurredAt           timestamp   not null,
     delivered_message_id bigint      REFERENCES chat_messages (id),
@@ -641,7 +641,7 @@ CREATE TABLE bodies
     extendedContent blob,
     _fulltext       clob,
     userId          bigint,
-    joi_id          bigint      not null REFERENCES assistants (id),
+    joi_id          bigint               REFERENCES assistants (id),
     model_id        bigint      REFERENCES models (id),
     lkg_model_id    bigint      REFERENCES models (id),
     active          boolean     not null default 0

@@ -129,6 +129,14 @@ version. A development database built from an older V1 fails Flyway's checksum: 
 `python3 tools/upgrade_dev_db.py` (server stopped; it backs the database up, rebuilds it from the current V1, copies the data by shared
 columns and sets the checksum; `--dry-run` only reports).
 
+A column that refers to another entity (an owner such as `joi_id`, too) stays nullable in SQL, even when the entity says
+`nullable = false`: the administrator's cleanup sets the references of the purged rows to null before it removes them, and a `NOT NULL`
+there fails the purge (`JoiCleanupTest`).
+
+Classes that `FunctionCompiler` turns into her functions need their parameter names, so they are compiled with `-parameters`. Maven does
+that; an IDE build of the platform must too (IntelliJ's ajc: *Command line parameters* `-parameters -g`), or the functions of her workspace
+fail to compile and she is offered none (`WorkspaceTools` logs "The functions of the workspace could not be offered").
+
 ## The iOS app
 
 `mvn -Pswift,ios verify -pl joi-ios -am` builds the app for the Simulator (Xcode and XcodeGen, macOS only; the profile `ios` adds the module, `swift` writes the

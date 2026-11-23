@@ -1444,6 +1444,19 @@ class NodeServiceTest extends PlatformTestBase {
     }
 
     @Test
+    void herTurnOnANodeOffersTheFunctionsOfHerWorkspace() throws Exception {
+        llm.enqueue(MockLLMResponse.text("Sure."));
+        Node node = connect("Bearer " + token);
+        node.hello("n1", "desk", joi.getUuid(), "1.11");
+        node.next("welcome");
+        node.manifest(1);
+        node.frame("say", "t1", "{\"text\": \"Save it\", \"speak\": false}");
+        node.next("done");
+        assertThat(llm.getCompletionRequests().getFirst().getRawBody()).contains("write_file").contains("list_files")
+                .contains("save_chat_image").contains("offer_file_to_clipboard");
+    }
+
+    @Test
     void aMomentIsSaidAsTheDayAndTheTimeWithTheDateWhenItIsLongAgo() {
         java.time.ZoneId zone = java.time.ZoneId.of("Europe/Bratislava");
         Instant now = java.time.ZonedDateTime.of(2026, 11, 23, 10, 55, 0, 0, zone).toInstant();
