@@ -185,6 +185,20 @@ docker compose up -d --build
 
 The database is upgraded automatically when the new version starts. Make a [backup](#backups) first.
 
+### Automatic updates
+
+`rebuild.sh` (Linux, macOS) and `rebuild.bat` (Windows) in the repository root do the update for you; run them by hand or from a
+cron job or a scheduled task. They fetch the remote of the branch the checkout is on and do nothing when there is nothing new
+(`--force` rebuilds and restarts anyway, for example after changing `docker-compose.yml`). Otherwise they `git pull`, update the
+Marginalia submodule, build the [extensions](#extensions) and the image **while Joi keeps running**, then stop the container, copy the
+extension JARs into `data/extensions` (replacing the installed ones) and start the new version. If a step fails, the script stops with
+a message; when it is the pull or a build, the old version is still running, and the next run builds again.
+
+`--stop-first` stops the container before the build, for a server that does not have the memory for the application and the build
+together; Joi is then down for the whole build.
+
+Make a [backup](#backups) first when the update changes the database.
+
 ## Health
 
 The image has a Docker health check: `docker ps` shows `(health: starting)` while the server starts (up to two minutes), then
@@ -206,7 +220,7 @@ docker compose restart joi
 ```
 
 Or load a JAR in Administration → Extensions, which needs no restart. Build them from the same checkout as the server: an extension is built for
-one version.
+one version. `rebuild.sh` does the copying for you, so on a server that uses it the extensions are always updated together with the server.
 
 ## Logs
 

@@ -34,3 +34,6 @@ hs_err_pid*.log
 /docs/
 /build/i18n/
 retype.manifest
+
+# the commit the running container was built from (rebuild.sh, rebuild.bat)
+/.rebuild-deployed
