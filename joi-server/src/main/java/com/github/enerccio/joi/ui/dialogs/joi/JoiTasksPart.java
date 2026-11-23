@@ -20,6 +20,8 @@ import com.github.enerccio.marginalia.CssStyles;
 import com.github.enerccio.marginalia.UIConstants;
 import com.github.enerccio.marginalia.loc.L;
 import com.github.enerccio.marginalia.loc.Localization;
+import com.github.enerccio.marginalia.ui.components.ThreadCopyRequestAttributes;
+import com.github.enerccio.marginalia.ui.components.ThreadCopyRequestAttributes.InRequestScope;
 import com.github.enerccio.marginalia.ui.dialogs.ConfirmDialog;
 import com.github.enerccio.marginalia.ui.widgets.DialogFocus;
 import com.github.enerccio.marginalia.utils.UIUtils;
@@ -46,6 +48,7 @@ import com.vaadin.flow.component.textfield.TextField;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Configurable;
+import org.springframework.web.context.request.RequestAttributes;
 
 import java.text.DateFormat;
 import java.util.ArrayList;
@@ -149,8 +152,10 @@ public class JoiTasksPart implements JoiDialogPart {
             return;
         }
         try {
+            // the change comes from another thread: the refresh needs the request of the page for the session's user
+            RequestAttributes request = ThreadCopyRequestAttributes.create();
             watching = tasks.watch(joi, () -> ui.access(() -> {
-                try {
+                try (InRequestScope _ = new InRequestScope(request)) {
                     refresh();
                 } catch (Exception e) {
                     UIUtils.internalServerError(loc, e);

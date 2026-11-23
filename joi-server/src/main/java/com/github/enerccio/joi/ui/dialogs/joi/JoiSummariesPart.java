@@ -15,6 +15,8 @@ import com.github.enerccio.joi.ui.JoiCssStyles;
 import com.github.enerccio.marginalia.CssStyles;
 import com.github.enerccio.marginalia.loc.L;
 import com.github.enerccio.marginalia.loc.Localization;
+import com.github.enerccio.marginalia.ui.components.ThreadCopyRequestAttributes;
+import com.github.enerccio.marginalia.ui.components.ThreadCopyRequestAttributes.InRequestScope;
 import com.github.enerccio.marginalia.ui.dialogs.ConfirmDialog;
 import com.github.enerccio.marginalia.utils.UIUtils;
 import com.vaadin.flow.component.Component;
@@ -27,6 +29,7 @@ import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Configurable;
+import org.springframework.web.context.request.RequestAttributes;
 
 import java.text.DateFormat;
 import java.util.ArrayList;
@@ -105,7 +108,13 @@ public class JoiSummariesPart implements JoiDialogPart {
             return;
         }
         try {
-            watching = summarizerService.watch(joi, () -> ui.access(this::reloadQuietly));
+            // the change comes from the summary queue's thread: the refresh needs the request of the page for the session's user
+            RequestAttributes request = ThreadCopyRequestAttributes.create();
+            watching = summarizerService.watch(joi, () -> ui.access(() -> {
+                try (InRequestScope _ = new InRequestScope(request)) {
+                    reloadQuietly();
+                }
+            }));
         } catch (Exception e) {
             UIUtils.internalServerError(loc, e);
         }
