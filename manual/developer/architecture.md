@@ -13,7 +13,7 @@ verified: 47509ca
 ```
 joi-server ("brain")                                joi-node ("ears, hands, face")  one per machine
  - LLM tool loop, model roles                WS     - her body's files, cached by hash
- - memory, moods, events            <------------>  - the chat, her voice played back
+ - memory, moods, events            <------------>  - the chat, talking to her, her voice
  - TTS through speech servers                       - tools of the machine, with their tier
  - bodies, animations, conversion                   - answers to the questions of her tasks
  - Vaadin UI, HTTP API                                       |

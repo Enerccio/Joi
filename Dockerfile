@@ -6,13 +6,14 @@ FROM maven:3.9-eclipse-temurin-25 AS builder
 
 WORKDIR /build
 
-# Cache dependencies. The POMs of the reactor come first (the root POM lists joi-node, so its POM must be there too, its
-# sources are not). The platform's parent (marginalia/pom.xml) and the root POM are installed, then the platform's
+# Cache dependencies. The POMs of the reactor come first (the root POM lists joi-sherpa and joi-node, so their POMs must be there too,
+# their sources are not: neither is built here). The platform's parent (marginalia/pom.xml) and the root POM are installed, then the platform's
 # dependencies are fetched; what only the server needs (the build plugins, Vaadin's) is downloaded by the build below
 COPY pom.xml ./pom.xml
 COPY marginalia/pom.xml ./marginalia/pom.xml
 COPY marginalia/marginalia/platform/pom.xml ./marginalia/marginalia/platform/pom.xml
 COPY joi-protocol/pom.xml ./joi-protocol/pom.xml
+COPY joi-sherpa/pom.xml ./joi-sherpa/pom.xml
 COPY joi-server/pom.xml ./joi-server/pom.xml
 COPY joi-node/pom.xml ./joi-node/pom.xml
 COPY joi-extensions/pom.xml ./joi-extensions/pom.xml

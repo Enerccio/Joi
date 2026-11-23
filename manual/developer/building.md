@@ -62,7 +62,9 @@ filled. Compiling with plain `javac` leaves them `null`.
 
 ## The image
 
-The `Dockerfile` in the root builds the server, nothing else (the node runs on the user's machines): a Maven stage builds the platform from
+The `Dockerfile` in the root builds the server, nothing else (the node runs on the user's machines). Maven reads the POM of every module the root POM lists, so the builder
+stage copies the POMs of `joi-sherpa` and `joi-node` (their sources are not copied: they are not built) and `.git`, for the commit that Administration shows. A new module of the
+reactor needs its `COPY joi-<module>/pom.xml` there, or the image fails with *Child module ... does not exist*. A Maven stage builds the platform from
 the submodule, `joi-protocol` and `joi-server` into the WAR with the production frontend bundle (`-Pproduction -pl joi-server -am`), and a Jetty 12
 stage runs it, started by `docker-entrypoint.sh` (it hands the data folder to the `jetty` user, then drops root). The data folder is `JOI_DATA`
 (`/var/joi/data`, the volume of `docker-compose.yml`), the health check is `/health`. The image has ffmpeg and headless Blender 5.2.1 with the VRM add-on (the official x86-64 build, checked against its sha256, in
