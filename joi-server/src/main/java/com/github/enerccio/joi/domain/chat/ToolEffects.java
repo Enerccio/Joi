@@ -1,6 +1,8 @@
 package com.github.enerccio.joi.domain.chat;
 
 import java.util.Set;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 /**
  * Which of her functions change something (her body, her memory, a task, the user's machine) and which only look or play. A
@@ -11,8 +13,8 @@ import java.util.Set;
 public final class ToolEffects {
 
     /** The functions that change nothing: a gesture, a look at what she has, a look at what she remembers. */
-    private static final Set<String> READ_ONLY = Set.of(AnimationTools.PLAY_ANIMATION, BodyTools.LIST_OUTFITS,
-            BodyTools.LIST_BODIES, MemoryTools.RECALL, WorkspaceTools.LIST);
+    private static final Set<String> READ_ONLY = Stream.concat(Stream.of(AnimationTools.PLAY_ANIMATION, BodyTools.LIST_OUTFITS,
+            BodyTools.LIST_BODIES, MemoryTools.RECALL), WorkspaceTools.READ_ONLY.stream()).collect(Collectors.toUnmodifiableSet());
 
     /** The functions whose result says nothing the model could use: a gesture, a mood, a notice on the user's screen. */
     private static final Set<String> NO_ANSWER = Set.of(AnimationTools.PLAY_ANIMATION, MoodTools.SET_MOOD);

@@ -36,6 +36,7 @@ Tabs on the left; every change is stored at once; **Exit** closes the dialog.
 | **Summaries** | what she remembers of the past, newest first. See [Summaries](summaries.md) |
 | **Chats** | her conversation as a transcript. See [Chats](chats.md) |
 | **Tasks** | what she started with her tools and what waits for your answer. See [Tasks and approvals](tasks.md) |
+| **Files** | her [workspace](../tools/workspace.md): the files she keeps and her tasks write; you can browse, read, upload, download and delete |
 
 ## What is shared and what is hers
 

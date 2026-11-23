@@ -7,11 +7,14 @@ import com.github.enerccio.joi.domain.chat.turn.TurnEvents;
 import com.github.enerccio.joi.domain.chat.turn.TurnProperties;
 import com.github.enerccio.joi.domain.chat.turn.TurnStepBase;
 import com.github.enerccio.joi.domain.chat.turn.TurnStepType;
+import com.github.enerccio.joi.domain.service.JoiWorkspaceService;
+import com.github.enerccio.marginalia.domain.service.agent.ShownImages;
 import com.github.enerccio.marginalia.domain.service.impl.generation.dto.LLMChatMessage;
 import com.github.enerccio.marginalia.domain.service.impl.generation.dto.LLMToolCall;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 
 import java.util.List;
 import java.util.Map;
@@ -26,6 +29,9 @@ public class CallToolsStep extends TurnStepBase {
 
     private static final Logger log = LoggerFactory.getLogger(CallToolsStep.class);
 
+    @Autowired
+    private JoiWorkspaceService workspaceService;
+
     @Override
     protected void onStep(TurnController controller) throws Exception {
         List<LLMToolCall> calls = controller.getProperties().get(TurnProperties.ROUND_CALLS) instanceof List<?> list
@@ -38,6 +44,13 @@ public class CallToolsStep extends TurnStepBase {
      * notice): that round has nothing to add, and a small model fills it with nothing until its budget is gone, so the turn ends here.
      */
     private void afterCalls(TurnController controller, List<LLMToolCall> calls) throws Exception {
+        // the pictures she asked for with view_image: a tool result is text only, so they come in a message of their own after the results
+        if (controller.getProperties().get(TurnProperties.SHOWN_IMAGES) instanceof ShownImages shown) {
+            var looked = workspaceService.shownImages(controller.getJoi(), shown);
+            if (looked != null) {
+                controller.getPayload().add(looked);
+            }
+        }
         List<ToolUsage> usages = controller.getToolUsages();
         boolean said = StringUtils.isNotBlank((String) controller.getProperties().get(TurnProperties.ROUND_TEXT));
         boolean gestures = !calls.isEmpty() && calls.stream().allMatch(call -> ToolEffects.needsNoAnswer(call.getName()));

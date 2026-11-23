@@ -561,8 +561,8 @@ run by `ChatServiceImpl`). Marginalia's agent runner is not used.
     function that comes and goes (the part-request answer while a request is open, the outfit and body tools with a
     second body, the animation of a body, a file in her workspace, a node that connects) made the cache start over:
     nine thousand tokens done again for a simple message. The functions of Joi itself (`decide_part_change`,
-    `change_body_part`, `play_animation`, `set_mood`, the outfit and body functions, `list_workspace_files`,
-    `offer_file_to_clipboard`) are always offered; with nothing to work on they fail and say so, and a schema takes an
+    `change_body_part`, `play_animation`, `set_mood`, the outfit and body functions, `list_files` and the other file functions,
+    `list_chat_images`, `save_chat_image`, `offer_file_to_clipboard`) are always offered (`view_image` only when her chat model sees images); with nothing to work on they fail and say so, and a schema takes an
     `enum` of names only when there is a name. What stays conditional is what the user or the nodes decide: a tool
     the permission chain denies, a search with no source, and the tools in a node's manifest (changing those still
     moves the cache once).
@@ -980,22 +980,40 @@ description, so a client that approves on its own can write the approval down as
 one in force), in **Administration → Tools** (the administrator's), **User Settings → Tools** (the user's) and the Joi
 dialog's **Tasks** tab (the assistant's own).
 
-### Her workspace (built: `TaskWorkspace`, `WorkspaceTools`)
+### Her workspace (built: `JoiWorkspaceService`, `WorkspaceTools`)
 
-Each assistant has a **temporary workspace** on the server, `<data>/workspace/<uuid>`: a flat folder of text files for what her
-tasks hand to the user (a script, a list, a text to paste). It is not storage: a file is at most 100 000 characters, an assistant
-has at most 30 (a new one pushes out the oldest), a file lives a day (deleted when the workspace is next written or read; no
-timer), a name is a plain file name (no folder, no `..`), a write is atomic.
+Each assistant has her **own workspace** on the server, `<data>/joi-workspaces/<uuid>`: a virtual file system (VFS) of the
+platform (`VirtualFileSystem.ofWorkspace`, with folders; paths are virtual, `/notes/plot.md`), the same one Marginalia gives its
+agents. She keeps it between her turns, and her tasks write into the same one. The **administrator sets the limits** in
+Administration → App settings (`JoiAppSettings`, stored as app-setting attributes): the size of a file, of the whole workspace,
+the number of files, the size of an image and of an archive; an empty value is the platform's default (`WorkspaceLimits.DEFAULT`:
+1 MB, 20 MB, 500 files, 5 MB, 10 MB). The limits are global, not per assistant, and hold for every function and for the tasks.
 
-- **The task writes:** the model of a `web_search` / `fetch_page` task gets a third internal function, `write_file(name, content)`
-  (at most 5 a task), when the question asks for a file (her two functions say so in their descriptions). The names of the files
-  it wrote are added to the task's result, so she is told where they are.
-- **She hands it over:** `list_workspace_files`, and `offer_file_to_clipboard(file, node?)`: the server reads the file and calls
-  the node's `offer_to_clipboard` with its text, so a large text does not pass through her turn. Offered only when there is a file,
-  and (for the clipboard) a connected node that has the tool, which the user switched on there. No `ServerTool` permission: both
-  only touch her own files; the user's decision is on the node, per offer.
-- **Not built:** other task kinds writing there (a task that is not web), reading a file back for her to edit, a UI to see or
-  delete the files, an offer to another place than the clipboard (a file download on the node).
+- **Her functions:** the platform's `AgentFileTools` (`list_files`, `read_file`, `write_file`, `append_file`, `replace_in_file`,
+  `regex_replace_in_file`, `grep_files`, `move_file`, `copy_file`, `unzip_file`, `merge_files`, `delete_file`), without the two
+  command-result functions (Joi has no command runner), and `offer_file_to_clipboard(path, node?)`: the server reads the file and
+  calls the node's `offer_to_clipboard` with its text, so a large text does not pass through her turn. All of them are offered
+  in every turn (a list that comes and goes moves the server's cache of the prompt, see A chat turn). The clipboard offer fails
+  with a reason when no connected node has the tool, which the user switched on there. No `ServerTool` permission: they touch only
+  her own files; the user's decision is on the node, per offer. `ToolEffects` counts `list_files`, `read_file` and `grep_files`
+  as read-only.
+- **The task writes:** the model of a `web_search` / `fetch_page` task gets the same file functions (at most 8 calls a task), when
+  the question asks for a file (her two functions say so in their descriptions). The paths it wrote or changed are added to the
+  task's result, so she is told where they are.
+- **The user sees them:** the Joi dialog's **Files** tab (`JoiFilesPart`, the platform's `WorkspaceBrowser`): browse the folders,
+  read a text, download, upload a text file, an image or a zip, make a folder, delete, clear.
+- **Ownership:** `JoiWorkspaceService` opens a workspace only for a Joi of the logged-in user (`findForUser`); one lock per
+  assistant keeps her functions, her tasks and the user's edits from running into each other.
+- **Images (built):** `list_chat_images` and `save_chat_image(path, image?)` put an image the user sent in the chat into her workspace
+  (the one in this message, or an earlier one: the list is newest first, with the words it came with, and the number is the one in the list;
+  the newest when left out). The file is the JPEG the server kept (scaled down at upload); a name with no extension gets `.jpg`, another one is
+  refused. They are offered in every turn. `view_image(path)` (the platform's `ImageTools`) shows her an image of her workspace; it is offered
+  **only when her chat model is multimodal** (the model is known, the list changes only when the user changes her model), and a task's only when
+  its model is. The tool notes the path in a `ShownImages`; after the results of the round the turn (`CallToolsStep`) and the task loop add one
+  message with the pictures (a tool result is text only), which stays in that turn or task only: later turns see the path in the transcript, and
+  she looks again.
+- **Not built:** deleting the folder of a purged assistant (it is left on the disk), per-assistant limits, an offer to another place than the
+  clipboard (a file download on the node), a model that does not see images looking at a workspace image through the describing model.
 
 ### Web search and reading pages
 

@@ -5,7 +5,8 @@ order: 740
 covers:
   - joi-server/src/main/java/com/github/enerccio/joi/domain/tools
   - joi-server/src/main/java/com/github/enerccio/joi/domain/web
-  - joi-server/src/main/java/com/github/enerccio/joi/domain/workspace
+  - joi-server/src/main/java/com/github/enerccio/joi/domain/service/impl/JoiWorkspaceServiceImpl.java
+  - joi-server/src/main/java/com/github/enerccio/joi/ui/dialogs/joi/JoiFilesPart.java
   - joi-server/src/main/java/com/github/enerccio/joi/domain/chat/WorkspaceTools.java
 verified: 13054e1
 ---
@@ -78,17 +79,28 @@ The prompt of the task and the three event texts are templates (`JoiPromptField`
 
 ## The workspace and the clipboard
 
-`TaskWorkspace` (a plain bean, `domain/workspace`) is the temporary workspace of an assistant: `<data>/workspace/<uuid of the assistant>`, a flat folder of text
-files. A name is `[letters digits][letters digits . _ - space]{0,79}` with no `..` and no trailing dot or space, checked by `TaskWorkspace.cleanName`, so
-nothing a model writes leaves the folder. A file is at most `MAX_CHARS` (100 000) characters, an assistant has at most `MAX_FILES` (30; a new file pushes out
-the oldest), and a file older than `KEEP` (a day) is deleted whenever the workspace is written or listed: there is no timer. A write goes through a temporary
-file and an atomic move. A refusal is a `RejectedException` whose message is written for the model that reads it.
+`JoiWorkspaceService` (`domain/service`, `JoiWorkspaceServiceImpl`) opens the workspace of an assistant: a platform `VirtualFileSystem.ofWorkspace` on
+`<data>/joi-workspaces/<uuid of the assistant>`, with the limits of the administrator and one `ReentrantLock` per assistant (her functions, her tasks and the
+Files tab share it). `open(joi)` checks the owner with `JoiService.findForUser`, so a Joi of another user is refused. The limits are
+`JoiAppSettings.workspaceLimits()` (`WorkspaceLimits`: file, whole, files, image, archive; a value that is not positive is the platform's default), edited in
+`AppSettingsPanel` (kilobytes in the fields) and read on every open, so a change holds at once. `clear(joi)` empties it. The folder of a purged assistant is not removed.
 
-The files are written by the task: `WebResearch.withFiles` gives the model of a task the function `write_file(name, content)` (at most `MAX_WRITES`, 5, per
-task, and the rounds of the loop grow by that), and `WebTaskServiceImpl` adds the names of the files it wrote to the task's result, so she is told where they are.
-`web_search` and `fetch_page` say in their descriptions that a file is asked for in the question.
+`fileTools(joi)` binds the platform's `AgentFileToolsImpl` through the function registry and keeps all of its functions but `list_command_results` and
+`save_command_result` (Joi has no command runner). `imageTools(joi, shown)` binds the platform's `ImageTools` (`view_image`) over the workspace and `shownImages(joi, shown)` makes the message with the pictures a round asked for (read from the workspace, scaled down by the platform, a path that is gone told in the text).
 
-`WorkspaceTools` is hers: `list_workspace_files`, and `offer_file_to_clipboard(file, node?)`, which reads the file and calls the node's `offer_to_clipboard`
-(`NodeService.callTool`) with the text, so the text does not pass through her turn. Both are offered in every turn (a tool that comes and goes moves the server's cache of the prompt, see `chat-turn.md`); with no file, or no connected node that has
-`offer_to_clipboard`, they fail and say so. Neither is a `ServerTool`: they touch only her own files, so the chain has nothing to
-decide; the user's decision is on the node. `ToolEffects` lists the list as read-only; the offer changes the user's machine, so a turn that did it is finished.
+`WorkspaceTools` is hers: in `COLLECT_TOOLS` it adds `fileTools(joi)`, `list_chat_images`, `save_chat_image(path, image?)` and `offer_file_to_clipboard(path, node?)`, which reads the file from the workspace and calls
+the node's `offer_to_clipboard` (`NodeService.callTool`) with the text, so the text does not pass through her turn. All are offered in every turn (a tool that
+comes and goes moves the server's cache of the prompt, see `chat-turn.md`); with no node that has `offer_to_clipboard` the offer fails and says so. None is a
+`ServerTool`: they touch only her own files, so the chain has nothing to decide; the user's decision is on the node. `ToolEffects` counts
+`WorkspaceTools.READ_ONLY` (`list_files`, `read_file`, `grep_files`) as read-only; the others change the workspace or the user's machine, so a turn that did one is finished.
+
+A task writes through the same functions: `WebResearch.withFiles(fileTools)` adds them to the model's own (at most `MAX_FILE_CALLS`, 8, calls, and the rounds of
+the loop grow by that), and `WebTaskServiceImpl` takes a snapshot of the workspace before the task and adds the paths that are new or changed to its result, so
+she is told where they are. `web_search` and `fetch_page` say in their descriptions that a file is asked for in the question.
+
+**Images.** `list_chat_images` and `save_chat_image` work on the images of the user's messages (`ChatImageService`): the ones of the message being answered (`TurnInput.images`, not linked to a message until `STORE`), then those of the latest 200
+messages (`ChatMessageService.findLatest`), newest first, at most 12, none that are gone; a number is a place in that list, so it holds for the turn that listed it. `save_chat_image` writes the kept JPEG with `VirtualFileSystem.writeImage`, so the limits
+of the workspace (the image size too) hold. `view_image` is added only when `event.getAi().isMultimodal()`; `WorkspaceTools` puts the turn's `ShownImages` in `TurnProperties.SHOWN_IMAGES`, and `CallToolsStep.afterCalls` adds the message from `shownImages` to the payload before the
+next round. A task does the same in `WebResearch.run` (`withImages`, only when the task's model is multimodal; `MAX_IMAGE_CALLS` more rounds). `list_chat_images` and `view_image` are read-only for `ToolEffects`; `save_chat_image` is not.
+
+The user's view is the **Files** tab of the Joi dialog (`ui/dialogs/joi/JoiFilesPart`), the platform's `WorkspaceBrowser` over a `Source` that goes through the service.

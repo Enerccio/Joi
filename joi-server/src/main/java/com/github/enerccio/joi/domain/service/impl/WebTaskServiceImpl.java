@@ -1,5 +1,10 @@
 package com.github.enerccio.joi.domain.service.impl;
 
+import com.github.enerccio.joi.domain.service.JoiWorkspaceService;
+import com.github.enerccio.marginalia.domain.service.agent.VirtualEntry;
+import com.github.enerccio.marginalia.domain.service.agent.ShownImages;
+import com.github.enerccio.marginalia.domain.service.agent.VirtualFileSystem;
+import com.github.enerccio.marginalia.domain.service.agent.VirtualPath;
 import com.github.enerccio.joi.domain.chat.WebResearch;
 import com.github.enerccio.joi.domain.chat.WorkspaceTools;
 import com.github.enerccio.joi.domain.chat.turn.TurnControllerEvent.Registration;
@@ -36,7 +41,6 @@ import com.github.enerccio.joi.domain.service.WebToolSettingsService.Search;
 import com.github.enerccio.joi.domain.templates.TaskEventTemplateData;
 import com.github.enerccio.joi.domain.templates.WebTaskTemplateData;
 import com.github.enerccio.joi.domain.tools.ServerTool;
-import com.github.enerccio.joi.domain.workspace.TaskWorkspace;
 import com.github.enerccio.joi.domain.tools.ToolPermission;
 import com.github.enerccio.joi.domain.web.SearchSource;
 import com.github.enerccio.marginalia.bound.ApiRequestAttributes;
@@ -64,6 +68,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.EnumSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.ConcurrentHashMap;
@@ -105,7 +110,7 @@ public class WebTaskServiceImpl implements WebTaskService, InitializingBean, Dis
     @Autowired
     private AIService aiService;
     @Autowired
-    private TaskWorkspace workspace;
+    private JoiWorkspaceService workspaceService;
     @Autowired
     private InferenceServices inferenceServices;
     private final ExecutorService executor = Executors.newCachedThreadPool(r -> {
@@ -501,9 +506,16 @@ public class WebTaskServiceImpl implements WebTaskService, InitializingBean, Dis
                     log.warn("The transcript of the task {} lost a step: {}", id, e.getMessage());
                 }
             });
-            research.withFiles((name, content) -> workspace.write(joi, name, content).name());
+            VirtualFileSystem files = workspaceService.open(joi);
+            Map<String, String> before = snapshot(files);
+            research.withFiles(workspaceService.fileTools(joi));
+            if (ai.isMultimodal()) {
+                // a model that does not see images is not offered view_image
+                ShownImages shown = new ShownImages();
+                research.withImages(workspaceService.imageTools(joi, shown), () -> workspaceService.shownImages(joi, shown));
+            }
             result = research.run(ai, instruction);
-            result = withFiles(joi, result, research.written());
+            result = withFiles(result, changed(before, snapshot(files)));
             status = "finished";
         } catch (CancellationException e) {
             status = "cancelled";
@@ -534,12 +546,28 @@ public class WebTaskServiceImpl implements WebTaskService, InitializingBean, Dis
         }
     }
 
-    /** What the task found, and the files it wrote (she hands them to the user with {@code offer_file_to_clipboard}). */
-    private String withFiles(Joi joi, String result, List<String> written) {
+    /** The files of the workspace with what tells a change: path to size and time. */
+    private static Map<String, String> snapshot(VirtualFileSystem files) {
+        Map<String, String> state = new java.util.TreeMap<>();
+        for (VirtualEntry entry : files.walk(VirtualPath.ROOT, 1000)) {
+            if (!entry.directory()) {
+                state.put(entry.path().toString(), entry.size() + "/" + entry.modified());
+            }
+        }
+        return state;
+    }
+
+    /** The paths that are new or different after the task. */
+    private static List<String> changed(Map<String, String> before, Map<String, String> after) {
+        return after.entrySet().stream().filter(file -> !file.getValue().equals(before.get(file.getKey()))).map(Map.Entry::getKey).toList();
+    }
+
+    /** What the task found, and the files it wrote or changed (she hands them to the user with {@code offer_file_to_clipboard}). */
+    private String withFiles(String result, List<String> written) {
         if (written.isEmpty()) {
             return result;
         }
-        StringBuilder out = new StringBuilder(result).append("\n\nFiles in your workspace, written by this task (").append(WorkspaceTools.OFFER)
+        StringBuilder out = new StringBuilder(result).append("\n\nFiles in your workspace, written or changed by this task (").append(WorkspaceTools.OFFER)
                 .append(" offers one to the user's clipboard):");
         for (String name : written) {
             out.append("\n- ").append(name);

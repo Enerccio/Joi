@@ -82,7 +82,7 @@ class NodeServiceTest extends PlatformTestBase {
     @Autowired
     private WebTaskService webTaskService;
     @Autowired
-    private com.github.enerccio.joi.domain.workspace.TaskWorkspace workspace;
+    private com.github.enerccio.joi.domain.service.JoiWorkspaceService workspaceService;
 
     private final JsonSchemaFactory schemas = JsonSchemaFactory.getInstance(SpecVersion.VersionFlag.V202012,
             builder -> builder.schemaMappers(m -> m.mapPrefix(BASE, "classpath:joi-protocol/schemas/")));
@@ -332,15 +332,104 @@ class NodeServiceTest extends PlatformTestBase {
         assertThat(nodeService.sessions(joi)).isEmpty();
     }
 
+    /** A node that is connected and ready, as the tests of the turns start. */
+    private Node readyNode() throws Exception {
+        Node node = connect("Bearer " + token);
+        node.hello("n1", "desk", joi.getUuid(), "1.11");
+        node.next("welcome");
+        node.manifest(1);
+        node.next("mood");
+        return node;
+    }
+
+    /** Her chat model takes images. */
+    private void chatModelSees() throws Exception {
+        com.github.enerccio.marginalia.domain.model.impl.OpenAICompatible ai = createAI();
+        ai.setMultimodal(true);
+        ai = (com.github.enerccio.marginalia.domain.model.impl.OpenAICompatible) aiService.save(ai);
+        // read again: a turn has changed the row since (her mood)
+        joi = joiService.find(joi.getId());
+        joi.setChatModel(ai.getId());
+        joi = joiService.save(joi);
+    }
+
+    @Test
+    void sheSavesAnImageOfTheChatToHerWorkspaceTheOneJustSentAndAnEarlierOne() throws Exception {
+        chatModelSees();
+        Node node = readyNode();
+        String first = image();
+        // the image of this very message: saved in the turn that has it, with no number
+        llm.enqueue(MockLLMResponse.toolCall("save_chat_image", "{\"path\":\"/pics/first\"}"), MockLLMResponse.text("Saved it."));
+        node.frame("say", "t1", "{\"text\": \"Keep this\", \"speak\": false, \"images\": [\"" + first + "\"]}");
+        node.next("done");
+        var files = workspaceService.open(joi);
+        // no extension in the name: it is a JPEG, so it is named .jpg
+        assertThat(files.readImage(files.parse("/pics/first.jpg")).mimeType()).isEqualTo("image/jpeg");
+        assertThat(llm.getCompletionRequests().get(1).getLastMessage().content()).contains("Saved the image as /pics/first.jpg");
+
+        // a later message with another image: the list has both, newest first, and the older one is saved by its number
+        String second = image();
+        llm.enqueue(MockLLMResponse.toolCall("list_chat_images", "{}"), MockLLMResponse.text("I see two."));
+        node.frame("say", "t2", "{\"text\": \"And this\", \"speak\": false, \"images\": [\"" + second + "\"]}");
+        node.next("done");
+        String listed = llm.getCompletionRequests().get(3).getLastMessage().content();
+        assertThat(listed).contains("1. in this message").contains("2. sent ").contains("Keep this");
+
+        llm.enqueue(MockLLMResponse.toolCall("save_chat_image", "{\"path\":\"/old.jpg\",\"image\":2}"), MockLLMResponse.text("Done."));
+        node.frame("say", "t3", "{\"text\": \"Save the first one too\", \"speak\": false}");
+        node.next("done");
+        assertThat(files.readImage(files.parse("/old.jpg")).mimeType()).isEqualTo("image/jpeg");
+        assertThat(files.read(files.parse("/old.jpg"))).isEqualTo(files.read(files.parse("/pics/first.jpg")));
+
+        // a number there is none of, a name that is not a JPEG's, and a message with no image to save are told to her
+        llm.enqueue(MockLLMResponse.toolCall("save_chat_image", "{\"path\":\"/x.jpg\",\"image\":9}"),
+                MockLLMResponse.toolCall("save_chat_image", "{\"path\":\"/x.png\"}"), MockLLMResponse.text("Hm."));
+        node.frame("say", "t4", "{\"text\": \"Again\", \"speak\": false}");
+        node.next("done");
+        var requests = llm.getCompletionRequests();
+        assertThat(requests.get(requests.size() - 2).getLastMessage().content()).contains("There is no image 9");
+        assertThat(requests.getLast().getLastMessage().content()).contains("name the file .jpg");
+    }
+
+    @Test
+    void sheLooksAtAnImageOfHerWorkspaceOnlyWhenHerChatModelSees() throws Exception {
+        java.awt.image.BufferedImage picture = new java.awt.image.BufferedImage(40, 30, java.awt.image.BufferedImage.TYPE_INT_RGB);
+        java.io.ByteArrayOutputStream png = new java.io.ByteArrayOutputStream();
+        javax.imageio.ImageIO.write(picture, "png", png);
+        var files = workspaceService.open(joi);
+        files.writeImage(files.parse("/pic.png"), png.toByteArray());
+
+        // a model that does not see is not offered the function
+        Node blind = readyNode();
+        llm.enqueue(MockLLMResponse.text("Nothing to see."));
+        blind.frame("say", "t0", "{\"text\": \"Hi\", \"speak\": false}");
+        blind.next("done");
+        assertThat(toolNames(llm.getCompletionRequests().getFirst().getRawBody())).doesNotContain("view_image")
+                .contains("save_chat_image", "list_chat_images");
+
+        chatModelSees();
+        llm.enqueue(MockLLMResponse.toolCall("view_image", "{\"path\":\"/pic.png\"}"), MockLLMResponse.text("A black picture."));
+        blind.frame("say", "t1", "{\"text\": \"Look at /pic.png\", \"speak\": false}");
+        blind.next("done");
+        var requests = llm.getCompletionRequests();
+        MockLLMRequest first = requests.get(1);
+        MockLLMRequest second = requests.get(2);
+        assertThat(toolNames(first.getRawBody())).contains("view_image");
+        assertThat(first.getRawBody()).doesNotContain("image_url");
+        // the pictures come in a message after the result of the round
+        assertThat(second.getRawBody()).contains("\"type\":\"image_url\"").contains("The image you asked to look at: /pic.png");
+        assertThat(chatMessageService.findLatest(joi, 10).getLast().getResponse()).contains("A black picture.");
+    }
+
     @Test
     void sheOffersAFileOfHerWorkspaceToTheClipboardOfTheNodeWithoutTheTextPassingThroughHer() throws Exception {
         String script = "#!/bin/sh\necho \"hello\"\n";
-        workspace.write(joi, "hello.sh", script);
+        writeFile("/hello.sh", script);
         Node node = connect("Bearer " + token);
         node.hello("n1", "desk", joi.getUuid(), "1.2");
         node.next("welcome");
         node.manifestWithClipboard(1);
-        llm.enqueue(MockLLMResponse.toolCall("offer_file_to_clipboard", "{\"file\":\"hello.sh\"}"), MockLLMResponse.text("It is on your clipboard."));
+        llm.enqueue(MockLLMResponse.toolCall("offer_file_to_clipboard", "{\"path\":\"/hello.sh\"}"), MockLLMResponse.text("It is on your clipboard."));
 
         node.frame("say", "t1", "{\"text\": \"Put the script on my clipboard\", \"speak\": false}");
         JsonObject data = node.next("tool_call").getAsJsonObject("data");
@@ -357,7 +446,7 @@ class NodeServiceTest extends PlatformTestBase {
 
         List<MockLLMRequest> requests = llm.getCompletionRequests();
         // she was offered the list and the offer; the text of the script was never in her turn
-        assertThat(requests.getFirst().getRawBody()).contains("list_workspace_files").contains("offer_file_to_clipboard");
+        assertThat(requests.getFirst().getRawBody()).contains("list_files").contains("offer_file_to_clipboard");
         assertThat(requests.getFirst().getRawBody()).doesNotContain("echo");
         assertThat(requests.get(1).getLastMessage().content()).startsWith("Copied to the user's clipboard");
     }
@@ -382,13 +471,13 @@ class NodeServiceTest extends PlatformTestBase {
         // she had the node's tool from its manifest; the workspace functions are offered anyway, there is no file (a tool that comes and
         // goes moves the cache of the prompt)
         String first = llm.getCompletionRequests().getFirst().getRawBody();
-        assertThat(first).contains("desk__offer_to_clipboard").contains("offer_file_to_clipboard").contains("list_workspace_files");
+        assertThat(first).contains("desk__offer_to_clipboard").contains("offer_file_to_clipboard").contains("list_files");
         assertThat(llm.getCompletionRequests().get(1).getLastMessage().content()).startsWith("Copied to the user's clipboard");
     }
 
     @Test
     void theOfferIsOfferedAlwaysAndSaysSoWhenNoNodeHasTheToolAndAFileThatIsNotThereIsSaid() throws Exception {
-        workspace.write(joi, "hello.sh", "echo hi");
+        writeFile("/hello.sh", "echo hi");
         Node node = connect("Bearer " + token);
         node.hello("n1", "desk", joi.getUuid(), "1.2");
         node.next("welcome");
@@ -397,26 +486,26 @@ class NodeServiceTest extends PlatformTestBase {
         llm.enqueue(MockLLMResponse.text("I cannot offer it."));
         node.frame("say", "t1", "{\"text\": \"Put the script on my clipboard\", \"speak\": false}");
         node.next("done");
-        assertThat(llm.getCompletionRequests().getFirst().getRawBody()).contains("list_workspace_files").contains("offer_file_to_clipboard");
+        assertThat(llm.getCompletionRequests().getFirst().getRawBody()).contains("list_files").contains("offer_file_to_clipboard");
 
         // the user allows it on the node: a new manifest, and a turn later she has it; a file that is not there is answered with the list
         node.manifestWithClipboard(2);
-        llm.enqueue(MockLLMResponse.toolCall("offer_file_to_clipboard", "{\"file\":\"missing.sh\"}"), MockLLMResponse.text("There is no such file."));
+        llm.enqueue(MockLLMResponse.toolCall("offer_file_to_clipboard", "{\"path\":\"/missing.sh\"}"), MockLLMResponse.text("There is no such file."));
         node.frame("say", "t2", "{\"text\": \"Again\", \"speak\": false}");
         node.next("done");
         List<MockLLMRequest> requests = llm.getCompletionRequests();
         assertThat(requests.get(1).getRawBody()).contains("offer_file_to_clipboard");
-        assertThat(requests.get(2).getLastMessage().content()).contains("no file missing.sh").contains("hello.sh (7 bytes)");
+        assertThat(requests.get(2).getLastMessage().content()).contains("missing.sh").contains("list_files");
     }
 
     @Test
     void aClipboardOfferTheUserRefusesReachesHerAsItsReason() throws Exception {
-        workspace.write(joi, "hello.sh", "echo hi");
+        writeFile("/hello.sh", "echo hi");
         Node node = connect("Bearer " + token);
         node.hello("n1", "desk", joi.getUuid(), "1.2");
         node.next("welcome");
         node.manifestWithClipboard(1);
-        llm.enqueue(MockLLMResponse.toolCall("offer_file_to_clipboard", "{\"file\":\"hello.sh\",\"node\":\"desk\"}"), MockLLMResponse.text("Alright."));
+        llm.enqueue(MockLLMResponse.toolCall("offer_file_to_clipboard", "{\"path\":\"/hello.sh\",\"node\":\"desk\"}"), MockLLMResponse.text("Alright."));
         node.frame("say", "t1", "{\"text\": \"Clipboard please\", \"speak\": false}");
         String callId = node.next("tool_call").getAsJsonObject("data").get("callId").getAsString();
         node.frame("tool_result", null, "{\"callId\": \"" + callId + "\", \"ok\": false, \"content\": \"The user did not want this on their clipboard.\", \"error\": \"denied\"}");
@@ -989,6 +1078,12 @@ class NodeServiceTest extends PlatformTestBase {
         return node;
     }
 
+    /** Writes a file of her workspace. */
+    private void writeFile(String path, String text) throws Exception {
+        var files = workspaceService.open(joi);
+        files.writeText(files.parse(path), text, false);
+    }
+
     /** The names of the functions a request offered, in order. */
     private static List<String> toolNames(String rawBody) {
         List<String> names = new ArrayList<>();
@@ -1011,7 +1106,7 @@ class NodeServiceTest extends PlatformTestBase {
 
         List<String> without = toolNames(llm.getCompletionRequests().get(0).getRawBody());
         List<String> with = toolNames(llm.getCompletionRequests().get(1).getRawBody());
-        assertThat(without).contains("decide_part_change", "play_animation", "set_mood", "set_outfit", "switch_body", "list_workspace_files");
+        assertThat(without).contains("decide_part_change", "play_animation", "set_mood", "set_outfit", "switch_body", "list_files", "write_file", "read_file");
         assertThat(with).isEqualTo(without);
     }
 

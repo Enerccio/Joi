@@ -754,6 +754,8 @@ public class JoiLocalizationBundleEN extends TextBundleBase<J_L> {
         setValue(J_L.LABEL_TEST_PAGE_URL, "Address of a page");
         setValue(J_L.LABEL_TASKS, "Tasks");
         setValue(J_L.HELP_TASKS, "What she started with her tools (web search, reading a page). A task that waits runs only after you approve it.");
+        setValue(J_L.HELP_WORKSPACE_LIMITS, "Each assistant has a workspace of her own: files she keeps between her turns, which her tasks write into too. These limits are the same for every assistant (a size is in kilobytes). A value of 0 is the default.");
+        setValue(J_L.HELP_FILES_TAB, "Her workspace: the files she and her tasks keep. You can look at them, download, upload and delete them; she sees what you put here.");
         setValue(J_L.MSG_NO_TASKS, "No tasks yet.");
         setValue(J_L.LABEL_TASK_TITLE, "Task");
         setValue(J_L.LABEL_TASK_STATUS, "Status");
@@ -791,5 +793,11 @@ public class JoiLocalizationBundleEN extends TextBundleBase<J_L> {
         setValue(J_L.LABEL_TASK_DURATION, "Took");
         setValue(J_L.LABEL_TASK_TOKENS, "tokens");
         setValue(J_L.LABEL_SHOW_ALL, "Show all (%d characters)");
+        setValue(J_L.LABEL_WORKSPACE_LIMITS, "Workspace of an assistant");
+        setValue(J_L.LABEL_WORKSPACE_MAX_FILE, "Largest text file (KB)");
+        setValue(J_L.LABEL_WORKSPACE_MAX_TOTAL, "All the files together (KB)");
+        setValue(J_L.LABEL_WORKSPACE_MAX_FILES, "Number of files");
+        setValue(J_L.LABEL_WORKSPACE_MAX_IMAGE, "Largest image (KB)");
+        setValue(J_L.LABEL_WORKSPACE_MAX_ARCHIVE, "Largest zip file (KB)");
     }
 }

@@ -15,7 +15,7 @@ Administrators have an **Administration** button under the tabs, which opens a p
 |---|---|
 | **Users** | the accounts: user name, full name, whether administrator. **Add user**, edit, **Permissions**, delete. You cannot delete yourself |
 | **GPUs** | GPU locks, below |
-| **App settings** | what you decide for everybody: whether users who are not administrators may use servers on this machine or the local network (TTS models marked local, search sources such as a SearXNG instance), off by default |
+| **App settings** | what you decide for everybody: whether users who are not administrators may use servers on this machine or the local network (TTS models marked local, search sources such as a SearXNG instance), off by default; and the limits of the [workspace](../tools/workspace.md) every assistant has (size of a file, of all, number of files) |
 | **API access** | whether tokens and OAuth devices are offered, and their lifetimes. See [Access tokens](../access.md) |
 | **Tools** | the administrator's permission for every server tool and the web search sources everyone gets. See [Server tools](../tools/index.md) |
 | **Jobs** | the log of what ran for whom and the calls it made to models. See [Jobs](jobs.md) |

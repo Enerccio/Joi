@@ -28,6 +28,7 @@ import org.slf4j.LoggerFactory;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.Callable;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
@@ -53,20 +54,16 @@ public final class WebResearch {
 
     public static final String SEARCH = "search";
     public static final String READ_PAGE = "read_page";
-    public static final String WRITE_FILE = "write_file";
-    /** The most files one task writes. */
-    static final int MAX_WRITES = 5;
+    /** How many calls of the file functions a task may make on top of its searches and pages. */
+    static final int MAX_FILE_CALLS = 8;
+    /** How many times a task may ask to look at an image of the workspace (the rounds of the loop grow by that). */
+    static final int MAX_IMAGE_CALLS = 4;
     /** How long the model may take for one round. */
     static final long ROUND_MINUTES = 15;
     /** How long a function may take: the longest page timeout of the options is 300 s. */
     static final long CALL_SECONDS = 330;
     /** The most of what a search gives back that goes to the model, in characters. */
     static final int SEARCH_TEXT = 6000;
-
-    /** Where the files a task writes go (the assistant's temporary workspace): the name it was kept under. */
-    public interface Workspace {
-        String write(String name, String content) throws Exception;
-    }
 
     /** What the task writes in its transcript, in the order it happens. */
     public interface Transcript {
@@ -83,8 +80,9 @@ public final class WebResearch {
     private final Transcript transcript;
     private final AtomicInteger searches = new AtomicInteger();
     private final AtomicInteger read = new AtomicInteger();
-    private final List<String> written = new ArrayList<>();
-    private Workspace files;
+    private FunctionSet fileTools;
+    private FunctionSet imageTools;
+    private Callable<LLMChatMessage> shownImages;
 
     /**
      * @param withSearch false for a task that only reads a page: it has {@code read_page} only
@@ -101,15 +99,20 @@ public final class WebResearch {
         this.transcript = transcript;
     }
 
-    /** Gives the task {@code write_file}: what it writes goes to the files. */
-    public WebResearch withFiles(Workspace files) {
-        this.files = files;
+    /** Gives the task the file functions of the assistant's workspace: what it writes there stays for her. */
+    public WebResearch withFiles(FunctionSet fileTools) {
+        this.fileTools = fileTools;
         return this;
     }
 
-    /** The names of the files the task wrote, in the order it wrote them. */
-    public synchronized List<String> written() {
-        return List.copyOf(written);
+    /**
+     * Lets a task whose model sees images look at the images of the workspace: {@code view_image}, and the message with the pictures that
+     * {@code shown} makes (null when none were asked for) goes after the results of the round.
+     */
+    public WebResearch withImages(FunctionSet imageTools, Callable<LLMChatMessage> shown) {
+        this.imageTools = imageTools;
+        this.shownImages = shown;
+        return this;
     }
 
     /** How many searches and pages the task used. */
@@ -127,7 +130,8 @@ public final class WebResearch {
         List<LLMChatMessage> payload = new ArrayList<>();
         payload.add(LLMChatMessage.of(LLMRole.USER, instruction));
         transcript.add(TaskMessageRole.USER, instruction, null, null, null, null);
-        int rounds = Math.min(search.config().maxSearches() + search.config().maxPages() + 2 + (files == null ? 0 : MAX_WRITES), 30);
+        int rounds = Math.min(search.config().maxSearches() + search.config().maxPages() + 2 + (fileTools == null ? 0 : MAX_FILE_CALLS)
+                + (imageTools == null ? 0 : MAX_IMAGE_CALLS), 30);
         for (int round = 1; round <= rounds; round++) {
             checkCancelled();
             boolean last = round == rounds;
@@ -152,6 +156,14 @@ public final class WebResearch {
                 String result = call(functions, call);
                 transcript.add(TaskMessageRole.TOOL, result, null, null, call.getId(), null);
                 payload.add(LLMChatMessage.ofToolResult(call.getId(), result));
+            }
+            if (shownImages != null) {
+                // the pictures asked for with view_image: a tool result is text only, so they come in a message of their own
+                LLMChatMessage looked = shownImages.call();
+                if (looked != null) {
+                    transcript.add(TaskMessageRole.USER, looked.getContent(), null, null, null, null);
+                    payload.add(looked);
+                }
             }
         }
         throw new IllegalStateException("The model did not finish");
@@ -270,49 +282,9 @@ public final class WebResearch {
                 continuation.fail(e.getMessage());
             }
         }));
-        if (files != null) {
-            definitions.add(writeFile());
-        }
-        return FunctionSet.bind(definitions, this);
-    }
-
-    private FunctionDefinition writeFile() {
-        ObjectNode schema = jackson.createObjectNode();
-        schema.put("type", "object");
-        ObjectNode properties = schema.putObject("properties");
-        properties.putObject("name").put("type", "string").put("description",
-                "The name of the file with its extension ('install.sh', 'notes.md'): letters, digits, dots, dashes, underscores; no folder.");
-        properties.putObject("content").put("type", "string").put("description",
-                "The whole text of the file, up to " + com.github.enerccio.joi.domain.workspace.TaskWorkspace.MAX_CHARS + " characters.");
-        schema.putArray("required").add("name").add("content");
-        return FunctionDefinition.dynamic(WRITE_FILE, "Saves a text file in the temporary workspace of the assistant, for her to hand to the "
-                + "user (they can have it copied to their clipboard). Use it only when what was asked for is a file, a script, a list or a "
-                + "text to paste; give the whole content, and say in your answer which file you wrote. A file of the same name is replaced. "
-                + "At most " + MAX_WRITES + " files.", schema, (continuation, arguments) -> {
-            String name = text(arguments, "name");
-            Object content = arguments == null ? null : arguments.get("content");
-            if (name == null || !(content instanceof String string)) {
-                continuation.fail("Give the name and the content of the file");
-                return;
-            }
-            synchronized (this) {
-                if (written.size() >= MAX_WRITES && !written.contains(name)) {
-                    continuation.fail("The limit of " + MAX_WRITES + " files is reached. Answer with what you have.");
-                    return;
-                }
-            }
-            try {
-                String kept = files.write(name, string);
-                synchronized (this) {
-                    if (!written.contains(kept)) {
-                        written.add(kept);
-                    }
-                }
-                continuation.complete("Saved as " + kept + " (" + string.length() + " characters).");
-            } catch (Exception e) {
-                continuation.fail(StringUtils.defaultIfBlank(e.getMessage(), "The file was not saved"));
-            }
-        });
+        FunctionSet own = FunctionSet.bind(definitions, this);
+        FunctionSet all = fileTools == null ? own : own.and(fileTools);
+        return imageTools == null ? all : all.and(imageTools);
     }
 
     /** One search: the named source, else the first that gives anything. */

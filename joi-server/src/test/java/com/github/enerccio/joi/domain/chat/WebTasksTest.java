@@ -17,7 +17,6 @@ import com.github.enerccio.joi.domain.service.QueuedEventService;
 import com.github.enerccio.joi.domain.service.ToolMetadataService;
 import com.github.enerccio.joi.domain.service.WebTaskService;
 import com.github.enerccio.joi.domain.service.WebToolSettingsService;
-import com.github.enerccio.joi.domain.workspace.TaskWorkspace;
 import com.github.enerccio.joi.domain.tools.ServerTool;
 import com.github.enerccio.joi.domain.tools.ToolPermission;
 import com.github.enerccio.joi.domain.tools.ToolScope;
@@ -75,7 +74,9 @@ class WebTasksTest extends PlatformTestBase {
     @Autowired
     private ChatMessageService chatMessages;
     @Autowired
-    private com.github.enerccio.joi.domain.workspace.TaskWorkspace workspace;
+    private com.github.enerccio.joi.domain.service.JoiWorkspaceService workspaceService;
+    @Autowired
+    private com.github.enerccio.marginalia.domain.service.AIService aiService;
 
     private Joi joi;
     private User me;
@@ -213,45 +214,78 @@ class WebTasksTest extends PlatformTestBase {
             String script = "#!/bin/sh\necho canberra\n";
             llm.enqueue(MockLLMResponse.toolCall("web_search", "{\"question\":\"a script that prints the capital of Australia\"}"),
                     MockLLMResponse.text("I am on it."),
-                    // the task: it writes the file, and (a name that is no name) is told so, and answers
-                    MockLLMResponse.toolCall("write_file", "{\"name\":\"../capital.sh\",\"content\":\"x\"}"),
-                    MockLLMResponse.toolCall("write_file", "{\"name\":\"capital.sh\",\"content\":" + new com.google.gson.Gson().toJson(script) + "}"),
+                    // the task: it writes the file and answers
+                    MockLLMResponse.toolCall("write_file", "{\"path\":\"/capital.sh\",\"content\":" + new com.google.gson.Gson().toJson(script) + "}"),
                     MockLLMResponse.text("I wrote capital.sh."));
 
             chat("Write me a script that prints the capital of Australia");
             JoiTask task = await(JoiTaskStatus.DONE);
 
-            // the model of the task had the function; her own turn did not
-            assertThat(llm.getCompletionRequests().getFirst().getRawBody()).doesNotContain("write_file");
-            assertThat(llm.getCompletionRequests().get(2).getRawBody()).contains("write_file");
-            assertThat(llm.getCompletionRequests().get(3).getLastMessage().content()).contains("name of a file");
-            assertThat(llm.getCompletionRequests().get(4).getLastMessage().content()).isEqualTo("Saved as capital.sh (" + script.length() + " characters).");
+            // her own turn and the model of the task have the same file functions: they are her workspace
+            assertThat(llm.getCompletionRequests().getFirst().getRawBody()).contains("write_file").contains("list_files");
+            assertThat(llm.getCompletionRequests().get(2).getRawBody()).contains("write_file").contains("read_page");
+            assertThat(llm.getCompletionRequests().get(3).getLastMessage().content()).contains("capital.sh");
 
-            assertThat(workspace.list(joi)).extracting(TaskWorkspace.Entry::name).containsExactly("capital.sh");
-            assertThat(workspace.read(joi, "capital.sh")).isEqualTo(script);
+            var files = workspaceService.open(joi);
+            assertThat(files.readText(files.parse("/capital.sh"))).isEqualTo(script);
             // she is told what the task said and where its file is, and how to hand it over
-            assertThat(task.getResult()).startsWith("I wrote capital.sh.").contains("Files in your workspace").contains("- capital.sh")
+            assertThat(task.getResult()).startsWith("I wrote capital.sh.").contains("Files in your workspace").contains("- /capital.sh")
                     .contains("offer_file_to_clipboard");
-            assertThat(waitingEvents().getFirst().getText()).contains("- capital.sh");
+            assertThat(waitingEvents().getFirst().getText()).contains("- /capital.sh");
         }
     }
 
     @Test
-    void aTaskWritesAtMostSoManyFiles() throws Exception {
+    void aTaskIsOfferedViewImageOnlyWhenItsModelSeesAndTheImageComesAfterTheResult() throws Exception {
         try (FakeWebSupport.Web web = FakeWebSupport.start(FakeWebSupport.json(RESULTS))) {
             searchIn(config(0, searxng("home", web.url())));
             permission(ServerTool.WEB_SEARCH, ToolPermission.ALLOW);
-            List<MockLLMResponse> task = new java.util.ArrayList<>();
-            for (int i = 1; i <= WebResearch.MAX_WRITES + 1; i++) {
-                task.add(MockLLMResponse.toolCall("write_file", "{\"name\":\"f" + i + ".txt\",\"content\":\"text\"}"));
-            }
-            task.add(MockLLMResponse.text("Done."));
-            llm.enqueue(MockLLMResponse.toolCall("web_search", "{\"question\":\"many files\"}"), MockLLMResponse.text("Working."));
-            llm.enqueue(task.toArray(new MockLLMResponse[0]));
-            chat("Many files please");
+            java.io.ByteArrayOutputStream png = new java.io.ByteArrayOutputStream();
+            javax.imageio.ImageIO.write(new java.awt.image.BufferedImage(40, 30, java.awt.image.BufferedImage.TYPE_INT_RGB), "png", png);
+            var files = workspaceService.open(joi);
+            files.writeImage(files.parse("/pic.png"), png.toByteArray());
+
+            // the model does not see images (the chat model does the task): the function is not offered to it
+            llm.enqueue(MockLLMResponse.toolCall("web_search", "{\"question\":\"what is in the picture\"}"), MockLLMResponse.text("On it."),
+                    MockLLMResponse.text("I cannot look."));
+            chat("Look at the picture and search");
             await(JoiTaskStatus.DONE);
-            assertThat(workspace.list(joi)).hasSize(WebResearch.MAX_WRITES);
-            assertThat(llm.getCompletionRequests().get(3 + WebResearch.MAX_WRITES).getLastMessage().content()).contains("limit of " + WebResearch.MAX_WRITES + " files");
+            assertThat(llm.getCompletionRequests().get(2).getRawBody()).contains("read_page").doesNotContain("view_image");
+
+            // the same model marked multimodal: it is offered, and the picture is in front of it after the result of the call
+            var ai = (com.github.enerccio.marginalia.domain.model.impl.OpenAICompatible) aiService.find(joi.getChatModel());
+            ai.setMultimodal(true);
+            aiService.save(ai);
+            int before = llm.getCompletionRequests().size();
+            llm.enqueue(MockLLMResponse.toolCall("web_search", "{\"question\":\"what is in the picture\"}"), MockLLMResponse.text("On it."),
+                    MockLLMResponse.toolCall("view_image", "{\"path\":\"/pic.png\"}"), MockLLMResponse.text("A black picture."));
+            chat("Look at the picture and search again");
+            await(() -> tasks.tasks(joi).size() == 2 && newest().getStatus() == JoiTaskStatus.DONE ? newest() : null, "the second task");
+            var requests = llm.getCompletionRequests();
+            assertThat(requests.get(before + 2).getRawBody()).contains("view_image");
+            assertThat(requests.get(before + 2).getRawBody()).doesNotContain("image_url");
+            assertThat(requests.get(before + 3).getRawBody()).contains("\"type\":\"image_url\"").contains("The image you asked to look at: /pic.png");
+        }
+    }
+
+    @Test
+    void theLimitsOfTheAdministratorHoldForWhatATaskWrites() throws Exception {
+        try (FakeWebSupport.Web web = FakeWebSupport.start(FakeWebSupport.json(RESULTS))) {
+            searchIn(config(0, searxng("home", web.url())));
+            permission(ServerTool.WEB_SEARCH, ToolPermission.ALLOW);
+            loginAdmin();
+            appSettings.save(new JoiAppSettings(true).withWorkspaceLimits(new com.github.enerccio.marginalia.domain.service.agent.WorkspaceLimits(1024, 4096, 1)));
+            loginAs(me);
+            llm.enqueue(MockLLMResponse.toolCall("web_search", "{\"question\":\"two files\"}"), MockLLMResponse.text("Working."),
+                    MockLLMResponse.toolCall("write_file", "{\"path\":\"/a.txt\",\"content\":\"one\"}"),
+                    MockLLMResponse.toolCall("write_file", "{\"path\":\"/b.txt\",\"content\":\"two\"}"),
+                    MockLLMResponse.text("Done."));
+            chat("Two files please");
+            await(JoiTaskStatus.DONE);
+            // one file is all the workspace may hold: the second write is refused and the task is told
+            var files = workspaceService.open(joi);
+            assertThat(files.list(com.github.enerccio.marginalia.domain.service.agent.VirtualPath.ROOT)).hasSize(1);
+            assertThat(llm.getCompletionRequests().get(4).getLastMessage().content()).isNotBlank().doesNotContain("Saved");
         }
     }
 

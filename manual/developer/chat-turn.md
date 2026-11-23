@@ -65,13 +65,13 @@ conversation: the web chat and the nodes (as a `log` frame) show it and the mode
 the job and the outcome are `FAILED`. `ChatTurnTest` has the case (the second round uses its budget after a call).
 
 Who hooks in: her memories in the prompt, the server tools (`remember`, `recall`, `play_animation`, `set_mood`, `change_body_part`, `list_outfits`,
-`set_outfit`, `list_bodies`, `switch_body`, `web_search`, `fetch_page`, `list_workspace_files`, `offer_file_to_clipboard`) and the nodes' tools and approvals (`NodeService` registers a
+`set_outfit`, `list_bodies`, `switch_body`, `web_search`, `fetch_page`, `list_files` and the other file functions, `list_chat_images`, `save_chat_image`, `offer_file_to_clipboard`) and the nodes' tools and approvals (`NodeService` registers a
 `COLLECT_TOOLS` listener).
 
 **The tools are the same every turn.** The model renders the functions into the prompt before the history, so a function that comes and goes makes the server's cache of the prompt start over (a part
 request that opens, a body with no outfit, a file in the workspace, a node that connects). Joi's own functions (`decide_part_change`, `change_body_part`, `play_animation`, `set_mood`, the outfit and
-body functions, `list_workspace_files`, `offer_file_to_clipboard`) are therefore offered in every turn and fail with a message when there is nothing to work on; a schema carries an `enum` of names only
-when it has a name (an empty `enum` is no schema). What the user or a node decides stays conditional: a denied server tool, a search with no source, the tools of a node's manifest.
+body functions, `list_files` and the other file functions, `offer_file_to_clipboard`) are therefore offered in every turn and fail with a message when there is nothing to work on; a schema carries an `enum` of names only
+when it has a name (an empty `enum` is no schema). What the user or a node decides stays conditional, and so does `view_image`, which depends on the model (it is there when her chat model is multimodal; the pictures it asks for come in a message after the results of the round, added by `CallToolsStep`): a denied server tool, a search with no source, the tools of a node's manifest.
 `NodeServiceTest.theToolsAreTheSameWhetherARequestIsOpenOrNot` has the case.
 
 ## Her mood
