@@ -75,14 +75,31 @@ The app's own code, so that it builds and is tested on the Mac: SwiftUI and the 
   at a pause of 1.2 s after words (a timer started again by each partial result: Apple's recognizer has no end of speech of its own), when the user taps, after 60 s at most, and gives up after 8 s with
   no words (the note *I did not hear anything.*); a recognizer that does not finish within 5 s of `endAudio` does not hold back what was heard. What was heard goes as `say` text, never audio; words that
   could not be sent (no connection) are `leftover`, which the text field takes. Every timer and stream belongs to one talk (`session`), so what an earlier talk does late is dropped; a cancel while the
-  microphone opens closes it when it has opened. `AppleDictation` is the real `Dictating`: it asks for the permissions (`SFSpeechRecognizer.requestAuthorization`, `AVAudioApplication.requestRecordPermission`; a
+  microphone opens closes it when it has opened. The wake word and the intent are below. `AppleDictation` is the real `Dictating`: it asks for the permissions (`SFSpeechRecognizer.requestAuthorization`, `AVAudioApplication.requestRecordPermission`; a
   refusal is an error that says where to allow it), takes the phone's language else English (the first the phone can recognize **on the device**: `requiresOnDeviceRecognition`, so no sound goes to Apple;
   a language the phone cannot do by itself is an error, not a quiet fall back), sets the audio session to `playAndRecord` (`SpeechPlayer` sets `playback` again for her next piece, and the session is
   given back when the microphone closes) and feeds an `AVAudioEngine` tap into an `SFSpeechAudioBufferRecognitionRequest`. The tap and the recognizer's handler are made in `nonisolated` functions:
   both are called from other queues, and a closure made in a main actor method is checked to run on the main actor (a crash). `Relay` keeps the last text, so an error at the end (*no speech
   detected*, 1110) still gives what was heard, or an empty `final`. `project.yml` has `NSMicrophoneUsageDescription` and `NSSpeechRecognitionUsageDescription`, and the hello declares the part
   `audio-in`. `swift test` covers `VoiceInput` (`VoiceInputTests`, with a fake `Dictating`) and its place in `ChatModel`; the recognizer and the microphone need a phone (the Simulator has a
-  microphone and no on-device model for some languages). Not built: hands-free (the wake word), the App Intents, a language setting, the clip saved with the message.
+  microphone and no on-device model for some languages). Not built: a language setting, the clip saved with the message.
+- **The wake word** (`WakeWord.swift`, the waiting mode of `VoiceInput`, `WakeWordController.swift`). `arm(phrases:hints:)` keeps the microphone open (`State.waiting`) and searches the
+  recognizer's text for "hey / hi / ok / okay <her name>" (`WakeWord.remainder(in:phrases:)`: whole words, lowercase and without accents, the first match wins; the name without a greeting is not a wake
+  word, the recognizer hears "Joi" too often). A match starts a talk (`wake`: she stops speaking, `.listening`), and the rest of the text is the message: `spoken(_:)` cuts the phrase from every
+  later result and from the final one, and a result in which the recognizer changed its mind about the name is skipped. The name alone waits `wakeWait` (5 s) and goes back to waiting with no note. The
+  waiting listening is made again by `recycle`: every 40 s (a session of the recognizer is not meant to run for ever), after a `final` with no wake word, after a failure or an end of the stream; a failure
+  waits 1 s, 2 s, 4 s... up to 30 s (`failures`; a microphone that cannot be opened, as in the background); a `DictationError` (a permission refused) is not tried again: the wake word is disarmed and the
+  note says why. `suspend(true)` closes it while her voice plays (`ChatModel.state(.talking)`), `retryNow()` is called when the app comes in front (`ChatView`'s `scenePhase`), the button during waiting
+  takes the talk over (`toggle`), and a talk that ends (sent, cancelled, nothing heard) goes back to waiting. `WakeWordController` holds what the user chose (`UserDefaults`:
+  `joi.wakeWord.enabled`, `joi.wakeWord.onlyWhileCharging`; off by default) and arms or disarms the voice: only while the phone charges when so chosen (`UIDevice` battery state, watched);
+  `ChatModel.wake` is it, shown by `HandsFreeView` (the menu over her body, *Hands-free*). `AppleDictation` gives the recognizer her name (`contextualStrings`) and opens the audio session with
+  `mixWithOthers`; `project.yml` has the background mode `audio`. The matching and the state machine are tested (`WakeWordTests`, `VoiceInputTests` with the fake `Dictating`); what the real recognizer
+  and the microphone do over hours, in the background, in a call or with music is **not tried** and needs a phone.
+- **The App Intent** (`App/JoiIntents.swift`, in the app's target, since the system reads the intents of the app and not of a package). `TalkIntent` (*Talk to Joi*, `openAppWhenRun`) calls
+  `VoiceTrigger.shared.listen()`; `AppModel` attaches the chat (`attach`: `voice.start()`), and a request made before the chat exists (the app was not running, the pairing is not done) waits 15 s for it.
+  `JoiShortcuts` makes it an App Shortcut with the phrases "Joi", "Talk to Joi" and "Listen, Joi", so "Hey Siri, Joi" works without the user setting anything up. A Vocal Shortcut (iOS 18), the Action
+  Button, Back Tap and the Shortcuts app run the same shortcut; they are set up by the user in the system's settings, and `HandsFreeView` says where. A Control Center or Lock Screen control would be a
+  widget extension and is not built.
 - **Her mouth.** The page reads it from her voice (see *Her mouth* in [Writing a node](nodes.md)). `SpeechPlayer` numbers the pieces it plays and has `onQueued`, `onStarted` and
   `onStopped`; `AppModel` hands them to `RendererBridge.speech`, `speechStarted` and `speechStopped`, which send the `speech`, `speech-start` and `speech-stop` messages (the
   piece's bytes in Base64; not kept for a page that opens later).
@@ -120,7 +137,7 @@ The app's own code, so that it builds and is tested on the Mac: SwiftUI and the 
   (`ChatModel.eventNote`: connected, first start, summary written, part switched, task ended, Looking Glass). Her tasks that wait for the user (`web_search`, `fetch_page` without a standing approval) are `ChatModel.questions`, kept from the `task` frames (a frame of the same id with another status takes
   the question back, the connection's loss clears them: the server sends them again when it is back) and shown by `TaskQuestionCard` over the chat, the oldest with how many more wait: *Approve*, *Deny*,
   and in its menu *Always approve <tool>*. `ChatModel.answer` calls `approveTask` / `denyTask` of `HistorySource` (`JoiClient`'s); a 409 (answered elsewhere) just takes the question back, any other
-  error stays under the card. Not yet: the App Intents, a notification for a task that waits while the app is closed (the app has to be open: see *Staying connected* in `DESIGN.md`).
+  error stays under the card. Not yet: a notification for a task that waits while the app is closed (the app has to be open: see *Staying connected* in `DESIGN.md`).
 
 ## The Xcode project
 

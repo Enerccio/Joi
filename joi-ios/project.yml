@@ -56,6 +56,9 @@ targets:
         NSCameraUsageDescription: Joi uses the camera to take a photo you send to your assistant.
         # push-to-talk: the microphone, and Apple's recognizer, which runs on the phone (what you say goes to her as text)
         NSMicrophoneUsageDescription: Joi listens while you talk to your assistant, only after you tap the microphone.
+        # the wake word keeps the microphone open when the app is not in front (the user turns it on, and sees the orange dot)
+        UIBackgroundModes:
+          - audio
         NSSpeechRecognitionUsageDescription: Joi turns what you say into text on the phone; the sound never leaves it.
     settings:
       base:

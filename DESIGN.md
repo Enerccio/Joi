@@ -1975,8 +1975,18 @@ When a model with vision is available, the node can give Joi images of what you 
 - **Built (2026-11-23): push-to-talk on the iOS app** (`joi-ios` `VoiceInput`, `AppleDictation`, `manual/developer/ios-app.md`). A microphone button in the chat: tap to talk, tap again to
   send at once, a cross cancels; the talk ends at a pause of 1.2 s (a timer on Apple's partial results: its recognizer has no end of speech), 8 s with no words give up, 60 s is the most. Apple's
   recognizer on the device (`SFSpeechRecognizer`, `requiresOnDeviceRecognition`: a language the phone cannot recognize by itself is an error, never a fall back to Apple's servers) in the
-  phone's language else English; the text goes as `say`, talking over her stops her. **Not built on iOS:** the Vocal Shortcut and Siri intents, the always-listening mode, the language
-  setting, `SpeechAnalyzer` (iOS 26) as a second backend, the clip saved with the message.
+  phone's language else English; the text goes as `say`, talking over her stops her.
+- **Built (2026-11-23): the App Intent and the wake word on iOS** (`App/JoiIntents.swift`, `VoiceTrigger`, `WakeWord`, `WakeWordController`, the waiting mode of `VoiceInput`). The intent *Talk to Joi*
+  (`openAppWhenRun`) opens the app and starts the microphone as the button does; its App Shortcut has the phrases "Joi", "Talk to Joi" and "Listen, Joi", so "Hey Siri, Joi" works, and the same
+  shortcut is what the user binds to a Vocal Shortcut (iOS 18), the Action Button or Back Tap: an app cannot set those up, so the *Hands-free* sheet (the menu over her body) tells the steps. **The own
+  wake word is matched in the text of Apple's on-device recognizer, not by a keyword spotter** (the open question above: sherpa-onnx's iOS build is a large download to ask about, and the name is text
+  anyway, so a rename needs no training): "hey / hi / ok / okay <her name>", whole words, accents and case ignored, and what follows it in the same breath is the message; the name alone waits 5 s for
+  the words. The recognizer is given her name as a hint. The recognition is made again every 40 s and after an end or failure (1 s, 2 s, 4 s... up to 30 s), it stands still while her voice plays (no
+  echo cancellation yet, so she would wake herself), mixes with other audio (it must not stop the user's music) and, with the audio background mode, goes on with the app in the background; iOS does
+  not let an app open the microphone from the background, so a listening that was lost is tried again when the app is in front. **Off by default**; the user turns it on in the Hands-free sheet, and
+  can limit it to the time the phone charges. A cost of Apple's recognizer for hours is not measured; if the battery says no, sherpa-onnx's keyword spotter is the next backend. **Not built on iOS:** the
+  Control Center / Lock Screen controls (a widget extension), the gate on the home Wi-Fi or a Focus, barge-in by voice, the language setting, `SpeechAnalyzer` (iOS 26) as a second backend, the clip saved
+  with the message.
 - **GPU (local setup):** the platform's GPU locks, set up under Administration. A lock is a way to fill a GPU (start-up
   and release steps), not one model, and the jobs of one lock run side by side. So Joi has a **voice lock** whose
   start-up loads the conversation LLM and the TTS model; both the conversation AI and the TTS model name it (no job
@@ -2085,7 +2095,7 @@ cannot drift from them:
    in the app, only by the Vocal Shortcut.
 3. **Not by voice:** the Action Button, Back Tap, a Control Center or Lock Screen control (iOS 18), a widget. All run the same
    intents.
-4. **Our own always-listening mode** (a later stage, off by default): the audio background mode and a keyword spotter,
+4. **Our own always-listening mode** (**built**, see *Voice*: the wake word matched in Apple's transcript; the keyword spotter below is the possible later backend; off by default): the audio background mode and a keyword spotter,
    **sherpa-onnx** (the node's choice too: VAD, keyword spotting and streaming ASR, an iOS build exists; the wake word is
    text, so a rename needs no training). Picovoice's Porcupine is an optional backend (better accuracy and power, but a
    proprietary engine with an AccessKey, a free tier for non-commercial use, and a trained file per phrase, which fits

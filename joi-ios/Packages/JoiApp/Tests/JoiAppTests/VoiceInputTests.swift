@@ -14,8 +14,11 @@ import JoiProtocol
     /// What `endAudio` makes the recognizer say last (nil: nothing, as a recognizer that hangs).
     var finalOnEnd: String?
 
-    func begin() async throws -> AsyncStream<DictationEvent> {
+    private(set) var hintsGiven: [[String]] = []
+
+    func begin(hints: [String]) async throws -> AsyncStream<DictationEvent> {
         begun += 1
+        hintsGiven.append(hints)
         if let beginError { throw beginError }
         let (stream, continuation) = AsyncStream.makeStream(of: DictationEvent.self)
         self.continuation = continuation
@@ -201,5 +204,145 @@ import JoiProtocol
         try await until { voice.state == .listening }
         voice.start()
         #expect(dictation.begun == 1)
+    }
+
+    // MARK: the wake word
+
+    func armed(wakeWait: Duration = .seconds(5), recycle: Duration = .seconds(30)) -> VoiceInput {
+        let voice = VoiceInput(dictation: dictation, send: { [unowned self] in sent.append($0); return accepts }, beforeListening: { [unowned self] in stopped += 1 },
+                               pause: .milliseconds(60), waitForSpeech: .seconds(5), longest: .seconds(30), finishWait: .seconds(5), wakeWait: wakeWait,
+                               recycleAfter: recycle, restartDelay: .milliseconds(10), backoffStep: .milliseconds(10))
+        voice.arm(phrases: WakeWord.phrases(name: "Joi"), hints: WakeWord.hints(name: "Joi"))
+        return voice
+    }
+
+    @Test func theWakeWordStartsTheTalkAndWhatFollowsIsTheMessage() async throws {
+        let voice = armed()
+        #expect(voice.state == .waiting)
+        try await until { dictation.begun == 1 }
+        #expect(dictation.hintsGiven == [["Hey Joi", "Joi"]])
+        dictation.hear("what a nice day") // not for her
+        dictation.hear("what a nice day hey Joi")
+        try await until { voice.state == .listening }
+        #expect(voice.heard == "")
+        dictation.hear("what a nice day hey Joi what time is it")
+        try await until { voice.heard == "what time is it" }
+        dictation.finalOnEnd = "what a nice day hey Joi what time is it"
+        try await until { !sent.isEmpty } // the pause ends it
+        #expect(sent == ["what time is it"]) // without the wake word
+        // and she listens for the wake word again
+        try await until { dictation.begun == 2 }
+        #expect(voice.state == .waiting)
+        #expect(voice.note == nil)
+    }
+
+    @Test func theNameAloneWaitsAFewSecondsForTheWords() async throws {
+        let voice = armed(wakeWait: .milliseconds(60))
+        try await until { dictation.begun == 1 }
+        dictation.hear("Hey Joi")
+        try await until { voice.state == .listening }
+        try await until { voice.state == .waiting && dictation.begun == 2 } // nothing came: back to waiting, no note
+        #expect(voice.note == nil)
+        #expect(sent.isEmpty)
+    }
+
+    @Test func theMessageInTheSameBreathAndAFinalWithTheWakeWord() async throws {
+        let voice = armed()
+        try await until { dictation.begun == 1 }
+        dictation.hear("Hey Joi turn it off")
+        try await until { voice.heard == "turn it off" }
+        dictation.finalOnEnd = "Hey Joi, turn it off."
+        try await until { !sent.isEmpty }
+        #expect(sent == ["turn it off."])
+    }
+
+    @Test func theRecognitionIsMadeAgainWhenItEnds() async throws {
+        let voice = armed()
+        try await until { dictation.begun == 1 }
+        dictation.finalText("just talking")
+        try await until { dictation.begun == 2 }
+        #expect(voice.state == .waiting)
+        #expect(sent.isEmpty)
+    }
+
+    @Test func aFailureIsTriedAgainLater() async throws {
+        let voice = armed()
+        try await until { dictation.begun == 1 }
+        dictation.fail("interrupted")
+        try await until { dictation.begun == 2 }
+        #expect(voice.state == .waiting)
+        #expect(voice.note == nil)
+    }
+
+    @Test func aMicrophoneThatCannotBeOpenedIsTriedAgain() async throws {
+        dictation.beginError = NSError(domain: "audio", code: 1)
+        let voice = armed()
+        try await until { dictation.begun >= 3 }
+        dictation.beginError = nil
+        try await until { dictation.begun >= 4 && voice.state == .waiting }
+        #expect(voice.armed)
+    }
+
+    @Test func aRefusedPermissionDisarmsIt() async throws {
+        dictation.beginError = DictationError("Joi may not use the microphone.")
+        let voice = armed()
+        try await until { voice.note != nil }
+        #expect(!voice.armed)
+        #expect(voice.state == .idle)
+        #expect(voice.note == "Joi may not use the microphone.")
+        let begun = dictation.begun
+        try await Task.sleep(for: .milliseconds(80))
+        #expect(dictation.begun == begun)
+    }
+
+    @Test func herVoiceIsNotListenedTo() async throws {
+        let voice = armed()
+        try await until { voice.state == .waiting && dictation.begun == 1 }
+        voice.suspend(true)
+        #expect(voice.state == .idle)
+        #expect(dictation.cancelled >= 1) // the microphone is closed
+        try await Task.sleep(for: .milliseconds(80))
+        #expect(dictation.begun == 1)
+        voice.suspend(false)
+        try await until { dictation.begun == 2 }
+        #expect(voice.state == .waiting)
+    }
+
+    @Test func theButtonTakesTheTalkOverFromTheWakeWord() async throws {
+        let voice = armed()
+        try await until { voice.state == .waiting && dictation.begun == 1 }
+        voice.toggle()
+        #expect(voice.state == .starting)
+        #expect(stopped == 1)
+        try await until { voice.state == .listening }
+        dictation.finalOnEnd = "by hand"
+        dictation.hear("by hand")
+        try await until { !sent.isEmpty }
+        #expect(sent == ["by hand"])
+        try await until { voice.state == .waiting } // and the wake word goes on
+    }
+
+    @Test func cancellingATalkGoesBackToWaiting() async throws {
+        let voice = armed()
+        try await until { dictation.begun == 1 }
+        dictation.hear("hey Joi be quiet")
+        try await until { voice.state == .listening }
+        voice.cancel()
+        #expect(sent.isEmpty)
+        try await until { voice.state == .waiting && dictation.begun == 2 }
+    }
+
+    @Test func disarmingStopsIt() async throws {
+        let voice = armed()
+        try await until { dictation.begun == 1 }
+        voice.disarm()
+        #expect(voice.state == .idle && !voice.armed)
+        try await Task.sleep(for: .milliseconds(80))
+        #expect(dictation.begun == 1)
+    }
+
+    @Test func aRecognitionThatGoesOnForTooLongIsMadeAgain() async throws {
+        _ = armed(recycle: .milliseconds(60))
+        try await until { dictation.begun >= 2 }
     }
 }

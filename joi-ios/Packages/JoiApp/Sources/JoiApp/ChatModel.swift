@@ -88,9 +88,12 @@ public final class ChatModel: AvatarOutput {
     public private(set) var sending = false
     /// Push-to-talk (nil when the app has no speech recognizer): the user's speech as typed words.
     @ObservationIgnored public private(set) var voice: VoiceInput?
+    /// The wake word "Hey <her name>" (nil without a recognizer): the user's choices and when it is listened for.
+    @ObservationIgnored public private(set) var wake: WakeWordController?
 
     public init(joiID: String, joiName: String, history: HistorySource, link: NodeLink, speech: SpeechPlaying? = nil,
-                player: AnimationPlayer? = nil, roles: JoiAnimations? = nil, dictation: Dictating? = nil) {
+                player: AnimationPlayer? = nil, roles: JoiAnimations? = nil, dictation: Dictating? = nil,
+                wakeDefaults: UserDefaults = .standard) {
         self.joiID = joiID
         self.joiName = joiName
         self.history = history
@@ -105,6 +108,7 @@ public final class ChatModel: AvatarOutput {
             VoiceInput(dictation: dictation, send: { [weak self] in await self?.send($0) ?? false },
                        beforeListening: { [weak self] in self?.stopSpeaking() })
         }
+        wake = voice.map { WakeWordController(name: joiName, voice: $0, defaults: wakeDefaults) }
     }
 
     /// The server's answer to a part the user put in another state.
@@ -438,6 +442,8 @@ public final class ChatModel: AvatarOutput {
 
     public func state(_ state: AvatarDirector.State) {
         avatarState = state
+        // her voice is not heard as the wake word
+        voice?.suspend(state == .talking)
         // her eyes follow what she does: shut while she sleeps (slowly as she falls asleep), open again as she wakes up
         switch state {
         case .sleeping: player?.setEyes("closed", seconds: 0.4)

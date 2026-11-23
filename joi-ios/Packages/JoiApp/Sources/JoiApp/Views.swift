@@ -94,6 +94,8 @@ struct ChatView: View {
     let model: AppModel
     @FocusState private var focused: Bool
     @State private var showingParts = false
+    @State private var showingHandsFree = false
+    @Environment(\.scenePhase) private var scenePhase
 
     var body: some View {
         GeometryReader { geometry in
@@ -111,6 +113,11 @@ struct ChatView: View {
             }
         }
         .sheet(isPresented: $showingParts) { PartsView(chat: chat, avatar: avatar) }
+        .sheet(isPresented: $showingHandsFree) { HandsFreeView(chat: chat) }
+        // a microphone that could not be opened in the background is tried again in front
+        .onChange(of: scenePhase) {
+            if scenePhase == .active { chat.voice?.retryNow() }
+        }
     }
 
     /// Over her body: what she wears (when she has parts to switch) and the menu.
@@ -121,12 +128,55 @@ struct ChatView: View {
                     .accessibilityLabel("Her look")
             }
             Menu {
+                if chat.voice != nil {
+                    Button { showingHandsFree = true } label: { Label("Hands-free", systemImage: "ear") }
+                }
                 Button("Sign out", role: .destructive) { model.signOut() }
             } label: { Image(systemName: "ellipsis.circle") }
         }
         .font(.title3)
         .foregroundStyle(.white.opacity(0.8))
         .padding(12)
+    }
+}
+
+/// Talking to her without touching the phone: the wake word (the app's own, off until the user turns it on) and how to start her with Siri, a Vocal
+/// Shortcut or the Action Button (set up by the user, in the system's own settings: an app cannot do it for them).
+struct HandsFreeView: View {
+    let chat: ChatModel
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        NavigationStack {
+            List {
+                if let wake = chat.wake {
+                    Section {
+                        Toggle("Listen for “\(wake.phrase)”", isOn: Binding(get: { wake.enabled }, set: { wake.setEnabled($0) }))
+                        Toggle("Only while charging", isOn: Binding(get: { wake.onlyWhileCharging }, set: { wake.setOnlyWhileCharging($0) }))
+                            .disabled(!wake.enabled)
+                    } header: {
+                        Text("Wake word")
+                    } footer: {
+                        Text("The microphone stays open (the orange dot is on) and the recognizer works on the phone, so the battery pays for it. What you say after \(wake.phrase) goes to \(chat.joiName) as words; nothing is recorded. It listens while the app is open or in the background, and stops while she talks.")
+                    }
+                }
+                Section("With Siri") {
+                    Text("Say “Hey Siri, \(chat.joiName)”. Siri opens the app and it listens.")
+                }
+                Section("With your own phrase (iOS 18)") {
+                    Text("Settings → Accessibility → Vocal Shortcuts → Set Up Vocal Shortcut. Choose the shortcut *Talk to Joi* and say your phrase three times (“\(chat.wake?.phrase ?? "Hey \(chat.joiName)")” will do).")
+                }
+                Section("With a button") {
+                    Text("Settings → Action Button → Shortcut → *Talk to Joi*. Back Tap (Settings → Accessibility → Touch → Back Tap) and the Control Center can run it too.")
+                }
+            }
+            .navigationTitle("Hands-free")
+            #if os(iOS)
+            .navigationBarTitleDisplayMode(.inline)
+            #endif
+            .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } } }
+        }
+        .presentationDetents([.medium, .large])
     }
 }
 
@@ -367,7 +417,7 @@ struct VoiceButton: View {
             Image(systemName: voice.state == .listening ? "mic.fill" : "mic")
                 .foregroundStyle(voice.state == .listening ? Color.red : Color.accentColor)
         }
-        .disabled(voice.state == .idle ? !connected : voice.state != .listening)
+        .disabled(voice.state == .idle || voice.state == .waiting ? !connected : voice.state != .listening)
         .accessibilityLabel(voice.state == .listening ? "Send what you said" : "Talk")
     }
 }
@@ -377,7 +427,11 @@ struct VoiceStrip: View {
     let voice: VoiceInput
 
     var body: some View {
-        if voice.state != .idle {
+        if voice.state == .waiting {
+            Label("Listening for the wake word", systemImage: "ear")
+                .font(.footnote).foregroundStyle(.secondary)
+                .frame(maxWidth: .infinity, alignment: .leading).padding(.horizontal).padding(.vertical, 4)
+        } else if voice.state != .idle {
             HStack {
                 switch voice.state {
                 case .starting:
@@ -389,7 +443,7 @@ struct VoiceStrip: View {
                 case .finishing:
                     ProgressView()
                     Text(voice.heard.isEmpty ? "Finishing…" : voice.heard).foregroundStyle(.secondary).lineLimit(3)
-                case .idle:
+                case .idle, .waiting:
                     EmptyView()
                 }
                 Spacer()

@@ -112,6 +112,23 @@ struct FakeHistory: HistorySource {
         #expect(model().voice == nil)
     }
 
+    @Test func theWakeWordWaitsWhileSheTalks() async throws {
+        let dictation = FakeDictation()
+        let defaults = UserDefaults(suiteName: "joi.test.\(UUID().uuidString)")!
+        let chat = ChatModel(joiID: "j1", joiName: "Joi", history: FakeHistory(), link: link, speech: speech, dictation: dictation, wakeDefaults: defaults)
+        let wake = try #require(chat.wake)
+        #expect(wake.phrase == "Hey Joi" && !wake.enabled && chat.voice?.state == .idle)
+        wake.setEnabled(true)
+        let voice = try #require(chat.voice)
+        #expect(voice.state == .waiting)
+        // her voice is not heard as the wake word
+        chat.state(.talking)
+        #expect(voice.state == .idle)
+        chat.state(.idle)
+        #expect(voice.state == .waiting)
+        #expect(model().wake == nil)
+    }
+
     @Test func theHistoryIsTheStartOfTheChat() async {
         let date = Date(timeIntervalSince1970: 1_800_000_000)
         let page = ChatHistory(messages: [

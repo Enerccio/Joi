@@ -12,7 +12,7 @@ import Speech
 
     public init() {}
 
-    public func begin() async throws -> AsyncStream<DictationEvent> {
+    public func begin(hints: [String]) async throws -> AsyncStream<DictationEvent> {
         cancel()
         try await Self.authorize()
         guard let recognizer = Self.recognizer() else {
@@ -20,7 +20,8 @@ import Speech
         }
         #if os(iOS)
         let session = AVAudioSession.sharedInstance()
-        try session.setCategory(.playAndRecord, mode: .default, options: [.defaultToSpeaker, .allowBluetooth])
+        // mixed with other audio: the wake word listens all day and must not stop the user's music
+        try session.setCategory(.playAndRecord, mode: .default, options: [.defaultToSpeaker, .allowBluetooth, .mixWithOthers])
         try session.setActive(true)
         #endif
         let request = SFSpeechAudioBufferRecognitionRequest()
@@ -28,6 +29,7 @@ import Speech
         request.requiresOnDeviceRecognition = true
         request.taskHint = .dictation
         request.addsPunctuation = true
+        request.contextualStrings = hints
         let engine = AVAudioEngine()
         let format = engine.inputNode.outputFormat(forBus: 0)
         guard format.sampleRate > 0 else { throw DictationError("The microphone is not available.") }

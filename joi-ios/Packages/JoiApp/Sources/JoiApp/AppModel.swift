@@ -168,6 +168,8 @@ public final class AppModel {
         let model = ChatModel(joiID: joi.id, joiName: joi.name, history: client, link: link, speech: speech,
                               player: avatar.bridge, roles: roles, dictation: Self.makeDictation())
         model.setCanSeeImages(info?.images ?? false)
+        // *Talk to Joi* (Siri, a Vocal Shortcut, the Action Button) starts the microphone
+        VoiceTrigger.shared.attach { [weak model] in model?.voice?.start() }
         model.onServerEvent = { [weak model, weak avatar] name in
             // the server tells that her body or her settings changed
             switch name {
