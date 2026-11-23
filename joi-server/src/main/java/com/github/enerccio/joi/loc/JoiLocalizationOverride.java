@@ -20,5 +20,8 @@ public class JoiLocalizationOverride extends LocalizationOverride {
                 + "a speech) or converts a model with Blender is logged here with the user, its start and end and each call it made to a model, "
                 + "a speech backend or Blender. Only metadata is kept, never the text. Nothing is deleted automatically: set the filter and delete "
                 + "the matching jobs.");
+        // the platform's text names plugins; Joi has extensions
+        text("en", L.HELP_UPDATE, "Updates a Docker installation from its Git checkout without logging in to the server: the newest version of the branch "
+                + "is pulled and built, with the extensions, and Joi is restarted.");
     }
 }

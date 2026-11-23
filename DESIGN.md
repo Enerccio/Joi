@@ -684,6 +684,13 @@ Grok** (`joi-extensions/`, Marginalia's plugins copied and built against the pla
 and the text model's dialog offers the type *Extension*. The Docker image does not contain them: they are built in a container and copied into
 the data folder, as in Marginalia.
 
+**Updating a Docker server (built):** Administration → Update is the platform's `UpdatePanel` and `UpdateService`, as in Marginalia. The application
+runs in the container and only asks (it writes `data/update/request`); the update watcher on the host (`tools/update-watcher/watch.sh`, installed
+as systemd units by `install.sh`, or run from cron) runs `rebuild.sh` and writes `data/update/status.properties` (branch, newest commit of the
+remote, how the last update ended), which the tab shows beside the running version and commit (`git.properties`, written by the git-commit-id plugin
+of `joi-server`; the Docker build copies `.git` for it). Without the watcher (the desktop app, the prebuilt image) the tab only says so.
+See `manual/user/administration/updates.md`.
+
 **Joi's own extension points** (`JoiExtension`, `JoiExtensionContext`): functions offered to her turns (`ToolProvider`), tabs of the workspace
 (`ExtensionPart`) and listeners of the turn events; all removed with the extension. **Not built, added when one is needed:** tabs of the
 assistant's dialog, settings of an extension, prompt sections, an API JAR (today a bundle sees the server's classes by boot delegation, so an

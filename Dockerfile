@@ -30,6 +30,8 @@ RUN mvn install -N -B -f pom.xml \
 COPY marginalia/marginalia/platform/src ./marginalia/marginalia/platform/src
 COPY joi-protocol/src ./joi-protocol/src
 COPY joi-server/src ./joi-server/src
+# the commit the build is made from (git.properties, shown by Administration -> Update); the builder stage only, never in the image
+COPY .git ./.git
 RUN mvn install -B -DskipTests -Pproduction -pl joi-server -am \
     && mkdir /war && cp joi-server/target/joi-server-*.war /war/ROOT.war \
     && find "$HOME/.m2/repository/io/github/enerccio/joi-server" -name '*.war' -delete \

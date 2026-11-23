@@ -24,6 +24,7 @@ import com.github.enerccio.marginalia.ui.workspace.parts.admin.DatabaseBackupPan
 import com.github.enerccio.marginalia.ui.workspace.parts.admin.GpuPanel;
 import com.github.enerccio.marginalia.ui.workspace.parts.admin.JobsPanel;
 import com.github.enerccio.marginalia.ui.workspace.parts.admin.ResourceGarbagePanel;
+import com.github.enerccio.marginalia.ui.workspace.parts.admin.UpdatePanel;
 import com.github.enerccio.marginalia.utils.UIUtils;
 import com.vaadin.flow.component.Component;
 import com.vaadin.flow.component.button.Button;
@@ -40,8 +41,8 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * The administration, for administrators only (the workspace adds it for them): the users of the installation and the GPUs with
- * their locks (the platform's {@link GpuPanel}). The users tab follows the one of Marginalia's admin page.
+ * The administration, for administrators only (the workspace adds it for them): the users of the installation, the GPUs with
+ * their locks (the platform's {@link GpuPanel}), and the other tabs the platform has panels for. The users tab follows the one of Marginalia's admin page.
  */
 @Configurable
 public class AdminPart implements WorkspacePart {
@@ -68,6 +69,9 @@ public class AdminPart implements WorkspacePart {
     private final JobsPanel jobsPanel = new JobsPanel();
     // the extensions of the installation: model providers and the features that bring their own (the platform's OsgiService)
     private final ExtensionsPanel extensionsPanel = new ExtensionsPanel();
+    // updating a Docker installation from its Git checkout through the update watcher on the host (the platform's UpdatePanel,
+    // as Marginalia's Update tab); without the watcher it only shows the running version
+    private final UpdatePanel updatePanel = new UpdatePanel();
     private Grid<User> usersGrid;
     private Button addUserButton;
     private TabSheet tabs;
@@ -82,6 +86,7 @@ public class AdminPart implements WorkspacePart {
         tabs.add(loc.getValue(J_L.LABEL_API_ACCESS), apiAccessPanel.create());
         tabs.add(loc.getValue(J_L.LABEL_TOOLS), toolsPanel.create());
         tabs.add(loc.getValue(J_L.LABEL_EXTENSIONS), extensionsPanel.create());
+        tabs.add(loc.getValue(J_L.LABEL_UPDATE), updatePanel.create());
         tabs.add(loc.getValue(J_L.LABEL_JOBS), jobsPanel.create());
         tabs.add(loc.getValue(J_L.LABEL_DATABASE_BACKUPS), databaseBackupPanel.create());
         tabs.add(loc.getValue(J_L.LABEL_CLEANUP), cleanupPanel.create());
@@ -189,6 +194,7 @@ public class AdminPart implements WorkspacePart {
         databaseBackupPanel.refresh();
         cleanupPanel.refresh();
         resourceGarbagePanel.refresh();
+        updatePanel.refresh();
     }
 
     private void refreshQuietly() {
@@ -213,7 +219,7 @@ public class AdminPart implements WorkspacePart {
 
     @Override
     public List<LLMInteract> getLLMChildren(boolean deep) {
-        return List.of(gpuPanel, databaseBackupPanel, cleanupPanel, resourceGarbagePanel);
+        return List.of(gpuPanel, databaseBackupPanel, cleanupPanel, resourceGarbagePanel, updatePanel);
     }
 
     @Override

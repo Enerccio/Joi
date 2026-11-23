@@ -262,7 +262,7 @@ class TtsAndAdminTest extends PlatformTestBase {
         assertThat(rows(((AdminPart) admin.getPart("admin")).getUsersGrid())).isNotEmpty();
         // the platform's backups, cleanup and sweep of files are in the administration, with the GPUs
         assertThat(admin.getPart("admin").getLLMChildren(false)).extracting(child -> child.getClass().getSimpleName())
-                .contains("GpuPanel", "DatabaseBackupPanel", "CleanupPanel", "ResourceGarbagePanel");
+                .contains("GpuPanel", "DatabaseBackupPanel", "CleanupPanel", "ResourceGarbagePanel", "UpdatePanel");
 
         // no tab of its own: the button under the tabs shows it, and the state remembers it
         assertThat(admin.getActivePart()).isNotInstanceOf(AdminPart.class);
@@ -275,5 +275,8 @@ class TtsAndAdminTest extends PlatformTestBase {
     void thePlatformTextsSayJoi() {
         assertThat(loc.getValue(L.LABEL_USED_OUTSIDE_MARGINALIA)).isEqualTo("Also used outside Joi");
         assertThat(loc.getValue(L.HELP_GPU_USED_OUTSIDE)).contains("Joi").doesNotContain("Marginalia");
+        // the Update tab: Joi has extensions, not plugins
+        assertThat(loc.getValue(L.HELP_UPDATE)).contains("Joi", "extensions").doesNotContain("Marginalia", "plugins");
+        assertThat(loc.getValue(L.MSG_UPDATE_UP_TO_DATE)).isEqualTo("Joi is up to date.");
     }
 }

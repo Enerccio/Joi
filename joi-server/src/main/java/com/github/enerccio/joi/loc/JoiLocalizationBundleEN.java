@@ -170,6 +170,7 @@ public class JoiLocalizationBundleEN extends TextBundleBase<J_L> {
         setValue(J_L.ACTIVITY_QUEUED, "Waiting in the queue");
         setValue(J_L.ACTIVITY_WAITS_FOR_YOU, "Waits for your answer");
         setValue(J_L.LABEL_EXTENSIONS, "Extensions");
+        setValue(J_L.LABEL_UPDATE, "Update");
         setValue(J_L.LABEL_UPLOAD_EXTENSION, "Load Extension (.jar)");
         setValue(J_L.LABEL_BUNDLE_ID, "ID");
         setValue(J_L.LABEL_BUNDLE_NAME, "Extension Name");

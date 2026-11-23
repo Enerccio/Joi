@@ -201,6 +201,10 @@ together; Joi is then down for the whole build.
 
 Make a [backup](#backups) first when the update changes the database.
 
+An administrator can also start the update from **Administration → Update**, after the [update watcher](../administration/updates.md) was
+set up once on the server (`sudo tools/update-watcher/install.sh`). The watcher runs `rebuild.sh`; the page shows the running version, the
+newest commit of the branch and the log of the last update.
+
 ## Health
 
 The image has a Docker health check: `docker ps` shows `(health: starting)` while the server starts (up to two minutes), then
