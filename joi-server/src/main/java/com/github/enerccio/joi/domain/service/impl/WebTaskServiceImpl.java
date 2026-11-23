@@ -4,12 +4,14 @@ import com.github.enerccio.joi.domain.chat.WebResearch;
 import com.github.enerccio.joi.domain.chat.WorkspaceTools;
 import com.github.enerccio.joi.domain.chat.turn.TurnControllerEvent.Registration;
 import com.github.enerccio.joi.domain.chat.turn.TurnEvents;
+import com.github.enerccio.joi.domain.collections.ChatMessageType;
 import com.github.enerccio.joi.domain.collections.JoiTaskStatus;
 import com.github.enerccio.joi.domain.collections.TaskMessageRole;
 import com.github.enerccio.joi.domain.collections.TextLLMType;
 import com.github.enerccio.joi.domain.events.JoiEvents;
 import com.github.enerccio.joi.domain.jobs.JoiJobs;
 import com.github.enerccio.marginalia.domain.service.job.JobCallType;
+import com.github.enerccio.joi.domain.model.impl.ChatMessage;
 import com.github.enerccio.joi.domain.model.impl.Joi;
 import com.github.enerccio.joi.domain.model.impl.JoiTask;
 import com.github.enerccio.joi.domain.model.impl.JoiTaskMessage;
@@ -20,6 +22,7 @@ import com.github.enerccio.joi.domain.tools.ToolScope;
 import com.github.enerccio.joi.domain.persona.JoiPromptField;
 import com.github.enerccio.joi.domain.service.JoiService;
 import com.github.enerccio.joi.domain.service.JoiTaskMessageService;
+import com.github.enerccio.joi.domain.service.ChatMessageService;
 import com.github.enerccio.joi.domain.service.JoiTaskService;
 import com.github.enerccio.joi.domain.service.NodeService;
 import com.github.enerccio.joi.domain.web.TaskInfos;
@@ -77,6 +80,8 @@ public class WebTaskServiceImpl implements WebTaskService, InitializingBean, Dis
     private JoiTaskService taskService;
     @Autowired
     private JoiTaskMessageService messageService;
+    @Autowired
+    private ChatMessageService chatMessageService;
     @Autowired
     private ToolPermissionService permissionService;
     @Autowired
@@ -577,12 +582,41 @@ public class WebTaskServiceImpl implements WebTaskService, InitializingBean, Dis
     // telling her
     // ----------------------------------------------------------------------------------------------------------------
 
+    /**
+     * The message of the user she started the task for: the latest one the user wrote before the task was made (the turn
+     * that made it is stored when it ends, so it is there when the task is). Null for a task the user made themselves.
+     */
+    private ChatMessage origin(Joi joi, JoiTask task) {
+        try {
+            if (task.getCreation() == null) {
+                return null;
+            }
+            List<ChatMessage> latest = new ArrayList<>(chatMessageService.findLatest(joi, 12));
+            Collections.reverse(latest);
+            for (ChatMessage message : latest) {
+                if (message.getType() == ChatMessageType.USER && StringUtils.isNotBlank(message.getInput())
+                        && message.getSentAt() != null && !message.getSentAt().after(task.getCreation())) {
+                    return message;
+                }
+            }
+        } catch (Exception e) {
+            log.debug("The message of task {} was not found: {}", task.getId(), e.getMessage());
+        }
+        return null;
+    }
+
     /** She is told, in one event: through a node that is connected, else when one connects. */
     private void report(Joi joi, JoiTask task, String statusWords, String result, String reason, String status) {
         try {
             TaskEventTemplateData data = new TaskEventTemplateData();
             data.names(joiService.name(joi), personaService.userName());
             data.setTitle(task.getTitle());
+            if (StringUtils.isNotBlank(task.getInstructions())
+                    && !StringUtils.normalizeSpace(task.getInstructions()).equals(task.getTitle())) {
+                data.setQuestion(task.getInstructions());
+            }
+            ChatMessage origin = origin(joi, task);
+            data.setUserMessage(origin == null ? null : StringUtils.abbreviate(StringUtils.strip(origin.getInput()), 1500));
             data.setStatus(statusWords);
             data.setResult(result);
             // an error is what it says; a refusal carries the user's words

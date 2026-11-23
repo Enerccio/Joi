@@ -12,6 +12,14 @@ public class TaskEventTemplateData extends JoiTemplateData {
     @JoiTemplateDescription(loc = J_L.DESC_TEMPLATE_TASK_TITLE)
     private String title;
 
+    /** What the user said in the message that she started it for; empty when she started it for none (or it is not known). */
+    @JoiTemplateDescription(loc = J_L.DESC_TEMPLATE_TASK_USER_MESSAGE)
+    private String userMessage;
+
+    /** What she asked the tool for, whole; empty when the title already says it. */
+    @JoiTemplateDescription(loc = J_L.DESC_TEMPLATE_TASK_ASKED)
+    private String question;
+
     /** How it ended in words: finished, failed, not allowed by the user, cancelled. */
     @JoiTemplateDescription(loc = J_L.DESC_TEMPLATE_TASK_STATUS)
     private String status;
@@ -34,6 +42,22 @@ public class TaskEventTemplateData extends JoiTemplateData {
 
     public void setTitle(String title) {
         this.title = title;
+    }
+
+    public String getUserMessage() {
+        return userMessage;
+    }
+
+    public void setUserMessage(String userMessage) {
+        this.userMessage = userMessage;
+    }
+
+    public String getQuestion() {
+        return question;
+    }
+
+    public void setQuestion(String question) {
+        this.question = question;
     }
 
     public String getStatus() {

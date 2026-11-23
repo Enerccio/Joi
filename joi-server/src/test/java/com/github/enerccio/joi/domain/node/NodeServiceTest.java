@@ -399,6 +399,25 @@ class NodeServiceTest extends PlatformTestBase {
     }
 
     @Test
+    void aNodeIsToldWhyShePutsNothingWhenSheHasNoChatModel() throws Exception {
+        ((NodeServiceImpl) nodeService).setGreeting(true);
+        joi.setChatModel(null);
+        joi = joiService.save(joi);
+
+        Node node = connect("Bearer " + token);
+        node.hello("n1", "desk", joi.getUuid(), "1.2");
+        node.next("welcome");
+        node.manifest(1);
+        JsonObject error = node.next("error");
+        assertThat(error.has("ref")).isFalse();
+        assertThat(error.getAsJsonObject("data").get("code").getAsString()).isEqualTo("no_model");
+        assertThat(error.getAsJsonObject("data").get("message").getAsString()).contains("Mira has no chat model");
+        valid("ApiError", error.getAsJsonObject("data"));
+        // no turn was started: nothing was written into her conversation
+        assertThat(chatMessageService.hasAny(joi)).isFalse();
+    }
+
+    @Test
     void sheWakesUpForTheFirstTimeThenGreetsTheUserWhoIsBack() throws Exception {
         ((NodeServiceImpl) nodeService).setGreeting(true);
         llm.enqueue(MockLLMResponse.text("Oh! Hello. I'm awake."), MockLLMResponse.text("Welcome back."));

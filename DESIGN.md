@@ -157,7 +157,8 @@ one; the server treats every node the same.
     (`connected`), but not for a node that only lost the connection (`hello.resumed`, 1.3). Each is an event she is told as the user's turn, from a template the user can change
     (`JoiPromptField.FIRST_BOOT_EVENT`, `CONNECTED_EVENT`, `NodeEventTemplateData`: the node, its kind, when they
     last talked), and stored as an event message (`node.first_boot`, `node.connected`). Nothing is said when she has
-    no chat model.
+    no chat model, but the node is told why: an `error` frame without a `ref` (code `no_model`, the message the HTTP
+    API gives), which a node shows as a note, so a misconfigured server does not look like a silent one.
   - **Where she is shown (1.4):** `display` (`lookingGlass` true or false) when the user moves her onto a Looking
     Glass or back into the node's window; the server starts her turn about it (`turn` with the cause
     `looking_glass_entered` or `looking_glass_exited`) from its own template (`LOOKING_GLASS_ENTERED_EVENT`,
@@ -751,6 +752,10 @@ own voice, the thinking pose meanwhile. What is new:
 - **`delegate`** (a `ServerTool` with the usual chain assistant → user → administrator; off by default). Arguments: the **goal** and the **context** she chooses
   to give (the agent does not see the conversation, so what it needs is in the goal; it cannot be talked to while it runs). The answer is at once: "on it".
   Templates (each a `JoiPromptField`): the agent's instructions, the framing of its goal, and what she is told when it ends.
+- **The event says what it was for (built).** A task ends in a later turn, where the call that started it, and the message of the user it was for, are
+  not in her context any more (a model that was told "find it and copy it to my clipboard" forgot the clipboard). `TaskEventTemplateData` has
+  `question` (what she asked the tool, whole, when the title is cut) and `userMessage` (the user's latest message before the task was made, found
+  by `WebTaskServiceImpl.origin`); the default template shows both and tells her to do what that message asked besides the answer.
 - **Its tools.** Chosen by the tool permissions, never everything she has. Version one: `web_search`, `fetch_page` (called inside the loop, not as nested tasks),
   `recall`, and the workspace (read, write, list; the files stay in her workspace and she can offer them with `offer_file_to_clipboard`). **Never inside an
   agent:** `delegate` (no recursion), `remember`, `set_mood`, outfits, body and animation tools, `switch_body` (an agent does not change her or her memory;

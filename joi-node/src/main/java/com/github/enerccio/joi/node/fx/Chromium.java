@@ -45,6 +45,9 @@ final class Chromium {
             }
             builder.getCefSettings().root_cache_path = dir.resolve("profile").toString();
             builder.getCefSettings().log_file = dir.resolve("chromium.log").toString();
+            // Chromium on Linux asks the user to accept its "Additional Terms of Service" on a first run (an empty window nobody
+            // can answer in an off-screen browser); this is a browser for her body, not for the user's browsing
+            builder.addJcefArgs("--no-first-run", "--no-default-browser-check", "--disable-features=Translate,MediaRouter");
             builder.setAppHandler(new MavenCefAppHandlerAdapter() {
             });
             app = builder.build();

@@ -586,8 +586,13 @@ public class NodeServiceImpl implements NodeService, InitializingBean, Disposabl
         String text;
         try (InRequestScope _ = new InRequestScope(session.attributes())) {
             joi = joiService.find(session.joiId());
-            if (joi == null || chatService.chatModel(joi) == null) {
-                // nobody to greet with: the node shows her as she is
+            if (joi == null) {
+                return;
+            }
+            if (chatService.chatModel(joi) == null) {
+                // nobody to greet with: the node shows her as she is, and is told why she says nothing (the same error as a say gets)
+                session.error(null, "no_model", joiService.name(joi)
+                        + " has no chat model: choose one in her About tab or in User Settings");
                 return;
             }
             first = !chatMessageService.hasAny(joi);

@@ -97,7 +97,9 @@ placement of the function-call rule, images and function definitions are setting
 
 A tool call can start a **task** (`JoiTask`, `WebTaskService`): a call to inference of its own that does not start during the reply. It waits
 (`QUEUED`) until the message that started it is finished, spoken included, and then runs on the deep reasoning model, one at a time per
-assistant. Its result comes back to the conversation as an event message that the server starts as a turn, so she tells it in her own voice.
+assistant. Its result comes back to the conversation as an event message that the server starts as a turn, so she tells it in her own voice. The event also carries what she asked for (the whole question, when the title is cut short) and the
+message of the user she started the task for (`WebTaskServiceImpl.origin`: the latest message of the user before the task was made), so what
+that message asked besides the answer (the result on the clipboard, say) is still in front of her when the task is done.
 This matters with one GPU that swaps models: the reply holds the conversation and TTS models, and only after she has said "I'm on it" does the GPU
 switch.
 
