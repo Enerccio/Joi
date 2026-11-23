@@ -39,7 +39,6 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.text.DateFormat;
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 
@@ -225,9 +224,10 @@ public class AnimationPacksPart implements WorkspacePart {
         imported(file, fileName);
     }
 
-    /** Checks animations in the table, for tests. */
+    /** Checks animations in the table, for tests; the export then has them in the order given (a set's order is the hashes', and changes from run to run). */
     void checkForTest(List<AnimationPack> animations) {
-        grid.asMultiSelect().setValue(new HashSet<>(animations));
+        grid.asMultiSelect().setValue(new java.util.LinkedHashSet<>(animations));
+        checked = List.copyOf(animations);
     }
 
     /** What the export's download writes, for tests. */
