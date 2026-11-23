@@ -136,12 +136,17 @@ public final class VoiceModels {
                 throw new IOException("The download failed: " + asset.url().getHost() + " answered " + response.statusCode());
             }
             MessageDigest sha = sha256();
+            long written = 0;
             try (InputStream in = response.body(); OutputStream out = Files.newOutputStream(file)) {
                 byte[] buffer = new byte[64 * 1024];
                 int n;
                 while ((n = in.read(buffer)) > 0) {
                     if (Thread.currentThread().isInterrupted()) {
                         throw new InterruptedException();
+                    }
+                    written += n;
+                    if (asset.size() > 0 && written > asset.size()) {
+                        throw new IOException("The download is larger than it should be, it was thrown away.");
                     }
                     out.write(buffer, 0, n);
                     sha.update(buffer, 0, n);

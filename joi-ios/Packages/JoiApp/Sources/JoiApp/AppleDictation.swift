@@ -60,9 +60,8 @@ import Speech
         engine.stop()
         engine.inputNode.removeTap(onBus: 0)
         self.engine = nil
-        #if os(iOS)
-        try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
-        #endif
+        // The session is left active: her voice may be playing in it (the wake word's listening closes when she starts to talk), and a
+        // session deactivated while it plays stops her. Other apps' audio was mixed with, never interrupted, so it needs no notice.
     }
 
     // MARK: permissions and the recognizer

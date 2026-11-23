@@ -115,6 +115,10 @@ The watcher reads these environment variables (with systemd: `sudo systemctl edi
 By default the watcher runs as **root**: it has to use Docker and to write into the data folder, which belongs to the
 user of the container. Git itself is run as the owner of the checkout, so the files of Git stay theirs.
 
+Because `data/update` belongs to the container's user, the watcher does not trust what is in it: it refuses the folder
+when it is a symbolic link, writes the status through a new file, takes its lock on the script itself, and makes the
+log anew for each update (a link put in its place is never followed). Joi in its container can only ask for an update.
+
 The watcher runs what the branch contains (`rebuild.sh`, the `Dockerfile`), as every update by hand does: follow only
 a repository you trust, and keep the checkout writable only for its owner, because whoever can change `rebuild.sh` or
 `watch.sh` there runs commands as the user of the watcher.

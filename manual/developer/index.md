@@ -38,7 +38,7 @@ code does.
 | change the UI | [The UI](ui.md) |
 | change how she answers | [A chat turn](chat-turn.md) |
 | add a server tool | [Server tools](tools.md) |
-| touch models, outfits or animations | [Bodies and models](bodies.md) |
+| touch models, outfits, profiles or animations | [Bodies and models](bodies.md) |
 | change what she is told | [Events](events.md) |
 | see what the server does and for whom | [Jobs](jobs.md) |
 | add features without changing the server | [Extensions](extensions.md) |

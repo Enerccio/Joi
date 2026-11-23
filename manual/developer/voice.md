@@ -36,7 +36,9 @@ All in `com.github.enerccio.joi.node.voice`; only `SileroGate` and `SherpaTransc
 the gate, opens the microphone and calls `listening()`. Then it reads frames into an `UtteranceDetector` until the detector says it is over, the user calls `finish()`
 (the detector gives what was said so far) or `cancel()` (nothing is used). The microphone is closed before the speech is turned into text, so the system's
 indicator goes off. `transcribing()`, then `heard(text)`, `nothing(why)` or `failed(message)`. The state is `IDLE` again before the last call, so the listener may
-start another recording from it. The listener is called on the voice thread; the app moves to the FX thread.
+start another recording from it. The listener is called on the voice thread; the app moves to the FX thread. `close()` (the node
+closes, or another assistant is loaded) cancels a recording that runs and leaves the freeing of the native models to it, when it ends: they are never freed under it.
+A closed `VoiceInput` starts nothing. A download (`VoiceModels`) larger than its asset's size is stopped and thrown away.
 
 `UtteranceDetector` (one is for one utterance): a frame is speech from probability 0.5. The first speech frame starts the utterance; a pause of the length given ends
 it (`PAUSE`); speech of fewer than 4 frames (about 130 ms) is a noise, forgotten when its pause comes, and the wait goes on; with no speech for `waitMs` (8 s) it ends

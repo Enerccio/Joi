@@ -322,6 +322,19 @@ import JoiProtocol
         try await until { voice.state == .waiting } // and the wake word goes on
     }
 
+    @Test func talkToJoiTakesTheTalkOverFromTheWakeWord() async throws {
+        // the App Intent calls start(), not toggle(): it must not be ignored while the wake word is waited for
+        let voice = armed()
+        try await until { voice.state == .waiting && dictation.begun == 1 }
+        voice.start()
+        #expect(voice.state == .starting)
+        try await until { voice.state == .listening }
+        dictation.finalOnEnd = "from Siri"
+        dictation.hear("from Siri")
+        try await until { !sent.isEmpty }
+        #expect(sent == ["from Siri"])
+    }
+
     @Test func cancellingATalkGoesBackToWaiting() async throws {
         let voice = armed()
         try await until { dictation.begun == 1 }

@@ -193,16 +193,15 @@ public final class VoiceInput {
     /// The button: starts listening, or ends what is said now (it is sent at once). While the wake word is waited for, it starts the talk.
     public func toggle() {
         switch state {
-        case .idle: start()
-        case .waiting:
-            cancel(rearm: false)
-            start()
+        case .idle, .waiting: start()
         case .listening: finish()
         case .starting, .finishing: break
         }
     }
 
+    /// Starts a talk: the button, or *Talk to Joi*. While the wake word is waited for, that listening gives way to it.
     public func start() {
+        if state == .waiting { cancel(rearm: false) }
         guard state == .idle else { return }
         retry?.cancel()
         retry = nil

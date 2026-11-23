@@ -44,8 +44,17 @@ if [ ! -d "$DIR" ]; then
     fi
 fi
 
+# The folder belongs to the application (the jetty user of the container). Run as root, nothing in it is opened by its name in a way
+# that follows a link the application could have put there: the folder must not be one, the lock is this script itself, and the log is
+# made anew (it must not exist when it is opened).
+if [ -L "$DIR" ]; then
+    echo "$DIR is a symbolic link: refused."
+    exit 1
+fi
+umask 022
+
 # one run at a time: the timer, the path unit and cron may all start it
-exec 9>"$DIR/.lock" || { echo "Cannot write into $DIR: run the watcher as root, or make the folder writable for $(id -un)."; exit 1; }
+exec 9<"$0" || exit 1
 flock -n 9 || exit 0
 
 # see rebuild.sh: as root in a checkout of another user, git runs as the owner of the checkout
@@ -97,6 +106,11 @@ fi
 
 if [ "$REQUESTED" = "1" ]; then
     write_status running
+    # a new file, never one that is there (a link of the application's would be followed): noclobber opens it with O_EXCL
+    rm -f "$LOG"
+    set -C
+    command exec 8>"$LOG" 2>/dev/null || { echo "Cannot create $LOG."; exit 1; }
+    set +C
     # word splitting of the arguments is wanted
     # shellcheck disable=SC2086
     {
@@ -105,9 +119,9 @@ if [ "$REQUESTED" = "1" ]; then
         RC=$?
         echo "=== Update finished $(date '+%Y-%m-%d %H:%M:%S %Z'), exit code $RC"
         exit $RC
-    } 2>&1 | tee "$LOG"
+    } 2>&1 | tee /dev/fd/8
     RC=${PIPESTATUS[0]}
-    chmod 644 "$LOG"
+    exec 8>&-
     LAST_RUN="$(date +%s)"
     if [ "$RC" = "0" ]; then
         LAST_RESULT=ok

@@ -229,4 +229,61 @@ class VoiceInputTest {
         voice.cancel();
         first.await();
     }
+
+    @Test
+    void closingWhileTheUserTalksLetsTheModelsGoOnlyWhenTheRecordingEnds() throws Exception {
+        ScriptedInput input = new ScriptedInput(script(3, 0));
+        AtomicBoolean gateClosed = new AtomicBoolean();
+        AtomicBoolean closedWhileUsed = new AtomicBoolean();
+        CountDownLatch reading = new CountDownLatch(1);
+        // the recording holds on in the model until the test has closed the input
+        CountDownLatch proceed = new CountDownLatch(1);
+        SpeechGate gate = new SpeechGate() {
+            @Override
+            public float probability(float[] frame) {
+                if (gateClosed.get()) {
+                    // the native model would be freed under the recording
+                    closedWhileUsed.set(true);
+                }
+                reading.countDown();
+                try {
+                    proceed.await(5, TimeUnit.SECONDS);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                }
+                return frame[0];
+            }
+
+            @Override
+            public void reset() {
+            }
+
+            @Override
+            public void close() {
+                gateClosed.set(true);
+            }
+        };
+        Transcriber transcriber = new Transcriber() {
+            @Override
+            public String transcribe(float[] samples) {
+                return "";
+            }
+
+            @Override
+            public void close() {
+            }
+        };
+        VoiceInput voice = new VoiceInput(() -> input, () -> gate, () -> transcriber, () -> 320, 1000, 3200);
+        Events events = new Events();
+        assertThat(voice.start(events)).isTrue();
+        assertThat(reading.await(5, TimeUnit.SECONDS)).isTrue();
+
+        voice.close();
+        assertThat(gateClosed).as("not while the recording uses it").isFalse();
+        proceed.countDown();
+        events.await();
+        assertThat(closedWhileUsed).isFalse();
+        assertThat(gateClosed).as("the recording let it go when it ended").isTrue();
+        assertThat(voice.start(new Events())).as("a closed input starts nothing").isFalse();
+    }
 }

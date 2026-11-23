@@ -58,6 +58,8 @@ public final class VoiceInput implements AutoCloseable {
     private volatile State state = State.IDLE;
     private volatile boolean finishing;
     private volatile boolean cancelled;
+    /** Closed while a recording ran: the recording lets the models go when it ends, not the closing thread under it. */
+    private boolean closed;
 
     /**
      * The voice input of this machine: the microphone and the sherpa-onnx models of the node's home.
@@ -89,7 +91,7 @@ public final class VoiceInput implements AutoCloseable {
      * @return false when one is already running (nothing is started then)
      */
     public synchronized boolean start(Listener listener) {
-        if (state != State.IDLE) {
+        if (closed || state != State.IDLE) {
             return false;
         }
         state = State.LISTENING;
@@ -119,6 +121,9 @@ public final class VoiceInput implements AutoCloseable {
     }
 
     private synchronized void load() {
+        if (closed) {
+            throw new IllegalStateException("The voice input is closed");
+        }
         if (gate == null) {
             gate = gates.get();
         }
@@ -167,7 +172,12 @@ public final class VoiceInput implements AutoCloseable {
         } catch (RuntimeException | LinkageError e) {
             failure = "Speech to text failed: " + e.getMessage();
         } finally {
-            state = State.IDLE;
+            synchronized (this) {
+                state = State.IDLE;
+                if (closed) {
+                    release();
+                }
+            }
             if (failure != null) {
                 listener.failed(failure);
             } else if (nothing != null) {
@@ -198,10 +208,20 @@ public final class VoiceInput implements AutoCloseable {
         }
     }
 
-    /** Lets the models go: the node is closing. */
+    /**
+     * Lets the models go: the node is closing, or another assistant is loaded. A recording that runs is cancelled and lets
+     * them go itself when it ends (the native models must not be freed while it uses them).
+     */
     @Override
     public synchronized void close() {
         cancelled = true;
+        closed = true;
+        if (state == State.IDLE) {
+            release();
+        }
+    }
+
+    private void release() {
         if (gate != null) {
             gate.close();
             gate = null;

@@ -21,7 +21,8 @@ After the login `ui/workspace/JoiWorkspace` shows tabs of `WorkspacePart`s, with
 [Extensions](extensions.md)). `/jobs` is `ui/main/JoiJobsView` with `ui/jobs/AssistantsRunsGrid` (see [Jobs](jobs.md)).
 
 The assistant's dialog is `ui/dialogs/JoiDialog`, with a `JoiDialogPart` for each tab: `JoiAboutPart`, `JoiBodiesPart`,
-`JoiAnimationsPart`, `JoiTemplatesPart`, `JoiMemoriesPart`, `JoiChatsPart` (with the Summarize button), `JoiSummariesPart`, `JoiTasksPart` and `JoiFilesPart` (her workspace in the platform's `WorkspaceBrowser`). A part stores
+`JoiAnimationsPart`, `JoiProfilesPart` (her profiles and the nodes assigned to them, see *Profiles* in [Bodies and models](bodies.md)), `JoiTemplatesPart`, `JoiMemoriesPart`, `JoiChatsPart` (with the Summarize button), `JoiSummariesPart`, `JoiTasksPart` and `JoiFilesPart` (her workspace in the platform's `WorkspaceBrowser`). `JoiBodiesPart` shows a Profile choice when she has more than the default profile: the body made active and the
+`BodyDialog` it opens (with the profile) change that profile; `profilesChanged()` follows the Profiles tab. A part stores
 its change with `JoiDialog.save(change)` (or `saveAbout(before, change)`), which applies it to her as stored now: her turns save her
 mood while the dialog is open. The About tab's Mood today box is no part of the persona: it calls `ChatService.changeMood(joi, key, true)`. The settings of the
 summaries are one widget, `ui/widgets/SummaryFields`, shared by the assistant's About tab and the user's settings (the chain assistant → user → default). Other dialogs: `ModelDialog`, `BodyDialog`,
