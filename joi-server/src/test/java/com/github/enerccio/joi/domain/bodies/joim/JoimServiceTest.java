@@ -52,6 +52,8 @@ class JoimServiceTest extends PlatformTestBase {
         model.setAppearance("You are a dragon girl.");
         model.setCapabilityNames(Map.of("mesh:Scarf", "scarf"));
         model.setPartShown(Map.of("mesh:Scarf", "A red scarf."));
+        model.setShownWords(Map.of("mesh:Scarf", "worn"));
+        model.setHiddenWords(Map.of("mesh:Scarf", "taken off"));
         model.setSpringChains(SpringChain.toJson(List.of(new SpringChain("Hair Root", SpringChain.Preset.HAIR, true))));
         model.setDropShapeKeys(List.of("nsfw"));
         model.setMaxTextureSize(4096);
@@ -117,6 +119,8 @@ class JoimServiceTest extends PlatformTestBase {
         assertThat(imported.getAppearance()).isEqualTo("You are a dragon girl.");
         assertThat(imported.getCapabilityNames()).containsEntry("mesh:Scarf", "scarf");
         assertThat(imported.getPartShown()).containsEntry("mesh:Scarf", "A red scarf.");
+        assertThat(imported.getShownWords()).containsEntry("mesh:Scarf", "worn");
+        assertThat(imported.getHiddenWords()).containsEntry("mesh:Scarf", "taken off");
         assertThat(SpringChain.listFromJson(imported.getSpringChains())).isEqualTo(SpringChain.listFromJson(model.getSpringChains()));
         assertThat(imported.getDropShapeKeys()).containsExactly("nsfw");
         assertThat(imported.getCapabilities()).isNotNull();

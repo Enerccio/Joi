@@ -197,6 +197,30 @@ class BodyOutfitsTest extends PlatformTestBase {
     }
 
     @Test
+    void aPartIsToldInTheWordsTheUserGaveItsStatesNotShownAndHidden() throws Exception {
+        Model model = wardrobe();
+        model.setDescribeToggles(List.of("mesh:Hat"));
+        model.setDescribeTogglesChosen(true);
+        model.getShownWords().put("mesh:Hat", "worn");
+        model.getHiddenWords().put("mesh:Hat", "taken off");
+        model = modelService.save(model);
+        Body body = bodyOf(model, "Cherie");
+        // the words are in her prompt, in the options of her function and in what she is told of a switch
+        assertThat(bodyService.prompt(joi)).contains("hat (taken off)").doesNotContain("hidden").doesNotContain("shown");
+        assertThat(bodyService.partOptions(body)).singleElement().satisfies(option -> assertThat(option.states()).containsExactly("worn", "taken off"));
+        assertThat(bodyService.changePart(body, "hat", "worn")).contains("now worn");
+        assertThat(bodyService.changePart(bodyService.find(body.getId()), "hat", "worn")).contains("already worn");
+        // the plain ids still work
+        assertThat(bodyService.changePart(bodyService.find(body.getId()), "hat", "hidden")).contains("now taken off");
+        // the same words for both states are no words: they could not be told apart
+        model = modelService.find(model.getId());
+        model.getHiddenWords().put("mesh:Hat", "Worn");
+        model = modelService.save(model);
+        assertThat(bodyService.partOptions(bodyService.find(body.getId()))).singleElement()
+                .satisfies(option -> assertThat(option.states()).containsExactly("shown", "hidden"));
+    }
+
+    @Test
     void sheChoosesOutfitsAndBodiesByNameAndIsToldInTheAnswer() throws Exception {
         Model model = wardrobe();
         Body cherie = bodyOf(model, "Cherie");

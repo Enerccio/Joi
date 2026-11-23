@@ -20,7 +20,7 @@ public class BodyTemplateData extends JoiTemplateData {
     @JoiTemplateDescription(loc = J_L.DESC_TEMPLATE_EXPRESSIONS)
     private String expressions;
 
-    /** The parts she can show or hide, each with "(shown)" or "(hidden)", comma separated; empty when none. */
+    /** The parts she can show or hide, each with its state in the part's words ("(worn)"; by default "(shown)" or "(hidden)"), comma separated; empty when none. */
     @JoiTemplateDescription(loc = J_L.DESC_TEMPLATE_PARTS)
     private String parts;
 

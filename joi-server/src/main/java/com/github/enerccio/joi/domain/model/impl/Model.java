@@ -195,6 +195,19 @@ public class Model extends ExtendableEntity {
     @Transient
     private Map<String, String> partHidden = new LinkedHashMap<>();
 
+    /**
+     * What she calls a described toggle's shown state in the words she is told ("worn", "on"): the toggle's id → the
+     * words. "Shown" alone says nothing of what it is, and "hidden" reads as out of sight, not as taken off.
+     */
+    @ExtendedAttribute(inject = true, injectPrefix = "shownWords")
+    @Transient
+    private Map<String, String> shownWords = new LinkedHashMap<>();
+
+    /** The same for the hidden state ("taken off", "off"): the toggle's id → the words. */
+    @ExtendedAttribute(inject = true, injectPrefix = "hiddenWords")
+    @Transient
+    private Map<String, String> hiddenWords = new LinkedHashMap<>();
+
     /** The toggles described apart, when the user chose them ({@link #describeTogglesChosen}). */
     @ExtendedAttribute(inject = true, injectPrefix = "describeToggles")
     @Transient
@@ -557,6 +570,22 @@ public class Model extends ExtendableEntity {
 
     public void setPartHidden(Map<String, String> partHidden) {
         this.partHidden = partHidden;
+    }
+
+    public Map<String, String> getShownWords() {
+        return shownWords;
+    }
+
+    public void setShownWords(Map<String, String> shownWords) {
+        this.shownWords = shownWords;
+    }
+
+    public Map<String, String> getHiddenWords() {
+        return hiddenWords;
+    }
+
+    public void setHiddenWords(Map<String, String> hiddenWords) {
+        this.hiddenWords = hiddenWords;
     }
 
     public List<String> getDescribeToggles() {

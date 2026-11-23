@@ -20,7 +20,7 @@ import java.util.Map;
  * snapshots and the user's images (transient, the importer makes their own), the model's files and resources, and
  * what a request or a conversion is doing now.
  * <pre>
- * { "model": { "name", "notes", "appearance", "partShown", "partHidden", "describeToggles", "autoDescribe", "describeTogglesChosen",
+ * { "model": { "name", "notes", "appearance", "partShown", "partHidden", "shownWords", "hiddenWords", "describeToggles", "autoDescribe", "describeTogglesChosen",
  *              "describedHash", "capabilityNames", "defaultState", "toggleGroups", "toggleParents", "groupSentences",
  *              "springChains", "appliedSpringChains", "capabilities", "proposal" },
  *   "conversion": { "sourceFile", "fbx", "removeMeshes", "dropShapeKeys", "bakeShapeKeys", "maxTextureSize", "report" },
@@ -48,6 +48,8 @@ public final class JoimMetadata {
         put(data, "appearance", model.getAppearance());
         data.add("partShown", map(model.getPartShown()));
         data.add("partHidden", map(model.getPartHidden()));
+        data.add("shownWords", map(model.getShownWords()));
+        data.add("hiddenWords", map(model.getHiddenWords()));
         data.add("describeToggles", list(model.getDescribeToggles()));
         data.add("autoDescribe", list(model.getAutoDescribe()));
         if (model.getDescribeTogglesChosen() != null) {
@@ -101,6 +103,8 @@ public final class JoimMetadata {
         model.setAppearance(text(data, "appearance"));
         model.setPartShown(map(data, "partShown"));
         model.setPartHidden(map(data, "partHidden"));
+        model.setShownWords(map(data, "shownWords"));
+        model.setHiddenWords(map(data, "hiddenWords"));
         model.setDescribeToggles(list(data, "describeToggles"));
         model.setAutoDescribe(list(data, "autoDescribe"));
         JsonElement chosen = data.get("describeTogglesChosen");

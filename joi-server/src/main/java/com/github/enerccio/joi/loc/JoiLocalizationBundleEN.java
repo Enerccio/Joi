@@ -238,6 +238,9 @@ public class JoiLocalizationBundleEN extends TextBundleBase<J_L> {
         setValue(J_L.LABEL_DESCRIBED_PARTS, "Parts described apart");
         setValue(J_L.LABEL_PART_SHOWN, "shown");
         setValue(J_L.LABEL_PART_HIDDEN, "hidden");
+        setValue(J_L.LABEL_PART_SHOWN_WORDS, "Shown is called");
+        setValue(J_L.LABEL_PART_HIDDEN_WORDS, "Hidden is called");
+        setValue(J_L.MSG_PART_WORDS_HINT, "The words she is told for the states of the part, instead of \"shown\" and \"hidden\": \"worn\" and \"taken off\". \"Hidden\" can read as out of sight, not as not worn.");
         setValue(J_L.LABEL_DESCRIBE_TOGGLE, "Describe");
         setValue(J_L.LABEL_AUTO_DESCRIBE_TOGGLE, "Auto description");
         setValue(J_L.MSG_TOGGLE_NAME_HINT, "What she calls it");
@@ -667,7 +670,7 @@ public class JoiLocalizationBundleEN extends TextBundleBase<J_L> {
         setValue(J_L.DESC_TEMPLATE_DESCRIBED_PARTS, "The names of the parts described apart (described as the renders show them; their other states are described apart); empty when none.");
         setValue(J_L.DESC_TEMPLATE_APPEARANCE, "How she looks; empty when nobody has described it.");
         setValue(J_L.DESC_TEMPLATE_EXPRESSIONS, "The expressions her face can show (moods and custom ones); empty when none.");
-        setValue(J_L.DESC_TEMPLATE_PARTS, "The parts she can switch (only the ones described apart): a toggle with (shown) or (hidden), a group with its state and the others (\"eyes: bare (or blindfold)\"); empty when none.");
+        setValue(J_L.DESC_TEMPLATE_PARTS, "The parts she can switch (only the ones described apart): a toggle with its state in the words of the part (by default shown or hidden), a group with its state and the others (\"eyes: bare (or blindfold)\"); empty when none.");
         setValue(J_L.DESC_TEMPLATE_OUTFIT, "The outfit she wears now; empty when her body is not in the state of any of its outfits.");
         setValue(J_L.DESC_TEMPLATE_OUTFITS, "The names of her other outfits in this body; empty when none.");
         setValue(J_L.DESC_TEMPLATE_OUTFIT_NAME, "The outfit's name.");

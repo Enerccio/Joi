@@ -32,6 +32,8 @@ import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.component.textfield.TextArea;
+import com.vaadin.flow.data.value.ValueChangeMode;
+import com.vaadin.flow.component.textfield.TextField;
 import com.vaadin.flow.server.streams.DownloadHandler;
 import com.vaadin.flow.server.streams.UploadHandler;
 import com.vaadin.flow.component.upload.Upload;
@@ -287,6 +289,9 @@ public class AppearancePanel {
     private void showParts(ModelCapabilities capabilities) {
         partRows.removeAll();
         for (DescribedPart part : DescribedPart.of(model, capabilities)) {
+            if (!part.group()) {
+                partRows.add(wordsRow(part));
+            }
             for (DescribedPart.State state : part.states()) {
                 TextArea area = partArea(part.name() + " · " + stateName(part, state)
                         + (part.isDefault(state) ? " · " + loc.getValue(J_L.LABEL_DEFAULT_STATE) : ""));
@@ -298,9 +303,27 @@ public class AppearancePanel {
         partRows.setVisible(partRows.getComponentCount() > 0);
     }
 
-    /** What a state is called here: "shown" / "hidden" for a toggle (localized), the user's name for a group's. */
+    /** The words she is told for the shown and the hidden state of a toggle ("worn", "taken off"), two small fields. */
+    private HorizontalLayout wordsRow(DescribedPart part) {
+        HorizontalLayout row = new HorizontalLayout();
+        row.setWidthFull();
+        for (String stateId : new String[]{DescribedPart.SHOWN, DescribedPart.HIDDEN}) {
+            boolean shown = DescribedPart.SHOWN.equals(stateId);
+            TextField field = new TextField(part.name() + " · " + loc.getValue(shown ? J_L.LABEL_PART_SHOWN_WORDS : J_L.LABEL_PART_HIDDEN_WORDS));
+            field.setPlaceholder(shown ? DescribedPart.SHOWN : DescribedPart.HIDDEN);
+            field.setHelperText(loc.getValue(J_L.MSG_PART_WORDS_HINT));
+            field.setValue(part.words(model, stateId));
+            field.setValueChangeMode(ValueChangeMode.LAZY);
+            field.setWidthFull();
+            field.addValueChangeListener(e -> edit(stored -> part.setWords(stored, stateId, e.getValue())));
+            row.add(field);
+        }
+        return row;
+    }
+
+    /** What a state is called here: the user's words or "shown" / "hidden" (localized) for a toggle, the user's name for a group's. */
     private String stateName(DescribedPart part, DescribedPart.State state) {
-        if (part.group()) {
+        if (part.group() || !state.name().equals(state.id())) {
             return state.name();
         }
         return loc.getValue(DescribedPart.SHOWN.equals(state.id()) ? J_L.LABEL_PART_SHOWN : J_L.LABEL_PART_HIDDEN);

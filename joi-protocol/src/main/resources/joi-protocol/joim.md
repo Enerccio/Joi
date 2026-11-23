@@ -43,6 +43,8 @@ caches by, so a new description doesn't send the VRM again.
     "appearance": "You are …",
     "partShown": {"key:Headgear/Hide Halo": "…"},
     "partHidden": {"key:Headgear/Hide Halo": "…"},
+    "shownWords": {"key:Headgear/Hide Halo": "worn"},
+    "hiddenWords": {"key:Headgear/Hide Halo": "taken off"},
     "describeToggles": ["key:Headgear/Hide Halo"],
     "autoDescribe": ["mesh:Bodysuit"],
     "describeTogglesChosen": true,

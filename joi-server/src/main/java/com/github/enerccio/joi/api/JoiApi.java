@@ -430,8 +430,7 @@ public class JoiApi implements DisposableBean {
                 for (DescribedPart.State state : part.states()) {
                     List<BodyToggle> set = part.toggles().stream().map(toggle -> new BodyToggle(toggle.mesh(), toggle.key(), toggle.hides(),
                             state.shown().getOrDefault(toggle.id(), model.shownByDefault(toggle)), tree.parent(toggle.id()))).toList();
-                    partStates.add(new BodyPartState(state.id(), part.group() ? state.name()
-                            : DescribedPart.SHOWN.equals(state.id()) ? "shown" : "hidden", part.isDefault(state), set));
+                    partStates.add(new BodyPartState(state.id(), state.name(), part.isDefault(state), set));
                 }
                 parts.add(new BodyPart(part.id(), part.name(), in == null ? null : in.id(), in == null ? null : in.name(),
                         in != null && part.isDefault(in), partStates));

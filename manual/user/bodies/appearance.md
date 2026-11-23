@@ -56,6 +56,9 @@ button that shows the state on the preview. Each state gets a close-up of the wh
 **default** state: the least covered one reads best.
 
 A toggle is in one group at most. A described toggle in no group is a part of its own, with the states shown and hidden.
+For such a part you can give the states **words**: *Shown is called* and *Hidden is called* ("worn" and "taken off"). She is
+told the part in those words, in her prompt, in the events and in her choices, instead of "shown" and "hidden", which can read as out
+of sight rather than not worn. Left empty, or the same for both, the plain words stay.
 
 ## What she is told
 

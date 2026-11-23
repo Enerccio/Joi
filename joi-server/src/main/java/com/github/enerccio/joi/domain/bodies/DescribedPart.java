@@ -90,11 +90,40 @@ public record DescribedPart(String id, String name, String source, List<ModelCap
             if (described.contains(toggle.id()) && !grouped.contains(toggle.id())) {
                 parts.add(new DescribedPart(toggle.id(), model.toggleName(toggle),
                         toggle.key() == null ? toggle.mesh() : toggle.mesh() + " / " + toggle.key(), List.of(toggle),
-                        List.of(new State(SHOWN, SHOWN, Map.of(toggle.id(), true)), new State(HIDDEN, HIDDEN, Map.of(toggle.id(), false))),
+                        toggleStates(model, toggle),
                         null, model.shownByDefault(toggle) ? SHOWN : HIDDEN));
             }
         }
         return parts;
+    }
+
+    /**
+     * The shown and the hidden state of a toggle, named by the words the user gave them ("worn", "taken off"), else
+     * "shown" and "hidden". Two states with the same words could not be told apart, so then the defaults stay.
+     */
+    private static List<State> toggleStates(Model model, ModelCapabilities.Toggle toggle) {
+        String shown = StringUtils.defaultIfBlank(StringUtils.strip(model.getShownWords().get(toggle.id())), SHOWN);
+        String hidden = StringUtils.defaultIfBlank(StringUtils.strip(model.getHiddenWords().get(toggle.id())), HIDDEN);
+        if (shown.equalsIgnoreCase(hidden)) {
+            shown = SHOWN;
+            hidden = HIDDEN;
+        }
+        return List.of(new State(SHOWN, shown, Map.of(toggle.id(), true)), new State(HIDDEN, hidden, Map.of(toggle.id(), false)));
+    }
+
+    /** The words for a state of a toggle ("worn"), blank for none: {@link #SHOWN} or {@link #HIDDEN}. */
+    public String words(Model model, String stateId) {
+        return StringUtils.defaultString(StringUtils.strip((SHOWN.equals(stateId) ? model.getShownWords() : model.getHiddenWords()).get(id)));
+    }
+
+    /** Stores (or, when blank, removes) the words for a state of a toggle on the model. */
+    public void setWords(Model model, String stateId, String words) {
+        Map<String, String> map = SHOWN.equals(stateId) ? model.getShownWords() : model.getHiddenWords();
+        if (StringUtils.isBlank(words)) {
+            map.remove(id);
+        } else {
+            map.put(id, words.strip());
+        }
     }
 
     /** Whether the state is the one she is in by default. */

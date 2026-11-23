@@ -24,7 +24,7 @@ body of hers is active. Her bodies have different names, case aside (she switche
 | `ToggleTree` | | what is part of what; the effective state of a toggle |
 | `Appearance` | | the description plus the sentence of each part off its default, put together for a state |
 | `AppearanceProposal` | | what the multimodal model proposed, kept until used or discarded |
-| `DescribedPart`, `ToggleGroup` | | parts described apart; groups with named states |
+| `DescribedPart`, `ToggleGroup` | | parts described apart; groups with named states; a toggle's states are named by `Model.shownWords` / `hiddenWords` ("worn", "taken off"), which is what her prompt, events and `change_body_part` say |
 | `BodyState` | | a body's state of its parts (part id to state id) and of toggles under an outfit (`@<toggle id>`) |
 | `Outfit` | | a preset of the model's toggles with a name and a description; a JSON list on the body |
 | `SpringBones`, `SpringChain` | | the spring chains guessed from bone names and written into the VRM |

@@ -195,8 +195,8 @@ one; the server treats every node the same.
     **Her own changes (built).** Every turn of hers, on a node or not, is offered the function `change_body_part` (`part`,
     `state`; `domain/chat/BodyTools`), even when her body has no parts described apart (then it fails and says so): she takes off or puts on a part herself
     when she decides to or agrees to what the user asks. The part is one her prompt lists under "Parts you can
-    switch", by the name she knows; the state is its name for a group, `shown` or `hidden` for a toggle (case does not
-    matter); a wrong name is answered with what is valid. It is her choice, so no consent is asked (that is for the
+    switch", by the name she knows; the state is its name for a group, the user's words for the state of a toggle (`worn`, `taken off`; else `shown` or `hidden`, which are accepted
+    in any case too); a wrong name is answered with what is valid. It is her choice, so no consent is asked (that is for the
     user's requests); the body keeps it like the user's switch (`BodyService.changePart`), and she is told how it looks
     and what went with it in the function's answer, not again as an event. Each node gets `event body` and reads her body
     again (`GET .../body`), showing what differs on her body and in the controls; while the user's own change waits or is
@@ -1320,6 +1320,9 @@ UI — nothing is deleted):
       state gets a close-up of the whole group (framed on all its toggles) and a sentence, so parts that only make
       sense together are described together and the user says what covers what. A toggle is in one group at most and
       is described with it; a described toggle in no group is a part of its own, with the states shown and hidden.
+      Each of the two has **words** the user can give (`Model.shownWords` / `hiddenWords`, in the `.joim`): the words she is
+      told in her prompt, the events and the options of her function ("visor (worn)", "now taken off"). "Hidden" alone
+      can read as out of sight, not as not worn; with no words, or the same for both, the states are `shown` and `hidden`.
       These are the **parts described apart** (`DescribedPart`), and only they can be switched. A group has a
       **default state** the user marks (the editor asks for it); its toggles' defaults come from it (their own boxes
       lock). The least covered state reads best as the default ("bare", so the blindfold is what changes: "A black

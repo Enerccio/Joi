@@ -557,7 +557,7 @@ public class BodyDialog extends Dialog {
         if (state == null) {
             return "";
         }
-        String name = part.group() ? state.name()
+        String name = part.group() || !state.name().equals(state.id()) ? state.name()
                 : loc.getValue(DescribedPart.SHOWN.equals(state.id()) ? J_L.LABEL_PART_SHOWN : J_L.LABEL_PART_HIDDEN);
         return part.isDefault(state) ? name + loc.getValue(J_L.LABEL_STATE_DEFAULT_SUFFIX) : name;
     }

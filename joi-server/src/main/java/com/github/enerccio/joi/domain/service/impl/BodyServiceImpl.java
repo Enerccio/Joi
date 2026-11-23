@@ -300,7 +300,8 @@ public class BodyServiceImpl extends ExtendableServiceImpl<Body, BodyRepository>
                     + String.join(", ", parts.stream().map(DescribedPart::name).toList()));
         }
         DescribedPart.State state = part.states().stream().filter(candidate -> stateName(part, candidate).equalsIgnoreCase(StringUtils.strip(stateName)))
-                .findFirst().orElse(null);
+                .findFirst().orElseGet(() -> part.group() ? null : part.states().stream()
+                        .filter(candidate -> candidate.id().equalsIgnoreCase(StringUtils.strip(stateName))).findFirst().orElse(null));
         if (state == null) {
             throw new IllegalArgumentException(part.name() + " can be: " + String.join(", ", part.states().stream()
                     .map(candidate -> stateName(part, candidate)).toList()));
@@ -328,9 +329,12 @@ public class BodyServiceImpl extends ExtendableServiceImpl<Body, BodyRepository>
         return options;
     }
 
-    /** What the state is called in the words she is told: its name for a group, "shown" or "hidden" for a toggle. */
+    /**
+     * What the state is called in the words she is told: its name for a group, the user's words for a toggle's state
+     * ("worn", "taken off"), else "shown" or "hidden".
+     */
     private static String stateName(DescribedPart part, DescribedPart.State state) {
-        return part.group() ? state.name() : DescribedPart.SHOWN.equals(state.id()) ? "shown" : "hidden";
+        return state.name();
     }
 
     /**
@@ -425,7 +429,7 @@ public class BodyServiceImpl extends ExtendableServiceImpl<Body, BodyRepository>
         if (before != null && before.id().equals(state.id())) {
             return null;
         }
-        String stateName = part.group() ? state.name() : DescribedPart.SHOWN.equals(state.id()) ? "shown" : "hidden";
+        String stateName = stateName(part, state);
         return new PartRequest(part.name(), stateName, part.group(), part.sentence(model, state.id()));
     }
 
