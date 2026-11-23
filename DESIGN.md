@@ -1728,7 +1728,7 @@ The first real node is a desktop app in JavaFX (`joi-node`). What it does, in or
      `backAt` "Monday 10:55 AM", so a night between is a night's sleep). **One reaction:** the greeting waits for the
      summaries that are due as the node connects (a day that rolled while the server was off, a pause; at most three
      minutes, `SummarizerService.settle`), and what waited for her and those summaries are told in the greeting's turn,
-     before it (`NodeSession.hold`). Words of the user before that drop the greeting: they take what waited along.
+     before it (`NodeSession.hold`). Words of the user before that drop the greeting: they take what waited along. The node moved onto the Looking Glass meanwhile goes with the greeting too.
 5. **The chat** beside her body: text chat with her voice played back (no microphone yet). It starts with her
    history from the server (`GET /api/v1/jois/{id}/chat`), so it goes on where it was. When she has a voice, the
    text of a reply waits for its first piece of speech, so the chat doesn't run ahead of her. Her body is a 3D view next

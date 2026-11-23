@@ -1444,6 +1444,36 @@ class NodeServiceTest extends PlatformTestBase {
     }
 
     @Test
+    void theLookingGlassWhileHerGreetingWaitsGoesWithTheGreeting() throws Exception {
+        ((NodeServiceImpl) nodeService).setGreeting(true);
+        ChatMessage earlier = new ChatMessage();
+        earlier.setJoi(joi);
+        earlier.setType(ChatMessageType.USER);
+        earlier.setSentAt(java.util.Date.from(Instant.now().minus(java.time.Duration.ofHours(3))));
+        earlier.setInput("What is the plan for Friday?");
+        earlier.setResponse("A dentist at ten.");
+        chatMessageService.save(earlier);
+        // the summary is held until the node is on the Looking Glass: the greeting waits for it meanwhile
+        java.util.concurrent.CountDownLatch gate = new java.util.concurrent.CountDownLatch(1);
+        llm.enqueue(MockLLMResponse.text("They planned Friday.").waitFor(gate), MockLLMResponse.text("Welcome back, in depth!"));
+
+        Node node = connect("Bearer " + token);
+        node.hello("n1", "desk", joi.getUuid(), "1.7");
+        node.next("welcome");
+        node.manifest(1);
+        node.frame("display", null, "{\"lookingGlass\": true}");
+        node.frame("ping", "p1", null);
+        node.next("pong");
+        gate.countDown();
+        assertThat(node.next("turn").getAsJsonObject("data").get("cause").getAsString()).isEqualTo("connected");
+        node.next("done");
+        ChatMessage greeted = chatMessageService.findLatest(joi, 1).getFirst();
+        assertThat(greeted.getInput()).contains("onto the Looking Glass on desk").contains("is back with you, on desk");
+        Thread.sleep(600);
+        assertThat(llm.getCompletionRequests()).hasSize(2);
+    }
+
+    @Test
     void herTurnOnANodeOffersTheFunctionsOfHerWorkspace() throws Exception {
         llm.enqueue(MockLLMResponse.text("Sure."));
         Node node = connect("Bearer " + token);

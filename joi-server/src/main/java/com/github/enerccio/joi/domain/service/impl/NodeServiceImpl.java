@@ -807,6 +807,11 @@ public class NodeServiceImpl implements NodeService, InitializingBean, Disposabl
                     : JoiPromptField.LOOKING_GLASS_EXITED_EVENT, data).strip();
         }
         String cause = display.lookingGlass() ? LOOKING_GLASS_ENTERED : LOOKING_GLASS_EXITED;
+        if (session.held()) {
+            // her greeting waits for the summaries: this goes with it, not in a turn of its own beside it
+            pend(session, new NodeSession.Pending(text, null, cause));
+            return;
+        }
         String turn = "s-" + UUID.randomUUID().toString().substring(0, 12);
         session.send(NodeMessage.TURN, null, null, new TurnStart(turn, cause));
         startTurn(session, turn, joi, new TurnInput(text, session.name(), session.speaks(), true, "node." + cause), false);

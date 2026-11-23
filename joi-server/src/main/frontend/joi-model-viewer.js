@@ -374,6 +374,10 @@ class JoiModelViewer extends HTMLElement {
         copies[name] = name;
       } else {
         const copy = new VRMExpression('joi-without-eyes-' + name);
+        // as the model's, but without the eyes it does not block the blinking
+        copy.isBinary = source.isBinary;
+        copy.overrideMouth = source.overrideMouth;
+        copy.overrideLookAt = source.overrideLookAt;
         kept.forEach(bind => copy.addBind(bind));
         manager.registerExpression(copy);
         copies[name] = copy.expressionName;
