@@ -45,6 +45,7 @@ import com.github.enerccio.marginalia.domain.service.function.FunctionContinuati
 import com.github.enerccio.marginalia.domain.service.function.FunctionDefinition;
 import com.github.enerccio.marginalia.domain.service.function.FunctionSet;
 import com.github.enerccio.marginalia.ui.components.ThreadCopyRequestAttributes.InRequestScope;
+import com.github.enerccio.marginalia.utils.AppClock;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParseException;
 import org.apache.commons.lang3.StringUtils;
@@ -55,9 +56,12 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.DisposableBean;
 import org.springframework.beans.factory.InitializingBean;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Lazy;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.concurrent.*;
 import java.util.regex.Pattern;
@@ -124,6 +128,11 @@ public class NodeServiceImpl implements NodeService, InitializingBean, Disposabl
     @Autowired
     private PersonaService personaService;
 
+    /** Lazy: the summarizer tells her through this service. */
+    @Autowired
+    @Lazy
+    private SummarizerService summarizerService;
+
     private final ObjectMapper jackson = new ObjectMapper();
     /** When this run of the server started: a node that lost the connection before it and is back found it down. */
     private final Instant startedAt = Instant.now();
@@ -141,6 +150,11 @@ public class NodeServiceImpl implements NodeService, InitializingBean, Disposabl
     private volatile boolean greeting = true;
     /** How long after the last event for her the server waits for more before it tells her (the ones that come together are told together). */
     private volatile long gatherMillis = 1500;
+    /**
+     * How long her greeting waits at most for the summaries that are due as the node connects (a day that rolled while the
+     * server was off): she greets the user with them, in one turn; what takes longer is told in a turn of its own after.
+     */
+    private volatile long summaryWaitMillis = 180_000;
 
     @Override
     public void afterPropertiesSet() {
@@ -204,6 +218,11 @@ public class NodeServiceImpl implements NodeService, InitializingBean, Disposabl
     /** How long the server gathers events for her before it tells her, in milliseconds; tests make it short. */
     public void setGatherMillis(long gatherMillis) {
         this.gatherMillis = gatherMillis;
+    }
+
+    /** How long her greeting waits at most for the summaries that are due, in milliseconds. */
+    public void setSummaryWaitMillis(long summaryWaitMillis) {
+        this.summaryWaitMillis = summaryWaitMillis;
     }
 
     // ----------------------------------------------------------------------------------------------------------------
@@ -287,8 +306,9 @@ public class NodeServiceImpl implements NodeService, InitializingBean, Disposabl
         if (connected.isEmpty() || StringUtils.isBlank(text)) {
             return false;
         }
-        // one node tells her: the first that speaks, else the first
-        NodeSession session = connected.stream().filter(NodeSession::speaks).findFirst().orElse(connected.getFirst());
+        // one node tells her: the one whose greeting waits (it goes with the greeting), the first that speaks, else the first
+        NodeSession session = connected.stream().filter(NodeSession::held).findFirst()
+                .or(() -> connected.stream().filter(NodeSession::speaks).findFirst()).orElse(connected.getFirst());
         pend(session, new NodeSession.Pending(text, null, cause));
         return true;
     }
@@ -565,10 +585,15 @@ public class NodeServiceImpl implements NodeService, InitializingBean, Disposabl
             require(StringUtils.isNotBlank(tool.description()), "The tool " + tool.name() + " needs a description");
             require(tool.tier() != null, "The tool " + tool.name() + " needs a tier: allow, ask, deny or depends");
         }
-        if (session.offer(manifest) && greeting) {
-            greet(session);
+        boolean greets = session.offer(manifest) && greeting;
+        if (greets) {
+            // what waited for her and the summaries due now are told with her greeting, in one turn
+            session.hold();
         }
         deliverWaiting(session);
+        if (greets) {
+            greet(session);
+        }
         sendWaitingTasks(session);
         sendMood(session);
     }
@@ -578,47 +603,122 @@ public class NodeServiceImpl implements NodeService, InitializingBean, Disposabl
      * that only lost the connection, {@code hello.resumed}).
      */
     private void greet(NodeSession session) throws Exception {
-        Joi joi;
-        boolean first;
-        boolean restarted = false;
-        String text;
+        Greeting greeting;
+        CompletableFuture<Void> settled;
         try (InRequestScope _ = new InRequestScope(session.attributes())) {
-            joi = joiService.find(session.joiId());
-            if (joi == null) {
-                return;
-            }
-            if (chatService.chatModel(joi) == null) {
-                // nobody to greet with: the node shows her as she is, and is told why she says nothing (the same error as a say gets)
-                session.error(null, "no_model", joiService.name(joi)
-                        + " has no chat model: choose one in her About tab or in User Settings");
-                return;
-            }
-            first = !chatMessageService.hasAny(joi);
-            if (!first && Boolean.TRUE.equals(session.hello().resumed())) {
-                // a node that only lost the connection is not greeted; one that found the server down is, once for her
-                restarted = wasDown(session.hello().resume()) && restartTold.add(joi.getId());
-                if (!restarted) {
-                    return;
-                }
-            }
-            NodeEventTemplateData data = new NodeEventTemplateData();
-            data.setNode(session.name());
-            data.setNodeKind(StringUtils.defaultIfBlank(session.hello().kind(), null));
-            Date last = first ? null : chatMessageService.findLastSentAt(List.of(joi)).get(joi.getId());
-            data.setLastChatted(last == null ? null : ago(last.toInstant(), Instant.now()));
-            if (restarted) {
-                Resume resume = session.hello().resume();
-                data.setHowLost(Integer.valueOf(1001).equals(resume.closeCode()) ? "was shut down" : "went down");
-                data.setDownFor(downFor(resume.lostAt(), Instant.now()));
-            }
-            text = personaService.render(joi, first ? JoiPromptField.FIRST_BOOT_EVENT
-                    : restarted ? JoiPromptField.SERVER_RESTARTED_EVENT : JoiPromptField.CONNECTED_EVENT, data).strip();
+            greeting = greeting(session);
+            // the summaries due now (a day that rolled while the server was off) are made first: she greets the user with them
+            settled = greeting == null ? null : summarizerService.settle(joiService.find(session.joiId()));
+        } catch (Exception e) {
+            released(session);
+            throw e;
         }
+        if (greeting == null) {
+            released(session);
+            return;
+        }
+        settled.orTimeout(summaryWaitMillis, TimeUnit.MILLISECONDS)
+                .whenComplete((done, error) -> ticks.execute(() -> greetNow(session, greeting)));
+    }
+
+    /** Her greeting: the text she is told and the cause of the turn. */
+    private record Greeting(String text, String cause) {
+    }
+
+    /** What she is told as the node connects; null when she is not greeted (no model, or a node that only lost the connection). */
+    private Greeting greeting(NodeSession session) throws Exception {
+        Joi joi = joiService.find(session.joiId());
+        if (joi == null) {
+            return null;
+        }
+        if (chatService.chatModel(joi) == null) {
+            // nobody to greet with: the node shows her as she is, and is told why she says nothing (the same error as a say gets)
+            session.error(null, "no_model", joiService.name(joi)
+                    + " has no chat model: choose one in her About tab or in User Settings");
+            return null;
+        }
+        boolean first = !chatMessageService.hasAny(joi);
+        boolean restarted = false;
+        if (!first && Boolean.TRUE.equals(session.hello().resumed())) {
+            // a node that only lost the connection is not greeted; one that found the server down is, once for her
+            restarted = wasDown(session.hello().resume()) && restartTold.add(joi.getId());
+            if (!restarted) {
+                return null;
+            }
+        }
+        NodeEventTemplateData data = new NodeEventTemplateData();
+        data.setNode(session.name());
+        data.setNodeKind(StringUtils.defaultIfBlank(session.hello().kind(), null));
+        Date last = first ? null : chatMessageService.findLastSentAt(List.of(joi)).get(joi.getId());
+        Instant now = Instant.now();
+        if (last != null) {
+            data.setLastChatted(ago(last.toInstant(), now));
+            // the clock times too: a night between them is a night's sleep, a morning the start of a working day
+            ZoneId zone = AppClock.INSTANCE.getZone();
+            data.setLastChattedAt(clockTime(last.toInstant(), now, zone));
+            data.setBackAt(clockTime(now, now, zone));
+        }
+        if (restarted) {
+            Resume resume = session.hello().resume();
+            data.setHowLost(Integer.valueOf(1001).equals(resume.closeCode()) ? "was shut down" : "went down");
+            data.setDownFor(downFor(resume.lostAt(), now));
+        }
+        String text = personaService.render(joi, first ? JoiPromptField.FIRST_BOOT_EVENT
+                : restarted ? JoiPromptField.SERVER_RESTARTED_EVENT : JoiPromptField.CONNECTED_EVENT, data).strip();
+        return new Greeting(text, first ? FIRST_BOOT : restarted ? SERVER_RESTARTED : CONNECTED);
+    }
+
+    /**
+     * A moment as she can say it: the day and the time ({@code Sunday 2:44 AM}), with the date when it is more than six days
+     * before {@code now}.
+     */
+    public static String clockTime(Instant moment, Instant now, ZoneId zone) {
+        String pattern = Duration.between(moment, now).toDays() > 6 ? "EEEE, MMMM d, h:mm a" : "EEEE h:mm a";
+        return DateTimeFormatter.ofPattern(pattern, Locale.ENGLISH).format(moment.atZone(zone));
+    }
+
+    /** The greeting is not held any more: what waited for it is told as usual. */
+    private void released(NodeSession session) {
+        session.release();
+        if (session.hasPending()) {
+            ticks.schedule(() -> tell(session), 0, TimeUnit.MILLISECONDS);
+        }
+    }
+
+    /**
+     * Her greeting, now that the summaries are made (or took too long): one turn with what waited for her and the
+     * summaries first, the greeting last. Not when the user spoke first: the words took it all along.
+     */
+    private void greetNow(NodeSession session, Greeting greeting) {
+        if (!session.release()) {
+            if (session.hasPending()) {
+                tell(session);
+            }
+            return;
+        }
+        List<NodeSession.Pending> pending = session.takeAllPending();
+        List<Integer> asked = pending.stream().map(NodeSession.Pending::request).filter(Objects::nonNull).toList();
         String turn = "s-" + UUID.randomUUID().toString().substring(0, 12);
-        String cause = first ? FIRST_BOOT : restarted ? SERVER_RESTARTED : CONNECTED;
-        session.send(NodeMessage.TURN, null, null, new TurnStart(turn, cause));
-        startTurn(session, turn, joi, new TurnInput(text, session.name(), session.speaks(), true,
-                "node." + cause), false);
+        boolean started = false;
+        try {
+            Joi joi;
+            String input;
+            try (InRequestScope _ = new InRequestScope(session.attributes())) {
+                joi = joiService.find(session.joiId());
+                input = pending.isEmpty() ? greeting.text() : told(joi, pending) + "\n\n" + greeting.text();
+            }
+            if (joi != null) {
+                session.told(asked, turn);
+                session.send(NodeMessage.TURN, null, null, new TurnStart(turn, greeting.cause()));
+                started = startTurn(session, turn, joi, new TurnInput(input, session.name(), session.speaks(), true,
+                        "node." + greeting.cause()), false);
+            }
+        } catch (Exception e) {
+            log.warn("Node {}: her greeting failed", session.name(), e);
+        }
+        if (!started) {
+            decideLeft(session, turn);
+        }
     }
 
     /**
@@ -922,6 +1022,8 @@ public class NodeServiceImpl implements NodeService, InitializingBean, Disposabl
         Joi joi;
         String input = StringUtils.defaultString(say.text());
         List<Integer> asked = List.of();
+        // the user spoke before she greeted them: no greeting, she answers the words (with what waited, below)
+        session.release();
         try (InRequestScope _ = new InRequestScope(session.attributes())) {
             joi = joiService.find(session.joiId());
             if (say.withEventsOrDefault()) {

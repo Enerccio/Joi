@@ -398,8 +398,9 @@ of the body you find yourself in. Keep it warm and short enough to say aloud."""
     public String connectedEvent() {
         return """
 [Event: {{user}} is back with you, on {{node}}{{#if nodeKind}} ({{nodeKind}}){{/if}}.{{#if lastChatted}} You last \
-talked {{lastChatted}}.{{/if}}]
-Greet {{user}} in a sentence or two, as fits how long they were away.""";
+talked {{lastChatted}}, {{lastChattedAt}}; it is {{backAt}} now.{{/if}}]
+Greet {{user}} in a sentence or two, as fits how long they were away and when: a night between is a night's sleep, a \
+morning the start of their day, a long absence missed.""";
     }
 
     /** The event of the user moving her onto a Looking Glass, a holographic display ({@code NodeEventTemplateData}). */

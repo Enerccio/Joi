@@ -37,7 +37,8 @@ still to come into the conversation.
 
 Every summary a model wrote is told to her as an **event**, in her own voice and with the summary text, so she can react: something
 she promised, something still open. The event is the *Summary made (event)* prompt. If no node of hers is connected, she is told when one
-connects. What she says in reply never makes a summary of its own, so it is not an endless chain.
+connects. A summary that is due as you come back (the day rolled over while the server was off, or the pause before) is made first, and she
+is told it together with her greeting, in one reply (her greeting waits up to three minutes for it). What she says in reply never makes a summary of its own, so it is not an endless chain.
 
 ## The Summaries tab
 

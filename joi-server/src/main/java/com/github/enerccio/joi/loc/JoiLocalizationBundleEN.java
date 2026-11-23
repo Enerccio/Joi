@@ -679,6 +679,8 @@ public class JoiLocalizationBundleEN extends TextBundleBase<J_L> {
         setValue(J_L.DESC_TEMPLATE_CURRENT_DESCRIPTION, "The description the body has now; empty when none.");
         setValue(J_L.DESC_TEMPLATE_TOGGLES, "A line per toggle: its number, the mesh / key, its name now, shown or hidden as the model comes.");
         setValue(J_L.DESC_TEMPLATE_VOICE, "How her voice sounds (the description of her voice actor)");
+        setValue(J_L.DESC_TEMPLATE_LAST_CHATTED_AT, "When she last talked with the user, as a day and a time (Sunday 2:44 AM; with the date when it is more than six days ago); empty for never.");
+        setValue(J_L.DESC_TEMPLATE_BACK_AT, "When the user is back, as a day and a time (Monday 10:55 AM); empty when she never talked with them.");
         setValue(J_L.LABEL_TOOLS, "Tools");
         setValue(J_L.LABEL_TOOL_PERMISSIONS, "Tools that need approval");
         setValue(J_L.HELP_TOOL_PERMISSIONS, "Allow: she may use the tool at once. Ask: it waits until you approve it (Tasks tab of the assistant, or the API). Deny: she never gets it. Inherit takes the next level: the assistant's setting, else your own, else the administrator's. What the administrator sets is also a limit: below it a tool can be as strict or stricter.");

@@ -334,6 +334,29 @@ public class SummarizerServiceImpl implements SummarizerService, InitializingBea
         }
     }
 
+    @Override
+    public CompletableFuture<Void> settle(Joi joi) {
+        CompletableFuture<Void> settled = new CompletableFuture<>();
+        if (joi == null || joi.getId() == null) {
+            settled.complete(null);
+            return settled;
+        }
+        Long id = joi.getId();
+        check(joi);
+        List<Runnable> list = watchers.computeIfAbsent(id, key -> new CopyOnWriteArrayList<>());
+        Runnable[] watcher = new Runnable[1];
+        watcher[0] = () -> {
+            if (queue.pending(id).isEmpty() && queue.running(id).isEmpty()) {
+                list.remove(watcher[0]);
+                settled.complete(null);
+            }
+        };
+        list.add(watcher[0]);
+        // done already (nothing was due), or it ended before the watcher was there
+        watcher[0].run();
+        return settled;
+    }
+
     private void submit(Joi joi, AI ai, SummaryPlan.Job job) throws Exception {
         Lane lane = summaryService.lane(ai);
         queue.submit(lane.key(), lane.limit(), new Queued(joi.getId(), currentUser.getId(), job));

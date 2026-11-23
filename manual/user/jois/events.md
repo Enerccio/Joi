@@ -32,8 +32,8 @@ Changes in her setup are staged: you save, and she gets one event of what change
 ## When no node is connected
 
 An event that happens while she cannot take it (every node is shut down and you add an outfit in the browser) is kept. When a
-node of hers connects, the waiting events go to her after the greeting, in the order they happened, in **one turn**, so she
-can still react ("oh, a new outfit?"). They are merged first:
+node of hers connects, the waiting events go to her with her greeting, in the order they happened, in **one turn**, so she
+can still react ("oh, a new outfit?") and greets you once. They are merged first:
 
 - a part switched again and again is one event from the first state to the last; one that ended where it began is dropped;
 - a name, her personality or her voice changed several times is the steps in a row, or nothing if the value came back;
@@ -44,4 +44,5 @@ can still react ("oh, a new outfit?"). They are merged first:
 ## The texts
 
 What she is told is made from templates you can change: see [Persona and personality](persona.md). The greeting when you come
-back, her first waking up, the Looking Glass events and the server-restarted event each have one.
+back, her first waking up, the Looking Glass events and the server-restarted event each have one. The greeting knows how
+long you were away and the times: when you last talked and when you are back, so she can tell a night's sleep from a lunch break.

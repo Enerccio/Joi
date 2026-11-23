@@ -122,7 +122,8 @@ info:
 
     **What happened while no node was connected** (since 1.7). The events that waited (the user changed her body, her
     outfit, her name or her personality in the server's UI) are told when a node connects, in one turn with the cause
-    `events_waited`, after the greeting. They are **merged** first: a part switched five times is one change from the
+    `events_waited`; when the node is greeted, they are told in the greeting's turn instead (its cause stays `connected`,
+    `first_boot` or `server_restarted`), and so are the summaries due as it connects. They are **merged** first: a part switched five times is one change from the
     first state to the last, a value that ended where it began is nothing, what is about a body that is gone or older than
     a week is left out. The node plays it as a plain turn.
 

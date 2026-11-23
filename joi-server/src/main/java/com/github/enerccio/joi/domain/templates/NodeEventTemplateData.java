@@ -21,6 +21,30 @@ public class NodeEventTemplateData extends JoiTemplateData {
     @JoiTemplateDescription(loc = J_L.DESC_TEMPLATE_LAST_CHATTED)
     private String lastChatted;
 
+    /** When she last talked with the user, as a day and a time ({@code Sunday 2:44 AM}); empty for never. */
+    @JoiTemplateDescription(loc = J_L.DESC_TEMPLATE_LAST_CHATTED_AT)
+    private String lastChattedAt;
+
+    /** When the user is back, as a day and a time ({@code Monday 10:55 AM}); empty when she never talked with them. */
+    @JoiTemplateDescription(loc = J_L.DESC_TEMPLATE_BACK_AT)
+    private String backAt;
+
+    public String getLastChattedAt() {
+        return lastChattedAt;
+    }
+
+    public void setLastChattedAt(String lastChattedAt) {
+        this.lastChattedAt = lastChattedAt;
+    }
+
+    public String getBackAt() {
+        return backAt;
+    }
+
+    public void setBackAt(String backAt) {
+        this.backAt = backAt;
+    }
+
     /** What happened to the server (the event of a server that was down): {@code was shut down}, {@code went down}. */
     @JoiTemplateDescription(loc = J_L.DESC_TEMPLATE_HOW_LOST)
     private String howLost;

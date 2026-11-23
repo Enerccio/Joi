@@ -14,8 +14,9 @@ Everything that changes around her reaches her as an event. An edit made in the 
 
 ## Queued events
 
-When a node of hers connects, the waiting events go to her in the order they happened, in one turn after the greeting (cause `events_waited`, an Event
-message with the text of all of them; a turn of only a task's result keeps `task_ended`). `QueuedEventPlan` is pure and tested on its own: it
+When a node of hers connects, the waiting events go to her in the order they happened, in the greeting's turn, before the greeting (see
+[Nodes](nodes.md)); a node that is not greeted is told them in a turn of their own (cause `events_waited`, an Event message with the text of all
+of them; a turn of only a task's result keeps `task_ended`). `QueuedEventPlan` is pure and tested on its own: it
 merges them first.
 
 - a part switched again and again is one event from the first state to the last (the last text, which says how it looks now); one that ended in the

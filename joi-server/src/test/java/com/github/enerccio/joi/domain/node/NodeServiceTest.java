@@ -578,7 +578,7 @@ class NodeServiceTest extends PlatformTestBase {
         later.next("done");
         ChatMessage greeted = chatMessageService.findLatest(joi, 1).getFirst();
         assertThat(greeted.getEventKind()).isEqualTo("node.connected");
-        assertThat(greeted.getInput()).contains("is back with you, on phone").contains("You last talked a moment ago.");
+        assertThat(greeted.getInput()).contains("is back with you, on phone").contains("You last talked a moment ago, ").contains(" now.]");
 
         // a node that only lost the connection is not greeted
         Node resumed = connect("Bearer " + token);
@@ -1401,5 +1401,53 @@ class NodeServiceTest extends PlatformTestBase {
         // the stored message is marked, which is how the next summary knows it only answers one
         ChatMessage told = chatMessageService.findLatest(joi, 1).getFirst();
         assertThat(told.getEventKind()).isEqualTo("node.summary_created");
+    }
+
+    @Test
+    void theUserWhoIsBackIsGreetedOnceWithTheSummaryDueAndWhatWaited() throws Exception {
+        ((NodeServiceImpl) nodeService).setGreeting(true);
+        // they talked three hours ago: the pause is summarized as the node connects, before she greets them
+        ChatMessage earlier = new ChatMessage();
+        earlier.setJoi(joi);
+        earlier.setType(ChatMessageType.USER);
+        earlier.setSentAt(java.util.Date.from(Instant.now().minus(java.time.Duration.ofHours(3))));
+        earlier.setInput("What is the plan for Friday?");
+        earlier.setResponse("A dentist at ten.");
+        chatMessageService.save(earlier);
+        QueuedEvent renamed = new QueuedEvent();
+        renamed.setJoi(joi);
+        renamed.setKind(JoiEvents.RENAMED);
+        renamed.setOccurredAt(new java.util.Date());
+        renamed.setText("You are now called Mira.");
+        renamed.setPayload("{\"from\":\"Joi\",\"to\":\"Mira\"}");
+        queuedEventService.save(renamed);
+        llm.enqueue(MockLLMResponse.text("They planned Friday: a dentist at ten."), MockLLMResponse.text("Welcome back, dentist on Friday!"));
+
+        Node node = connect("Bearer " + token);
+        node.hello("n1", "desk", joi.getUuid(), "1.7");
+        node.next("welcome");
+        node.manifest(1);
+        assertThat(node.next("turn").getAsJsonObject("data").get("cause").getAsString()).isEqualTo("connected");
+        node.next("done");
+        // one turn: the name, the summary, then the greeting with the clock times
+        ChatMessage greeted = chatMessageService.findLatest(joi, 1).getFirst();
+        assertThat(greeted.getEventKind()).isEqualTo("node.connected");
+        assertThat(greeted.getInput()).contains("You are now called Mira.").contains("[Memory]").contains("a dentist at ten")
+                .contains("is back with you, on desk").contains("You last talked 3 hours ago, ").contains("now.");
+        assertThat(greeted.getInput().indexOf("[Memory]")).isLessThan(greeted.getInput().indexOf("is back with you"));
+        // nothing else was told after it
+        node.frame("ping", "p1", null);
+        assertThat(node.next("pong").get("type").getAsString()).isEqualTo("pong");
+        Thread.sleep(600);
+        assertThat(llm.getCompletionRequests()).hasSize(2);
+        assertThat(queuedEventService.findWaiting(joi)).isEmpty();
+    }
+
+    @Test
+    void aMomentIsSaidAsTheDayAndTheTimeWithTheDateWhenItIsLongAgo() {
+        java.time.ZoneId zone = java.time.ZoneId.of("Europe/Bratislava");
+        Instant now = java.time.ZonedDateTime.of(2026, 11, 23, 10, 55, 0, 0, zone).toInstant();
+        assertThat(NodeServiceImpl.clockTime(now.minus(java.time.Duration.ofHours(8).plusMinutes(11)), now, zone)).isEqualTo("Monday 2:44 AM");
+        assertThat(NodeServiceImpl.clockTime(now.minus(java.time.Duration.ofDays(10)), now, zone)).isEqualTo("Friday, November 13, 10:55 AM");
     }
 }

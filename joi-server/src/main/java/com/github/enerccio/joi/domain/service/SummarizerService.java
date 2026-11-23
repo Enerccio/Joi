@@ -8,6 +8,7 @@ import com.github.enerccio.joi.domain.summary.SummaryPlan.Kind;
 
 import java.util.Date;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 
 /**
  * Writes the summaries of the conversation (see {@code DESIGN.md} → Memory, Compaction). It looks at every assistant
@@ -52,6 +53,12 @@ public interface SummarizerService {
 
     /** Looks at the assistant now and queues what is due, as the minute tick does. */
     void check(Joi joi);
+
+    /**
+     * Queues what is due now ({@link #check}) and completes when no job of the assistant waits or runs any more: what
+     * they made is told to her by then. Her greeting waits for it, so she greets the user with it, not in a turn after.
+     */
+    CompletableFuture<Void> settle(Joi joi);
 
     /** Calls the watcher whenever the summaries or the jobs of the assistant change. Remove it when its owner goes away. */
     Registration watch(Joi joi, Runnable onChange) throws Exception;

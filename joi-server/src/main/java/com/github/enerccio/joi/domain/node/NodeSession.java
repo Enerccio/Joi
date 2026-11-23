@@ -86,6 +86,8 @@ public class NodeSession {
     /** What she is not told yet, in order, and the timer that will tell her. */
     private final List<Pending> pendingEvents = new ArrayList<>();
     private ScheduledFuture<?> gather;
+    /** Her greeting waits (see {@link #hold}): nothing is told on its own meanwhile. */
+    private boolean held;
     /** The requests she was not answered yet, by number; the turn she was told them in (null: not told yet). */
     private final Map<Integer, PartRequest> requests = new LinkedHashMap<>();
     private final Map<Integer, String> toldIn = new HashMap<>();
@@ -250,7 +252,7 @@ public class NodeSession {
      * another try), or when the connection is closed.
      */
     public synchronized List<Pending> takePending() {
-        if (turn != null || closed || pendingEvents.isEmpty()) {
+        if (turn != null || closed || held || pendingEvents.isEmpty()) {
             return List.of();
         }
         List<Pending> taken = List.copyOf(pendingEvents);
@@ -274,6 +276,26 @@ public class NodeSession {
         }
         gather = null;
         return taken;
+    }
+
+    /**
+     * Holds what she is to be told until {@link #release}: her greeting waits for the summaries that are due, and what
+     * comes meanwhile is told with it, in one turn.
+     */
+    public synchronized void hold() {
+        held = true;
+    }
+
+    /** Ends the hold; true when it was still on (false: the user's words or a closed connection ended it first). */
+    public synchronized boolean release() {
+        boolean was = held;
+        held = false;
+        return was && !closed;
+    }
+
+    /** Whether her greeting is held (what she is told now goes with it). */
+    public synchronized boolean held() {
+        return held;
     }
 
     /** Keeps a request of the user until she answers it; returns it with its number. */

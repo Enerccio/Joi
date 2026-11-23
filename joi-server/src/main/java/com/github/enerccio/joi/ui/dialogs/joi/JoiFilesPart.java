@@ -31,6 +31,7 @@ public class JoiFilesPart implements JoiDialogPart {
 
     private Joi joi;
     private WorkspaceBrowser browser;
+    private boolean built;
 
     @Override
     public J_L caption() {
@@ -63,7 +64,7 @@ public class JoiFilesPart implements JoiDialogPart {
             }
         }, () -> false);
         browser.setPhone(UIUtils.isPhone());
-        browser.create();
+        // its content is built in load: the browser lists the files as it is built, and before load there is no assistant
         VerticalLayout layout = new VerticalLayout(hint, browser);
         layout.setSizeFull();
         layout.setPadding(false);
@@ -74,12 +75,19 @@ public class JoiFilesPart implements JoiDialogPart {
     @Override
     public void load(Joi joi) {
         this.joi = joi;
-        browser.refresh();
+        if (!built) {
+            built = true;
+            browser.create();
+        } else {
+            browser.refresh();
+        }
     }
 
     @Override
     public void shown() {
-        browser.refresh();
+        if (built) {
+            browser.refresh();
+        }
     }
 
     /** The browser, for tests. */

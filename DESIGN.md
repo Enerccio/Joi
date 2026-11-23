@@ -1638,9 +1638,10 @@ for the next interaction (or are dropped, if transient and stale).
 
 **Queued events (built: `QueuedEvent`, `QueuedEventPlan`).** An event that happens while she can't take it (no node is
 connected: every node is shut down and you add a model in the UI) is stored with its kind, time, text and data and waits.
-When a node connects, the waiting events go to her in the order they happened, in **one turn** after the greeting (cause
-`events_waited`, an **Event** message with the text of all of them; a turn of only a task's result keeps `task_ended`), so
-she can still react ("oh, a new model?"). They are **merged first** (`QueuedEventPlan`, pure, tested on its own), as the
+When a node connects, the waiting events go to her in the order they happened, in **one turn** with the greeting: the events
+first, the greeting last (cause `connected`, or `first_boot` / `server_restarted`). A node that is not greeted (it only lost
+the connection) is told them in a turn of their own (cause `events_waited`, an **Event** message with the text of all of them;
+a turn of only a task's result keeps `task_ended`). So she can still react ("oh, a new model?"). They are **merged first** (`QueuedEventPlan`, pure, tested on its own), as the
 design says of rapid actions:
 - a part switched again and again is **one** event from the first state to the last (the last text, which says how it looks
   now); one that ended in the state it began in is dropped;
@@ -1723,7 +1724,11 @@ The first real node is a desktop app in JavaFX (`joi-node`). What it does, in or
      held back; when the turn is done she plays **waking up**, and then speaks. Holding back the words until an
      animation is over should work for every animation. Then she waits for the user (text for now).
    - **Before: the user is back.** The synthetic event `connected`, its own template (`CONNECTED_EVENT`: a greeting
-     that fits how long they were away).
+     that fits how long they were away and when: `lastChatted` "8 hours ago", `lastChattedAt` "Sunday 2:44 AM" and
+     `backAt` "Monday 10:55 AM", so a night between is a night's sleep). **One reaction:** the greeting waits for the
+     summaries that are due as the node connects (a day that rolled while the server was off, a pause; at most three
+     minutes, `SummarizerService.settle`), and what waited for her and those summaries are told in the greeting's turn,
+     before it (`NodeSession.hold`). Words of the user before that drop the greeting: they take what waited along.
 5. **The chat** beside her body: text chat with her voice played back (no microphone yet). It starts with her
    history from the server (`GET /api/v1/jois/{id}/chat`), so it goes on where it was. When she has a voice, the
    text of a reply waits for its first piece of speech, so the chat doesn't run ahead of her. Her body is a 3D view next

@@ -30,7 +30,11 @@ answers. Unknown types and fields are ignored.
    assistant cannot look at images gets an `error` frame `no_vision` for that turn); the frame's id is the turn, and the answer is the streamed chat as frames that refer to it: `reasoning`, `text`, `tool`,
    `reply`, `audio`, then `done`, or `error`. `stop` ends a turn. The server starts a turn itself with `turn` (an id and a cause), answered the same way: after the
    first manifest of a connection she wakes up for the first time or greets the user who is back, but not for a node that only lost the connection
-   (`hello.resumed`). With no chat model there is no greeting, and the node gets an `error` frame without a `ref` (code `no_model`) instead of silence.
+   (`hello.resumed`). The greeting is one reaction: `manifest` holds the session (`NodeSession.hold`), the events that waited are pended, and
+   `greet` waits for `SummarizerService.settle` (the summaries due now are queued and made; at most `summaryWaitMillis`, three minutes), so a
+   summary made meanwhile is pended too (`tell` prefers the held session). Then `greetNow` starts one turn: what waited first, the greeting
+   last. A `say` before that releases the hold and the greeting is dropped. `CONNECTED_EVENT` gets the clock times of the last talk and of
+   now (`lastChattedAt`, `backAt`: `Sunday 2:44 AM`, with the date when it is more than six days ago). With no chat model there is no greeting, and the node gets an `error` frame without a `ref` (code `no_model`) instead of silence.
 4. **Tools.** `tool_call` (call id, tool, arguments, a timeout) to the node, which checks its own policy again, may send `tool_progress` and `approval` (asked, then
    allowed or denied), and sends exactly one `tool_result` (ok, content, an error word: `denied`, `failed`, `cancelled`, `timeout`, `unknown_tool`, `bad_arguments`).
    `tool_cancel` when the result is no longer wanted; the node still answers.
