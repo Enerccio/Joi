@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024" role="img" aria-label="Joi">
+  <!--
+    The icon of Joi: a round tile, a ring as the glow of a hologram, a "J". This file is the master: the favicon of the web
+    page is served from here, and tools/MakeIcons.java draws the same shapes into the desktop app's joi.png, joi.ico and
+    joi.icns (change both together).
+  -->
+  <defs>
+    <linearGradient id="tile" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#5b4bd6"/>
+      <stop offset="1" stop-color="#1f9dc7"/>
+    </linearGradient>
+  </defs>
+  <rect x="61" y="61" width="902" height="902" rx="252" ry="252" fill="url(#tile)"/>
+  <circle cx="512" cy="512" r="297" fill="none" stroke="#ffffff" stroke-opacity="0.27" stroke-width="36"/>
+  <path d="M640 280V610a130 130 0 0 1-260 0" fill="none" stroke="#ffffff" stroke-width="110" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
