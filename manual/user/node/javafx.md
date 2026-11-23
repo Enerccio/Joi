@@ -56,7 +56,8 @@ so it needs nothing from the speech server and works with any voice.
 
 Her face is alive too: she blinks every few seconds and looks at you a little unsteadily. Her eyes follow what she does: shut while she
 sleeps (slowly as she falls asleep, opening slowly as she wakes up), open the rest of the time. Her mood shows as a soft expression
-(happy: a smile, grumpy: a frown, sleepy: half closed eyes, excited: wide eyes and a big smile...), taken from the mood's settings, so it changes with the day's mood, as soon as the mood changes.
+(happy: a smile, grumpy: a frown, sleepy: half closed eyes, excited: wide eyes and a big smile...), taken from the mood's settings, so it changes with the day's mood, as soon as the mood changes. The mood's expression
+never closes her eyes (on many models a happy or relaxed face does): only her sleep and the mood's own eyes setting do.
 An animation can set her face itself (see [Animations](../animations/animations.md)); while it plays that wins.
 
 When she waits she plays one of her idle animations, another each time; while she speaks, one of her talking ones. She plays

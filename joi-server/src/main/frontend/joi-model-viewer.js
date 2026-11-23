@@ -38,7 +38,7 @@ import {FBXLoader} from 'three/addons/loaders/FBXLoader.js';
 import {TGALoader} from 'three/addons/loaders/TGALoader.js';
 import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
 import {TransformControls} from 'three/addons/controls/TransformControls.js';
-import {VRMLoaderPlugin, VRMUtils} from '@pixiv/three-vrm';
+import {VRMExpression, VRMLoaderPlugin, VRMUtils} from '@pixiv/three-vrm';
 import {createVRMAnimationClip, VRMAnimationLoaderPlugin} from '@pixiv/three-vrm-animation';
 
 // the prefix of the paths of files inside a zip, resolved by the loading manager's URL modifier
@@ -57,6 +57,9 @@ const SHOTS = [
 const EMOTIONS = ['happy', 'angry', 'sad', 'relaxed', 'surprised'];
 // how closed the lids are for each state of the eyes
 const LIDS = {closed: 1, half: 0.55};
+// the shape keys of the eyes and lids, left out of her mood's expression (the brows stay)
+const EYE_SHAPE = /eye|blink|wink|まばたき|目|瞳/i;
+const BROW_SHAPE = /brow|眉/i;
 const BLINK_SECONDS = 0.2;
 
 class JoiModelViewer extends HTMLElement {
@@ -345,10 +348,48 @@ class JoiModelViewer extends HTMLElement {
     const mood = face.mood || null;
     const state = face.eyes === 'auto' ? null : face.eyes;
     const animated = animation.eyes === 'auto' ? null : animation.eyes;
+    // her mood's expression is held for hours: without its eyes (a model's happy or relaxed often shuts them), which are
+    // the state's and the blinking's; an animation's is short and whole
     const expression = animation.expression
       ? {name: animation.expression, weight: animation.weight > 0 ? animation.weight : 0.7}
-      : mood && mood.expression ? {name: mood.expression, weight: mood.weight > 0 ? mood.weight : 0.5} : null;
+      : mood && mood.expression ? {name: this._withoutEyes(mood.expression), weight: mood.weight > 0 ? mood.weight : 0.5} : null;
     return {eyes: animated || state || (mood && mood.eyes) || 'auto', expression};
+  }
+
+  /**
+   * The name of a copy of the model's expression without the shape keys of the eyes and lids (registered with the
+   * model's expressions the first time), or the expression itself when it has none of them.
+   */
+  _withoutEyes(name) {
+    const vrm = this._vrm;
+    const manager = vrm && vrm.expressionManager;
+    const source = manager && manager.getExpression(name);
+    if (!source) {
+      return name;
+    }
+    const copies = vrm.scene.userData.joiWithoutEyes || (vrm.scene.userData.joiWithoutEyes = {});
+    if (copies[name] === undefined) {
+      const kept = source.binds.filter(bind => !EYE_SHAPE.test(this._shapeName(bind)) || BROW_SHAPE.test(this._shapeName(bind)));
+      if (kept.length === source.binds.length) {
+        copies[name] = name;
+      } else {
+        const copy = new VRMExpression('joi-without-eyes-' + name);
+        kept.forEach(bind => copy.addBind(bind));
+        manager.registerExpression(copy);
+        copies[name] = copy.expressionName;
+      }
+    }
+    return copies[name];
+  }
+
+  /** The name of the shape key a bind of an expression moves, '' for a bind of a material. */
+  _shapeName(bind) {
+    const mesh = bind.primitives && bind.primitives[0];
+    const names = mesh && mesh.morphTargetDictionary;
+    if (!names) {
+      return '';
+    }
+    return Object.keys(names).find(key => names[key] === bind.index) || '';
   }
 
   /** Runs the face layer: the lids (and blinking), the expression, where she looks. */
@@ -384,7 +425,11 @@ class JoiModelViewer extends HTMLElement {
 
     // the expression and the ones before it fade over a second or so
     const rate = 1 - Math.exp(-delta / 0.25);
-    for (const name of EMOTIONS) {
+    const names = new Set([...EMOTIONS, ...Object.keys(state.emotions)]);
+    if (now.expression) {
+      names.add(now.expression.name);
+    }
+    for (const name of names) {
       const goal = now.expression && now.expression.name === name ? now.expression.weight : 0;
       const current = state.emotions[name] || 0;
       state.emotions[name] = current + (goal - current) * rate;
@@ -394,7 +439,7 @@ class JoiModelViewer extends HTMLElement {
       if (manager.getExpression('blink')) {
         manager.setValue('blink', Math.min(1, blink));
       }
-      for (const name of EMOTIONS) {
+      for (const name of names) {
         if (manager.getExpression(name)) {
           manager.setValue(name, state.emotions[name]);
         }
@@ -432,7 +477,7 @@ class JoiModelViewer extends HTMLElement {
     const vrm = this._vrm;
     const manager = vrm && vrm.expressionManager;
     if (manager) {
-      for (const name of ['blink', ...EMOTIONS]) {
+      for (const name of ['blink', ...EMOTIONS, ...Object.keys(this._faceState ? this._faceState.emotions : {})]) {
         if (manager.getExpression(name)) {
           manager.setValue(name, 0);
         }

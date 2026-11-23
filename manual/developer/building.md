@@ -88,7 +88,7 @@ Four workflows in `.github/workflows` (as Marginalia's) and Dependabot. All chec
 
 | Workflow | When | What |
 |---|---|---|
-| `test.yml` | every push and pull request | Builds the platform (no tests of its own) and the protocol, then runs the tests of `joi-protocol`, `joi-server` and `joi-node` (not the JavaFX part). Reports are an artifact when it fails. |
+| `test.yml` | every push and pull request | Builds the platform (no tests of its own) and the protocol, then runs the tests of `joi-protocol`, `joi-server` and `joi-node` (not the JavaFX part: without `-Pfx` the pom leaves its main and test classes out). Reports are an artifact when it fails. |
 | `server.yml` | master, `v*` tags, pull requests that touch the server, extensions or Docker files | The WAR (`-Pproduction`) and the three extension JARs as the artifact `joi-server`; the Docker image for `linux/amd64` and `linux/arm64`, each built on a native runner and smoke-tested (`/health` answers 200) before it is pushed. |
 | `desktop.yml` | master, `v*` tags, pull requests that touch the desktop app, node, server or protocol | The desktop app (`-Pfx,production,desktop`, see [The desktop app](desktop.md)) on Linux x64 and arm64, Windows x64 and macOS arm64 and x64, with its installers, smoke-tested (the server starts, the API socket answers `POST /oauth/local` with 409 while the port answers 404, both programs and the `.deb` are there). The files are an artifact per platform and, for a `v*` tag, attached to the release. |
 | `manual.yml` | master, pull requests that touch the manual | The manual to GitHub Pages. |

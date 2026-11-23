@@ -64,7 +64,7 @@ The app's own code, so that it builds and is tested on the Mac: SwiftUI and the 
 - **Images.** `ChatModel.send(_:images:)` takes files: each goes through `ImagePreparer` (ImageIO: a thumbnail at 1568 pixels with the orientation applied, written as JPEG; nothing is held whole in
   memory), is uploaded (`HistorySource.uploadImage`) and its id goes in `say`; it returns whether the message was sent, and the view keeps the words and images in the field when it was not. It refuses
   without an upload when `canSeeImages` is false (`JoiInfo.images`, read by `AppModel` and again on the server's `joi` event) or when there are more than four. `ChatMessage.imageCount` is what the
-  user sent (the history's `ChatEntry.images`): the bubble says "📷 2 images", the pictures themselves are not shown on the phone yet. The views are in `ImageInput.swift`: `ImageAttachButton` (a menu:
+  user sent (the history's `ChatEntry.images`; a message of only images comes with no text and is kept): the bubble says "📷 2 images", the pictures themselves are not shown on the phone yet. The views are in `ImageInput.swift`: `ImageAttachButton` (a menu:
   *Take a photo* with `CameraPicker`, a `UIImagePickerController` (iOS only, and only when there is a camera), or *Choose from the library* with `PhotosPicker`, which hands the photo over as a file:
   `PickedImage`, a `FileRepresentation`) and `PendingImages` (thumbnails with a button to remove). `project.yml` has `NSCameraUsageDescription`; the library needs no string. The camera and the picker are
   only built for iOS, so `swift test` on the Mac covers `ImagePreparer` and `ChatModel`, and `mvn -Pswift,ios verify` the views.

@@ -1511,7 +1511,8 @@ UI — nothing is deleted):
     points the eyes (VRM `lookAt`) at the camera with a little jitter. Three inputs, the first that says something wins: the **animation's own face**
     (`eyes`: closed / half / wide, `expression`: happy / sad / angry / relaxed / surprised, stored on the animation and in the `.joia`), **her state**
     (shut while she sleeps, easing over a few seconds as she falls asleep and wakes up) and **her mood** (a soft expression from the `Mood`'s own face,
-    sent in the `mood` frame: calm → relaxed, happy → happy, grumpy → angry, melancholic → sad, sleepy → half closed eyes, excited → wide eyes...; see Moods).
+    sent in the `mood` frame: calm → relaxed, happy → happy, grumpy → angry, melancholic → sad, sleepy → half closed eyes, excited → wide eyes...; see Moods). The mood's expression leaves her eyes out (a copy of the model's expression
+    without the eye and lid shape keys): many models' happy and relaxed shut the eyes, which held for a day looks like she sleeps; the eyes are the state's, the mood's `eyes`, or blinking.
     **Next:** more face targets (ARKit shapes), looking at the user rather than the camera.
   - **Both ways:** Joi plays them with a tool (`play_animation`, listing what fits the active body and shot), e.g. waves
     hello, shrugs, dances when asked; you trigger them from the UI or a Stream Deck key and she is told.
