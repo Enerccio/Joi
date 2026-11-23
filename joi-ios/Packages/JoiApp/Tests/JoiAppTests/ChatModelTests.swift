@@ -91,6 +91,27 @@ struct FakeHistory: HistorySource {
         .frame(NodeConnection.Incoming(ref: ref, data: data))
     }
 
+    @Test func whatTheUserSaysAloudStopsHerAndGoesAsTypedWords() async throws {
+        let dictation = FakeDictation()
+        dictation.finalOnEnd = "good morning"
+        let chat = ChatModel(joiID: "j1", joiName: "Joi", history: FakeHistory(), link: link, speech: speech, dictation: dictation)
+        await chat.start()
+        let voice = try #require(chat.voice)
+        voice.start()
+        #expect(speech.stops == 1) // she was talking: talking over her stops her
+        for _ in 0..<200 where voice.state != .listening { try await Task.sleep(for: .milliseconds(5)) }
+        dictation.hear("good morning")
+        voice.finish()
+        for _ in 0..<200 where link.sentWords.isEmpty { try await Task.sleep(for: .milliseconds(5)) }
+        #expect(link.sentWords == ["good morning"])
+        #expect(chat.messages.map(\.role) == [.user, .joi])
+        #expect(chat.messages[0].text == "good morning")
+    }
+
+    @Test func noRecognizerNoMicrophone() {
+        #expect(model().voice == nil)
+    }
+
     @Test func theHistoryIsTheStartOfTheChat() async {
         let date = Date(timeIntervalSince1970: 1_800_000_000)
         let page = ChatHistory(messages: [

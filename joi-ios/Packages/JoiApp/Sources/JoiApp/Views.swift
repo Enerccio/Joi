@@ -309,9 +309,15 @@ struct ChatColumn: View {
             if !images.isEmpty {
                 PendingImages(images: $images).padding(.horizontal)
             }
+            if let voice = chat.voice {
+                VoiceStrip(voice: voice)
+            }
             HStack {
                 if chat.canSeeImages {
                     ImageAttachButton(images: $images, limit: ChatModel.maxImages).font(.title3)
+                }
+                if let voice = chat.voice {
+                    VoiceButton(voice: voice, connected: chat.status == .connected && !chat.sending).font(.title3)
                 }
                 TextField("Say something to \(chat.joiName)", text: $input, axis: .vertical)
                     .lineLimit(1...4)
@@ -322,6 +328,10 @@ struct ChatColumn: View {
                     .disabled(!canSend)
             }
             .padding()
+        }
+        // words heard but not sent (the connection was down) wait in the field
+        .onChange(of: chat.voice?.leftover) {
+            if let words = chat.voice?.takeLeftover(), input.isEmpty { input = words }
         }
     }
 
@@ -343,6 +353,57 @@ struct ChatColumn: View {
                 if input.isEmpty { input = text }
                 images = files
             }
+        }
+    }
+}
+
+/// The microphone: tap to talk, tap again to send what was said at once.
+struct VoiceButton: View {
+    let voice: VoiceInput
+    let connected: Bool
+
+    var body: some View {
+        Button { voice.toggle() } label: {
+            Image(systemName: voice.state == .listening ? "mic.fill" : "mic")
+                .foregroundStyle(voice.state == .listening ? Color.red : Color.accentColor)
+        }
+        .disabled(voice.state == .idle ? !connected : voice.state != .listening)
+        .accessibilityLabel(voice.state == .listening ? "Send what you said" : "Talk")
+    }
+}
+
+/// What the microphone does: what is heard as the user talks, why nothing was said (when so), and a way to cancel.
+struct VoiceStrip: View {
+    let voice: VoiceInput
+
+    var body: some View {
+        if voice.state != .idle {
+            HStack {
+                switch voice.state {
+                case .starting:
+                    ProgressView()
+                    Text("Starting the microphone…").foregroundStyle(.secondary)
+                case .listening:
+                    Image(systemName: "waveform").foregroundStyle(.red)
+                    Text(voice.heard.isEmpty ? "Listening…" : voice.heard).lineLimit(3)
+                case .finishing:
+                    ProgressView()
+                    Text(voice.heard.isEmpty ? "Finishing…" : voice.heard).foregroundStyle(.secondary).lineLimit(3)
+                case .idle:
+                    EmptyView()
+                }
+                Spacer()
+                if voice.state != .finishing {
+                    Button { voice.cancel() } label: { Image(systemName: "xmark.circle.fill") }
+                        .foregroundStyle(.secondary)
+                        .accessibilityLabel("Cancel")
+                }
+            }
+            .font(.callout)
+            .padding(.horizontal).padding(.vertical, 6)
+            .background(.thinMaterial)
+        } else if let note = voice.note {
+            Text(note).font(.footnote).foregroundStyle(.red).frame(maxWidth: .infinity, alignment: .leading).padding(.horizontal).padding(.vertical, 4)
         }
     }
 }

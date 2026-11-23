@@ -1971,7 +1971,12 @@ When a model with vision is available, the node can give Joi images of what you 
   (`SherpaTranscriber`: Moonshine tiny, English, quantized, on the CPU; it does not stream), and the text is said to her as typed words, with the images
   waiting in the chat. The models (VAD 0.6 MB, speech model 28 MB, from the sherpa-onnx project's GitHub release, checked by SHA-256) are downloaded by
   the user from the Voice section of the controls into `<home>/voice`; sherpa-onnx itself is the `joi-sherpa` module. **Not built:** the wake word, barge-in
-  by voice, the clip saved with the message, the choice of a language, the iOS and terminal nodes.
+  by voice, the clip saved with the message, the choice of a language, the terminal node.
+- **Built (2026-11-23): push-to-talk on the iOS app** (`joi-ios` `VoiceInput`, `AppleDictation`, `manual/developer/ios-app.md`). A microphone button in the chat: tap to talk, tap again to
+  send at once, a cross cancels; the talk ends at a pause of 1.2 s (a timer on Apple's partial results: its recognizer has no end of speech), 8 s with no words give up, 60 s is the most. Apple's
+  recognizer on the device (`SFSpeechRecognizer`, `requiresOnDeviceRecognition`: a language the phone cannot recognize by itself is an error, never a fall back to Apple's servers) in the
+  phone's language else English; the text goes as `say`, talking over her stops her. **Not built on iOS:** the Vocal Shortcut and Siri intents, the always-listening mode, the language
+  setting, `SpeechAnalyzer` (iOS 26) as a second backend, the clip saved with the message.
 - **GPU (local setup):** the platform's GPU locks, set up under Administration. A lock is a way to fill a GPU (start-up
   and release steps), not one model, and the jobs of one lock run side by side. So Joi has a **voice lock** whose
   start-up loads the conversation LLM and the TTS model; both the conversation AI and the TTS model name it (no job

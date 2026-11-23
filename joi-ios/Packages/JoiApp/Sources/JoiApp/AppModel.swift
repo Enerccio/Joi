@@ -154,7 +154,7 @@ public final class AppModel {
         let roles = info?.animations
         let avatar = AvatarModel(page: Self.rendererPage)
         let hello = Hello(protocol: JoiProtocolInfo.nodeVersion, nodeId: nodeId, name: "phone", kind: "phone", software: "joi-ios 0.1",
-                          joi: joi.id, parts: [.tools, .audioOut])
+                          joi: joi.id, parts: [.tools, .audioIn, .audioOut])
         let link = NodeConnection(url: await client.nodeSocket, hello: hello, manifest: Manifest(version: 1, os: "ios", tools: []),
                                   authorizer: { try await client.authorization() })
         let speech = Self.makeSpeech()
@@ -166,7 +166,7 @@ public final class AppModel {
             player.onStopped = { bridge.speechStopped() }
         }
         let model = ChatModel(joiID: joi.id, joiName: joi.name, history: client, link: link, speech: speech,
-                              player: avatar.bridge, roles: roles)
+                              player: avatar.bridge, roles: roles, dictation: Self.makeDictation())
         model.setCanSeeImages(info?.images ?? false)
         model.onServerEvent = { [weak model, weak avatar] name in
             // the server tells that her body or her settings changed
@@ -203,6 +203,11 @@ public final class AppModel {
 
     static func makeSpeech() -> SpeechPlaying? {
         SpeechPlayer()
+    }
+
+    /// The user's speech as text, on the device.
+    static func makeDictation() -> Dictating? {
+        AppleDictation()
     }
 
     /// Whether credentials made by the server `owner` (its address as kept, nil for not known) may be sent to `server`.

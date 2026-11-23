@@ -14,7 +14,7 @@ verified: 0834edb
 
 The node hears the user and sends words. The design is in `DESIGN.md` → Voice: wake word and speech to text run on the node, the node says text (`say`), the
 server never gets audio. What is built is **push-to-talk on the JavaFX node**; the wake word, barge-in by voice, the clip saved with the message, the choice of a
-language and the other nodes are not.
+language and the terminal node are not. The iOS app has its own push-to-talk with Apple's on-device recognizer: see [The iOS app](ios-app.md).
 
 ## The pieces
 

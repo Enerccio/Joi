@@ -68,6 +68,21 @@ The app's own code, so that it builds and is tested on the Mac: SwiftUI and the 
   *Take a photo* with `CameraPicker`, a `UIImagePickerController` (iOS only, and only when there is a camera), or *Choose from the library* with `PhotosPicker`, which hands the photo over as a file:
   `PickedImage`, a `FileRepresentation`) and `PendingImages` (thumbnails with a button to remove). `project.yml` has `NSCameraUsageDescription`; the library needs no string. The camera and the picker are
   only built for iOS, so `swift test` on the Mac covers `ImagePreparer` and `ChatModel`, and `mvn -Pswift,ios verify` the views.
+- **Push-to-talk** (`VoiceInput.swift`, `AppleDictation.swift`). The microphone button in the chat's input row: tap to talk, tap again to send what was said at once, the cross in the strip over the field
+  cancels (nothing is sent). `VoiceInput` (`@Observable`, a state of `idle`, `starting`, `listening`, `finishing`) is the logic and has no audio in it: it is given a `Dictating` (`begin()`
+  returns an `AsyncStream<DictationEvent>` of `partial` / `final` / `failed`, `endAudio()`, `cancel()`) and the closures `send` and `beforeListening`; `ChatModel` makes it when it is given a
+  `dictation` (`AppModel.makeDictation()`), sending through `send(_:)` and stopping her voice first (`stopSpeaking()`: talking over her is barge-in, as the Stop of the other nodes). The talk ends
+  at a pause of 1.2 s after words (a timer started again by each partial result: Apple's recognizer has no end of speech of its own), when the user taps, after 60 s at most, and gives up after 8 s with
+  no words (the note *I did not hear anything.*); a recognizer that does not finish within 5 s of `endAudio` does not hold back what was heard. What was heard goes as `say` text, never audio; words that
+  could not be sent (no connection) are `leftover`, which the text field takes. Every timer and stream belongs to one talk (`session`), so what an earlier talk does late is dropped; a cancel while the
+  microphone opens closes it when it has opened. `AppleDictation` is the real `Dictating`: it asks for the permissions (`SFSpeechRecognizer.requestAuthorization`, `AVAudioApplication.requestRecordPermission`; a
+  refusal is an error that says where to allow it), takes the phone's language else English (the first the phone can recognize **on the device**: `requiresOnDeviceRecognition`, so no sound goes to Apple;
+  a language the phone cannot do by itself is an error, not a quiet fall back), sets the audio session to `playAndRecord` (`SpeechPlayer` sets `playback` again for her next piece, and the session is
+  given back when the microphone closes) and feeds an `AVAudioEngine` tap into an `SFSpeechAudioBufferRecognitionRequest`. The tap and the recognizer's handler are made in `nonisolated` functions:
+  both are called from other queues, and a closure made in a main actor method is checked to run on the main actor (a crash). `Relay` keeps the last text, so an error at the end (*no speech
+  detected*, 1110) still gives what was heard, or an empty `final`. `project.yml` has `NSMicrophoneUsageDescription` and `NSSpeechRecognitionUsageDescription`, and the hello declares the part
+  `audio-in`. `swift test` covers `VoiceInput` (`VoiceInputTests`, with a fake `Dictating`) and its place in `ChatModel`; the recognizer and the microphone need a phone (the Simulator has a
+  microphone and no on-device model for some languages). Not built: hands-free (the wake word), the App Intents, a language setting, the clip saved with the message.
 - **Her mouth.** The page reads it from her voice (see *Her mouth* in [Writing a node](nodes.md)). `SpeechPlayer` numbers the pieces it plays and has `onQueued`, `onStarted` and
   `onStopped`; `AppModel` hands them to `RendererBridge.speech`, `speechStarted` and `speechStopped`, which send the `speech`, `speech-start` and `speech-stop` messages (the
   piece's bytes in Base64; not kept for a page that opens later).
@@ -105,7 +120,7 @@ The app's own code, so that it builds and is tested on the Mac: SwiftUI and the 
   (`ChatModel.eventNote`: connected, first start, summary written, part switched, task ended, Looking Glass). Her tasks that wait for the user (`web_search`, `fetch_page` without a standing approval) are `ChatModel.questions`, kept from the `task` frames (a frame of the same id with another status takes
   the question back, the connection's loss clears them: the server sends them again when it is back) and shown by `TaskQuestionCard` over the chat, the oldest with how many more wait: *Approve*, *Deny*,
   and in its menu *Always approve <tool>*. `ChatModel.answer` calls `approveTask` / `denyTask` of `HistorySource` (`JoiClient`'s); a 409 (answered elsewhere) just takes the question back, any other
-  error stays under the card. Not yet: the microphone, the App Intents, a notification for a task that waits while the app is closed (the app has to be open: see *Staying connected* in `DESIGN.md`).
+  error stays under the card. Not yet: the App Intents, a notification for a task that waits while the app is closed (the app has to be open: see *Staying connected* in `DESIGN.md`).
 
 ## The Xcode project
 

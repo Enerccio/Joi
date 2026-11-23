@@ -86,9 +86,11 @@ public final class ChatModel: AvatarOutput {
     public private(set) var canSeeImages = false
     /// The user is sending a message with images (they are uploaded first): one at a time.
     public private(set) var sending = false
+    /// Push-to-talk (nil when the app has no speech recognizer): the user's speech as typed words.
+    @ObservationIgnored public private(set) var voice: VoiceInput?
 
     public init(joiID: String, joiName: String, history: HistorySource, link: NodeLink, speech: SpeechPlaying? = nil,
-                player: AnimationPlayer? = nil, roles: JoiAnimations? = nil) {
+                player: AnimationPlayer? = nil, roles: JoiAnimations? = nil, dictation: Dictating? = nil) {
         self.joiID = joiID
         self.joiName = joiName
         self.history = history
@@ -98,6 +100,11 @@ public final class ChatModel: AvatarOutput {
         director = AvatarDirector(output: self, roles: roles)
         speech?.onFinished = { [weak self] in self?.director.speechEnded() }
         player?.onEnded = { [weak self] in self?.director.animationEnded() }
+        // talking over her stops her; the words go as typed ones
+        voice = dictation.map { dictation in
+            VoiceInput(dictation: dictation, send: { [weak self] in await self?.send($0) ?? false },
+                       beforeListening: { [weak self] in self?.stopSpeaking() })
+        }
     }
 
     /// The server's answer to a part the user put in another state.
@@ -239,6 +246,7 @@ public final class ChatModel: AvatarOutput {
     }
 
     public func stop() async {
+        voice?.cancel()
         eventTask?.cancel()
         eventTask = nil
         speech?.stop()
@@ -291,6 +299,12 @@ public final class ChatModel: AvatarOutput {
             messages.append(ChatMessage(role: .error, text: "Not sent: " + Self.describe(error)))
             return false
         }
+    }
+
+    /// Barge-in: what she was saying is dropped.
+    public func stopSpeaking() {
+        speech?.stop()
+        director.speechEnded()
     }
 
     /// What goes with one message at most (`ChatRequest.MAX_IMAGES`).
