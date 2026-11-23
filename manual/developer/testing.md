@@ -5,7 +5,7 @@ order: 690
 covers:
   - joi-server/src/test
   - joi-node/src/test
-verified: 7df1caf
+verified: 01d3230
 ---
 
 # Testing
