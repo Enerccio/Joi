@@ -19,7 +19,11 @@ throws there (in production it only logs). Change such a copy through its servic
 ```bash
 mvn test -pl joi-server -Dtest=ChatTurnTest
 mvn test -pl joi-node
+mvn -Pfx test -pl joi-node -Dtest=LineOutputTest
 ```
+
+The tests in `joi-node`'s `fx` package compile and run only with `-Pfx`, as the JavaFX app they test (the pom excludes them
+otherwise, `testExcludes`). CI runs `mvn test` without the profile, so they do not run there.
 
 The test classes share one application (the same database and the same in-memory state), so a test that looks at everything (the administrator's list of what the
 assistants do, a count of all animations) can fail depending on which classes ran before it: on CI the order is the file system's, here it is another. Run the whole suite

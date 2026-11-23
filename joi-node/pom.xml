@@ -66,6 +66,10 @@
             <exclude>${fx.excludes}</exclude>
             <exclude>${jcef.excludes}</exclude>
           </excludes>
+          <!-- the tests of the JavaFX app (LineOutputTest) compile and run only with -Pfx, as the classes they test -->
+          <testExcludes>
+            <testExclude>${fx.excludes}</testExclude>
+          </testExcludes>
         </configuration>
       </plugin>
       <plugin>

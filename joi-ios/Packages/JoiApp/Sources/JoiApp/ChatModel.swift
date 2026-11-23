@@ -281,7 +281,9 @@ public final class ChatModel: AvatarOutput {
             switch entry.type {
             case "user":
                 let count = entry.images?.count ?? 0
-                if let text = entry.text, !text.isEmpty || count > 0 { out.append(ChatMessage(role: .user, text: text, imageCount: count)) }
+                // a message of only images may come with no text at all
+                let text = entry.text ?? ""
+                if !text.isEmpty || count > 0 { out.append(ChatMessage(role: .user, text: text, imageCount: count)) }
             case "log":
                 if let text = entry.text { out.append(ChatMessage(role: .note, text: text)) }
             default:
