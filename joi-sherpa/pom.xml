@@ -1,0 +1,166 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <!-- sherpa-onnx for the node's voice in (VAD and speech to text, see DESIGN.md → Voice): the project's Java API and the
+       natives of this machine, as one jar. They are not on Maven Central, only on the GitHub release of sherpa-onnx, so
+       this module downloads the two jars of the release (the SHA-256 checked, the downloads kept in ~/.m2) and unpacks
+       them into its own jar. Nothing is checked into Git. The natives of a platform come with the profile of that
+       platform below (macOS arm64 is the default), the way the node takes JCEF's natives. sherpa-onnx is Apache 2.0. -->
+  <parent>
+    <groupId>io.github.enerccio</groupId>
+    <artifactId>joi-parent</artifactId>
+    <version>0.1.0-SNAPSHOT</version>
+  </parent>
+
+  <artifactId>joi-sherpa</artifactId>
+  <packaging>jar</packaging>
+  <name>joi-sherpa</name>
+
+  <properties>
+    <sherpa.version>2.0.3</sherpa.version>
+    <sherpa.jvm.sha256>ad69b6a54462ba3671782617b11d35975c8d6b7c84ae11765e3a06dd0c56c0e5</sherpa.jvm.sha256>
+    <sherpa.platform>osx-aarch64</sherpa.platform>
+    <sherpa.native.sha256>9c85930bcf081eb285a324f0f97eec63054a2a6ba7baf47408b83683add2a675</sherpa.native.sha256>
+    <sherpa.url>https://github.com/k2-fsa/sherpa-onnx/releases/download/v${sherpa.version}</sherpa.url>
+  </properties>
+
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>io.github.download-maven-plugin</groupId>
+        <artifactId>download-maven-plugin</artifactId>
+        <version>2.2.0</version>
+        <executions>
+          <execution>
+            <id>sherpa-jvm</id>
+            <phase>initialize</phase>
+            <goals>
+              <goal>wget</goal>
+            </goals>
+            <configuration>
+              <url>${sherpa.url}/sherpa-onnx-jvm-${sherpa.version}.jar</url>
+              <outputDirectory>${project.build.directory}/sherpa</outputDirectory>
+              <sha256>${sherpa.jvm.sha256}</sha256>
+            </configuration>
+          </execution>
+          <execution>
+            <id>sherpa-native</id>
+            <phase>initialize</phase>
+            <goals>
+              <goal>wget</goal>
+            </goals>
+            <configuration>
+              <url>${sherpa.url}/sherpa-onnx-native-lib-${sherpa.platform}-${sherpa.version}.jar</url>
+              <outputDirectory>${project.build.directory}/sherpa</outputDirectory>
+              <sha256>${sherpa.native.sha256}</sha256>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+      <!-- both jars into this one (their manifests left out) -->
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-antrun-plugin</artifactId>
+        <version>3.1.0</version>
+        <executions>
+          <execution>
+            <id>unpack-sherpa</id>
+            <phase>process-resources</phase>
+            <goals>
+              <goal>run</goal>
+            </goals>
+            <configuration>
+              <target>
+                <unzip src="${project.build.directory}/sherpa/sherpa-onnx-jvm-${sherpa.version}.jar"
+                       dest="${project.build.outputDirectory}">
+                  <patternset>
+                    <exclude name="META-INF/**"/>
+                  </patternset>
+                </unzip>
+                <unzip src="${project.build.directory}/sherpa/sherpa-onnx-native-lib-${sherpa.platform}-${sherpa.version}.jar"
+                       dest="${project.build.outputDirectory}">
+                  <patternset>
+                    <exclude name="META-INF/**"/>
+                  </patternset>
+                </unzip>
+              </target>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+    </plugins>
+  </build>
+
+  <profiles>
+    <profile>
+      <id>sherpa-osx-x64</id>
+      <activation>
+        <os>
+          <family>mac</family>
+          <arch>x86_64</arch>
+        </os>
+      </activation>
+      <properties>
+        <sherpa.platform>osx-x64</sherpa.platform>
+        <sherpa.native.sha256>9279efce3fe715a88197f97806a527ed7765bae8940ceba6aa82825e5ea107ef</sherpa.native.sha256>
+      </properties>
+    </profile>
+    <profile>
+      <id>sherpa-linux-x64</id>
+      <activation>
+        <os>
+          <family>unix</family>
+          <name>Linux</name>
+          <arch>amd64</arch>
+        </os>
+      </activation>
+      <properties>
+        <sherpa.platform>linux-x64</sherpa.platform>
+        <sherpa.native.sha256>42330fbcfe4f771386545397ebf8a8dd2176ff913a254331226c01ad87982e17</sherpa.native.sha256>
+      </properties>
+    </profile>
+    <profile>
+      <id>sherpa-linux-aarch64</id>
+      <activation>
+        <os>
+          <family>unix</family>
+          <name>Linux</name>
+          <arch>aarch64</arch>
+        </os>
+      </activation>
+      <properties>
+        <sherpa.platform>linux-aarch64</sherpa.platform>
+        <sherpa.native.sha256>e81f84f92b3ecd724882f317c9a31893ce681b25d93a23bcc5c0a9c0c4a4df9d</sherpa.native.sha256>
+      </properties>
+    </profile>
+    <profile>
+      <id>sherpa-win-x64</id>
+      <activation>
+        <os>
+          <family>windows</family>
+          <arch>amd64</arch>
+        </os>
+      </activation>
+      <properties>
+        <sherpa.platform>win-x64</sherpa.platform>
+        <sherpa.native.sha256>26a9072f4a47be3a73bfbbba5f25e6e8b84b24734be651de2d480ae753ae6508</sherpa.native.sha256>
+      </properties>
+    </profile>
+    <profile>
+      <id>sherpa-win-arm64</id>
+      <activation>
+        <os>
+          <family>windows</family>
+          <arch>aarch64</arch>
+        </os>
+      </activation>
+      <properties>
+        <sherpa.platform>win-arm64</sherpa.platform>
+        <sherpa.native.sha256>8b3cb58bf3d31d9c6c80d3742455ecfea9df06ed0409d8bf90d12208063f1d30</sherpa.native.sha256>
+      </properties>
+    </profile>
+  </profiles>
+</project>

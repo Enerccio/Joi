@@ -12,6 +12,8 @@ verified: 01d3230
 
 # Writing a node
 
+The reference node's voice input (push-to-talk, speech to text on the node) is described in [Voice in](voice.md).
+
 A node is a client of the node WebSocket: `GET /api/v1/node` with `Upgrade: websocket` and the API's credentials (in the `Authorization` header, or in
 `hello.token` for a client that cannot set headers; never in the URL). The messages are in `asyncapi.yaml` and `schemas/` (see
 [The protocol](protocol.md)). A node declares which parts it implements, so a minimal node is a handshake, a manifest with one tool, and answers to calls.

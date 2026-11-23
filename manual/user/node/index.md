@@ -13,6 +13,7 @@ what gives her hands on that machine.
 | Node | What it is |
 |---|---|
 | [The JavaFX node](javafx.md) | a desktop app: her body next to a text chat, her voice, her questions to you |
+| [Talking to her](voice.md) | the JavaFX node writes down what you say, on your computer, and sends the words |
 | [The terminal node](terminal.md) | the same conversation in a terminal, with what her body would play printed |
 | [The Looking Glass](looking-glass.md) | the JavaFX node can move her onto a Looking Glass display |
 
@@ -26,6 +27,7 @@ replaces its old connection.
 - **Her body**: the node downloads the `.joim` and `.joia` of her active body, keeps them by hash, and draws her with her
   animations: idle while she waits, talking while she speaks, asleep, falling asleep and waking up.
 - **Her voice**: the speech the server makes is played back.
+- **Your voice**: the JavaFX node can listen when you press **Talk**, and sends the words (see [Talking to her](voice.md)).
 - **Tools**: when a node connects it sends a list of the tools it offers, and she sees them as `<node>__<tool>` while it is
   connected. `notify` shows you a notification on this machine, and `offer_to_clipboard` offers you a text for the clipboard; she has
   each only if you allow it. See [Notifications](notifications.md) and [Clipboard offers](clipboard.md). A tool is marked Allow, Ask or Deny by the node itself, which decides again when it runs.
@@ -41,7 +43,7 @@ ways the server offers, and you can revoke any node's credentials in **User Sett
 
 On connect, if she has never talked she wakes up for the first time; otherwise she greets you. If the connection drops (the server
 restarts, the network goes), the node connects again after 1, 2, 4... seconds, up to 30, and does not greet you again. While it
-is not connected the chat, Send and Stop, her parts and the Looking Glass button are disabled, and she stands still and gray. A bar
+is not connected the chat, Send, Talk and Stop, her parts and the Looking Glass button are disabled, and she stands still and gray. A bar
 above the input counts down to the next try, with **Reconnect now**.
 
 A reply that she was already writing is kept in the conversation when the connection is lost after she wrote something or

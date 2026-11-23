@@ -50,9 +50,9 @@ jobs:
           mvn -N install
           mvn -N install -f marginalia/pom.xml
 
-      - name: Install the platform and the protocol
+      - name: Install the platform, the protocol and sherpa-onnx
         # the platform with its test JAR (the server's tests extend the platform's PlatformTestBase), built without its own tests
-        run: mvn -DskipTests install -pl marginalia/marginalia/platform,joi-protocol
+        run: mvn -DskipTests install -pl marginalia/marginalia/platform,joi-protocol,joi-sherpa
 
       - name: Test
         run: mvn test -pl joi-protocol,joi-server,joi-node

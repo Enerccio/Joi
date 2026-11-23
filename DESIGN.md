@@ -1739,7 +1739,7 @@ The first real node is a desktop app in JavaFX (`joi-node`). What it does, in or
      summaries that are due as the node connects (a day that rolled while the server was off, a pause; at most three
      minutes, `SummarizerService.settle`), and what waited for her and those summaries are told in the greeting's turn,
      before it (`NodeSession.hold`). Words of the user before that drop the greeting: they take what waited along. The node moved onto the Looking Glass meanwhile goes with the greeting too.
-5. **The chat** beside her body: text chat with her voice played back (no microphone yet). It starts with her
+5. **The chat** beside her body: text chat with her voice played back, and push-to-talk (see *Voice*). It starts with her
    history from the server (`GET /api/v1/jois/{id}/chat`), so it goes on where it was. When she has a voice, the
    text of a reply waits for its first piece of speech, so the chat doesn't run ahead of her. Her body is a 3D view next
    to the chat; **On the Looking Glass** moves her onto the Looking Glass: the node asks Bridge where the display is
@@ -1911,7 +1911,26 @@ When a model with vision is available, the node can give Joi images of what you 
 - **Pipeline:** microphone (16 kHz mono) → Silero VAD (drop silence) → wake word → speech-to-text → stop after ~1.2 s of
   silence. sherpa-onnx has Java bindings for VAD, keyword spotting and streaming ASR, so the node stays cross-platform;
   Apple's on-device recognizer can be a better optional backend on macOS.
-- **Wake word and speech-to-text run on the node** (latency).
+- **Wake word and speech-to-text run on the node** (decided 2026-11-23). The node sends text in `say`, so every node
+  (desktop, iOS) speaks the same protocol and the server never gets raw audio. The node has a `Transcriber` with
+  backends: Apple's recognizer on iOS (`SpeechAnalyzer`, `SFSpeechRecognizer`, on the device), sherpa-onnx on the
+  desktop (the default), and later, optionally, a speech-to-text model of the server for a language the local models
+  do not cover well (the node uploads the finished utterance and gets text back, so `say` still carries text).
+  The language is a setting of the node (English by default); the models of another language are downloaded when the
+  user picks it, with a visible step, never silently. The finished utterance can go up with the message as an
+  attachment, like an image (an upload over HTTP, its id in `say`), and is saved with the message so the chat can play
+  it back. The model never gets the clip, only the node's transcript (a model that hears audio is a possible later
+  step). How long the clip is kept is a setting.
+  **How it listens:** the app has both. Push-to-talk (a button and a hotkey), and the wake word "Hey <name>" (the
+  assistant's name, as text), which listens all the time unless the mic is muted. Both end the utterance at a brief
+  pause (about 1.2 s, a setting); push-to-talk also ends when the key is released. What follows the wake word in the
+  same breath is the message ("Hey Joi, what time is it"). A wake word said alone gets a sound and the listening
+  indicator, and she waits a few seconds for the words before going back to waiting.
+  Order of work: push-to-talk with VAD endpointing first (**built**), then the wake word, then barge-in.
+  **Open:** which wake word spotter models exist for languages other than English (if none, the wake word is matched
+  in the streaming transcript); echo cancellation for barge-in
+  (Chromium's WebRTC AEC with TTS played in the same page, or macOS Voice Processing I/O through FFM; until then the
+  mic is muted while she speaks); whether speech heard while she thinks is held or counts as barge-in.
 - **Text-to-speech runs on the server:** Chatterbox (fast, see the measurements below) or Higgs Audio v3 in ComfyUI
   (slower, but with emotion and sound tags). A speech server renders a whole job before anything plays, so the server
   cuts the reply into pieces and sends one TTS job per piece: piece 1 plays while piece 2 renders.
@@ -1924,6 +1943,15 @@ When a model with vision is available, the node can give Joi images of what you 
   the actor's mood voice and, for Higgs, the emotion token of the reply (`SpeechText`).
 - **Barge-in:** the node keeps VAD running while it plays audio (with echo cancellation, or Joi wakes herself); the
   protocol carries "stop speaking".
+- **Built (2026-11-23): push-to-talk on the JavaFX node** (`joi-node` `voice/`, `fx/VoicePanel`, `manual/developer/voice.md`). The **Talk** button (and
+  Shift+Cmd/Ctrl+Space) opens the microphone (Java Sound, 16 kHz mono, open only while the user talks); the recording ends at a pause (the node's
+  `voicePauseMs`, 1200 ms by default), when the user clicks again (it is sent at once) or presses Esc (nothing is sent). Talking over her stops her, as
+  Stop does. Silero VAD (`SileroGate`) gives a probability per 32 ms frame to `UtteranceDetector`, which cuts the silence around the speech, forgets a
+  noise shorter than about 130 ms, waits 8 s for the user to begin and takes 60 s at most. The utterance goes whole to a `Transcriber`
+  (`SherpaTranscriber`: Moonshine tiny, English, quantized, on the CPU; it does not stream), and the text is said to her as typed words, with the images
+  waiting in the chat. The models (VAD 0.6 MB, speech model 28 MB, from the sherpa-onnx project's GitHub release, checked by SHA-256) are downloaded by
+  the user from the Voice section of the controls into `<home>/voice`; sherpa-onnx itself is the `joi-sherpa` module. **Not built:** the wake word, barge-in
+  by voice, the clip saved with the message, the choice of a language, the iOS and terminal nodes.
 - **GPU (local setup):** the platform's GPU locks, set up under Administration. A lock is a way to fill a GPU (start-up
   and release steps), not one model, and the jobs of one lock run side by side. So Joi has a **voice lock** whose
   start-up loads the conversation LLM and the TTS model; both the conversation AI and the TTS model name it (no job
@@ -2322,7 +2350,7 @@ with avatars whose shaders match the installed Poiyomi.
 
 1. joi-protocol (schemas and the spec first), joi-server and a headless joi-node: text chat, the harness (file read /
    write, shell with ASK), the manifest, pairing. The base everything else plugs into.
-2. Voice in: VAD, wake word, speech-to-text.
+2. Voice in: VAD, speech-to-text and push-to-talk (**built** on the JavaFX node), the wake word.
 3. Voice out: sentence-streamed TTS to the node (each piece is sent as soon as it is rendered: built), speaking while
    the model still writes (an option of the assistant), barge-in.
 4. The avatar renderer on the Go, the states (idle, listening, thinking, speaking), approval cards in 3D; bodies and

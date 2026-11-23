@@ -69,6 +69,11 @@ public final class NodeSettings {
          * ({@link ClipboardOffers}).
          */
         public String clipboard;
+        /**
+         * The pause that ends what the user says to her, in milliseconds (the voice input, DESIGN.md → Voice); null for
+         * the default of 1200.
+         */
+        public Integer voicePauseMs;
     }
 
     /** {@code credentials.json}: the credentials of each server the node has been connected to, by its address. */

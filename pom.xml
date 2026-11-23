@@ -16,6 +16,7 @@
   <modules>
     <module>marginalia/marginalia/platform</module>
     <module>joi-protocol</module>
+    <module>joi-sherpa</module>
     <module>joi-server</module>
     <module>joi-node</module>
     <module>joi-extensions</module>

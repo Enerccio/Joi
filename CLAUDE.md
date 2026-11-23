@@ -23,12 +23,12 @@ The node protocol): `api/` (`JoiApiServlet`, `JoiApi`), `domain/chat/ChatService
 ## Build
 
 Maven reactor at the root (`joi-parent`): `marginalia/marginalia/platform` (from the submodule), `joi-protocol`,
-`joi-server` and `joi-node`.
+`joi-sherpa`, `joi-server` and `joi-node`.
 JDK 25+, Maven 3.9. Clone with `git clone --recurse-submodules` (or `git submodule update --init`).
 
 ```bash
 mvn -N install && mvn -N install -f marginalia/pom.xml       # Joi's and Marginalia's parent POMs into ~/.m2 (a new machine needs both)
-mvn install -DskipTests -pl marginalia/marginalia/platform,joi-protocol   # the platform (and test-jar) and the protocol, after each submodule bump
+mvn install -DskipTests -pl marginalia/marginalia/platform,joi-protocol,joi-sherpa   # the platform (and test-jar), the protocol and sherpa-onnx (voice), after each submodule bump
 mvn test -pl joi-server -Dtest=JoiContextTest                 # joi-server's tests (the classes you touched)
 mvn jetty:run -pl joi-server                                  # dev mode on http://localhost:8080, data in ~/.joi (JOI_DATA)
 mvn package -pl joi-server -Pproduction                       # the WAR with the production frontend bundle
@@ -75,6 +75,8 @@ with the code.
   The `.joim` and `.joia` containers (`protocol/joim`, `protocol/joia`, documented in `joim.md` and `joia.md` there;
   their sections share `joim/Sections`) are part of it too: the format and its doc
   change together.
+- `joi-sherpa/` — sherpa-onnx (the Java API and the natives of this machine) as one jar, for the node's voice in: not on Maven Central, so its POM downloads the two jars of the
+  project's GitHub release (SHA-256 checked) and unpacks them; nothing is checked in. The node's `voice/` package uses it (`DESIGN.md` → Voice, `manual/developer/voice.md`).
 - `joi-ios/` — the iOS app (`DESIGN.md` → The iOS app), in the reactor only with the root POM's profile `ios`: Swift packages in `Packages/` (`JoiProtocol`: the protocol **generated
   from the JSON Schemas** by `SwiftGenerator` in `joi-protocol/src/test`, checked in, kept current by `SwiftGeneratorTest`: after a schema change run
   `mvn -Pswift process-test-classes -pl joi-protocol`; `JoiClient`: the HTTP API, the pairing, the node WebSocket and the `.joim` / `.joia` readers; `JoiApp`: the models, her body (`Body/`: the node's renderer page in a `WKWebView`, `AvatarDirector`) and the SwiftUI views) and a thin Xcode
@@ -124,7 +126,7 @@ with the code.
   extend the platform's `PlatformTestBase` and start `src/test/resources/META-INF/spring/test-application-config.xml`.
 - `joi-node/` — the reference node (`com.github.enerccio.joi.node`): `ServerClient` (HTTP API, device grant, her
   body's files cached by hash), `NodeSocket` (the node WebSocket), `AvatarDirector` (what her body plays: idle,
-  talking, asleep through her first turn, waking up), `NodeSettings` (the home `~/.joi-client`, moved by `--joi-home-dir`, `JOI_HOME_DIR` or `JOI_CLIENT`), `NodeTools` (the tools the user switches on, in one manifest), `Notifications` (the tool `notify`, off until the user allows it), `ClipboardOffers` (the tool `offer_to_clipboard`: off, ask (the user sees the text and decides) or allow), `TaskQuestions` (the tasks of hers that wait for the user's answer), `JoiNodeCli`
+  talking, asleep through her first turn, waking up), `NodeSettings` (the home `~/.joi-client`, moved by `--joi-home-dir`, `JOI_HOME_DIR` or `JOI_CLIENT`), `NodeTools` (the tools the user switches on, in one manifest), `Notifications` (the tool `notify`, off until the user allows it), `ClipboardOffers` (the tool `offer_to_clipboard`: off, ask (the user sees the text and decides) or allow), `TaskQuestions` (the tasks of hers that wait for the user's answer), `voice/` (push-to-talk: microphone, Silero VAD, `UtteranceDetector`, speech to text with sherpa-onnx, the download of the models into `<home>/voice`; the Talk button and the Voice controls are `fx/VoicePanel` and `JoiNodeApp`), `JoiNodeCli`
   (the node in a terminal), `renderer/` (her body's files unpacked, `BodyFiles`; the renderer page served on localhost and
   driven by server-sent events, `RendererServer`; `RendererPreview` shows cached files without a server). The page is
   `src/main/renderer` (Vite; the server's `joi-model-viewer.js` copied in at build time), built by the `fx` profile

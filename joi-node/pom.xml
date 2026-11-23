@@ -28,6 +28,18 @@
       <artifactId>joi-protocol</artifactId>
       <version>${project.version}</version>
     </dependency>
+    <!-- voice in: sherpa-onnx (VAD and speech to text), downloaded and packed by that module -->
+    <dependency>
+      <groupId>io.github.enerccio</groupId>
+      <artifactId>joi-sherpa</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <!-- the speech model arrives as a .tar.bz2 (voice/VoiceModels) -->
+    <dependency>
+      <groupId>org.apache.commons</groupId>
+      <artifactId>commons-compress</artifactId>
+      <version>1.28.0</version>
+    </dependency>
 
     <dependency>
       <groupId>org.junit.jupiter</groupId>

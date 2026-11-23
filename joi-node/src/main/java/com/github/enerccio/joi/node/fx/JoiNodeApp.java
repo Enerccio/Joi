@@ -4,6 +4,9 @@ import com.github.enerccio.joi.node.*;
 import com.github.enerccio.joi.node.renderer.BodyFiles;
 import com.github.enerccio.joi.node.renderer.LookingGlassTuning;
 import com.github.enerccio.joi.node.renderer.RendererServer;
+import com.github.enerccio.joi.node.voice.SpeechModel;
+import com.github.enerccio.joi.node.voice.VoiceInput;
+import com.github.enerccio.joi.node.voice.VoiceModels;
 import com.github.enerccio.joi.protocol.JoiProtocol;
 import com.github.enerccio.joi.protocol.http.*;
 import com.github.enerccio.joi.protocol.node.Hello;
@@ -106,6 +109,10 @@ public class JoiNodeApp extends Application {
     private volatile String partsTurn;
     private RendererServer renderer;
     private LookingGlassWindow lookingGlass;
+    /** Voice in (push-to-talk) of the assistant shown, null before one is loaded. */
+    private VoiceInput voice;
+    /** The pause that ends what the user says, when they have not chosen one (DESIGN.md → Voice). */
+    private static final int DEFAULT_PAUSE_MS = 1200;
 
     public static void main(String[] args) {
         launch(args);
@@ -203,6 +210,9 @@ public class JoiNodeApp extends Application {
         }
         if (socket != null) {
             socket.close();
+        }
+        if (voice != null) {
+            voice.close();
         }
         if (lookingGlass != null) {
             lookingGlass.quit();
@@ -1127,12 +1137,14 @@ public class JoiNodeApp extends Application {
             });
         });
         chat.setOnSayWithParts(text -> socket.say(text, true, false, true));
-        chat.setOnStop(() -> {
+        Runnable stopHer = () -> {
             // talked over: her words and her voice stop
             socket.stop(null);
             speech.stop();
             director.speechEnded();
-        });
+        };
+        chat.setOnStop(stopHer);
+        wireVoice(loaded.summary().name(), chat, controls, stopHer);
 
         avatarPane.setLookingGlassPanel(new LookingGlassTuningPane(nodeSetting(node -> node.lookingGlassTuning), tuning -> {
             renderer.tuning(tuning);
@@ -1301,6 +1313,128 @@ public class JoiNodeApp extends Application {
         }
     }
 
+    /**
+     * Voice in, push-to-talk: the Talk button and its key, the Voice section of the controls (the download of the speech model
+     * and the pause). The speech is turned into text on this computer and said to her like typed words; talking over her
+     * stops her, as the Stop button does.
+     */
+    private void wireVoice(String herName, ChatPane chat, ControlsPane controls, Runnable stopHer) {
+        VoiceModels voiceModels = new VoiceModels(settings.dir());
+        SpeechModel speechModel = SpeechModel.MOONSHINE_TINY_EN;
+        if (voice != null) {
+            voice.close();
+        }
+        VoiceInput voiceInput = VoiceInput.of(voiceModels, speechModel, () -> {
+            Integer ms = nodeSetting(node -> node.voicePauseMs);
+            return ms == null ? DEFAULT_PAUSE_MS : ms;
+        });
+        voice = voiceInput;
+        javafx.scene.Scene scene = stage.getScene();
+        javafx.scene.input.KeyCodeCombination escape = new javafx.scene.input.KeyCodeCombination(javafx.scene.input.KeyCode.ESCAPE);
+        // Esc gives up on what is being said, only while the node listens (it is not taken from anything else)
+        Runnable endListening = () -> {
+            scene.getAccelerators().remove(escape);
+            chat.talking(VoiceInput.State.IDLE);
+        };
+        VoiceInput.Listener listener = new VoiceInput.Listener() {
+            @Override
+            public void listening() {
+                Platform.runLater(() -> {
+                    chat.talking(VoiceInput.State.LISTENING);
+                    scene.getAccelerators().put(escape, voiceInput::cancel);
+                });
+            }
+
+            @Override
+            public void transcribing() {
+                Platform.runLater(() -> chat.talking(VoiceInput.State.TRANSCRIBING));
+            }
+
+            @Override
+            public void heard(String text) {
+                Platform.runLater(() -> {
+                    endListening.run();
+                    chat.heard(text);
+                });
+            }
+
+            @Override
+            public void nothing(String why) {
+                Platform.runLater(() -> {
+                    endListening.run();
+                    chat.note(why);
+                });
+            }
+
+            @Override
+            public void failed(String message) {
+                Platform.runLater(() -> {
+                    endListening.run();
+                    chat.note(message);
+                });
+            }
+        };
+        Runnable talk = () -> {
+            switch (voiceInput.state()) {
+                case LISTENING -> voiceInput.finish();
+                case TRANSCRIBING -> {
+                }
+                case IDLE -> {
+                    if (!voiceModels.installed(speechModel)) {
+                        chat.note("To talk to " + herName + " this node needs a speech model (about 30 MB): download it under Voice in the controls.");
+                        return;
+                    }
+                    if (!socket.connected()) {
+                        chat.note("Not connected to the server: nothing was started.");
+                        return;
+                    }
+                    // she stops when she is talked over, then the node listens
+                    stopHer.run();
+                    if (voiceInput.start(listener)) {
+                        chat.talking(VoiceInput.State.LISTENING);
+                    }
+                }
+            }
+        };
+        chat.setOnTalk(talk);
+        scene.getAccelerators().put(new javafx.scene.input.KeyCodeCombination(javafx.scene.input.KeyCode.SPACE,
+                javafx.scene.input.KeyCombination.SHORTCUT_DOWN, javafx.scene.input.KeyCombination.SHIFT_DOWN), talk);
+
+        Integer saved = nodeSetting(node -> node.voicePauseMs);
+        VoicePanel panel = new VoicePanel(speechModel.label() + ", about " + Math.round(speechModel.size() / 1_000_000.0) + " MB",
+                saved == null ? DEFAULT_PAUSE_MS : saved, ms -> {
+            try {
+                settings.node().voicePauseMs = ms;
+                settings.saveNode();
+            } catch (IOException e) {
+                chat.note("The pause was not saved: " + e.getMessage());
+            }
+        });
+        panel.installed(voiceModels.installed(speechModel));
+        panel.setOnDownload(() -> {
+            panel.progress(0);
+            Thread.ofVirtual().name("joi-voice-download").start(() -> {
+                try {
+                    voiceModels.install(speechModel, done -> Platform.runLater(() -> panel.progress(done)));
+                    Platform.runLater(() -> {
+                        panel.installed(true);
+                        chat.note("The speech model is ready: you can talk to " + herName + ".");
+                    });
+                    voiceInput.preload();
+                } catch (IOException e) {
+                    Platform.runLater(() -> panel.failed(e.getMessage()));
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                }
+            });
+        });
+        controls.section("Voice", panel);
+        if (voiceModels.installed(speechModel)) {
+            // loaded now, so that the first time the user talks does not wait for it
+            Thread.ofVirtual().name("joi-voice-load").start(voiceInput::preload);
+        }
+    }
+
     private <T> T nodeSetting(java.util.function.Function<NodeSettings.Node, T> setting) {
         try {
             return setting.apply(settings.node());
@@ -1331,6 +1465,10 @@ public class JoiNodeApp extends Application {
         private java.util.function.BiConsumer<String, List<java.nio.file.Path>> onSayImages = (text, files) -> {
         };
         private final Button stop = new Button("Stop");
+        /** Talking to her (push-to-talk): a click starts listening, another sends what was said; it also ends at a pause. */
+        private final Button talk = new Button("Talk");
+        private Runnable onTalk = () -> {
+        };
         private final String name;
         private final Map<String, Label> streaming = new HashMap<>();
         private java.util.function.Consumer<String> onSay = text -> {
@@ -1349,6 +1487,8 @@ public class JoiNodeApp extends Application {
             input.setOnAction(e -> send());
             send.setOnAction(e -> send());
             stop.setOnAction(e -> onStop.run());
+            talk.setOnAction(e -> onTalk.run());
+            talking(VoiceInput.State.IDLE);
             attach.setOnAction(e -> chooseImage());
             // a picture on the clipboard is attached instead of pasted (text still pastes as text)
             input.addEventFilter(javafx.scene.input.KeyEvent.KEY_PRESSED, e -> {
@@ -1363,8 +1503,13 @@ public class JoiNodeApp extends Application {
             pendingBox.setPadding(new Insets(6, 8, 0, 8));
             pendingBox.setVisible(false);
             pendingBox.setManaged(false);
-            HBox bottom = new HBox(8, input, attach, send, stop);
+            // two rows: the words and Send, then Talk, the image and Stop (one row of all of them did not fit the narrow chat)
+            for (Button button : List.of(talk, attach, send, stop)) {
+                button.setMinWidth(Region.USE_PREF_SIZE);
+            }
+            HBox typing = new HBox(8, input, send);
             HBox.setHgrow(input, Priority.ALWAYS);
+            VBox bottom = new VBox(6, typing, new HBox(8, talk, attach, stop));
             bottom.setPadding(new Insets(8));
             offline.setPadding(new Insets(6, 8, 0, 8));
             offline.setAlignment(Pos.CENTER_LEFT);
@@ -1452,6 +1597,7 @@ public class JoiNodeApp extends Application {
             input.setDisable(!online);
             send.setDisable(!online);
             stop.setDisable(!online);
+            talk.setDisable(!online);
             input.setPromptText(online ? "Talk to " + name : "Not connected…");
         }
 
@@ -1539,25 +1685,68 @@ public class JoiNodeApp extends Application {
             this.onStop = onStop;
         }
 
+        /** What the Talk button does: starts listening, or sends what was said so far. */
+        void setOnTalk(Runnable onTalk) {
+            this.onTalk = onTalk;
+        }
+
+        /** Shows what the voice input is doing on the Talk button. */
+        void talking(VoiceInput.State state) {
+            switch (state) {
+                case IDLE -> {
+                    talk.setText("Talk");
+                    talk.setDisable(!online);
+                    talk.setTooltip(new Tooltip("Talk to " + name + " (" + VoicePanel.shortcutName() + "+Shift+Space): she stops when you pause"));
+                }
+                case LISTENING -> {
+                    talk.setText("Listening… send");
+                    talk.setDisable(false);
+                    talk.setTooltip(new Tooltip("Click to send what you said now (Esc: never mind)"));
+                }
+                case TRANSCRIBING -> {
+                    talk.setText("Writing it down…");
+                    talk.setDisable(true);
+                }
+            }
+        }
+
+        /**
+         * What the user said by voice: it goes as if it was typed, with the images that wait to be sent (those attached
+         * while they were talking too). What is typed in the field stays there.
+         */
+        void heard(String text) {
+            if (!pendingImages.isEmpty()) {
+                sendWithImages(text);
+            } else {
+                add("You: " + text);
+                onSay.accept(text);
+            }
+        }
+
         private void send() {
             String text = input.getText().strip();
             if (!pendingImages.isEmpty()) {
-                List<java.nio.file.Path> files = List.copyOf(pendingImages);
                 input.clear();
-                pendingImages.clear();
-                showPending();
-                Label line = add("You: " + (text.isEmpty() ? "" : text + " ") + "[" + files.size() + (files.size() == 1 ? " image]" : " images]"));
-                HBox thumbs = new HBox(4);
-                for (java.nio.file.Path file : files) {
-                    thumbs.getChildren().add(new javafx.scene.image.ImageView(new javafx.scene.image.Image(file.toUri().toString(), 0, 96, true, true, true)));
-                }
-                lines.getChildren().add(thumbs);
-                onSayImages.accept(text, files);
+                sendWithImages(text);
             } else if (!text.isEmpty()) {
                 input.clear();
                 add("You: " + text);
                 onSay.accept(text);
             }
+        }
+
+        /** The words with the images that wait: they go together, and nothing waits after. */
+        private void sendWithImages(String text) {
+            List<java.nio.file.Path> files = List.copyOf(pendingImages);
+            pendingImages.clear();
+            showPending();
+            add("You: " + (text.isEmpty() ? "" : text + " ") + "[" + files.size() + (files.size() == 1 ? " image]" : " images]"));
+            HBox thumbs = new HBox(4);
+            for (java.nio.file.Path file : files) {
+                thumbs.getChildren().add(new javafx.scene.image.ImageView(new javafx.scene.image.Image(file.toUri().toString(), 0, 96, true, true, true)));
+            }
+            lines.getChildren().add(thumbs);
+            onSayImages.accept(text, files);
         }
 
         /** Her history from the server: the chat goes on where it was. */

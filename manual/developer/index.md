@@ -43,6 +43,7 @@ code does.
 | see what the server does and for whom | [Jobs](jobs.md) |
 | add features without changing the server | [Extensions](extensions.md) |
 | call the API or write a node | [The protocol](protocol.md) and [Writing a node](nodes.md) |
+| work on the voice input of the node | [Voice in](voice.md) |
 | work on the iPhone app | [The iOS app](ios-app.md) |
 | write tests | [Testing](testing.md) |
 | retake the pictures of the manual | [Screenshots and the manual](screenshots-and-manual.md) |

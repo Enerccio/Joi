@@ -7,6 +7,7 @@ covers:
   - joi-node/pom.xml
   - joi-desktop/pom.xml
   - joi-protocol/pom.xml
+  - joi-sherpa/pom.xml
   - joi-ios/pom.xml
   - .github/workflows/desktop.yml
   - CLAUDE.md
@@ -27,18 +28,23 @@ JDK, set `JAVA_HOME` to a 25+ one. Maven downloads the dependencies on the first
 
 ## The reactor
 
-The root is `joi-parent`: `marginalia/marginalia/platform` (from the submodule), `joi-protocol`, `joi-server` and `joi-node`.
+The root is `joi-parent`: `marginalia/marginalia/platform` (from the submodule), `joi-protocol`, `joi-sherpa`, `joi-server` and `joi-node`.
 
 ```bash
 git submodule update --init                                   # the Marginalia submodule, if not cloned with it
 mvn -N install                                                # Joi's parent POM into ~/.m2
 mvn -N install -f marginalia/pom.xml                          # Marginalia's parent POM: the platform's POM refers to it
-mvn install -DskipTests -pl marginalia/marginalia/platform,joi-protocol   # the platform (and its test-jar) and the protocol, after each submodule bump
+mvn install -DskipTests -pl marginalia/marginalia/platform,joi-protocol,joi-sherpa   # the platform (and its test-jar), the protocol and sherpa-onnx, after each submodule bump
 mvn jetty:run -pl joi-server                                  # dev mode on http://localhost:8080, data in ~/.joi (JOI_DATA)
 mvn package -pl joi-server -Pproduction                       # the WAR with the production frontend bundle
 mvn test -pl joi-server -Dtest=JoiContextTest                 # the classes you touched
 mvn test -pl joi-node                                         # the node's core and its terminal client
 ```
+
+`joi-sherpa` is sherpa-onnx for the node's voice in ([Voice in](voice.md)). The project's Java API and natives are not on Maven Central, only on its GitHub
+release, so this module downloads the two jars of the release (the SHA-256 of each is in the POM and checked, the downloads are kept in `~/.m2`), unpacks them
+into its own jar and nothing is checked into Git. The natives of the machine come with a profile of the OS and architecture (macOS arm64 is the default);
+the node depends on the module like on any other, so after a change of the version `mvn install -pl joi-sherpa` comes before a build of `joi-node` alone.
 
 On a new machine the two parent POMs come first: without Marginalia's (`marginalia-parent`) in `~/.m2`, Maven cannot
 resolve the installed platform. The workflows do the same.
@@ -69,7 +75,7 @@ docker compose up -d --build
 
 The version the login footer and `GET /api/v1/version` show is `joi-version` in `joi-server/src/main/resources/META-INF/build-info/build-info.properties`,
 which the pom filters to `${project.version}` (the one file filtered); `JoiApplicationInitializer` installs it as the platform's `BuildInfo`. A bump of
-the `marginalia` submodule is a commit of its own pointer: build the platform again (`mvn install -DskipTests -pl marginalia/marginalia/platform,joi-protocol`).
+the `marginalia` submodule is a commit of its own pointer: build the platform again (`mvn install -DskipTests -pl marginalia/marginalia/platform,joi-protocol,joi-sherpa`).
 
 ## The extensions
 
@@ -92,7 +98,7 @@ Four workflows in `.github/workflows` (as Marginalia's) and Dependabot. All chec
 
 | Workflow | When | What |
 |---|---|---|
-| `test.yml` | every push and pull request | Builds the platform (no tests of its own) and the protocol, then runs the tests of `joi-protocol`, `joi-server` and `joi-node` (not the JavaFX part: without `-Pfx` the pom leaves its main and test classes out). Reports are an artifact when it fails. |
+| `test.yml` | every push and pull request | Builds the platform (no tests of its own), the protocol and `joi-sherpa`, then runs the tests of `joi-protocol`, `joi-server` and `joi-node` (not the JavaFX part: without `-Pfx` the pom leaves its main and test classes out). Reports are an artifact when it fails. |
 | `server.yml` | master, `v*` tags, pull requests that touch the server, extensions or Docker files | The WAR (`-Pproduction`) and the three extension JARs as the artifact `joi-server`; the Docker image for `linux/amd64` and `linux/arm64`, each built on a native runner and smoke-tested (`/health` answers 200) before it is pushed. |
 | `desktop.yml` | master, `v*` tags, pull requests that touch the desktop app, node, server or protocol | The desktop app (`-Pfx,production,desktop`, see [The desktop app](desktop.md)) on Linux x64 and arm64, Windows x64 and macOS arm64 and x64, with its installers, smoke-tested (the server starts, the API socket answers `POST /oauth/local` with 409 while the port answers 404, both programs and the `.deb` are there). The files are an artifact per platform and, for a `v*` tag, attached to the release. |
 | `manual.yml` | master, pull requests that touch the manual | The manual to GitHub Pages. |
