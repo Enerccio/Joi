@@ -18,7 +18,7 @@ covers:
   - .github/workflows/server.yml
   - .github/workflows/test.yml
   - .github/dependabot.yml
-verified: 47509ca
+verified: 0834edb
 ---
 
 # Building

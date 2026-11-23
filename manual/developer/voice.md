@@ -7,6 +7,7 @@ covers:
   - joi-node/src/main/java/com/github/enerccio/joi/node/fx/VoicePanel.java
   - joi-node/src/test/java/com/github/enerccio/joi/node/voice
   - joi-sherpa/pom.xml
+verified: 0834edb
 ---
 
 # Voice in
