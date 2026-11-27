@@ -201,12 +201,12 @@ Don't add adult content from avatar packages to anything (the converter drops it
   move "Verified up to" to the newest of them. The commits you make during the verification (fixes, docs, stamps, and work
   the user asks for meanwhile that you reviewed) are verified with it: list them in its row and move "Verified up to" to the
   newest of them yourself, without being asked. Never mark a commit as verified without really reviewing it. Never rebase or squash verified history. "Written by"
-  is secondary, but follow it every time: **always write one commit behind.** A commit cannot contain its own hash, so the row of
-  a commit you made goes into your **next commit**, together with that commit's own change, never into a commit made only to hold
-  the row (that one would need a row of its own, for ever). So before each commit, add rows (hash, your model id) to "Written by"
-  in `verification.md` for every commit of yours since the last row (`git log` shows them), and commit that file with the rest. The row
-  of the commit you are making now waits for the next one. Only commits you made yourself; skip a commit that only touched
-  `verification.md`. Do not put the model id into commit messages.
+  is secondary, but follow it every time: **each commit carries its own row.** A commit cannot contain its own hash, so its row
+  names it by its parent: before each commit, add a row to "Written by" in `verification.md` with the Commit cell empty, the
+  Parent cell the hash of the commit it goes on (`git rev-parse --short HEAD`) and your model id, and commit that file with the
+  rest. Only commits you made yourself. A commit you make as the verifier during a verification (or right after it, on the user's
+  request, and reviewed) is verified in itself the same way: name it in its Verifications row as "the commit after `<parent>`" and
+  let "Verified up to" say "the commit after `<parent>`". Do not put the model id into commit messages.
 - **Docs are part of the feature:** when a feature or fix is implemented and its tests pass, write the docs before you
   report it done or commit it: user docs in `manual/user`, developer docs in `manual/developer` (and the picture flows
   in `screenshots/flows` when a screen changed). Then run `python3 tools/check_dev_docs.py` and review every page it lists

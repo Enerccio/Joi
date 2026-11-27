@@ -3,7 +3,7 @@
 A log of which model verified which commits. The rules are in `CLAUDE.md`, the reason is in `DESIGN.md` → Code base and
 style → Who wrote and who verified the code.
 
-**Verified up to:** `af9a890` (the whole code in three passes up to `3dd8af1`, then each commit after it).
+**Verified up to:** the commit after `76fe576` (the whole code in three passes up to `3dd8af1`, then each commit after it).
 Every commit after that line (`git log <hash>..HEAD`) is unverified.
 
 **Latest commit when the log started:** `6dad9e5`
@@ -29,114 +29,118 @@ its row and verified with it: "Verified up to" moves to the newest of them. Do n
 | 2026-11-23 | `claude-opus-5-5` | `medium` | `5c24f17`, `aa2a6f7`, `211d7e1`, `6cd1275`, `b338033`, `9ff36e8`, `84e38b9`, `7df1caf`, `cac37c9`; with it its own commits `626058b` (the fixes below), `01d3230` (docs) and `0e2eef3` (stamps) | The mood's face without the eyes, the greeting as one reaction, the cleanup's nullable owner columns. Read in full: `_withoutEyes`, `_shapeName` and the face layer's loop in `joi-model-viewer.js` against three-vrm 3.5.5 (`VRMExpression.binds`, `addBind`, the manager's clear-then-apply update, so shared binds are safe); `NodeSession.hold` / `release` / `takePending`; `NodeServiceImpl.manifest`, `greet`, `greeting`, `greetNow`, `released`, `tell`, `say`, `display`; `SummarizerServiceImpl.settle`, `check`, `execute` and `SummaryQueue.run` (the change fires in `finally` after the job leaves running, so a failed or skipped job also ends the wait); the V1 columns against the entities and `JoiCleanupTest`; `JoiFilesPart`; the docs of all of it. Ran `NodeServiceTest`, `JoiCleanupTest`, `JoiFilesPartTest`, `JoisPartTest` and the summary tests (121, all pass); the viewer change was read, not run in a browser. Fixed: a `display` frame while the greeting was held started a turn of its own beside the greeting (now pended into it; test `theLookingGlassWhileHerGreetingWaitsGoesWithTheGreeting`); the eye-less copy of the mood's expression lost the model's `isBinary` and mouth and look-at overrides (copied now). |
 | 2026-11-23 | `claude-opus-5-5` | `medium` | `7632d7d`, `4e14d61`, `143fdff`, `2c6daf5`, `9f3317a`, `0ace86e`, `60112d8`, `88c58dd`; with it its own commit `47509ca` (the fix below) and the stamps that follow it | The Docker rebuild scripts, the login and cookies on the platform's hooks, the words of a toggle's states, the icon and the Mac upgrade script, the V1 freeze docs. Read in full: `rebuild.sh` and `rebuild.bat` (git as the checkout's owner under root, the deployed marker, the order build-then-stop), the extensions stage of the Dockerfile and its compose file; `JoiApplicationInitializer`, `JoiLocalizationOverride`, `container-config.xml` and the platform's `SessionCookie`, `LocalizationOverride`, `LocalizationImpl.setOverrides`, `BuildInfo.load` at the bumped submodule (Joi's build-info in `WEB-INF/classes` wins over the platform jar's, the platform has no git.properties, so no wrong commit is shown); the `9f3317a` diff with `DescribedPart`, `BodyServiceImpl.changePart` and `partRequest`, `JoiApi`'s part states, `AppearancePanel`, `BodyDialog` and the node's `ControlsPane` (it matches the state ids, not the names, so the new names do not break it, nor the iOS app); `MakeIcons.java` against `joi.svg` (the arc goes the same way), `JoiAppShell`, `upgrade_mac_client.sh`; the docs of all of it and the pages `check_dev_docs.py` lists. Fixed: the schemas did not say that a toggle state's `name` (and the part's `stateName`) are now the user's words, so a client could match on them (`BodyPartState`, `BodyPart` descriptions, the Swift regenerated). Left: `rebuild.sh --stop-first` leaves Joi down when the build fails; JARs of an older version in `data/extensions` stay beside the new ones when the version changes (it does only with a tag); the favicon was not loaded in a browser (the dev server on 8090 is older than the commit; it follows Marginalia's own `icons/` favicon). Tests run: joi-protocol (19), BodyOutfitsTest, JoimServiceTest, TtsAndAdminTest, BodyDialogTest, ModelAppearanceTest, JoiApiTest (62), `swift test` of JoiProtocol (83): all pass. |
 | 2026-11-23 | `claude-opus-5-5` | `medium` | `574e379`, `b3e3876`, `49c4bf7`, `d0d5e73`, `0834edb`, `d8d44d5`, `d276400`, `529e9d2`, `901e536`, `a02dc3a`, `7e1e355`; with it its own commit `8a79b10` (the fixes below) and the stamps that follow it | The Update tab, the client app, voice in on the node, profiles, push-to-talk and the wake word on iOS. Read in full: `watch.sh` and `install.sh` (diffed against Marginalia's, the same but the names), the `AdminPart` and Dockerfile changes and the git-commit-id plugin; `joi-client/pom.xml`, the root POM and `upgrade_mac_client.sh`; the node's `voice/` package (`UtteranceDetector`, `VoiceInput`, `Microphone`, `SileroGate`, `SherpaTranscriber`, `VoiceModels`, `SpeechModel`) and `JoiNodeApp.wireVoice` and the chat's Talk button; `Profiles`, `ProfileServiceImpl`, the `BodyServiceImpl`, `NodeServiceImpl`, `JoiApi`, `BodyTools`, `AnimationTools`, `PrepareStep`, `ChatServiceImpl` and `TurnInput` diffs, `JoiBodiesPart`, scanned `JoiProfilesPart`; the node's outfit choice (`ControlsPane`, `NodeSocket`, `ServerClient`); the Swift `VoiceInput`, `AppleDictation`, `WakeWord`, `WakeWordController`, `VoiceTrigger`, `JoiIntents` and the `ChatModel` / `AppModel` changes; the docs of each. Not read line by line: `joi-sherpa/pom.xml` (its SHA-256 checks seen), `VoicePanel`, the regenerated Swift, the profile tests. Fixed (in `8a79b10`): the watcher, run as root, opened `data/update/.lock` and `update.log` by name in a folder the container's user owns, so a link put there let the container truncate or overwrite a file of the host (the lock is the script itself, the log is created with noclobber and written through its descriptor, a folder that is a link is refused; tried in a scratch checkout with a planted link); `VoiceInput.close()` on the node freed the native models under a running recording (now the recording frees them when it ends; test); a voice download was not bounded by its size; on iOS *Talk to Joi* called `start()`, which did nothing while the wake word listened (test); `AppleDictation` deactivated the audio session when the microphone closed, which stops her voice playing in it (the wake word's listening closes as she starts to talk); CLAUDE.md said the Mac upgrade script installs Joi.app. Left: Marginalia's own `watch.sh` has the same link problem (to fix there); a part or outfit switched on a node of another profile moves her there before her next turn, so that turn does not say she moved (`{{profileFrom}}`); the profiles are read, changed and written per call (two changes at the same moment can lose one, as elsewhere with `JoiService.update`); `Profiles` remembers every node id that said hello. Tests run: joi-node (110, `VoiceInputTest` 8 with the new one), joi-protocol (`SchemaContractTest`, `SwiftGeneratorTest`), BodyProfilesTest, JoiProfilesPartTest, NodeServiceTest, BodyApiTest, TtsAndAdminTest, JoisPartTest, BodyOutfitsTest, ChatTurnTest (102), `swift test` of JoiApp (117; one `AppModelTests` failure on the first run that did not come back in nine more): all pass. Not run: the app on a phone (the audio session change is from Apple's documentation, not tried), the update watcher under systemd, the JavaFX node by hand. |
-| 2026-11-27 | `claude-opus-5-5` | `medium` | `3bd65a4`, `af9a890` | The refresh of the Summaries and Tasks tabs from another thread. Read in full: the `af9a890` diff, the platform's `ThreadCopyRequestAttributes` and `InRequestScope` (the copy of the session's attributes is taken on the page's thread in `watch`, which runs from `load` and the attach listener, both in a request; `JoiDialog.create` loads the parts before they are attached), the watch and unwatch of `JoiSummariesPart` and `JoiTasksPart` (unwatched on detach, so the copy does not outlive the page), and `JoiChatsPart`'s feed for the same problem: its callbacks only build cards and call no service that needs the session's user, so it needs no copy. `3bd65a4` is stamps and the last row. No findings, nothing fixed. Tests run: JoiSummariesTest and ToolsUiTest (8): all pass, after reinstalling `marginalia-platform` 1.9.0 from the submodule (the one in `~/.m2` had been built from a later Marginalia commit with json-schema-validator 3.x, so joi-server's tests did not compile). The tabs were not tried by hand in the browser. |
+| 2026-11-27 | `claude-opus-5-5` | `medium` | `3bd65a4`, `af9a890`; with it its own commit `76fe576` (this row) and the commit after `76fe576` (the new rule of "Written by", asked for by the user) | The refresh of the Summaries and Tasks tabs from another thread. Read in full: the `af9a890` diff, the platform's `ThreadCopyRequestAttributes` and `InRequestScope` (the copy of the session's attributes is taken on the page's thread in `watch`, which runs from `load` and the attach listener, both in a request; `JoiDialog.create` loads the parts before they are attached), the watch and unwatch of `JoiSummariesPart` and `JoiTasksPart` (unwatched on detach, so the copy does not outlive the page), and `JoiChatsPart`'s feed for the same problem: its callbacks only build cards and call no service that needs the session's user, so it needs no copy. `3bd65a4` is stamps and the last row. No findings, nothing fixed. Tests run: JoiSummariesTest and ToolsUiTest (8): all pass, after reinstalling `marginalia-platform` 1.9.0 from the submodule (the one in `~/.m2` had been built from a later Marginalia commit with json-schema-validator 3.x, so joi-server's tests did not compile). The tabs were not tried by hand in the browser. |
 
 ## Written by (secondary)
 
-Optional. A commit that has no row here is simply not recorded.
+Optional. A commit that has no row here is simply not recorded. A commit holds its own row: it cannot contain its own
+hash, so the Commit cell is empty and Parent names the commit it went on (on `master`, the one commit whose first parent
+that is). Older rows name the commit itself.
 
-| Commit | Written by |
-|--------|------------|
-| `0bc9d69` | `claude-sonnet-5-5` |
-| `4168ede` | `claude-sonnet-5-5` |
-| `031106c` | `claude-sonnet-5-5` |
-| `ed86d8f` | `claude-sonnet-5-5` |
-| `0e3d77c` | `claude-sonnet-5-5` |
-| `64a2196` | `claude-sonnet-5-5` |
-| `ee73ef6` | `claude-sonnet-5-5` |
-| `7084150` | `claude-sonnet-5-5` |
-| `7d8ce47` | `claude-sonnet-5-5` |
-| `a44a5aa` | `claude-sonnet-5-5` |
-| `7c29655` | `claude-sonnet-5-5` |
-| `7a46652` | `claude-sonnet-5-5` |
-| `2e5a0da` | `claude-opus-5-5` |
-| `cd7efe8` | `claude-opus-5-5` |
-| `1f8fe47` | `claude-opus-5-5` |
-| `61104d2` | `claude-opus-5-5` |
-| `230a8e9` | `claude-opus-5-5` |
-| `3dd8af1` | `claude-opus-5-5` |
-| `ddf8533` | `claude-opus-5-5` |
-| `920e6fb` | `claude-sonnet-5-5` |
-| `7236ba1` | `claude-sonnet-5-5` |
-| `0f75532` | `claude-opus-5-5` |
-| `5bb00a3` | `claude-opus-5-5` |
-| `cfa8451` | `claude-sonnet-5-5` |
-| `7768ec3` | `claude-sonnet-5-5` |
-| `b489423` | `claude-sonnet-5-5` |
-| `020429b` | `claude-sonnet-5-5` |
-| `203475b` | `claude-sonnet-5-5` |
-| `923bb1a` | `claude-sonnet-5-5` |
-| `b0d2890` | `claude-sonnet-5-5` |
-| `6c61caa` | `claude-sonnet-5-5` |
-| `6318316` | `claude-sonnet-5-5` |
-| `77d8718` | `claude-sonnet-5-5` |
-| `cd82d3e` | `claude-sonnet-5-5` |
-| `4eae084` | `claude-sonnet-5-5` |
-| `0051157` | `claude-sonnet-5-5` |
-| `1420cb9` | `claude-sonnet-5-5` |
-| `532f872` | `claude-sonnet-5-5` |
-| `714077a` | `claude-sonnet-5-5` |
-| `e8faf68` | `claude-sonnet-5-5` |
-| `3701cea` | `claude-sonnet-5-5` |
-| `a4abc50` | `claude-sonnet-5-5` |
-| `a86e400` | `claude-sonnet-5-5` |
-| `f5b00b7` | `claude-sonnet-5-5` |
-| `78260ee` | `claude-sonnet-5-5` |
-| `e94d19a` | `claude-sonnet-5-5` |
-| `889be06` | `claude-sonnet-5-5` |
-| `1a543df` | `claude-sonnet-5-5` |
-| `7bc4056` | `claude-sonnet-5-5` |
-| `75c5946` | `claude-sonnet-5-5` |
-| `da3bc3c` | `claude-sonnet-5-5` |
-| `ce566dc` | `claude-sonnet-5-5` |
-| `7026311` | `claude-sonnet-5-5` |
-| `3c67cdc` | `claude-sonnet-5-5` |
-| `63dc07b` | `claude-sonnet-5-5` |
-| `fa86bea` | `claude-sonnet-5-5` |
-| `2339dcf` | `claude-sonnet-5-5` |
-| `05fd497` | `claude-sonnet-5-5` |
-| `5fbb610` | `claude-sonnet-5-5` |
-| `7768ec3` | `claude-sonnet-5-5` |
-| `b489423` | `claude-sonnet-5-5` |
-| `020429b` | `claude-sonnet-5-5` |
-| `203475b` | `claude-sonnet-5-5` |
-| `923bb1a` | `claude-sonnet-5-5` |
-| `b0d2890` | `claude-sonnet-5-5` |
-| `6c61caa` | `claude-sonnet-5-5` |
-| `020b39c` | `claude-opus-5-5` |
-| `6318316` | `claude-sonnet-5-5` |
-| `9b563d8` | `claude-opus-5-5` |
-| `b34ee9c` | `claude-opus-5-5` |
-| `77d8718` | `claude-sonnet-5-5` |
-| `cd82d3e` | `claude-sonnet-5-5` |
-| `4eae084` | `claude-sonnet-5-5` |
-| `0051157` | `claude-sonnet-5-5` |
-| `1420cb9` | `claude-sonnet-5-5` |
-| `532f872` | `claude-sonnet-5-5` |
-| `714077a` | `claude-sonnet-5-5` |
-| `e8faf68` | `claude-sonnet-5-5` |
-| `3701cea` | `claude-sonnet-5-5` |
-| `a4abc50` | `claude-sonnet-5-5` |
-| `69fb3b8` | `claude-opus-5-5` |
-| `703ca40` | `claude-opus-5-5` |
-| `13054e1` | `claude-sonnet-5-5` |
-| `9f6433e` | `claude-sonnet-5-5` |
-| `d150187` | `claude-sonnet-5-5` |
-| `93c6450` | `claude-sonnet-5-5` |
-| `446f8b5` | `claude-sonnet-5-5` |
-| `c09c2f2` | `claude-opus-5-5` |
-| `aa2a6f7` | `claude-opus-5-5` |
-| `211d7e1` | `claude-opus-5-5` |
-| `6cd1275` | `claude-opus-5-5` |
-| `b338033` | `claude-opus-5-5` |
-| `9ff36e8` | `claude-opus-5-5` |
-| `84e38b9` | `claude-opus-5-5` |
-| `7df1caf` | `claude-opus-5-5` |
-| `626058b` | `claude-opus-5-5` |
-| `01d3230` | `claude-opus-5-5` |
-| `0e2eef3` | `claude-opus-5-5` |
-| `47509ca` | `claude-opus-5-5` |
-| `d0d5e73` | `claude-sonnet-5-5` |
-| `0834edb` | `claude-sonnet-5-5` |
-| `901e536` | `claude-sonnet-5-5` |
-| `8a79b10` | `claude-opus-5-5` |
+| Commit | Parent | Written by |
+|--------|--------|------------|
+| `0bc9d69` | | `claude-sonnet-5-5` |
+| `4168ede` | | `claude-sonnet-5-5` |
+| `031106c` | | `claude-sonnet-5-5` |
+| `ed86d8f` | | `claude-sonnet-5-5` |
+| `0e3d77c` | | `claude-sonnet-5-5` |
+| `64a2196` | | `claude-sonnet-5-5` |
+| `ee73ef6` | | `claude-sonnet-5-5` |
+| `7084150` | | `claude-sonnet-5-5` |
+| `7d8ce47` | | `claude-sonnet-5-5` |
+| `a44a5aa` | | `claude-sonnet-5-5` |
+| `7c29655` | | `claude-sonnet-5-5` |
+| `7a46652` | | `claude-sonnet-5-5` |
+| `2e5a0da` | | `claude-opus-5-5` |
+| `cd7efe8` | | `claude-opus-5-5` |
+| `1f8fe47` | | `claude-opus-5-5` |
+| `61104d2` | | `claude-opus-5-5` |
+| `230a8e9` | | `claude-opus-5-5` |
+| `3dd8af1` | | `claude-opus-5-5` |
+| `ddf8533` | | `claude-opus-5-5` |
+| `920e6fb` | | `claude-sonnet-5-5` |
+| `7236ba1` | | `claude-sonnet-5-5` |
+| `0f75532` | | `claude-opus-5-5` |
+| `5bb00a3` | | `claude-opus-5-5` |
+| `cfa8451` | | `claude-sonnet-5-5` |
+| `7768ec3` | | `claude-sonnet-5-5` |
+| `b489423` | | `claude-sonnet-5-5` |
+| `020429b` | | `claude-sonnet-5-5` |
+| `203475b` | | `claude-sonnet-5-5` |
+| `923bb1a` | | `claude-sonnet-5-5` |
+| `b0d2890` | | `claude-sonnet-5-5` |
+| `6c61caa` | | `claude-sonnet-5-5` |
+| `6318316` | | `claude-sonnet-5-5` |
+| `77d8718` | | `claude-sonnet-5-5` |
+| `cd82d3e` | | `claude-sonnet-5-5` |
+| `4eae084` | | `claude-sonnet-5-5` |
+| `0051157` | | `claude-sonnet-5-5` |
+| `1420cb9` | | `claude-sonnet-5-5` |
+| `532f872` | | `claude-sonnet-5-5` |
+| `714077a` | | `claude-sonnet-5-5` |
+| `e8faf68` | | `claude-sonnet-5-5` |
+| `3701cea` | | `claude-sonnet-5-5` |
+| `a4abc50` | | `claude-sonnet-5-5` |
+| `a86e400` | | `claude-sonnet-5-5` |
+| `f5b00b7` | | `claude-sonnet-5-5` |
+| `78260ee` | | `claude-sonnet-5-5` |
+| `e94d19a` | | `claude-sonnet-5-5` |
+| `889be06` | | `claude-sonnet-5-5` |
+| `1a543df` | | `claude-sonnet-5-5` |
+| `7bc4056` | | `claude-sonnet-5-5` |
+| `75c5946` | | `claude-sonnet-5-5` |
+| `da3bc3c` | | `claude-sonnet-5-5` |
+| `ce566dc` | | `claude-sonnet-5-5` |
+| `7026311` | | `claude-sonnet-5-5` |
+| `3c67cdc` | | `claude-sonnet-5-5` |
+| `63dc07b` | | `claude-sonnet-5-5` |
+| `fa86bea` | | `claude-sonnet-5-5` |
+| `2339dcf` | | `claude-sonnet-5-5` |
+| `05fd497` | | `claude-sonnet-5-5` |
+| `5fbb610` | | `claude-sonnet-5-5` |
+| `7768ec3` | | `claude-sonnet-5-5` |
+| `b489423` | | `claude-sonnet-5-5` |
+| `020429b` | | `claude-sonnet-5-5` |
+| `203475b` | | `claude-sonnet-5-5` |
+| `923bb1a` | | `claude-sonnet-5-5` |
+| `b0d2890` | | `claude-sonnet-5-5` |
+| `6c61caa` | | `claude-sonnet-5-5` |
+| `020b39c` | | `claude-opus-5-5` |
+| `6318316` | | `claude-sonnet-5-5` |
+| `9b563d8` | | `claude-opus-5-5` |
+| `b34ee9c` | | `claude-opus-5-5` |
+| `77d8718` | | `claude-sonnet-5-5` |
+| `cd82d3e` | | `claude-sonnet-5-5` |
+| `4eae084` | | `claude-sonnet-5-5` |
+| `0051157` | | `claude-sonnet-5-5` |
+| `1420cb9` | | `claude-sonnet-5-5` |
+| `532f872` | | `claude-sonnet-5-5` |
+| `714077a` | | `claude-sonnet-5-5` |
+| `e8faf68` | | `claude-sonnet-5-5` |
+| `3701cea` | | `claude-sonnet-5-5` |
+| `a4abc50` | | `claude-sonnet-5-5` |
+| `69fb3b8` | | `claude-opus-5-5` |
+| `703ca40` | | `claude-opus-5-5` |
+| `13054e1` | | `claude-sonnet-5-5` |
+| `9f6433e` | | `claude-sonnet-5-5` |
+| `d150187` | | `claude-sonnet-5-5` |
+| `93c6450` | | `claude-sonnet-5-5` |
+| `446f8b5` | | `claude-sonnet-5-5` |
+| `c09c2f2` | | `claude-opus-5-5` |
+| `aa2a6f7` | | `claude-opus-5-5` |
+| `211d7e1` | | `claude-opus-5-5` |
+| `6cd1275` | | `claude-opus-5-5` |
+| `b338033` | | `claude-opus-5-5` |
+| `9ff36e8` | | `claude-opus-5-5` |
+| `84e38b9` | | `claude-opus-5-5` |
+| `7df1caf` | | `claude-opus-5-5` |
+| `626058b` | | `claude-opus-5-5` |
+| `01d3230` | | `claude-opus-5-5` |
+| `0e2eef3` | | `claude-opus-5-5` |
+| `47509ca` | | `claude-opus-5-5` |
+| `d0d5e73` | | `claude-sonnet-5-5` |
+| `0834edb` | | `claude-sonnet-5-5` |
+| `901e536` | | `claude-sonnet-5-5` |
+| `8a79b10` | | `claude-opus-5-5` |
+| `76fe576` | | `claude-opus-5-5` |
+| | `76fe576` | `claude-opus-5-5` |
