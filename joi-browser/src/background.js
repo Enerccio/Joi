@@ -235,8 +235,19 @@ function flashPicture() {
   badgeTimer = setTimeout(() => setState(state), 4000);
 }
 
+// the tab the user looks at: the active one of the browser window focused last (not a popup or a private window)
+async function focusedTab() {
+  const window = await browser.windows.getLastFocused({ populate: true, windowTypes: ["normal"] });
+  const tab = window && !window.incognito && (window.tabs || []).find((t) => t.active);
+  if (!tab) {
+    throw new Error("No tab is in front in Firefox.");
+  }
+  return tab;
+}
+
 async function screenshot(args) {
-  const tab = await tabById(args.tab);
+  // the tab she names (the node asks the user for one that is not in front), else the one the user looks at
+  const tab = args.tab !== undefined && args.tab !== null ? await tabById(args.tab) : await focusedTab();
   if (!(await picturesAllowed())) {
     throw new Error("The user has not let Joi take pictures in Firefox: they can switch it on from the Joi button (Pictures of pages).");
   }
@@ -275,11 +286,7 @@ async function handle(op, args) {
         return await pickMediaTab();
       }
       if (args.pick === "active") {
-        const [tab] = await browser.tabs.query({ active: true, lastFocusedWindow: true });
-        if (!tab || tab.incognito) {
-          throw new Error("No tab is active in Firefox.");
-        }
-        return await info(tab);
+        return await info(await focusedTab());
       }
       throw new Error("Name the tab.");
     }

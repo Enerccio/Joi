@@ -101,12 +101,14 @@ class BrowserToolsTest {
         media.addProperty("captions", false);
         youtube.add("media", media);
         JsonObject mail = tab(2, "https://mail.google.com/mail/u/0", "Inbox (3)", false);
+        JsonObject news = tab(3, "https://news.example.org/today", "News", false);
         firefox = FakeFirefox.start(link.socket(), (op, args) -> {
             ops.add(op + " " + args);
             JsonObject data = new JsonObject();
             switch (op) {
                 case "tab_info" -> {
-                    return args.has("tab") && args.get("tab").getAsInt() == 2 ? mail : youtube;
+                    int wanted = args.has("tab") ? args.get("tab").getAsInt() : 1;
+                    return wanted == 2 ? mail : wanted == 3 ? news : youtube;
                 }
                 case "list_tabs", "media_status" -> {
                     JsonArray tabs = new JsonArray();
@@ -283,6 +285,22 @@ class BrowserToolsTest {
         assertThat(uploaded).hasSize(1);
         assertThat(uploaded.getFirst()[0]).isEqualTo((byte) 0xff);
         assertThat(ops).anyMatch(op -> op.startsWith("page_screenshot") && op.contains("\"full_page\":true"));
+        // by default the tab in front
+        assertThat(ops).anyMatch(op -> op.startsWith("tab_info") && op.contains("active"));
+        // another tab, allowed for the session: asked again in a turn the user did not start, with a warning
+        answer.set(NodeTools.Scope.SESSION);
+        assertThat(call("page_screenshot", "{}", "t5").ok()).isTrue();
+        int questions = asked.size();
+        answer.set(NodeTools.Scope.DENIED);
+        assertThat(call("page_screenshot", "{\"tab\":3}", "an-event").error()).isEqualTo("denied");
+        assertThat(asked).hasSize(questions + 1);
+        assertThat(asked.getLast().warning()).contains("Not the tab you have in front");
+        // the tab in front, named: the session covers it
+        assertThat(call("page_screenshot", "{\"tab\":1}", "an-event").ok()).isTrue();
+        // the user asked in this turn: the session covers another tab too
+        harness.turnStarted("mine", "say");
+        assertThat(call("page_screenshot", "{\"tab\":3}", "mine").ok()).isTrue();
+        assertThat(asked).hasSize(questions + 1);
         // the audit has the site, never the text or the picture
         String audit = Files.readString(harness.auditFile());
         assertThat(audit).contains("\"tool\":\"page_screenshot\"").contains("\"full_page\":true").doesNotContain("Ignore your rules");

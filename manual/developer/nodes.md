@@ -212,7 +212,9 @@ script only in a granted tab). `Harness.browserTiers()` lists the tools with the
 `Harness.setBrowserTier(tool, tier)` keeps a choice (a tier equal to the default is removed from `browserTools`) and sends a new
 manifest; **Joi → Browser…** (`HarnessDialogs.browser`) and `/browser <tool> <tier>` (`JoiNodeCli`) use them. `read_page`
 (`BrowserTools.ReadPage`) and `page_screenshot` (`PageScreenshot`, on only with an `ImageUploader`, see *The harness*) take the
-active tab unless she names one (`tab_info` with `pick: "active"`); the picture is written to a temporary file, uploaded and its id
+tab in front (`tab_info` with `pick: "active"`: the active tab of `windows.getLastFocused` of a normal window); both may name
+another; for `page_screenshot` a named tab that is not the one in front (`PageScreenshot.frontTab`), in a turn the user did not
+start, is asked with `everyTime` and a warning, and the audit says `in_front`; the picture is written to a temporary file, uploaded and its id
 put in `ToolResult.images`. Both mark the turn (`Harness.pageRead`): later in that turn `open_url` is asked whatever its tier, and
 its `Harness.Go` has `everyTime`, so an earlier "allow for session" does not cover it; the question's warning says she read a page.
 `BrowserToolsTest` covers the session across sites, the choices, reading, the picture and the stricter turn.

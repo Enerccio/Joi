@@ -51,7 +51,7 @@ permission for the site. Private windows are left out.
 | `focus_tab` | switch to a tab | not when you asked for it in this turn; otherwise yes |
 | `open_url` | open an `http` or `https` page in a new tab | yes, and always after she read a page in the same turn |
 | `read_page` | a page's main text (without its menus, up to 50 000 characters), its title and address, or only what you selected | yes |
-| `page_screenshot` | a picture of a tab: what is visible, or the whole page (up to 16 000 pixels high) | yes |
+| `page_screenshot` | a picture of a tab, the one you have in front unless you ask for another: what is visible, or the whole page (up to 16 000 pixels high) | yes, and always for another tab in a turn you did not start |
 
 "When you asked for it in this turn" means the turn started from your own message on this node. A turn she started herself (an
 event, a task) asks you.
@@ -62,7 +62,10 @@ may work on is what you allow from the Joi button in Firefox, and the refused si
 
 ## Reading a page and taking a picture
 
-`read_page` and `page_screenshot` work only on the sites you allowed, on the active tab unless she names another one. She sees a
+`read_page` and `page_screenshot` work only on the sites you allowed. Both take the tab you have in front (the active tab of the Firefox window you used last)
+unless she names another one. For a picture she names another tab only when you ask for that page or site ("take a picture of
+the news tab"). A picture of a tab that is not in front, in a turn you did not start, is asked every time, whatever its tier or an
+earlier **Allow for session**, and the question says so. She sees a
 picture after the results of her tools, as with a picture on this machine (see [Files and shell](harness.md)); if her chat model
 cannot see pictures, the describing model writes what it shows. The Joi button shows **pic** for a few seconds when a picture was
 taken.

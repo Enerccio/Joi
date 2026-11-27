@@ -2275,14 +2275,16 @@ equal to the default is left out of `policy.json`.
 | `focus_tab(tab)` | switch to a tab | `asked` |
 | `open_url(url)` | open an `http(s)` URL in a new tab | `ask` |
 | `read_page(tab?, selection?)` | the page's main text (readability extraction, up to 50 000 characters), title and URL; or only the selection | `ask` |
-| `page_screenshot(tab?, full_page?)` | a picture of the visible part, or of the whole page | `ask` |
+| `page_screenshot(tab?, full_page?)` | a picture of the tab the user has in front (the active tab of the last focused window) unless the user asked for another: the visible part, or the whole page | `ask` |
 | `page_snapshot(tab?)` | the page's controls as a numbered list (role, name, value), for `page_act` | `ask` |
 | `page_act(tab, ref, action, text?)` | click, type, select, press a key, scroll, on a control of the last snapshot | `ask`, every time |
 
 - **Media.** A generic adapter on the page's `<video>` and `<audio>` elements and the Media Session API (title, artist, play,
   pause, seek), and small adapters per site where the page has its own controls: YouTube first (next, captions, speed, chapters),
   later Spotify and Netflix on the web. A content script is injected only into a granted site, and only when a tool needs it.
-- **The screenshot.** Firefox's `tabs.captureTab` takes a tab, also one in the background, and with a `rect` the whole page
+- **The screenshot.** Of the tab the user has in front (the active tab of the normal window focused last) unless she names another,
+  which she is told to do only when the user asks for that page; a tab not in front, in a turn the user did not start, is asked
+  every time (the session does not cover it). Firefox's `tabs.captureTab` takes it, and with a `rect` the whole page
   (`full_page`, cut to 16 000 pixels high and scaled to at most 2000 wide). The picture goes to the server as an **image of the tool
   result** (see below), never as text. A badge on the toolbar button says that a picture was taken. Pages of a denied site, and a
   page with a password field in view, are not captured.
