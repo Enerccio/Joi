@@ -2394,8 +2394,8 @@ with avatars whose shaders match the installed Poiyomi.
 6. Agent tasks (`delegate`): a loop of the heavy model in the background, server-side tools first, node tools through the harness later (see Model roles → Agent tasks).
 
 **The first production version** (decided 2026-11-21) is the server with text chat, the avatar, memory and the summaries.
-Before it: the node's `--joi-home-dir` / `JOI_HOME_DIR` (built), a deployment guide and the Docker image (`Dockerfile`, written 2026-11-21, not yet
-built and run: TLS behind a reverse proxy, the data folder, backups and a restore test), the first full verification pass
+Before it: the node's `--joi-home-dir` / `JOI_HOME_DIR` (built), a deployment guide and the Docker image (`Dockerfile`, written 2026-11-21; deployed and
+running on the user's server since 2026-11-27; still to try: a restore of a backup on another machine), the first full verification pass
 (`verification.md`). The Flyway V1 freeze is done (2026-11-23): `V1__platform.sql` is never edited again, later changes are V2 and up. **After it,** because each is an addition and none changes the server's schema: the node's harness
 (it is only more tools in the manifest; ship it whole, with its ALLOW / ASK / DENY policy and audit), voice in (audio in is
 a new minor version of the protocol), and the privacy mode (not built at all yet; see Privacy mode).
