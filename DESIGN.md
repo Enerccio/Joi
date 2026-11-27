@@ -2213,13 +2213,16 @@ VRM in `WKWebView` on the phones in use; what sherpa-onnx costs in battery. Dist
 
 ### Browser companion (Firefox extension)
 
-**Designed 2026-11-27, not built.** A Firefox extension that lets her work in the user's own browser: control what plays, see
+**Designed 2026-11-27; stage 1 (media and tabs) built the same day** (`joi-browser/`, `node/browser`: `BrowserLink`, `NativeHost`,
+`BrowserHost`; the tools `harness/BrowserTools`). A Firefox extension that lets her work in the user's own browser: control what plays, see
 and switch tabs, read a page, take a screenshot of it, and click and type in it. It runs inside the user's logged-in browser.
 That is the point (their YouTube, their playlists, their pages) and the risk (their sessions). So it is off until the user turns
 it on, acts only where the user allowed it, and every call goes through the node's harness and its audit.
 
-- **Pieces.** The extension (`joi-browser/`, Manifest V3, Firefox first; Chrome later from the same code), a **native messaging
-  host** (the node's jar in a host mode, `JoiNodeHost`), and the running node's `browser/` package. The extension talks only to
+- **Pieces.** The extension (`joi-browser/`, Firefox first; Chrome later from the same code). On Firefox it is **Manifest V2 with a
+  persistent background page**: the native port must stay open while the node waits for requests, and an MV3 background page can
+  be suspended when idle (her tools would come and go). Chrome's build will be MV3 with its own way to stay awake. Then a **native messaging
+  host** (the node's jar in a host mode, `NativeHost`, started by a launcher in the node's home), and the running node's `browser/` package. The extension talks only to
   the host, never to the server or the internet. Her tools are node tools of the node on that machine (`desk__media_control`),
   so the server needs nothing new for them.
 - **Native messaging.** Firefox starts the host and talks to it over stdin and stdout (4-byte length, then JSON). Only the
@@ -2235,8 +2238,8 @@ it on, acts only where the user allowed it, and every call goes through the node
   Firefox updates it from the update URL in its manifest. Development uses `about:debugging` (a temporary add-on).
 - **Where it may act.** The extension asks for no site up front (`optional_host_permissions: ["<all_urls>"]`). The user grants each
   site from its popup (**Joi may work on this site**), so Firefox itself keeps it off every other site. A second list, in the node's
-  policy, refuses sites whatever was granted: mail, password managers, banks and payments, accounts and sign-in pages (defaults,
-  the user adds their bank). Private windows are left out (Firefox's default for extensions), and so are `about:` and add-on pages.
+  policy, refuses sites whatever was granted: mail, password managers, payments (defaults, the user adds their bank). Sign-in
+  pages are not refused as such (nearly every site is one): they follow the site's grant, and a password is never typed (below). Private windows are left out (Firefox's default for extensions), and so are `about:` and add-on pages.
 - **Turning it on.** On the node: **Joi → Browser…** (the switch, **Connect Firefox**, the tools' tiers and the denied sites); the
   terminal node `/browser on|off|connect`. The tools are in the manifest only while the switch is on **and** the extension is
   connected: a new manifest goes out when it connects or goes away.
@@ -2287,6 +2290,11 @@ In privacy mode they go to local models only.
 2. `read_page`, `page_screenshot` with images in tool results (protocol and server), the stricter turn.
 3. `page_snapshot` and `page_act`, the denied sites.
 4. Events; the Chrome build (its native messaging host manifest, `allowed_origins`, no `captureTab`: the active tab only).
+5. **Scripts in a page (later):** `page_script(tab, code)` runs JavaScript she writes in the page (the page's own world, so it
+   can use the site's functions), for what clicks and typing cannot do: read a table, fill many fields, call the site's own
+   API. Asked every time, the question shows the whole script and the site, *Allow for session* does not cover it; granted
+   sites only, never a denied one; a stricter turn says so in the question. The result is what the script returns, as JSON,
+   cut to 50 000 characters, and is untrusted data like a page. The audit keeps the script's length and hash, not the script.
 
 ## Avatar and Looking Glass
 

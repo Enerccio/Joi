@@ -30,7 +30,7 @@ replaces its old connection.
 - **Your voice**: the JavaFX node can listen when you press **Talk**, and sends the words (see [Talking to her](voice.md)).
 - **Tools**: when a node connects it sends a list of the tools it offers, and she sees them as `<node>__<tool>` while it is
   connected. `notify` shows you a notification on this machine, and `offer_to_clipboard` offers you a text for the clipboard; she has
-  each only if you allow it. See [Notifications](notifications.md) and [Clipboard offers](clipboard.md). The node's harness lets her read and write files and run commands on this machine, under your policy: see [Files and shell](harness.md). A tool is marked Allow, Ask or Deny by the node itself, which decides again when it runs.
+  each only if you allow it. See [Notifications](notifications.md) and [Clipboard offers](clipboard.md). The node's harness lets her read and write files and run commands on this machine, under your policy: see [Files and shell](harness.md). The Joi extension for Firefox lets her see and control what plays and your tabs: see [Firefox](browser.md). A tool is marked Allow, Ask or Deny by the node itself, which decides again when it runs.
 - **Your answers**: when a task of hers waits for your approval, the node asks you. See [Answering her questions](approvals.md).
 
 ## Pairing and tokens

@@ -1,5 +1,7 @@
 package com.github.enerccio.joi.node;
 
+import com.github.enerccio.joi.node.browser.BrowserHost;
+import com.github.enerccio.joi.node.browser.BrowserLink;
 import com.github.enerccio.joi.node.harness.Harness;
 import com.github.enerccio.joi.node.harness.Policy;
 import com.github.enerccio.joi.protocol.JoiProtocol;
@@ -53,7 +55,8 @@ import java.util.concurrent.atomic.AtomicReference;
  * {@code /notify off|ask|allow} sets whether she gets the notification tool ({@link Notifications}), {@code /notify test}
  * shows one; the harness ({@link Harness}, the files and the shell of this machine): {@code /files on|off}, {@code /shell ask|off},
  * {@code /roots}, {@code /roots add <path>} and {@code /roots remove <path>}, and a call it asks about is answered with {@code /yes},
- * {@code /session} (the same again until the node quits) or {@code /no}; {@code /image <file> [words]} sends an image (streamed to the server) with the words.
+ * {@code /session} (the same again until the node quits) or {@code /no}; the browser companion: {@code /browser on|off} and
+ * {@code /browser connect} (registers this node as Firefox's native host, {@link BrowserHost}); {@code /image <file> [words]} sends an image (streamed to the server) with the words.
  * <p>
  * {@code java ... JoiNodeCli [http://server:port]}
  */
@@ -118,13 +121,21 @@ public final class JoiNodeCli {
                 (title, text, seconds) -> askYesNo(out, asking, "she offers you this for your clipboard (" + title + "):\n"
                         + ClipboardOffers.preview(text, 1500) + "\n", seconds));
         AtomicReference<CompletableFuture<NodeTools.Scope>> harnessAsking = new AtomicReference<>();
-        Harness harness = new Harness(settings.dir(), (question, seconds) -> askHarness(out, harnessAsking, question, seconds), "keyboard");
+        // the browser companion: the extension reaches this node through its native host and this socket
+        BrowserLink browserLink = new BrowserLink(settings.dir());
+        try {
+            browserLink.start();
+        } catch (IOException e) {
+            out.println("[the browser companion is not available: " + e.getMessage() + "]");
+        }
+        Harness harness = new Harness(settings.dir(), (question, seconds) -> askHarness(out, harnessAsking, question, seconds), "keyboard", browserLink);
         List<NodeTool> tools = new ArrayList<>(List.of(notifications, clipboardOffers));
         tools.addAll(harness.tools());
         NodeTools nodeTools = new NodeTools(tools);
         NodeSocket socket = new NodeSocket(new NodeSocket.Listener() {
             @Override
             public void turnStarted(String turn, String cause) {
+                harness.turnStarted(turn, cause);
                 synchronized (lock) {
                     if (!NodeSocket.SAY.equals(cause)) {
                         out.println("[" + cause.replace('_', ' ') + "]");
@@ -247,6 +258,7 @@ public final class JoiNodeCli {
             switch (line) {
                 case "/quit" -> {
                     socket.close();
+                    browserLink.close();
                     later.shutdownNow();
                     return;
                 }
@@ -295,6 +307,23 @@ public final class JoiNodeCli {
                     }
                 }
                 case "/files", "/shell", "/roots" -> harnessState(harness);
+                case "/browser" -> browserState(harness, settings);
+                case "/browser on", "/browser off" -> {
+                    try {
+                        harness.setBrowser(line.endsWith("on"));
+                        browserState(harness, settings);
+                    } catch (IOException e) {
+                        out.println("[not kept: " + e.getMessage() + "]");
+                    }
+                }
+                case "/browser connect" -> {
+                    try {
+                        BrowserHost.Installed installed = BrowserHost.install(settings.dir());
+                        out.println("[Firefox can reach this node now (" + installed.manifest() + "). Install the Joi extension, or restart Firefox if it is installed]");
+                    } catch (IOException e) {
+                        out.println("[Firefox could not be connected: " + e.getMessage() + "]");
+                    }
+                }
                 case "/files on", "/files off", "/shell ask", "/shell off" -> {
                     try {
                         if (line.startsWith("/files")) {
@@ -340,6 +369,7 @@ public final class JoiNodeCli {
             }
         }
         socket.close();
+        browserLink.close();
         later.shutdownNow();
     }
 
@@ -361,6 +391,14 @@ public final class JoiNodeCli {
         } catch (IOException | InterruptedException e) {
             out.println("[the image was not sent: " + e.getMessage() + "]");
         }
+    }
+
+    /** The browser companion now. */
+    private void browserState(Harness harness, NodeSettings settings) {
+        Policy policy = harness.policy();
+        out.println("[browser: " + (policy.browserOn() ? "on" : "off") + " (/browser on or off); Firefox "
+                + (harness.browser().connected() ? "is connected" : BrowserHost.installed(settings.dir()) ? "is not connected (is the Joi extension installed?)"
+                : "cannot reach this node yet (/browser connect)") + "]");
     }
 
     /** What the harness lets her do now. */

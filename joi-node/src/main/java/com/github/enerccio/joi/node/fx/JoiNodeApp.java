@@ -1,5 +1,6 @@
 package com.github.enerccio.joi.node.fx;
 
+import com.github.enerccio.joi.node.browser.BrowserLink;
 import com.github.enerccio.joi.node.harness.Harness;
 import com.github.enerccio.joi.node.*;
 import com.github.enerccio.joi.node.renderer.BodyFiles;
@@ -95,6 +96,15 @@ public class JoiNodeApp extends Application {
         clipAllow.setToggleGroup(clipGroup);
         clipMenu.setDisable(true);
     }
+    /** The browser companion's settings: it works once she is loaded. */
+    private final MenuItem browserItem = new MenuItem("Browser…") {
+        {
+            setDisable(true);
+        }
+    };
+    /** The browser companion's socket, opened once; the harness of the loaded assistant, null before. */
+    private BrowserLink browserLink;
+    private volatile Harness harness;
     /** The harness's settings (files, the shell, the user's folders): it works once she is loaded. */
     private final MenuItem harnessItem = new MenuItem("Files and shell…") {
         {
@@ -218,6 +228,9 @@ public class JoiNodeApp extends Application {
         if (socket != null) {
             socket.close();
         }
+        if (browserLink != null) {
+            browserLink.close();
+        }
         if (voice != null) {
             voice.close();
         }
@@ -256,7 +269,7 @@ public class JoiNodeApp extends Application {
         MenuItem copy = editItem("Copy", KeyCode.C, TextInputControl::copy);
         MenuItem paste = editItem("Paste", KeyCode.V, TextInputControl::paste);
         MenuItem all = editItem("Select All", KeyCode.A, TextInputControl::selectAll);
-        MenuBar bar = new MenuBar(new Menu("Edit", null, cut, copy, paste, new SeparatorMenuItem(), all), new Menu("Joi", null, approvals, notifyMenu, clipMenu, harnessItem));
+        MenuBar bar = new MenuBar(new Menu("Edit", null, cut, copy, paste, new SeparatorMenuItem(), all), new Menu("Joi", null, approvals, notifyMenu, clipMenu, harnessItem, browserItem));
         bar.setUseSystemMenuBar(true);
         return bar;
     }
@@ -774,12 +787,24 @@ public class JoiNodeApp extends Application {
         });
         notifyMenu.setDisable(false);
         ClipboardOffers clipboardOffers = new ClipboardOffers(settings, JoiNodeApp::copyToClipboard, (title, text, seconds) -> askClipboard(title, text, seconds));
-        Harness harness = new Harness(settings.dir(), (question, seconds) -> HarnessDialogs.ask(stage, question, seconds), "click");
+        if (browserLink == null) {
+            // the browser companion: once per run, whichever assistant is loaded
+            browserLink = new BrowserLink(settings.dir());
+            try {
+                browserLink.start();
+            } catch (IOException e) {
+                chat.note("The browser companion is not available: " + e.getMessage());
+            }
+        }
+        Harness harness = new Harness(settings.dir(), (question, seconds) -> HarnessDialogs.ask(stage, question, seconds), "click", browserLink);
+        this.harness = harness;
         java.util.List<com.github.enerccio.joi.node.NodeTool> tools = new java.util.ArrayList<>(java.util.List.of(notifications, clipboardOffers));
         tools.addAll(harness.tools());
         nodeTools = new NodeTools(tools);
         harnessItem.setOnAction(e -> HarnessDialogs.settings(stage, harness, chat::note));
         harnessItem.setDisable(false);
+        browserItem.setOnAction(e -> HarnessDialogs.browser(stage, harness, settings.dir(), chat::note));
+        browserItem.setDisable(false);
         clipOff.setSelected(clipboardOffers.mode() == ClipboardOffers.Mode.OFF);
         clipAsk.setSelected(clipboardOffers.mode() == ClipboardOffers.Mode.ASK);
         clipAllow.setSelected(clipboardOffers.mode() == ClipboardOffers.Mode.ALLOW);
@@ -1007,6 +1032,10 @@ public class JoiNodeApp extends Application {
         socket = new NodeSocket(new NodeSocket.Listener() {
             @Override
             public void turnStarted(String turn, String cause) {
+                Harness loadedHarness = harness;
+                if (loadedHarness != null) {
+                    loadedHarness.turnStarted(turn, cause);
+                }
                 if (PART_SWITCHED.equals(cause)) {
                     partsTurn = turn;
                 }

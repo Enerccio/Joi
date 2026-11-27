@@ -11,6 +11,7 @@ import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 /**
  * The harness's policy, {@code <home>/policy.json}: what she may do with the files and the shell of this machine. Only the node's
@@ -36,9 +37,33 @@ public final class Policy {
     public List<String> deniedWrites;
     /** Programs a command may not name. */
     public List<String> deniedCommands;
+    /** {@code on}: she may use the browser companion (the Firefox extension); {@code off} (null too): no browser tools. */
+    public String browser;
+    /** The tier of each browser tool ({@code allow}, {@code asked}, {@code ask}, {@code off}); a tool left out has its default. */
+    public Map<String, String> browserTools;
+    /** Sites the browser tools never work on, whatever the user granted in Firefox (a host and its subdomains). */
+    public List<String> deniedSites;
 
     public boolean filesOn() {
         return "on".equalsIgnoreCase(files == null ? null : files.strip());
+    }
+
+    public boolean browserOn() {
+        return "on".equalsIgnoreCase(browser == null ? null : browser.strip());
+    }
+
+    /** A browser tool's tier: the policy's, else the default (an unknown word is off). */
+    public String browserTier(String tool, String otherwise) {
+        String tier = browserTools == null ? null : browserTools.get(tool);
+        if (tier == null || tier.isBlank()) {
+            return otherwise;
+        }
+        String t = tier.strip().toLowerCase(java.util.Locale.ROOT);
+        return List.of("allow", "asked", "ask", "off").contains(t) ? t : "off";
+    }
+
+    public List<String> deniedSites() {
+        return deniedSites == null ? DEFAULT_DENIED_SITES : deniedSites.stream().filter(r -> r != null && !r.isBlank()).toList();
     }
 
     public boolean shellOn() {
@@ -79,6 +104,12 @@ public final class Policy {
             "/System", "/Library", "/usr", "/bin", "/sbin", "/etc", "/private/etc", "/private/var/db", "/private/var/root", "/opt/homebrew/bin", "/boot", "/lib", "/lib64",
             "C:/Windows", "C:/Program Files", "C:/Program Files (x86)");
 
+    /** The sites the browser tools never work on by default: mail, password managers, payments. Sign-in pages follow the grant. */
+    public static final List<String> DEFAULT_DENIED_SITES = List.of(
+            "mail.google.com", "outlook.live.com", "outlook.office.com", "outlook.office365.com", "mail.proton.me", "app.fastmail.com",
+            "mail.yahoo.com", "icloud.com", "vault.bitwarden.com", "1password.com", "lastpass.com", "keepersecurity.com",
+            "paypal.com", "revolut.com", "wise.com", "dashboard.stripe.com");
+
     /** Programs a command may not name. */
     public static final List<String> DEFAULT_DENIED_COMMANDS = List.of("sudo", "su", "doas", "pkexec", "runas");
 
@@ -87,6 +118,7 @@ public final class Policy {
         Policy policy = new Policy();
         policy.files = "off";
         policy.shell = "off";
+        policy.browser = "off";
         policy.roots = new ArrayList<>();
         return policy;
     }

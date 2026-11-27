@@ -4,6 +4,7 @@ icon: device-desktop
 order: 710
 covers:
   - joi-node/src/main/java/com/github/enerccio/joi/node
+  - joi-browser/src
   - joi-server/src/main/java/com/github/enerccio/joi/domain/node
   - joi-server/src/main/java/com/github/enerccio/joi/api/NodeEndpoint.java
   - joi-server/src/main/frontend/joi-lipsync.js
@@ -98,6 +99,7 @@ then, not only the parts', as an outfit sets toggles that are in no part. The re
 | `Notifications` | the tool `notify`: off, ask or allow |
 | `ClipboardOffers`, `DesktopClipboard` | the tool `offer_to_clipboard`: off, ask or allow; the clipboard of the terminal node |
 | `harness/` | the harness: `Policy` (`policy.json`), `PathGuard` (real paths, roots, denied paths), `Audit` (`audit.jsonl`), `Harness` (the flow of a call), `FileTools` (`read_file`, `list_files`, `write_file`), `ShellTool` (`run_command`); see *The harness* below |
+| `browser/` | the browser companion's plumbing: `BrowserLink` (the node's socket `browser.sock`), `NativeHost` (Firefox's native messaging host), `BrowserHost` (Connect Firefox: the launcher and the host's manifest); the tools are `harness/BrowserTools`. See *The browser companion* below |
 | `TaskQuestions` | the tasks that wait for the user's answer |
 | `voice/` | voice in, push-to-talk: the microphone, Silero VAD, the end of an utterance, speech to text with sherpa-onnx, the download of the models; its setting is `voicePauseMs` in `node.json`. See [Voice in](voice.md) |
 | `PartStaging` | the staging of her parts |
@@ -163,6 +165,44 @@ separators, without a folder or `.exe`; `deniedPath`: a denied path written out,
 The terminal node asks with `/yes`, `/session` and `/no` (`JoiNodeCli.askHarness`), the JavaFX node with `fx/HarnessDialogs`
 (the question, and **Joi → Files and shell…**). `HarnessTest` covers the tiers, `..` and links, denied paths and the node's home,
 the session, the audit, a policy that cannot be read, and the shell's checks, timeout and cancel.
+
+## The browser companion
+
+The Firefox extension is `joi-browser/` (Manifest V2 with a persistent background page, so its native port stays open; see
+DESIGN.md → Node → Browser companion). `background.js` holds the port to the native host `joi_node` and answers the node's
+requests; `media.js` is injected into a tab of a granted site when a media request needs it (`window.__joiMedia`, a generic adapter
+on `<video>` / `<audio>` and the Media Session, one for YouTube); `popup.*` shows the state and grants sites
+(`permissions.request` of an origin, in the click).
+
+The path of a request:
+
+1. A tool of `harness/BrowserTools` calls `BrowserLink.request(op, args, timeout)`: a line `{"type":"request","id","op","args"}`
+   on the Unix socket `<home>/browser.sock` (mode 600).
+2. `NativeHost` (started by Firefox through the launcher `browser-host.sh` that `BrowserHost.install` writes into the node's home)
+   relays the line as a native message: a 4-byte length in the machine's order, then the JSON (at most 1 MB to Firefox).
+3. The background page answers `{"type":"result","id","ok","data"|"error"}`, and it goes back the same way.
+
+The host tells the extension `{"type":"node","state":"connected"|"absent"}` and retries the socket every 3 s; on `connected` the
+extension says `hello`, and only then is the link `connected()`. A newer connection replaces the older one. When stdin ends the
+host closes the node's connection and exits.
+
+The tools are harness tools (`BrowserTool` extends `HarnessTool`), so they share its questions, sessions and audit. A tool is on
+when `browser` is `on` in the policy, its tier is not `off` and the link is connected; `BrowserLink`'s listener calls
+`Harness.toolsChanged()`, which sends a new manifest when the extension comes or goes. The tier `asked` needs to know who started
+the turn: both nodes pass every `turnStarted(turn, cause)` to `Harness.turnStarted`, which keeps the last 50 turns of cause `say`. A
+tool that names a tab first asks the extension for it (`tab_info`, also `pick: "media"` for the tab that plays) and refuses a denied
+site (`BrowserTools.deniedSite`: the host or a subdomain of a `deniedSites` entry) before the question. The audit gets the site, not
+the address.
+
+`BrowserHost.install` takes the Java of this run (`java.home/bin/java`) and the class path the node's classes came from (the
+`URLClassLoader`'s URLs under Maven's `exec:java`, else `java.class.path`). It writes the host's manifest into
+`~/Library/Application Support/Mozilla/NativeMessagingHosts` (macOS) or `~/.mozilla/native-messaging-hosts` (Linux); on Windows it
+leaves the manifest in the node's home and writes the registry key `HKCU\Software\Mozilla\NativeMessagingHosts\joi_node`. The
+manifest allows only the extension's id, `BrowserHost.EXTENSION_ID`.
+
+The extension is built with `web-ext` (`joi-browser/package.json`: `npm run lint`, `build`, `run`, and `sign`, which needs
+`WEB_EXT_API_KEY` and `WEB_EXT_API_SECRET` from AMO in the environment). `BrowserCompanionTest` runs the real host between a fake
+Firefox (`FakeFirefox`, pipes for stdin and stdout) and the node's socket; `BrowserToolsTest` runs the tools through it.
 
 ## Her mouth
 

@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Joi</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <header>
+    <img src="icons/joi.svg" alt="" width="20" height="20">
+    <strong>Joi</strong>
+    <span id="state" class="state"></span>
+  </header>
+  <p id="help" class="help" hidden></p>
+  <section id="site" hidden>
+    <p id="site-text"></p>
+    <button id="grant" type="button">Let Joi work on this site</button>
+    <button id="revoke" type="button" hidden>Stop Joi working on this site</button>
+  </section>
+  <section>
+    <p class="label">Sites Joi may work on</p>
+    <ul id="sites"></ul>
+    <p id="no-sites" class="help">None yet. Joi still sees your tabs' titles and what plays sound, when you allow it on the node.</p>
+  </section>
+  <script src="popup.js"></script>
+</body>
+</html>

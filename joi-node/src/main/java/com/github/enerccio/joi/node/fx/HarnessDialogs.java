@@ -126,6 +126,47 @@ final class HarnessDialogs {
         alert.show();
     }
 
+    /** Joi → Browser…: the switch, Connect Firefox, and whether the extension is connected. */
+    static void browser(Window owner, Harness harness, java.nio.file.Path nodeHome, Consumer<String> note) {
+        CheckBox on = new CheckBox("She may use Firefox on this machine: see what plays and control it, see and switch tabs, open pages "
+                + "(each as your policy says)");
+        on.setWrapText(true);
+        on.setSelected(harness.policy().browserOn());
+        Label state = new Label();
+        state.setWrapText(true);
+        Runnable show = () -> state.setText(harness.browser() != null && harness.browser().connected()
+                ? "Firefox is connected."
+                : com.github.enerccio.joi.node.browser.BrowserHost.installed(nodeHome)
+                ? "Firefox can reach this node, but the Joi extension is not connected: install it, or restart Firefox."
+                : "Firefox cannot reach this node yet: Connect Firefox.");
+        show.run();
+        Button connect = new Button("Connect Firefox");
+        connect.setOnAction(e -> {
+            try {
+                com.github.enerccio.joi.node.browser.BrowserHost.Installed installed = com.github.enerccio.joi.node.browser.BrowserHost.install(nodeHome);
+                note.accept("Firefox can reach this node now (" + installed.manifest() + ").");
+            } catch (IOException ex) {
+                note.accept("Firefox could not be connected: " + ex.getMessage());
+            }
+            show.run();
+        });
+        on.setOnAction(e -> keep(note, () -> harness.setBrowser(on.isSelected())));
+        Label sites = new Label("The extension works only on the sites you allow from its button in Firefox. Mail, password managers and "
+                + "payments are refused whatever you allow (deniedSites in " + harness.policyFile() + ", with each tool's tier in browserTools).");
+        sites.setWrapText(true);
+        VBox content = new VBox(10, on, new HBox(8, connect), state, sites);
+        content.setPadding(new Insets(4));
+        content.setPrefWidth(560);
+        Alert alert = new Alert(Alert.AlertType.NONE, null, ButtonType.CLOSE);
+        if (owner != null) {
+            alert.initOwner(owner);
+        }
+        alert.setTitle("Browser");
+        alert.setHeaderText("Joi in Firefox");
+        alert.getDialogPane().setContent(content);
+        alert.show();
+    }
+
     private interface Change {
         void run() throws IOException;
     }

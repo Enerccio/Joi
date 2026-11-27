@@ -1,6 +1,7 @@
 package com.github.enerccio.joi.node.harness;
 
 import com.github.enerccio.joi.node.NodeTool;
+import com.github.enerccio.joi.node.browser.BrowserLink;
 import com.github.enerccio.joi.node.NodeTools;
 import com.github.enerccio.joi.protocol.node.ToolCall;
 import com.github.enerccio.joi.protocol.node.ToolResult;
@@ -81,6 +82,9 @@ public final class Harness {
     private final Audit audit;
     private final Set<String> session = ConcurrentHashMap.newKeySet();
     private final List<NodeTool> tools;
+    private final BrowserLink browser;
+    /** The latest turns the user started from this node. */
+    private final java.util.LinkedHashSet<String> userTurns = new java.util.LinkedHashSet<>();
     private volatile NodeTools host;
 
     /**
@@ -88,17 +92,80 @@ public final class Harness {
      * @param via      how the user answers ({@code click}, {@code keyboard})
      */
     public Harness(Path nodeHome, Asker asker, String via) {
-        this(nodeHome, Path.of(System.getProperty("user.home")), PathGuard.caseInsensitiveSystem(), asker, via);
+        this(nodeHome, asker, via, null);
+    }
+
+    /** With the browser companion: its tools come and go with the extension ({@link BrowserLink}); null for none. */
+    public Harness(Path nodeHome, Asker asker, String via, BrowserLink browser) {
+        this(nodeHome, Path.of(System.getProperty("user.home")), PathGuard.caseInsensitiveSystem(), asker, via, browser);
     }
 
     Harness(Path nodeHome, Path userHome, boolean ignoreCase, Asker asker, String via) {
+        this(nodeHome, userHome, ignoreCase, asker, via, null);
+    }
+
+    Harness(Path nodeHome, Path userHome, boolean ignoreCase, Asker asker, String via, BrowserLink browser) {
         this.nodeHome = nodeHome.toAbsolutePath();
         this.userHome = userHome;
         this.ignoreCase = ignoreCase;
         this.asker = asker;
         this.via = via;
         this.audit = new Audit(this.nodeHome);
-        this.tools = List.of(new FileTools.ReadFile(this), new FileTools.ListFiles(this), new FileTools.WriteFile(this), new ShellTool(this));
+        List<NodeTool> all = new ArrayList<>(List.of(new FileTools.ReadFile(this), new FileTools.ListFiles(this), new FileTools.WriteFile(this),
+                new ShellTool(this)));
+        this.browser = browser;
+        if (browser != null) {
+            all.addAll(BrowserTools.all(this, browser));
+            // she gets the browser's tools when the extension connects, and loses them when it goes
+            browser.listener(connected -> toolsChanged());
+        }
+        this.tools = List.copyOf(all);
+    }
+
+    /** The browser companion's link, null when this node has none. */
+    public BrowserLink browser() {
+        return browser;
+    }
+
+    /**
+     * A turn began on this node: one the user started (a {@code say}) lets the tools of tier {@code asked} run without a question.
+     *
+     * @param cause {@code say} for the user's, else the server's cause
+     */
+    public void turnStarted(String turn, String cause) {
+        if (turn != null && "say".equals(cause)) {
+            synchronized (userTurns) {
+                userTurns.add(turn);
+                while (userTurns.size() > 50) {
+                    userTurns.removeFirst();
+                }
+            }
+        }
+    }
+
+    /** Whether the user started this turn from this node. */
+    boolean userTurn(String turn) {
+        if (turn == null) {
+            return false;
+        }
+        synchronized (userTurns) {
+            return userTurns.contains(turn);
+        }
+    }
+
+    /** The user's choice: she may use the browser companion (or not). A new manifest goes out. */
+    public synchronized void setBrowser(boolean on) throws IOException {
+        Policy policy = policy();
+        policy.browser = on ? "on" : "off";
+        save(policy);
+    }
+
+    /** The tools she may use changed (the extension came or went): she gets a new manifest. */
+    void toolsChanged() {
+        NodeTools to = host;
+        if (to != null) {
+            to.changed();
+        }
     }
 
     /** The tools, for {@link NodeTools}; each is in the manifest only while the policy has it on. */

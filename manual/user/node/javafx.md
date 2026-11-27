@@ -87,7 +87,7 @@ read again by it.
 | Menu | Items |
 |---|---|
 | **Edit** | Cut, Copy, Paste, Select all |
-| **Joi** | **Auto-approved tools…** (see [Answering her questions](approvals.md)) **Notifications** (see [Notifications](notifications.md)) **Clipboard offers** (see [Clipboard offers](clipboard.md)) and **Files and shell…** (see [Files and shell](harness.md)) |
+| **Joi** | **Auto-approved tools…** (see [Answering her questions](approvals.md)) **Notifications** (see [Notifications](notifications.md)) **Clipboard offers** (see [Clipboard offers](clipboard.md)) **Files and shell…** (see [Files and shell](harness.md)) and **Browser…** (see [Firefox](browser.md)) |
 
 ## While she is away from the server
 

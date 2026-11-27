@@ -43,6 +43,8 @@ Type a line and press Return: it is your message. Her reply streams in; her anim
 | `/files`, `/shell`, `/roots` | say what the harness lets her do (see [Files and shell](harness.md)) |
 | `/files on`, `/files off`, `/shell ask`, `/shell off` | turn the file tools and the shell on or off |
 | `/roots add <path>`, `/roots remove <path>` | your folders, where she reads without asking |
+| `/browser`, `/browser on`, `/browser off` | the Firefox extension: whether it is connected, and the switch (see [Firefox](browser.md)) |
+| `/browser connect` | registers this node with Firefox |
 | `/session` | answers a call of the harness: allowed, and the same again until the node quits (`/yes` is once, `/no` denies) |
 
 When a task of hers waits for your answer the node prints the question: the title, the tool, what it does, what she asked for and
