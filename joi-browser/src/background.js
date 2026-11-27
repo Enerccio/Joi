@@ -1,6 +1,8 @@
 // The browser companion of Joi (DESIGN.md → Node → Browser companion): the background page holds the native port to the Joi node
 // (the host "joi_node", which relays to the running node) and answers the node's requests. It works only on the sites the user
-// granted from the popup (optional host permissions); elsewhere it sees what the tabs API shows. Private windows are left out.
+// granted from the popup (its own list in storage, "sites", each also an optional host permission of Firefox); elsewhere it sees what
+// the tabs API shows. Pictures of a tab need Firefox's permission for all sites ("<all_urls>", asked for by the popup's own switch):
+// the list still decides where it works. Private windows are left out.
 "use strict";
 
 const HOST = "joi_node";
@@ -80,12 +82,35 @@ function webPage(tab) {
   return /^https?:/.test(tab.url || "");
 }
 
+// the sites the user let Joi work on, as origin patterns ("https://www.youtube.com/*"): the extension's own list, since the permission
+// for pictures ("<all_urls>") would make Firefox's answer yes for every site
+async function sites() {
+  const stored = await browser.storage.local.get("sites");
+  if (Array.isArray(stored.sites)) {
+    return stored.sites;
+  }
+  // the first start of a version with the list: the sites granted before
+  const all = await browser.permissions.getAll();
+  const list = (all.origins || []).filter((o) => /^https?:\/\/[^*]/.test(o));
+  await browser.storage.local.set({ sites: list });
+  return list;
+}
+
 async function granted(tab) {
   if (!webPage(tab)) {
     return false;
   }
   try {
-    return await browser.permissions.contains({ origins: [new URL(tab.url).origin + "/*"] });
+    const pattern = new URL(tab.url).origin + "/*";
+    return (await sites()).includes(pattern) && await browser.permissions.contains({ origins: [pattern] });
+  } catch (e) {
+    return false;
+  }
+}
+
+async function picturesAllowed() {
+  try {
+    return await browser.permissions.contains({ origins: ["<all_urls>"] });
   } catch (e) {
     return false;
   }
@@ -178,6 +203,66 @@ async function mediaControl(args) {
   return await withMedia(await browser.tabs.get(tab.id));
 }
 
+// ---- a page: its text, a picture --------------------------------------------------------------------------------------------
+
+const MAX_PICTURE_WIDTH = 2000;
+const MAX_PICTURE_HEIGHT = 16000;
+
+async function onPage(tab, op, args) {
+  if (!(await granted(tab))) {
+    throw new Error("The user has not let Joi work on " + siteOf(tab.url) + ": they can allow it from the Joi button in Firefox.");
+  }
+  await browser.tabs.executeScript(tab.id, { file: "page.js" });
+  const results = await browser.tabs.executeScript(tab.id, {
+    code: "window.__joiPage(" + JSON.stringify(op) + ", " + JSON.stringify(args) + ")",
+  });
+  return results && results.length ? results[0] : null;
+}
+
+async function readPage(args) {
+  const tab = await tabById(args.tab);
+  const page = await onPage(tab, "read", { selection: !!args.selection });
+  return Object.assign(await info(tab), page);
+}
+
+let badgeTimer = null;
+
+// a sign on the button that a picture was taken, for a few seconds
+function flashPicture() {
+  browser.browserAction.setBadgeBackgroundColor({ color: "#1565c0" });
+  browser.browserAction.setBadgeText({ text: "pic" });
+  clearTimeout(badgeTimer);
+  badgeTimer = setTimeout(() => setState(state), 4000);
+}
+
+async function screenshot(args) {
+  const tab = await tabById(args.tab);
+  if (!(await picturesAllowed())) {
+    throw new Error("The user has not let Joi take pictures in Firefox: they can switch it on from the Joi button (Pictures of pages).");
+  }
+  const page = await onPage(tab, "measure", { full_page: !!args.full_page });
+  if (page.password) {
+    throw new Error("The page has a password field" + (args.full_page ? "" : " in view") + ", so no picture was taken.");
+  }
+  const width = args.full_page ? page.width : page.viewWidth;
+  const height = args.full_page ? Math.min(page.height, MAX_PICTURE_HEIGHT) : page.viewHeight;
+  const scale = Math.min(page.ratio, MAX_PICTURE_WIDTH / Math.max(1, width));
+  const options = { format: "jpeg", quality: 85, scale };
+  if (args.full_page) {
+    options.rect = { x: 0, y: 0, width, height };
+  }
+  const url = await browser.tabs.captureTab(tab.id, options);
+  flashPicture();
+  const comma = url.indexOf(",");
+  return Object.assign(await info(tab), {
+    type: "image/jpeg",
+    data: url.slice(comma + 1),
+    width: Math.round(width * scale),
+    height: Math.round(height * scale),
+    cut: !!args.full_page && page.height > MAX_PICTURE_HEIGHT,
+  });
+}
+
 // ---- the node's requests ------------------------------------------------------------------------------------------------------
 
 async function handle(op, args) {
@@ -188,6 +273,13 @@ async function handle(op, args) {
       }
       if (args.pick === "media") {
         return await pickMediaTab();
+      }
+      if (args.pick === "active") {
+        const [tab] = await browser.tabs.query({ active: true, lastFocusedWindow: true });
+        if (!tab || tab.incognito) {
+          throw new Error("No tab is active in Firefox.");
+        }
+        return await info(tab);
       }
       throw new Error("Name the tab.");
     }
@@ -202,6 +294,10 @@ async function handle(op, args) {
       return { tabs: await mediaTabs() };
     case "media_control":
       return await mediaControl(args);
+    case "read_page":
+      return await readPage(args);
+    case "page_screenshot":
+      return await screenshot(args);
     case "focus_tab": {
       const tab = await tabById(args.tab);
       await browser.tabs.update(tab.id, { active: true });
@@ -225,6 +321,9 @@ async function handle(op, args) {
 browser.runtime.onMessage.addListener((message) => {
   if (message && message.type === "get_state") {
     return Promise.resolve({ state, version: VERSION });
+  }
+  if (message && message.type === "get_sites") {
+    return sites();
   }
   return undefined;
 });

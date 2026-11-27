@@ -74,3 +74,9 @@ li button {
   padding: 1px 8px;
   font-size: 12px;
 }
+.check {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 600;
+}

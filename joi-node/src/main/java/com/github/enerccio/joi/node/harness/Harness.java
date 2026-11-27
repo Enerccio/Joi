@@ -63,8 +63,13 @@ public final class Harness {
      * @param ask        whether the user is asked
      * @param sessionKey what an "allow for session" covers
      * @param audit      what the audit says of it (the target)
+     * @param everyTime  whether an earlier "allow for session" does not cover it (asked again whatever was answered)
      */
-    record Go(boolean ask, String sessionKey, Question question, JsonObject audit, Action action) implements Plan {
+    record Go(boolean ask, String sessionKey, Question question, JsonObject audit, Action action, boolean everyTime) implements Plan {
+
+        Go(boolean ask, String sessionKey, Question question, JsonObject audit, Action action) {
+            this(ask, sessionKey, question, audit, action, false);
+        }
     }
 
     /** Runs an allowed call. */
@@ -87,6 +92,8 @@ public final class Harness {
     private final BrowserLink browser;
     /** The latest turns the user started from this node. */
     private final java.util.LinkedHashSet<String> userTurns = new java.util.LinkedHashSet<>();
+    /** The turns in which she read a page (the last 50). */
+    private final java.util.LinkedHashSet<String> readTurns = new java.util.LinkedHashSet<>();
     private volatile NodeTools host;
 
     /**
@@ -169,6 +176,28 @@ public final class Harness {
                     userTurns.removeFirst();
                 }
             }
+        }
+    }
+
+    /** She read or took a picture of a page in this turn: the rest of it is stricter ({@link #readPage}). */
+    void pageRead(String turn) {
+        if (turn != null) {
+            synchronized (readTurns) {
+                readTurns.add(turn);
+                while (readTurns.size() > 50) {
+                    readTurns.removeFirst();
+                }
+            }
+        }
+    }
+
+    /** Whether she read or took a picture of a page earlier in this turn. */
+    boolean readPage(String turn) {
+        if (turn == null) {
+            return false;
+        }
+        synchronized (readTurns) {
+            return readTurns.contains(turn);
         }
     }
 
@@ -343,7 +372,7 @@ public final class Harness {
         go.audit().entrySet().forEach(e -> line.add(e.getKey(), e.getValue()));
         line.addProperty("decision", go.ask() ? "ask" : "allow");
         if (go.ask()) {
-            if (session.contains(go.sessionKey())) {
+            if (!go.everyTime() && session.contains(go.sessionKey())) {
                 line.addProperty("answer", "session");
                 line.addProperty("via", "earlier");
             } else {

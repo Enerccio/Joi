@@ -1,10 +1,11 @@
-// The popup: whether the Joi node has the extension, and the sites Joi may work on (optional host permissions, granted here).
+// The popup: whether the Joi node has the extension, the sites Joi may work on (the extension's list in storage, each also an optional
+// host permission, granted here) and whether she may take pictures of pages (Firefox's permission for all sites, which captureTab needs).
 "use strict";
 
 const STATES = {
   connected: ["Connected to the node", "ok", null],
   absent: ["The node is not running", "bad", "Start the Joi node on this machine; it connects by itself."],
-  no_host: ["Not set up", "bad", "On the Joi node: Joi → Browser… → Connect Firefox (the terminal node: /browser connect). Then restart Firefox."],
+  no_host: ["Not set up", "bad", "On the Joi node: Joi → Browser… → Connect Firefox (the terminal node: /browser connect). It connects within half a minute."],
   connecting: ["Connecting…", "", null],
 };
 
@@ -27,9 +28,26 @@ function showState(state) {
   helpEl.textContent = help || "";
 }
 
+async function siteList() {
+  // the background page makes the list the first time, from the sites granted before
+  return (await browser.runtime.sendMessage({ type: "get_sites" })) || [];
+}
+
+async function setSites(list) {
+  await browser.storage.local.set({ sites: list });
+}
+
+async function removeSite(origin) {
+  await setSites((await siteList()).filter((o) => o !== origin));
+  try {
+    await browser.permissions.remove({ origins: [origin] });
+  } catch (e) {
+    // kept by the permission for pictures: the list is what counts
+  }
+}
+
 async function showSites() {
-  const all = await browser.permissions.getAll();
-  const origins = (all.origins || []).filter((o) => /^https?:/.test(o));
+  const origins = await siteList();
   const list = document.getElementById("sites");
   list.textContent = "";
   for (const origin of origins) {
@@ -40,7 +58,7 @@ async function showSites() {
     remove.type = "button";
     remove.textContent = "Remove";
     remove.addEventListener("click", async () => {
-      await browser.permissions.remove({ origins: [origin] });
+      await removeSite(origin);
       await refresh();
     });
     li.append(name, remove);
@@ -57,7 +75,7 @@ async function showSite() {
   if (!pattern) {
     return;
   }
-  const has = await browser.permissions.contains({ origins: [pattern] });
+  const has = (await siteList()).includes(pattern);
   const host = new URL(tab.url).hostname;
   document.getElementById("site-text").textContent = has
     ? "Joi may work on " + host + ": read and control what plays there."
@@ -68,11 +86,30 @@ async function showSite() {
   revoke.hidden = !has;
   // permissions.request must run in the click itself
   grant.onclick = async () => {
-    await browser.permissions.request({ origins: [pattern] });
+    if (await browser.permissions.request({ origins: [pattern] })) {
+      const list = await siteList();
+      if (!list.includes(pattern)) {
+        await setSites(list.concat([pattern]));
+      }
+    }
     await refresh();
   };
   revoke.onclick = async () => {
-    await browser.permissions.remove({ origins: [pattern] });
+    await removeSite(pattern);
+    await refresh();
+  };
+}
+
+async function showPictures() {
+  const box = document.getElementById("pictures");
+  box.checked = await browser.permissions.contains({ origins: ["<all_urls>"] });
+  // permissions.request must run in the click itself
+  box.onchange = async () => {
+    if (box.checked) {
+      box.checked = await browser.permissions.request({ origins: ["<all_urls>"] });
+    } else {
+      await browser.permissions.remove({ origins: ["<all_urls>"] });
+    }
     await refresh();
   };
 }
@@ -84,6 +121,7 @@ async function refresh() {
   }
   await showSite();
   await showSites();
+  await showPictures();
 }
 
 browser.runtime.onMessage.addListener((message) => {

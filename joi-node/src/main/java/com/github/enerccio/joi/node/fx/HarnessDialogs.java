@@ -222,7 +222,9 @@ final class HarnessDialogs {
             "media_control", "Control what plays",
             "list_tabs", "See your tabs",
             "focus_tab", "Switch tabs",
-            "open_url", "Open pages");
+            "open_url", "Open pages",
+            "read_page", "Read pages",
+            "page_screenshot", "Take pictures of pages");
 
     private interface Change {
         void run() throws IOException;

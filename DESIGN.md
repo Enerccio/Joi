@@ -2283,7 +2283,7 @@ equal to the default is left out of `policy.json`.
   pause, seek), and small adapters per site where the page has its own controls: YouTube first (next, captions, speed, chapters),
   later Spotify and Netflix on the web. A content script is injected only into a granted site, and only when a tool needs it.
 - **The screenshot.** Firefox's `tabs.captureTab` takes a tab, also one in the background, and with a `rect` the whole page
-  (`full_page`, cut to 16 000 pixels high and scaled to at most 2000 wide). The PNG goes to the server as an **image of the tool
+  (`full_page`, cut to 16 000 pixels high and scaled to at most 2000 wide). The picture goes to the server as an **image of the tool
   result** (see below), never as text. A badge on the toolbar button says that a picture was taken. Pages of a denied site, and a
   page with a password field in view, are not captured.
 - **Acting.** `page_snapshot` lists the visible controls with a number each; `page_act` names one by its number and the snapshot it
@@ -2305,9 +2305,21 @@ In privacy mode they go to local models only.
 **Events** (a protocol addition, later). The node tells her "a video started", "the music stopped" as transient events (a
 `node_event` frame: kind, text), so she can comment, and so "pause it" means what plays now.
 
+**Built (stage 2, 2026-11-27):** `read_page` and `page_screenshot` (`BrowserTools.ReadPage`, `PageScreenshot`; the extension's
+`page.js`), both `ask` by default. `read_page` takes the page's `article` / `main`, else the element with the most paragraph text,
+without menus and furniture, up to 50 000 characters, or the selection. `page_screenshot` is `captureTab` as a JPEG (quality 85,
+scaled to at most 2000 wide; `full_page` with a `rect` of the whole page, cut at 16 000 high); the node uploads it as a chat image
+and the result carries its id (protocol 1.14, see Images from a node tool). Firefox's `captureTab` needs `<all_urls>`, not a
+site's permission: the popup has its own switch for it (**Pictures of pages**), and the extension keeps the user's sites in its
+own list (`storage.local` `sites`, made the first time from the sites granted before), which decides where it works whatever
+Firefox's permissions say. A page with a password field in view (in the page, for `full_page`) is not pictured. The stricter turn
+is the node's: after a `read_page` or `page_screenshot` in a turn (`Harness.pageRead`), `open_url` is asked in that turn even when
+its tier or the session would allow it (`Harness.Go.everyTime`), with a warning in the question. No badge on the button is kept;
+it shows "pic" for a few seconds.
+
 **Order of work.**
 1. The host, the link, the extension's skeleton and popup, `media_status`, `media_control` (generic and YouTube), the tabs.
-2. `read_page`, `page_screenshot` with images in tool results (protocol and server), the stricter turn.
+2. `read_page`, `page_screenshot` with images in tool results (protocol and server), the stricter turn (built).
 3. `page_snapshot` and `page_act`, the denied sites.
 4. Events; the Chrome build (its native messaging host manifest, `allowed_origins`, no `captureTab`: the active tab only).
 5. **Scripts in a page (later):** `page_script(tab, code)` runs JavaScript she writes in the page (the page's own world, so it

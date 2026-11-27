@@ -1,14 +1,16 @@
 {
   "manifest_version": 2,
   "name": "Joi",
-  "version": "0.1.0",
-  "description": "Lets Joi, your self-hosted assistant, work in Firefox through the Joi node on this machine: what plays, the tabs. Only on the sites you allow.",
+  "version": "0.2.0",
+  "description": "Lets Joi, your self-hosted assistant, work in Firefox through the Joi node on this machine: what plays, the tabs, a page's text and a picture of it. Only on the sites you allow.",
   "browser_specific_settings": {
     "gecko": {
       "id": "joi-browser@enerccio.github.io",
       "strict_min_version": "115.0",
       "data_collection_permissions": {
-        "required": ["none"]
+        "required": [
+          "none"
+        ]
       }
     }
   },
@@ -16,10 +18,18 @@
     "48": "icons/joi.svg",
     "96": "icons/joi.svg"
   },
-  "permissions": ["nativeMessaging", "tabs", "storage"],
-  "optional_permissions": ["<all_urls>"],
+  "permissions": [
+    "nativeMessaging",
+    "tabs",
+    "storage"
+  ],
+  "optional_permissions": [
+    "<all_urls>"
+  ],
   "background": {
-    "scripts": ["background.js"],
+    "scripts": [
+      "background.js"
+    ],
     "persistent": true
   },
   "browser_action": {

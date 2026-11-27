@@ -179,8 +179,14 @@ the session, the audit, a policy that cannot be read, the shell's checks, timeou
 The Firefox extension is `joi-browser/` (Manifest V2 with a persistent background page, so its native port stays open; see
 DESIGN.md → Node → Browser companion). `background.js` holds the port to the native host `joi_node` and answers the node's
 requests; `media.js` is injected into a tab of a granted site when a media request needs it (`window.__joiMedia`, a generic adapter
-on `<video>` / `<audio>` and the Media Session, one for YouTube); `popup.*` shows the state and grants sites
-(`permissions.request` of an origin, in the click).
+on `<video>` / `<audio>` and the Media Session, one for YouTube); `page.js` the same way for `read_page` and `page_screenshot`
+(`window.__joiPage`: `read`, the main text or the selection; `measure`, the page's size and whether a password field is in the
+picture); `popup.*` shows the state, grants sites (`permissions.request` of an origin, in the click) and switches pictures on
+(`permissions.request` of `<all_urls>`, which `tabs.captureTab` needs). Since that permission makes Firefox answer yes for every
+site, the user's sites are the extension's own list (`storage.local` `sites`, made the first time from the origins granted before;
+`granted()` wants the site in it). A picture is `captureTab` as a JPEG (quality 85), scaled to at most 2000 wide; `full_page` takes
+a `rect` of the whole page, cut at 16 000 high. It comes back as base64 in the result (Firefox's 1 MB limit is only towards the
+extension; `NativeHost` takes up to 64 MB from it).
 
 The path of a request:
 
@@ -204,8 +210,12 @@ the address. "Allow for session" covers a browser tool on every site (its sessio
 grant and `deniedSites`, so the node does not ask per site. `media_control` is `allow` by default for the same reason (it runs a
 script only in a granted tab). `Harness.browserTiers()` lists the tools with their tier and default, and
 `Harness.setBrowserTier(tool, tier)` keeps a choice (a tier equal to the default is removed from `browserTools`) and sends a new
-manifest; **Joi → Browser…** (`HarnessDialogs.browser`) and `/browser <tool> <tier>` (`JoiNodeCli`) use them. `BrowserToolsTest`
-covers the session across sites and the choices.
+manifest; **Joi → Browser…** (`HarnessDialogs.browser`) and `/browser <tool> <tier>` (`JoiNodeCli`) use them. `read_page`
+(`BrowserTools.ReadPage`) and `page_screenshot` (`PageScreenshot`, on only with an `ImageUploader`, see *The harness*) take the
+active tab unless she names one (`tab_info` with `pick: "active"`); the picture is written to a temporary file, uploaded and its id
+put in `ToolResult.images`. Both mark the turn (`Harness.pageRead`): later in that turn `open_url` is asked whatever its tier, and
+its `Harness.Go` has `everyTime`, so an earlier "allow for session" does not cover it; the question's warning says she read a page.
+`BrowserToolsTest` covers the session across sites, the choices, reading, the picture and the stricter turn.
 
 `BrowserHost.install` takes the Java of this run (`java.home/bin/java`) and the class path the node's classes came from (the
 `URLClassLoader`'s URLs under Maven's `exec:java`, else `java.class.path`). It writes the host's manifest into
