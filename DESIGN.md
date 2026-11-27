@@ -111,6 +111,12 @@ one; the server treats every node the same.
     first administrator; a credential that is sent must still be valid. Turning a way off stops its credentials at
     once. Credentials are `AccessToken` rows (prefix + SHA-256, like Marginalia's API keys), listed and revoked under
     Access.
+  - **Administration (1.13, built).** Marginalia's administration calls, in Joi's API: `/api/v1/admin/update` (the status, ask
+    for an update, its log) and `/api/v1/admin/extensions` (list, install or replace with the JAR as the body, remove, stop, start,
+    the log). A token needs the scope (`update`, `extensions`), which only an administrator gives it (User Settings → Access →
+    *Create token*, *Access*) and which works only while its owner is one; an OAuth device, the local node and no auth never have
+    them. `GET /api/v1/me` lists them. The JAR is streamed to a temporary file (256 MB at most); one that does not fit this
+    version is `422 extension_rejected` with the report. So a script or a CI job can put a new build of an extension on a server.
   - **Images in a message (1.11, built).** `POST /api/v1/jois/{id}/images` takes the image as the raw body (streamed to a file, never held
     in memory; 20 MB, 80 megapixels) and answers an `ImageUpload` (id, size, width, height); the id goes in `ChatRequest.images` or
     `Say.images` (at most 4), the words may then be empty. `GET /api/v1/images/{id}` gives the image (ETag, the user's own only), and the

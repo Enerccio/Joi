@@ -1,0 +1,99 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Enerccio/joi/protocol/v1/UpdateStatus.schema.json",
+  "title": "UpdateStatus",
+  "description": "GET /api/v1/admin/update (since 1.13): the update of the installation, as the watcher outside the server last wrote it.",
+  "type": "object",
+  "properties": {
+    "watching": {
+      "type": "boolean",
+      "description": "Whether a watcher is running (it wrote its status lately)."
+    },
+    "running": {
+      "type": "boolean",
+      "description": "Whether an update is running now."
+    },
+    "requested": {
+      "type": "boolean",
+      "description": "Whether an update was asked for and not taken yet."
+    },
+    "updateAvailable": {
+      "type": "boolean",
+      "description": "Whether the watcher saw a commit other than the one that runs."
+    },
+    "canRequest": {
+      "type": "boolean",
+      "description": "Whether an update can be asked for now (a watcher, none running or asked for)."
+    },
+    "runningVersion": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "The version the server runs."
+    },
+    "runningCommit": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "The commit the server was built from, null when not known."
+    },
+    "branch": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "The branch the watcher follows, null when not known."
+    },
+    "upstream": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "What it compares with, null when not known."
+    },
+    "remoteCommit": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "The newest commit it saw, null when not known."
+    },
+    "fetchFailed": {
+      "type": "boolean",
+      "description": "Whether its last look for something newer failed."
+    },
+    "checked": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "When it last looked (ISO 8601), null for never.",
+      "format": "date-time"
+    },
+    "lastRun": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "When the last update ran (ISO 8601), null for never.",
+      "format": "date-time"
+    },
+    "lastRunOk": {
+      "type": [
+        "boolean",
+        "null"
+      ],
+      "description": "Whether the last update succeeded, null for none."
+    }
+  },
+  "required": [
+    "watching",
+    "running",
+    "requested",
+    "updateAvailable",
+    "canRequest",
+    "fetchFailed"
+  ]
+}

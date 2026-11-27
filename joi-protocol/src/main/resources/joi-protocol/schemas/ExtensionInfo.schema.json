@@ -1,0 +1,64 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Enerccio/joi/protocol/v1/ExtensionInfo.schema.json",
+  "title": "ExtensionInfo",
+  "description": "An extension of the server (since 1.13): an OSGi bundle in the extensions folder.",
+  "type": "object",
+  "properties": {
+    "jar": {
+      "type": "string",
+      "description": "The name of its JAR file, the id of the extension in the calls."
+    },
+    "symbolicName": {
+      "type": "string",
+      "description": "Its Bundle-SymbolicName."
+    },
+    "name": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Its Bundle-Name, null without one."
+    },
+    "version": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Its version, null without one."
+    },
+    "state": {
+      "type": "string",
+      "description": "The OSGi state: INSTALLED, RESOLVED, STARTING, STOPPING, ACTIVE, UNINSTALLED."
+    },
+    "stopped": {
+      "type": "boolean",
+      "description": "Whether the administrator stopped it (it stays stopped after a restart)."
+    },
+    "loaded": {
+      "type": "boolean",
+      "description": "Whether the server loaded it as an extension."
+    },
+    "valid": {
+      "type": [
+        "boolean",
+        "null"
+      ],
+      "description": "Whether it fits this version of the server, null when it was not checked."
+    },
+    "sha256": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "The SHA-256 of its JAR (hex), null when it could not be read."
+    }
+  },
+  "required": [
+    "jar",
+    "symbolicName",
+    "state",
+    "stopped",
+    "loaded"
+  ]
+}

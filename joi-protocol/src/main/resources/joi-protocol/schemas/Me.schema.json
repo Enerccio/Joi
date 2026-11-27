@@ -14,6 +14,16 @@
     },
     "method": {
       "$ref": "AuthMethod.schema.json"
+    },
+    "scopes": {
+      "type": [
+        "array",
+        "null"
+      ],
+      "items": {
+        "$ref": "AdminScope.schema.json"
+      },
+      "description": "The parts of the administration the token may use, now (since 1.13): empty for a token without them, an OAuth device, the local node and no auth; null from a server before."
     }
   },
   "required": [

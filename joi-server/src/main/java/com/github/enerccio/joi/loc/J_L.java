@@ -410,6 +410,7 @@ public enum J_L implements LocalizationKey {
     ENUM_ACCESS_TOKEN_TOKEN,
     ENUM_ACCESS_TOKEN_OAUTH,
     ENUM_ACCESS_TOKEN_LOCAL,
+    HELP_TOKEN_SCOPES,
 
     // --- HELP ---
     HELP_TEXT_LLM_TYPES,

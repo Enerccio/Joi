@@ -132,6 +132,11 @@ With `--user USER` (or the crontab of that user) it runs as somebody else. That 
 There is no ready watcher for Docker Desktop. Update with `rebuild.bat` / `rebuild.sh` by hand or from a scheduled
 task, see [Automatic updates](../getting-started/docker-server.md#automatic-updates).
 
+## From a script
+
+A token that may *Update the installation* reads the same status with `GET /api/v1/admin/update`, asks for an update with `POST` to it
+and reads the log with `GET /api/v1/admin/update/log`: see [Administration from a script](../access.md#administration-from-a-script).
+
 ## Troubleshooting
 
 | | |

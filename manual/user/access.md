@@ -18,6 +18,24 @@ The list shows your tokens and devices: when each was created, when it expires, 
 **Create token** makes one: a name and an optional expiry. The token (it starts with `joi_`) is shown once, so copy it then. Give
 it to a client as a bearer token. Revoking it stops it at once.
 
+### Administration from a script
+
+An administrator's **Create token** also has **Access**: *Update the installation* and *Manage the extensions*. A token with them may use the
+administration calls of the API, for example to install a new build of an extension from a script or a CI job:
+
+```bash
+curl -X PUT --data-binary @joi-grok.jar -H "Authorization: Bearer $JOI_TOKEN" https://joi.example/api/v1/admin/extensions/joi-grok.jar
+```
+
+| Access | Calls |
+|---|---|
+| Update the installation | `GET /api/v1/admin/update` (the status, as [Updates](administration/updates.md) shows it), `POST` the same to ask for an update, `GET .../update/log` |
+| Manage the extensions | `GET /api/v1/admin/extensions` and `.../{jar}`, `PUT .../{jar}` with the JAR as the body (installs it, or replaces the one of that name), `DELETE .../{jar}`, `POST .../{jar}/stop` and `.../start`, `GET .../{jar}/log` |
+
+They work only while the owner of the token is an administrator: take the role away and the token keeps only what any token does. The
+**Access** column of the list shows them. A device, the phone and this computer never have them. An extension that does not fit this
+version of Joi is refused (`422`) with the report, and nothing changes. All of it is in the API's description (`openapi.yaml`).
+
 ## Connecting a device
 
 A device (such as the node) can pair with the **OAuth device grant** instead:

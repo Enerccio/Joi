@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Joi API
-  version: "1.12"
+  version: "1.13"
   description: |
     The HTTP API of a Joi server for nodes and other clients: the assistants of the user, chat with one of them,
     answered in text and speech, and the body she is in with the files to show it (`.joim`, `.joia`). The message shapes are the JSON Schemas in `schemas/` (the source of truth); the Java
@@ -16,6 +16,11 @@ info:
       setups, turned on in the server's configuration (`joi.api.no-auth`).
 
     The administrator chooses which of `token` and `oauth` are offered. A call without valid credentials gets 401.
+
+    **Administration** (since 1.13). `/api/v1/admin/update` and `/api/v1/admin/extensions` need a token with the scope
+    `update` or `extensions` (`AdminScope`). Only an administrator gives a token these scopes (User Settings → Access →
+    Create token), and they work only while the owner is one: a call without the scope gets 403 `forbidden`. An OAuth
+    device, the local node and `none` never have them. `GET /api/v1/me` lists the scopes of the call.
 
     **Versioning.** `major.minor`: a minor version only adds fields, calls and stream events, and clients ignore what
     they do not know. A new major version gets a new path.
@@ -429,6 +434,157 @@ paths:
           content:
             application/json:
               schema: { $ref: "schemas/ApiError.schema.json" }
+  /api/v1/admin/update:
+    get:
+      summary: The update of the installation (since 1.13, scope update)
+      description: What the watcher outside the server (a built image or a checkout) last wrote about the update.
+      responses:
+        "200":
+          description: The status
+          content:
+            application/json:
+              schema: { $ref: "schemas/UpdateStatus.schema.json" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+    post:
+      summary: Ask for an update of the installation (since 1.13, scope update)
+      description: |
+        Writes the request the watcher takes; the server restarts when the update runs. Answers the status with
+        `requested` set.
+      responses:
+        "202":
+          description: Asked for
+          content:
+            application/json:
+              schema: { $ref: "schemas/UpdateStatus.schema.json" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "409":
+          description: "`conflict`: no watcher runs, or an update runs or was asked for already"
+          content:
+            application/json:
+              schema: { $ref: "schemas/ApiError.schema.json" }
+  /api/v1/admin/update/log:
+    get:
+      summary: The log of the last update (since 1.13, scope update)
+      parameters:
+        - { $ref: "#/components/parameters/LogBytes" }
+      responses:
+        "200": { $ref: "#/components/responses/Log" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+  /api/v1/admin/extensions:
+    get:
+      summary: The extensions of the server (since 1.13, scope extensions)
+      responses:
+        "200":
+          description: The list
+          content:
+            application/json:
+              schema: { $ref: "schemas/ExtensionList.schema.json" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "503": { $ref: "#/components/responses/NoExtensions" }
+  /api/v1/admin/extensions/{jar}:
+    get:
+      summary: An extension (since 1.13, scope extensions)
+      parameters:
+        - { $ref: "#/components/parameters/Jar" }
+      responses:
+        "200":
+          description: The extension
+          content:
+            application/json:
+              schema: { $ref: "schemas/ExtensionInfo.schema.json" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "503": { $ref: "#/components/responses/NoExtensions" }
+    put:
+      summary: Install an extension, or replace the one of this JAR (since 1.13, scope extensions)
+      description: |
+        The body is the JAR (any content type, up to 256 MB), streamed to the disk. The server checks that it fits
+        its version before it loads it; one that does not is refused with 422 and nothing changes.
+      parameters:
+        - { $ref: "#/components/parameters/Jar" }
+      requestBody:
+        required: true
+        content:
+          application/java-archive:
+            schema: { type: string, format: binary }
+      responses:
+        "200":
+          description: Installed
+          content:
+            application/json:
+              schema: { $ref: "schemas/ExtensionInfo.schema.json" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "413":
+          description: "`bad_request`: the JAR is larger than 256 MB"
+          content:
+            application/json:
+              schema: { $ref: "schemas/ApiError.schema.json" }
+        "422":
+          description: "`extension_rejected`: it does not fit this version of the server; the message holds the report"
+          content:
+            application/json:
+              schema: { $ref: "schemas/ApiError.schema.json" }
+        "503": { $ref: "#/components/responses/NoExtensions" }
+    delete:
+      summary: Remove an extension (since 1.13, scope extensions)
+      parameters:
+        - { $ref: "#/components/parameters/Jar" }
+      responses:
+        "204":
+          description: Removed
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "503": { $ref: "#/components/responses/NoExtensions" }
+  /api/v1/admin/extensions/{jar}/stop:
+    post:
+      summary: Stop an extension; it stays stopped after a restart (since 1.13, scope extensions)
+      parameters:
+        - { $ref: "#/components/parameters/Jar" }
+      responses:
+        "200":
+          description: The extension
+          content:
+            application/json:
+              schema: { $ref: "schemas/ExtensionInfo.schema.json" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "503": { $ref: "#/components/responses/NoExtensions" }
+  /api/v1/admin/extensions/{jar}/start:
+    post:
+      summary: Start a stopped extension (since 1.13, scope extensions)
+      parameters:
+        - { $ref: "#/components/parameters/Jar" }
+      responses:
+        "200":
+          description: The extension
+          content:
+            application/json:
+              schema: { $ref: "schemas/ExtensionInfo.schema.json" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "503": { $ref: "#/components/responses/NoExtensions" }
+  /api/v1/admin/extensions/{jar}/log:
+    get:
+      summary: The log of an extension, its end (since 1.13, scope extensions)
+      parameters:
+        - { $ref: "#/components/parameters/Jar" }
+        - { $ref: "#/components/parameters/LogBytes" }
+      responses:
+        "200": { $ref: "#/components/responses/Log" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "503": { $ref: "#/components/responses/NoExtensions" }
   /oauth/device_authorization:
     post:
       summary: A device asks for its codes (RFC 8628, 3.1)
@@ -546,6 +702,18 @@ components:
       required: true
       description: The id of the task (TaskInfo.id)
       schema: { type: string }
+    Jar:
+      name: jar
+      in: path
+      required: true
+      description: The name of the extension's JAR file (ExtensionInfo.jar), ending in .jar
+      schema: { type: string }
+    LogBytes:
+      name: bytes
+      in: query
+      required: false
+      description: How much of the end of the log, in bytes (default 65536, at most 4194304)
+      schema: { type: integer, minimum: 1, maximum: 4194304, default: 65536 }
     IfNoneMatch:
       name: If-None-Match
       in: header
@@ -570,6 +738,21 @@ components:
       content:
         application/json:
           schema: { $ref: "schemas/ApiError.schema.json" }
+    Forbidden:
+      description: "`forbidden`: the token does not have the scope, or its owner is not an administrator"
+      content:
+        application/json:
+          schema: { $ref: "schemas/ApiError.schema.json" }
+    NoExtensions:
+      description: "`unavailable`: the server runs without extensions"
+      content:
+        application/json:
+          schema: { $ref: "schemas/ApiError.schema.json" }
+    Log:
+      description: The end of the log
+      content:
+        text/plain:
+          schema: { type: string }
     NotFound:
       description: "`not_found`"
       content:

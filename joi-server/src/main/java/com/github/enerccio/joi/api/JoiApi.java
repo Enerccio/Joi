@@ -62,7 +62,7 @@ import java.util.concurrent.*;
  * (a token, an OAuth access token, or nobody when the configuration allows it), makes the request context of its user
  * ({@link ApiRequestAttributes}, no session of the container) and answers. The assistants, one of them, chat with
  * her, whole or streamed as server-sent events, and the body she is in with its files ({@code .joim}, {@code .joia}),
- * streamed from the disk.
+ * streamed from the disk. The administration ({@code /api/v1/admin}) is {@link JoiAdminApi}.
  */
 public class JoiApi implements DisposableBean {
 
@@ -127,6 +127,9 @@ public class JoiApi implements DisposableBean {
 
     @Autowired
     private ResourceService resourceService;
+
+    @Autowired
+    private JoiAdminApi adminApi;
 
     /** Nulls written out: a client sees every field of the schema. */
     private final Gson gson = new GsonBuilder().serializeNulls().create();
@@ -224,7 +227,10 @@ public class JoiApi implements DisposableBean {
         boolean post = "POST".equalsIgnoreCase(call.method());
         if (get && path.equals(List.of("me"))) {
             User user = principal.user();
-            json(sink, 200, new Me(user.getLogin(), StringUtils.defaultIfBlank(user.getFullName(), user.getLogin()), principal.method()));
+            json(sink, 200, new Me(user.getLogin(), StringUtils.defaultIfBlank(user.getFullName(), user.getLogin()), principal.method(),
+                    principal.scopes().stream().sorted().toList()));
+        } else if (path.getFirst().equals("admin")) {
+            adminApi.handle(call, path, principal, sink);
         } else if (get && path.equals(List.of("jois"))) {
             json(sink, 200, jois());
         } else if (get && path.size() == 2 && path.getFirst().equals("jois")) {

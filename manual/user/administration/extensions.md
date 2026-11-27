@@ -26,6 +26,9 @@ It appears in the list:
 
 What an extension adds shows in the windows you open from then on: a workspace that is open already needs a reload of the page.
 
+A script can do the same through the API with a token that may *Manage the extensions*: see
+[Administration from a script](../access.md#administration-from-a-script).
+
 JAR files can also be copied into the `extensions` folder directly, for example on a server without access to the web UI; they are loaded
 on the next start. This is how the Docker setup is prepared: see [Extensions](../getting-started/docker-server.md#extensions).
 

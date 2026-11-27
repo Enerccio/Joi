@@ -39,10 +39,16 @@ public class JoiApiServlet extends HttpServlet {
             return;
         }
         String path = request.getRequestURI().substring(request.getContextPath().length());
-        // an image is streamed to the disk by the call itself, after its credentials were checked: not read here
-        boolean upload = "POST".equalsIgnoreCase(request.getMethod()) && JoiApi.isImageUpload(path);
-        if (upload && request.getContentLengthLong() > ChatImages.MAX_BYTES) {
+        // an image or the JAR of an extension is streamed to the disk by the call itself, after its credentials were checked: not read here
+        boolean image = "POST".equalsIgnoreCase(request.getMethod()) && JoiApi.isImageUpload(path);
+        boolean extension = JoiAdminApi.isExtensionUpload(request.getMethod(), path);
+        boolean upload = image || extension;
+        if (image && request.getContentLengthLong() > ChatImages.MAX_BYTES) {
             JoiApi.error(sink, 413, "bad_image", "The image is larger than " + (ChatImages.MAX_BYTES / 1024 / 1024) + " MB");
+            return;
+        }
+        if (extension && request.getContentLengthLong() > JoiAdminApi.MAX_EXTENSION_BYTES) {
+            JoiApi.error(sink, 413, "bad_request", "The JAR is larger than " + (JoiAdminApi.MAX_EXTENSION_BYTES / 1024 / 1024) + " MB");
             return;
         }
         if (!upload && request.getContentLengthLong() > MAX_BODY_BYTES) {

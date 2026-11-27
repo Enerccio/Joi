@@ -2,11 +2,14 @@ package com.github.enerccio.joi.domain.service;
 
 import com.github.enerccio.joi.domain.model.impl.AccessToken;
 import com.github.enerccio.joi.domain.repository.AccessTokenRepository;
+import com.github.enerccio.joi.protocol.http.AdminScope;
 import com.github.enerccio.joi.protocol.http.AuthMethod;
 import com.github.enerccio.marginalia.domain.security.model.User;
 import com.github.enerccio.marginalia.domain.service.ExtendableService;
 
+import java.util.Collection;
 import java.util.Date;
+import java.util.Set;
 
 /**
  * The credentials of the API ({@link AccessToken}): the tokens a user makes ({@value #TOKEN_START}...) and the tokens of
@@ -38,8 +41,18 @@ public interface AccessTokenService extends ExtendableService<AccessToken, Acces
      *
      * @param token  the credential, null for {@link AuthMethod#NONE}
      * @param method how it was authenticated
+     * @param scopes the parts of the administration it may use now: those of the token while its owner is an administrator, else
+     *               none
      */
-    record Principal(User user, AccessToken token, AuthMethod method) {
+    record Principal(User user, AccessToken token, AuthMethod method, Set<AdminScope> scopes) {
+
+        public Principal(User user, AccessToken token, AuthMethod method) {
+            this(user, token, method, Set.of());
+        }
+
+        public boolean has(AdminScope scope) {
+            return scopes.contains(scope);
+        }
     }
 
     /**
@@ -50,6 +63,14 @@ public interface AccessTokenService extends ExtendableService<AccessToken, Acces
      * @throws IllegalArgumentException for a blank or too long name, an expiry in the past, or too many credentials
      */
     Created create(String name, Date expires) throws Exception;
+
+    /**
+     * A token of the current user with administration scopes (Marginalia's {@code ApiScope.UPDATE} and {@code EXTENSIONS}).
+     *
+     * @param scopes none, or (only for an administrator) the parts of the administration it may use
+     * @throws SecurityException when someone who is not an administrator asks for scopes
+     */
+    Created create(String name, Date expires, Collection<AdminScope> scopes) throws Exception;
 
     /**
      * The tokens of a device the current user approved.

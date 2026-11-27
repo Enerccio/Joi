@@ -23,9 +23,30 @@ import Testing
 
     @Test func me1() throws {
         let json = #"""
-{"login":"peter","name":"Peter","method":"none"}
+{"login":"peter","name":"Peter","method":"none","scopes":[]}
 """#
         try roundTrip(Me.self, json)
+    }
+
+    @Test func me2() throws {
+        let json = #"""
+{"login":"peter","name":"Peter","method":"token","scopes":["update","extensions"]}
+"""#
+        try roundTrip(Me.self, json)
+    }
+
+    @Test func extensionList1() throws {
+        let json = #"""
+{"extensions":[{"jar":"joi-anthropic.jar","symbolicName":"com.github.enerccio.joi.anthropic","name":"Anthropic","version":"1.0.0","state":"ACTIVE","stopped":false,"loaded":true,"valid":true,"sha256":"ab12"},{"jar":"old.jar","symbolicName":"old","name":null,"version":null,"state":"INSTALLED","stopped":true,"loaded":false,"valid":null,"sha256":null}]}
+"""#
+        try roundTrip(ExtensionList.self, json)
+    }
+
+    @Test func updateStatus1() throws {
+        let json = #"""
+{"watching":true,"running":false,"requested":false,"updateAvailable":true,"canRequest":true,"runningVersion":"1.0.0","runningCommit":"abc","branch":"master","upstream":"origin/master","remoteCommit":"def","fetchFailed":false,"checked":"2026-11-27T10:00:00Z","lastRun":null,"lastRunOk":null}
+"""#
+        try roundTrip(UpdateStatus.self, json)
     }
 
     @Test func chatHistory1() throws {
@@ -261,7 +282,7 @@ import Testing
 
     @Test func hello1() throws {
         let json = #"""
-{"protocol":"1.12","nodeId":"6f1d-4c2a","name":"desk","kind":"desktop","software":"joi-node 0.1.0","joi":"2f0c","parts":["tools","audio-out","approvals"],"token":null,"resumed":null,"resume":null}
+{"protocol":"1.13","nodeId":"6f1d-4c2a","name":"desk","kind":"desktop","software":"joi-node 0.1.0","joi":"2f0c","parts":["tools","audio-out","approvals"],"token":null,"resumed":null,"resume":null}
 """#
         try roundTrip(Hello.self, json)
     }
@@ -520,7 +541,7 @@ import Testing
 
     @Test func frame1() throws {
         let json = #"""
-{"type":"hello","id":null,"ref":null,"data":{"protocol":"1.12","nodeId":"6f1d-4c2a","name":"desk","kind":"desktop","software":"joi-node 0.1.0","joi":"2f0c","parts":["tools","audio-out","approvals"],"token":null,"resumed":null,"resume":null}}
+{"type":"hello","id":null,"ref":null,"data":{"protocol":"1.13","nodeId":"6f1d-4c2a","name":"desk","kind":"desktop","software":"joi-node 0.1.0","joi":"2f0c","parts":["tools","audio-out","approvals"],"token":null,"resumed":null,"resume":null}}
 """#
         try roundTrip(Frame.self, json)
         try typedFrame(json)

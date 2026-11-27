@@ -36,10 +36,11 @@ class SchemaContractTest {
             BodyAnimation.class, BodyAnimations.class, BodyOutfit.class, BodyInfo.class, OutfitSwitch.class, JoiAnimations.class, Frame.class, Hello.class, Resume.class, Welcome.class, Manifest.class,
             ToolDefinition.class, Say.class, Stop.class, Display.class, ToolUse.class, ToolCall.class, ToolProgress.class, ToolResult.class,
             ToolCancel.class, Approval.class, ServerEvent.class, TurnStart.class, ChatEntry.class, ChatHistory.class,
-            ChatLog.class, TaskStep.class, TaskInfo.class, TaskList.class, TaskDenial.class, TaskApproval.class, AutoApproval.class, AutoApprovalList.class, ImageUpload.class);
+            ChatLog.class, TaskStep.class, TaskInfo.class, TaskList.class, TaskDenial.class, TaskApproval.class, AutoApproval.class, AutoApprovalList.class, ImageUpload.class,
+            ExtensionInfo.class, ExtensionList.class, UpdateStatus.class);
 
     /** The enums with a schema of their own: the values are the schema's enum. */
-    static final List<Class<? extends Enum<?>>> ENUMS = List.of(AuthMethod.class, NodePart.class, ToolTier.class,
+    static final List<Class<? extends Enum<?>>> ENUMS = List.of(AuthMethod.class, AdminScope.class, NodePart.class, ToolTier.class,
             ApprovalState.class);
 
     /** As the server writes them: nulls included, so that "null" and "missing" are both checked against the schemas. */

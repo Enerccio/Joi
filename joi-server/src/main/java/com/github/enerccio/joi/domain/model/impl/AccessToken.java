@@ -1,18 +1,24 @@
 package com.github.enerccio.joi.domain.model.impl;
 
 import com.github.enerccio.joi.domain.collections.AccessTokenKind;
+import com.github.enerccio.joi.protocol.http.AdminScope;
 import com.github.enerccio.marginalia.domain.model.ExtendableEntity;
 import com.github.enerccio.marginalia.domain.traits.ExtendedAttribute;
 import jakarta.persistence.*;
 
+import java.util.Collection;
 import java.util.Date;
+import java.util.EnumSet;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 /**
  * A credential of the API (like Marginalia's {@code ApiKey}): a {@link AccessTokenKind#TOKEN token} the user made, or
  * the tokens of an {@link AccessTokenKind#OAUTH OAuth} device. The text of a token is
  * {@code <start><prefix>_<secret>}; it is given out once and only the prefix (to find it) and a SHA-256 hash are
  * stored. An OAuth device has two: the access token (here as for a token) and the refresh token
- * ({@link #getRefreshPrefix()}). A revoked credential is deleted.
+ * ({@link #getRefreshPrefix()}). A revoked credential is deleted. A token an administrator made may have
+ * {@link #getScopes() administration scopes}.
  */
 @Entity
 @Table(name = "access_tokens")
@@ -57,6 +63,14 @@ public class AccessToken extends ExtendableEntity {
     @ExtendedAttribute
     @Transient
     private Date lastUsed;
+
+    /**
+     * The parts of the administration a {@link AccessTokenKind#TOKEN token} may use through the API, by name, comma separated
+     * (as Marginalia's {@code ApiKey}); null for none. Never rename an {@link AdminScope}: they are stored by name.
+     */
+    @ExtendedAttribute
+    @Transient
+    private String scopes;
 
     public String getName() {
         return name;
@@ -136,6 +150,26 @@ public class AccessToken extends ExtendableEntity {
 
     public void setLastUsed(Date lastUsed) {
         this.lastUsed = lastUsed;
+    }
+
+    /** Its administration scopes; a name that is no longer a scope is left out. */
+    public Set<AdminScope> getScopes() {
+        EnumSet<AdminScope> set = EnumSet.noneOf(AdminScope.class);
+        if (scopes != null) {
+            for (String name : scopes.split(",")) {
+                try {
+                    set.add(AdminScope.valueOf(name.strip()));
+                } catch (IllegalArgumentException e) {
+                    // a scope of a newer or older version
+                }
+            }
+        }
+        return set;
+    }
+
+    public void setScopes(Collection<AdminScope> scopes) {
+        this.scopes = scopes == null || scopes.isEmpty() ? null
+                : EnumSet.copyOf(scopes).stream().map(Enum::name).collect(Collectors.joining(","));
     }
 
     public boolean isExpired(long now) {

@@ -7,6 +7,7 @@ covers:
   - joi-protocol/src/main/java/com/github/enerccio/joi/protocol
   - joi-protocol/src/test/java/com/github/enerccio/joi/protocol/swift
   - joi-ios/Packages/JoiProtocol
+  - joi-server/src/main/java/com/github/enerccio/joi/api/JoiAdminApi.java
 verified: d276400
 ---
 
@@ -29,7 +30,7 @@ changes the schema, the record and the docs together with the code.**
 
 ## Versioning
 
-`JoiProtocol.VERSION` is `major.minor` (now 1.12), sent in the handshake. A minor version only adds things; both sides ignore fields and message types they
+`JoiProtocol.VERSION` is `major.minor` (now 1.13), sent in the handshake. A minor version only adds things; both sides ignore fields and message types they
 do not know. The server supports at least the previous major version and says so when a node is too old.
 
 ## The HTTP API
@@ -45,6 +46,8 @@ do not know. The server supports at least the previous major version and says so
 | `GET /api/v1/models/{id}/joim`, `GET /api/v1/bodies/{id}/joia` | stream the files from disk, with the hash as the ETag (304 to `If-None-Match`) |
 | `GET .../tasks`, `.../tasks/{task}`, `POST .../approve`, `.../deny`, `.../cancel` | her tasks; answer one (`approve` with `{always: true}` is the standing approval) |
 | `GET/PUT/DELETE .../auto-approved[/{tool}]` | the standing approvals |
+| `GET/POST /api/v1/admin/update`, `GET .../update/log` | the update of the installation (1.13, scope `update`) |
+| `GET /api/v1/admin/extensions[/{jar}]`, `PUT/DELETE .../{jar}`, `POST .../{jar}/stop`, `.../start`, `GET .../{jar}/log` | the extensions (1.13, scope `extensions`): list, install or replace (the JAR as the body), remove, stop, start, the log |
 
 A file to download is its URL, SHA-256, size, time and whether it is **current** (it holds what is set up now; else it is written again on the Exit of its
 dialog). A task or file of another user is 404; a call that does not fit the status is 409 `conflict`.
@@ -56,6 +59,17 @@ is the device grant (RFC 8628): the device asks `/oauth/device_authorization` fo
 `/oauth/token` and gets an access token (`joia_...`, an hour by default) and a refresh token (`joir_...`, 90 days; each refresh gives a new pair). **No auth** is the
 configuration's (`joi.api.no-auth`): a call without credentials acts as `joi.api.no-auth-user`, else the first administrator; a credential that is sent must
 still be valid. Credentials are `AccessToken` rows (prefix and SHA-256).
+
+**Administration (1.13).** Marginalia's `/admin` calls of its `ApiDispatcher`, in Joi's API: `JoiAdminApi`, called by `JoiApi.route` for a path that
+starts with `admin`. A token has administration scopes (`AdminScope`: `update`, `extensions`; `AccessToken.scopes`, an extended attribute, names
+comma separated as Marginalia's `ApiKey`). Only an administrator gives them (`AccessTokenService.create(name, expires, scopes)`, `AdminGuard`), and
+`authenticate` puts them in the `Principal` only for a `TOKEN` whose owner is an administrator now: an OAuth device, the local node and no auth have none.
+A call without its scope is 403 `forbidden`; `GET /api/v1/me` lists the scopes (`Me.scopes`). The update calls are the platform's `UpdateService`
+(409 `conflict` when `canRequest` is false); the extension calls are `OsgiService` (503 `unavailable` without it, as in the tests). `PUT .../{jar}` is
+streamed like an image: `JoiAdminApi.isExtensionUpload` tells `JoiApiServlet` to pass the stream on (256 MB, by `Content-Length` and again while it
+copies), the call checks the credentials, copies the body to a temporary file and hands its bytes to `OsgiService.installPackage` (the platform takes
+bytes); an `ExtensionVerificationException` is 422 `extension_rejected` with the report in the message. A `DELETE` answers 204. `JoiAdminApiTest` runs
+the calls on a stand-in for OSGi.
 
 **Profiles and outfits (1.12).** `GET .../body?node=<nodeId>` answers the body of the node's profile (see [Bodies and models](bodies.md)), `BodyInfo.outfits` lists the outfits (`BodyOutfit`), and the
 node frame `outfit` (`OutfitSwitch`, node to server) puts one on in the node's profile; `NodeServiceImpl.outfitSwitch` wears it, tells her as for a part and the `body` event goes to the nodes of that profile.

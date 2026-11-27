@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Enerccio/joi/protocol/v1/ExtensionList.schema.json",
+  "title": "ExtensionList",
+  "description": "GET /api/v1/admin/extensions (since 1.13): the extensions of the server.",
+  "type": "object",
+  "properties": {
+    "extensions": {
+      "type": "array",
+      "items": {
+        "$ref": "ExtensionInfo.schema.json"
+      }
+    }
+  },
+  "required": [
+    "extensions"
+  ]
+}

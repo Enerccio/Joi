@@ -467,6 +467,7 @@ public class JoiLocalizationBundleEN extends TextBundleBase<J_L> {
         setValue(J_L.ENUM_ACCESS_TOKEN_TOKEN, "Token");
         setValue(J_L.ENUM_ACCESS_TOKEN_OAUTH, "Device");
         setValue(J_L.ENUM_ACCESS_TOKEN_LOCAL, "This computer");
+        setValue(J_L.HELP_TOKEN_SCOPES, "The administration calls of the API (/api/v1/admin) this token may use. They work only while you are an administrator.");
 
         // --- HELP ---
         setValue(J_L.HELP_TEXT_LLM_TYPES, "What Joi may use this model for: Chat (the conversation, fast replies), Deep "

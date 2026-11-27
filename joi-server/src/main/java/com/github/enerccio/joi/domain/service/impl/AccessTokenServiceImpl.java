@@ -6,7 +6,9 @@ import com.github.enerccio.joi.domain.model.impl.AccessToken;
 import com.github.enerccio.joi.domain.repository.AccessTokenRepository;
 import com.github.enerccio.joi.domain.service.AccessTokenService;
 import com.github.enerccio.joi.domain.service.ApiAccessService;
+import com.github.enerccio.joi.protocol.http.AdminScope;
 import com.github.enerccio.joi.protocol.http.AuthMethod;
+import com.github.enerccio.marginalia.domain.security.AdminGuard;
 import com.github.enerccio.marginalia.domain.security.model.User;
 import com.github.enerccio.marginalia.domain.service.impl.ExtendableServiceImpl;
 import com.github.enerccio.marginalia.domain.traits.CommonTx;
@@ -19,6 +21,9 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
 import java.util.Base64;
+import java.util.Collection;
+import java.util.EnumSet;
+import java.util.Set;
 import java.util.Date;
 import java.util.HexFormat;
 
@@ -35,11 +40,23 @@ public class AccessTokenServiceImpl extends ExtendableServiceImpl<AccessToken, A
     @Autowired
     private ApiAccessService apiAccessService;
 
+    @Autowired
+    private AdminGuard adminGuard;
+
     @Override
     @CommonTx
     public Created create(String name, Date expires) throws Exception {
+        return create(name, expires, Set.of());
+    }
+
+    @Override
+    @CommonTx
+    public Created create(String name, Date expires, Collection<AdminScope> scopes) throws Exception {
         if (!apiAccessService.get().tokens()) {
             throw new IllegalStateException("Tokens are turned off");
+        }
+        if (scopes != null && !scopes.isEmpty()) {
+            adminGuard.requireAdmin();
         }
         String trimmed = checkedName(name);
         if (expires != null && expires.getTime() <= AppClock.now().getTime()) {
@@ -54,6 +71,7 @@ public class AccessTokenServiceImpl extends ExtendableServiceImpl<AccessToken, A
         token.setKeyPrefix(prefix);
         token.setSecretHash(hash(text));
         token.setExpires(expires);
+        token.setScopes(scopes);
         return new Created(save(token), text);
     }
 
@@ -175,7 +193,9 @@ public class AccessTokenServiceImpl extends ExtendableServiceImpl<AccessToken, A
             token.setLastUsed(new Date(now));
             token = saveWithoutModification(token);
         }
-        return new Principal(owner, token, kind == AccessTokenKind.TOKEN ? AuthMethod.TOKEN : AuthMethod.OAUTH);
+        // the administration only for a token, and only while its owner is an administrator
+        Set<AdminScope> scopes = kind == AccessTokenKind.TOKEN && owner.isAdmin() ? token.getScopes() : EnumSet.noneOf(AdminScope.class);
+        return new Principal(owner, token, kind == AccessTokenKind.TOKEN ? AuthMethod.TOKEN : AuthMethod.OAUTH, Set.copyOf(scopes));
     }
 
     @Override

@@ -1,0 +1,11 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Enerccio/joi/protocol/v1/AdminScope.schema.json",
+  "title": "AdminScope",
+  "description": "A part of the administration a token may use (since 1.13): update (the update of the installation, /api/v1/admin/update), extensions (install, replace, stop, start, remove the extensions and read their logs, /api/v1/admin/extensions). Only an administrator gives them, and they work only while the owner of the token is one.",
+  "type": "string",
+  "enum": [
+    "update",
+    "extensions"
+  ]
+}

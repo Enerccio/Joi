@@ -331,6 +331,7 @@
         </property>
     </bean>
     <bean class="com.github.enerccio.joi.api.JoiApi" />
+    <bean class="com.github.enerccio.joi.api.JoiAdminApi" />
     <!-- the nodes connected over the WebSocket (api/NodeEndpoint): their tools, turns and calls -->
     <bean class="com.github.enerccio.joi.domain.service.impl.NodeServiceImpl" />
     <!-- the functions of her body: she changes a part of it herself -->

@@ -151,3 +151,4 @@ that is). Older rows name the commit itself.
 | | `b44da5a` | `claude-opus-5-5` |
 | | `b2f601d` | `claude-opus-5-5` |
 | | `88455e1` | `claude-opus-5-5` |
+| | `c0521a2` | `claude-opus-5-5` |

@@ -10,10 +10,13 @@ public struct Me: Codable, Hashable, Sendable {
     /// The full name, else the login.
     public var name: String
     public var method: AuthMethod
+    /// The parts of the administration the token may use, now (since 1.13): empty for a token without them, an OAuth device, the local node and no auth; null from a server before.
+    public var scopes: [AdminScope]?
 
-    public init(login: String, name: String, method: AuthMethod) {
+    public init(login: String, name: String, method: AuthMethod, scopes: [AdminScope]? = nil) {
         self.login = login
         self.name = name
         self.method = method
+        self.scopes = scopes
     }
 }
