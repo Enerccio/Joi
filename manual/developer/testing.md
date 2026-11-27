@@ -5,7 +5,7 @@ order: 690
 covers:
   - joi-server/src/test
   - joi-node/src/test
-verified: 8a79b10
+verified: e9c559a
 ---
 
 # Testing
@@ -56,7 +56,7 @@ registered on the turn must be unregistered after the test: the chat service is 
 | `ui` | dialogs and parts, driven without a browser |
 | images | `ChatImagesTest` (pure: formats, EXIF, scaling, limits), `ChatImageApiTest` (the upload, a multimodal model gets the same data URLs in later prompts, the describer's note once, `no_vision`, limits, deleting), the say with an image in `NodeServiceTest`, the compose row in `JoiChatsPartTest`; the node's `NodeSocketTest`, `ServerClientTasksTest` and `UnixSocketTest`; the app's `ImagePreparerTests` and `ChatModelTests` |
 
-`joi-node`'s tests: `renderer/RendererServerTest` runs the renderer's server against a fake page (the play message with its face, her eyes and mood, her voice for the mouth), `fx/LineOutputTest` runs her voice's output line on fake lines (a healthy one, one on a device that is gone, a stop while it is stuck), `voice/` tests the voice input: `UtteranceDetectorTest`, `VoiceInputTest` and `VoiceModelsTest` (a download against an HTTP server of the test) with no model or microphone, and `SherpaVoiceTest` with the real models on a recording, skipped unless `JOI_VOICE_TEST_HOME` and `JOI_VOICE_TEST_WAV` are set (see [Voice in](voice.md)), `local/UnixSocketTest` runs `UnixHttp` and `UnixWebSocket` against a server of its own on a Unix socket, `ServerClientLocalTest` the local sign-in against a fake one,
+`joi-node`'s tests: `harness/HarnessTest` runs the harness on a home and a node home in a temporary folder (the tiers, `..` and links, denied paths and the node's home, the session, the audit, a policy that cannot be read, real commands with their timeout and cancel; skipped on Windows where it needs links or `sh`), `renderer/RendererServerTest` runs the renderer's server against a fake page (the play message with its face, her eyes and mood, her voice for the mouth), `fx/LineOutputTest` runs her voice's output line on fake lines (a healthy one, one on a device that is gone, a stop while it is stuck), `voice/` tests the voice input: `UtteranceDetectorTest`, `VoiceInputTest` and `VoiceModelsTest` (a download against an HTTP server of the test) with no model or microphone, and `SherpaVoiceTest` with the real models on a recording, skipped unless `JOI_VOICE_TEST_HOME` and `JOI_VOICE_TEST_WAV` are set (see [Voice in](voice.md)), `local/UnixSocketTest` runs `UnixHttp` and `UnixWebSocket` against a server of its own on a Unix socket, `ServerClientLocalTest` the local sign-in against a fake one,
 `LocalModeTest` and `NodeInstanceTest` (with a second JVM that holds the lock). `joi-desktop`'s `DesktopLauncherTest` (the launcher's options, places and Jetty base) runs with
 `mvn test -Pfx,desktop -pl joi-desktop`, which needs `joi-server` (the WAR) and `joi-node` installed in `~/.m2` (it is part of `package` in the reactor, and `-DskipTests` there skips it).
 

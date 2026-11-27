@@ -7,7 +7,7 @@ covers:
   - joi-server/src/main/java/com/github/enerccio/joi/domain/node
   - joi-server/src/main/java/com/github/enerccio/joi/api/NodeEndpoint.java
   - joi-server/src/main/frontend/joi-lipsync.js
-verified: 8a79b10
+verified: e9c559a
 ---
 
 # Writing a node
