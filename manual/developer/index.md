@@ -5,7 +5,7 @@ order: 800
 expanded: true
 covers:
   - DESIGN.md
-verified: 7197441
+verified: ad300a4
 ---
 
 # Developer guide

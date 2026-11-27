@@ -5,7 +5,7 @@ order: 690
 covers:
   - joi-server/src/test
   - joi-node/src/test
-verified: 7197441
+verified: ad300a4
 ---
 
 # Testing
