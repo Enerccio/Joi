@@ -1,5 +1,6 @@
 package com.github.enerccio.joi.node.fx;
 
+import com.github.enerccio.joi.node.harness.Harness;
 import com.github.enerccio.joi.node.*;
 import com.github.enerccio.joi.node.renderer.BodyFiles;
 import com.github.enerccio.joi.node.renderer.LookingGlassTuning;
@@ -94,6 +95,12 @@ public class JoiNodeApp extends Application {
         clipAllow.setToggleGroup(clipGroup);
         clipMenu.setDisable(true);
     }
+    /** The harness's settings (files, the shell, the user's folders): it works once she is loaded. */
+    private final MenuItem harnessItem = new MenuItem("Files and shell…") {
+        {
+            setDisable(true);
+        }
+    };
     /** The menu item of the tools approved ahead of time: it works once she is loaded. */
     private final MenuItem approvals = new MenuItem("Auto-approved tools…") {
         {
@@ -249,7 +256,7 @@ public class JoiNodeApp extends Application {
         MenuItem copy = editItem("Copy", KeyCode.C, TextInputControl::copy);
         MenuItem paste = editItem("Paste", KeyCode.V, TextInputControl::paste);
         MenuItem all = editItem("Select All", KeyCode.A, TextInputControl::selectAll);
-        MenuBar bar = new MenuBar(new Menu("Edit", null, cut, copy, paste, new SeparatorMenuItem(), all), new Menu("Joi", null, approvals, notifyMenu, clipMenu));
+        MenuBar bar = new MenuBar(new Menu("Edit", null, cut, copy, paste, new SeparatorMenuItem(), all), new Menu("Joi", null, approvals, notifyMenu, clipMenu, harnessItem));
         bar.setUseSystemMenuBar(true);
         return bar;
     }
@@ -767,7 +774,12 @@ public class JoiNodeApp extends Application {
         });
         notifyMenu.setDisable(false);
         ClipboardOffers clipboardOffers = new ClipboardOffers(settings, JoiNodeApp::copyToClipboard, (title, text, seconds) -> askClipboard(title, text, seconds));
-        nodeTools = new NodeTools(notifications, clipboardOffers);
+        Harness harness = new Harness(settings.dir(), (question, seconds) -> HarnessDialogs.ask(stage, question, seconds), "click");
+        java.util.List<com.github.enerccio.joi.node.NodeTool> tools = new java.util.ArrayList<>(java.util.List.of(notifications, clipboardOffers));
+        tools.addAll(harness.tools());
+        nodeTools = new NodeTools(tools);
+        harnessItem.setOnAction(e -> HarnessDialogs.settings(stage, harness, chat::note));
+        harnessItem.setDisable(false);
         clipOff.setSelected(clipboardOffers.mode() == ClipboardOffers.Mode.OFF);
         clipAsk.setSelected(clipboardOffers.mode() == ClipboardOffers.Mode.ASK);
         clipAllow.setSelected(clipboardOffers.mode() == ClipboardOffers.Mode.ALLOW);
@@ -1205,6 +1217,11 @@ public class JoiNodeApp extends Application {
                     @Override
                     public void manifest(Manifest changed) {
                         socket.manifest(changed);
+                    }
+
+                    @Override
+                    public void progress(String callId, String message) {
+                        socket.progress(callId, message);
                     }
                 });
                 socket.localSocket(client.localSocket());

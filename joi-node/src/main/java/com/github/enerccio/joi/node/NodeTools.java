@@ -22,6 +22,20 @@ public final class NodeTools {
         void approval(String callId, ApprovalState state, String scope, String via);
 
         void manifest(Manifest manifest);
+
+        /** A call still runs (a long command): its timeout on the server starts again. */
+        default void progress(String callId, String message) {
+        }
+    }
+
+    /** The user's answer to a call of the harness: no, this once, or the same again until the node quits. */
+    public enum Scope {
+        DENIED, ONCE, SESSION
+    }
+
+    /** The user's answer to a call that may be allowed for the session; waits for it. */
+    public interface ScopedAnswer {
+        Scope get() throws InterruptedException;
     }
 
     /** The user's answer to a call that asks: true to go on; waits for it. */
@@ -34,7 +48,11 @@ public final class NodeTools {
     private volatile Frames frames;
 
     public NodeTools(NodeTool... tools) {
-        this.tools = List.of(tools);
+        this(List.of(tools));
+    }
+
+    public NodeTools(List<NodeTool> tools) {
+        this.tools = List.copyOf(tools);
         this.tools.forEach(tool -> tool.bind(this));
     }
 
@@ -61,11 +79,49 @@ public final class NodeTools {
     }
 
     /** A choice changed: she is sent the new manifest. */
-    void changed() {
+    public void changed() {
         Frames to = frames;
         if (to != null) {
             to.manifest(manifest(version.incrementAndGet()));
         }
+    }
+
+    /** Tells the server that a call still runs; nothing when not connected. */
+    public void progress(String callId, String message) {
+        Frames to = frames;
+        if (to != null) {
+            to.progress(callId, message);
+        }
+    }
+
+    /**
+     * Asks the user about a call that may be allowed for the session: the server is told that it is asked, then the answer
+     * ({@code once} or {@code session}, or denied).
+     *
+     * @param via how the user answers ({@code click}, {@code keyboard}...)
+     */
+    public static Scope askScoped(NodeTools host, String callId, String via, ScopedAnswer answer) throws InterruptedException {
+        Frames to = host == null ? null : host.frames;
+        if (to != null) {
+            to.approval(callId, ApprovalState.ASKED, null, null);
+        }
+        Scope scope = Scope.DENIED;
+        try {
+            scope = answer.get();
+            if (scope == null) {
+                scope = Scope.DENIED;
+            }
+        } finally {
+            if (to != null) {
+                to.approval(callId, scope == Scope.DENIED ? ApprovalState.DENIED : ApprovalState.ALLOWED,
+                        switch (scope) {
+                            case DENIED -> null;
+                            case ONCE -> "once";
+                            case SESSION -> "session";
+                        }, via);
+            }
+        }
+        return scope;
     }
 
     /** A call of hers: to the tool of its name. */

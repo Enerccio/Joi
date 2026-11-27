@@ -33,7 +33,7 @@ Panels: `ui/bodies` (`AppearancePanel`, `SpringBonesPanel`, `ToggleGroupsPanel`,
 
 - UI classes are created with `new` and are `@Configurable`, with compile-time AspectJ weaving. Plain `javac` leaves the injected fields
   `null`.
-- UI changes from other threads go through `ui.access(...)`.
+- UI changes from other threads go through `ui.access(...)`. A refresh from another thread that calls services (they find the user in the session) runs in a copy of the page's request: `ThreadCopyRequestAttributes.create()` on the page's thread when the watch starts, then `InRequestScope` inside `ui.access`, as the Summaries and Tasks tabs of the Joi dialog do.
 - Texts are in the localization enum `loc/J_L` with `JoiLocalizationBundleEN`: every key has an English text. Never put a user-visible
   string in a class. The platform's own texts (`L`) say Joi where they name Marginalia through `loc/JoiLocalizationOverride`, a
   `LocalizationOverride` bean of the platform (a replacement for every language, a few texts of Joi's own); a text of the platform changes there,

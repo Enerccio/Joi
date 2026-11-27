@@ -22,7 +22,7 @@ A dialog shows the title of the task, the tool and what it does, what she asked 
 
 A notification she asks to show (see [Notifications](notifications.md)) is asked about in a dialog too: **She wants to notify you**,
 with **Allow** and Deny. A text she offers for the clipboard (see [Clipboard offers](clipboard.md)) is asked about in a dialog that shows it:
-**Copy** or Don't copy.
+**Copy** or Don't copy. A file she reads outside your folders, a file she writes and a command she runs (see [Files and shell](harness.md)) are asked about with **Allow once**, **Allow for session** and **Deny**.
 
 ## The list of auto-approved tools
 

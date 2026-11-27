@@ -40,6 +40,10 @@ Type a line and press Return: it is your message. Her reply streams in; her anim
 | `/notify test` | shows a test notification |
 | `/clipboard` | says whether she may offer texts for the clipboard |
 | `/clipboard off`, `/clipboard ask`, `/clipboard allow` | sets it; an offer is answered with `/yes` or `/no` |
+| `/files`, `/shell`, `/roots` | say what the harness lets her do (see [Files and shell](harness.md)) |
+| `/files on`, `/files off`, `/shell ask`, `/shell off` | turn the file tools and the shell on or off |
+| `/roots add <path>`, `/roots remove <path>` | your folders, where she reads without asking |
+| `/session` | answers a call of the harness: allowed, and the same again until the node quits (`/yes` is once, `/no` denies) |
 
 When a task of hers waits for your answer the node prints the question: the title, the tool, what it does, what she asked for and
 the page. See [Answering her questions](approvals.md).

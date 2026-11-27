@@ -133,6 +133,8 @@ public class NodeSocket {
     private final Listener listener;
     private Function<ToolCall, ToolResult> tools = call -> new ToolResult(call.callId(), false,
             "This node has no tool " + call.tool(), "unknown_tool");
+    /** The calls that run now, by call id: a {@code tool_cancel} interrupts the thread (a command is killed, a question closed). */
+    private final Map<String, Thread> running = new ConcurrentHashMap<>();
     private volatile WebSocket socket;
     /** Where frames go; the WebSocket by default, a test's own otherwise. */
     private Consumer<String> out = this::sendText;
@@ -404,6 +406,11 @@ public class NodeSocket {
         send(NodeMessage.APPROVAL, null, null, new com.github.enerccio.joi.protocol.node.Approval(callId, state, scope, via));
     }
 
+    /** Tells the server that a call still runs (it restarts the call's timeout); message null for none. */
+    public void progress(String callId, String message) {
+        send(NodeMessage.TOOL_PROGRESS, null, null, new ToolProgress(callId, message));
+    }
+
     /** Sends a newer manifest (its version higher than the last); it is the one sent when connecting again. */
     public void manifest(Manifest manifest) {
         this.manifest = manifest;
@@ -616,8 +623,12 @@ public class NodeSocket {
             case TASK -> listener.task(data(frame, com.github.enerccio.joi.protocol.http.TaskInfo.class));
             case TOOL_CALL -> call(data(frame, ToolCall.class));
             case TOOL_CANCEL -> {
-                // the tools of this node finish quickly; a long one would stop here (data(frame, ToolCancel.class))
-                data(frame, ToolCancel.class);
+                ToolCancel cancel = data(frame, ToolCancel.class);
+                Thread thread = cancel == null || cancel.callId() == null ? null : running.get(cancel.callId());
+                if (thread != null) {
+                    // the call still answers, with cancelled
+                    thread.interrupt();
+                }
             }
             case PING -> send(NodeMessage.PONG, null, frame.id(), null);
             default -> {
@@ -627,15 +638,23 @@ public class NodeSocket {
     }
 
     private void call(ToolCall call) {
-        Thread.ofVirtual().name("Joi node tool " + call.tool()).start(() -> {
+        Thread thread = Thread.ofVirtual().name("Joi node tool " + call.tool()).unstarted(() -> {
             ToolResult result;
             try {
                 result = tools.apply(call);
             } catch (RuntimeException e) {
                 result = new ToolResult(call.callId(), false, String.valueOf(e.getMessage()), "failed");
+            } finally {
+                if (call.callId() != null) {
+                    running.remove(call.callId(), Thread.currentThread());
+                }
             }
             send(NodeMessage.TOOL_RESULT, null, null, result);
         });
+        if (call.callId() != null) {
+            running.put(call.callId(), thread);
+        }
+        thread.start();
     }
 
     private static <T> T data(Frame frame, Class<T> type) {

@@ -97,6 +97,7 @@ then, not only the parts', as an outfit sets toggles that are in no part. The re
 | `NodeTools`, `NodeTool` | the tools the user switches on: the manifest with the ones that are on (a new, higher version when a choice changes), the routing of a call by its name, the `approval` frames of a call that asks |
 | `Notifications` | the tool `notify`: off, ask or allow |
 | `ClipboardOffers`, `DesktopClipboard` | the tool `offer_to_clipboard`: off, ask or allow; the clipboard of the terminal node |
+| `harness/` | the harness: `Policy` (`policy.json`), `PathGuard` (real paths, roots, denied paths), `Audit` (`audit.jsonl`), `Harness` (the flow of a call), `FileTools` (`read_file`, `list_files`, `write_file`), `ShellTool` (`run_command`); see *The harness* below |
 | `TaskQuestions` | the tasks that wait for the user's answer |
 | `voice/` | voice in, push-to-talk: the microphone, Silero VAD, the end of an utterance, speech to text with sherpa-onnx, the download of the models; its setting is `voicePauseMs` in `node.json`. See [Voice in](voice.md) |
 | `PartStaging` | the staging of her parts |
@@ -129,6 +130,39 @@ looks at the same lock (`NodeInstance.running` is the model of the check it make
 `allow` of the clipboard tool copies without showing the text: what lands on a clipboard is pasted into a terminal or a form later, and the text can come from a web page through a task, so it is the user's informed choice (off by default, `ask` is the recommended one, the docs warn). The terminal node asks with `/yes` and `/no`, the JavaFX node with a dialog that shows the text (`askClipboard`), and copies on the JavaFX thread. `offer_to_clipboard(text, title?)` takes up to 100 000 characters (`ClipboardOffers.MAX_TEXT`, the same as a file of the server's workspace).
 
 The server can call a node's tool itself, not only through her function `<node>__<tool>`: `NodeService.sessionsWithTool` lists the nodes that offer it (the one with a turn running first) and `NodeService.callTool` runs it, with the turn id and the same timeout and cancellation. `offer_file_to_clipboard` (see [Server tools](tools.md)) is built on that.
+
+## The harness
+
+`node/harness` holds her tools for the machine's files and shell (DESIGN.md → Node → Harness). They are `NodeTool`s like
+`notify`: `Harness.tools()` goes into the same `NodeTools`. Each tool (`HarnessTool`) only **plans** a call. It resolves the path
+or reads the command, refuses what the policy denies or what has bad arguments (`Harness.Refused`), and otherwise returns a
+`Harness.Go`: whether the user is asked, what "allow for session" covers, the `Question` and the action. `Harness.execute` then does
+the rest the same way for every tool:
+
+1. A refusal is written to the audit and returned.
+2. If the call asks and the session does not cover it, the user is asked with `NodeTools.askScoped`, which sends the `approval`
+   frames with `once` or `session`. A `null` answer is no answer in time.
+3. The decision is written to the audit. If that fails, the call fails and nothing runs.
+4. The action runs, and its end (ok, error, exit code, bytes) is written.
+
+The policy is read from disk on every call and every manifest (`Policy.load`). A file that cannot be parsed is the defaults,
+with both tools off. `PathGuard` makes a path absolute (`~`, or a relative path under the first root), resolves the longest part
+that exists with `toRealPath()` and appends the rest (`PathGuard.real`). The call works on that path: a write opens it with
+`NOFOLLOW_LINKS`. `within` compares by names, and ignores case on macOS and Windows. The node's home is denied in code, not in
+the file.
+
+`ShellTool` runs `$SHELL -l -c` (else `/bin/zsh -l -c` on macOS, `/bin/sh -c`; `cmd.exe /c` on Windows). It sets the input to
+`/dev/null` and `PAGER=cat`, `GIT_PAGER=cat`, `TERM=dumb` and `NO_COLOR=1`. The output and the errors are read together into a
+`Capture` (32 000 characters from the start, 32 000 from the end). A `tool_progress` goes out every 15 s, through
+`NodeTools.progress` and `Frames.progress`, which restarts the server's timeout. At the timeout, or when the thread is interrupted,
+the process and its descendants are killed. `NodeSocket` keeps the thread of each running call by its id and interrupts it on a
+`tool_cancel`; the call still answers, with `cancelled`. The checks of a command (`deniedProgram`: a word between the shell's
+separators, without a folder or `.exe`; `deniedPath`: a denied path written out, from `~`, `$HOME`, `${HOME}` or
+`%USERPROFILE%`, as a whole name) are a backstop. The gate is the question.
+
+The terminal node asks with `/yes`, `/session` and `/no` (`JoiNodeCli.askHarness`), the JavaFX node with `fx/HarnessDialogs`
+(the question, and **Joi → Files and shell…**). `HarnessTest` covers the tiers, `..` and links, denied paths and the node's home,
+the session, the audit, a policy that cannot be read, and the shell's checks, timeout and cancel.
 
 ## Her mouth
 

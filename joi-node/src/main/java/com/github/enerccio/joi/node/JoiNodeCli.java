@@ -1,5 +1,7 @@
 package com.github.enerccio.joi.node;
 
+import com.github.enerccio.joi.node.harness.Harness;
+import com.github.enerccio.joi.node.harness.Policy;
 import com.github.enerccio.joi.protocol.JoiProtocol;
 import com.github.enerccio.joi.protocol.http.ApiError;
 import com.github.enerccio.joi.protocol.http.AutoApproval;
@@ -26,6 +28,7 @@ import java.io.InputStreamReader;
 import java.io.PrintStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -48,7 +51,9 @@ import java.util.concurrent.atomic.AtomicReference;
  * {@code /clipboard off|ask|allow} sets whether she may put text on the clipboard ({@link ClipboardOffers}; with {@code ask} each
  * offer is shown and asked about, {@code /yes} or {@code /no}),
  * {@code /notify off|ask|allow} sets whether she gets the notification tool ({@link Notifications}), {@code /notify test}
- * shows one; {@code /image <file> [words]} sends an image (streamed to the server) with the words.
+ * shows one; the harness ({@link Harness}, the files and the shell of this machine): {@code /files on|off}, {@code /shell ask|off},
+ * {@code /roots}, {@code /roots add <path>} and {@code /roots remove <path>}, and a call it asks about is answered with {@code /yes},
+ * {@code /session} (the same again until the node quits) or {@code /no}; {@code /image <file> [words]} sends an image (streamed to the server) with the words.
  * <p>
  * {@code java ... JoiNodeCli [http://server:port]}
  */
@@ -112,7 +117,11 @@ public final class JoiNodeCli {
         ClipboardOffers clipboardOffers = new ClipboardOffers(settings, new DesktopClipboard(),
                 (title, text, seconds) -> askYesNo(out, asking, "she offers you this for your clipboard (" + title + "):\n"
                         + ClipboardOffers.preview(text, 1500) + "\n", seconds));
-        NodeTools nodeTools = new NodeTools(notifications, clipboardOffers);
+        AtomicReference<CompletableFuture<NodeTools.Scope>> harnessAsking = new AtomicReference<>();
+        Harness harness = new Harness(settings.dir(), (question, seconds) -> askHarness(out, harnessAsking, question, seconds), "keyboard");
+        List<NodeTool> tools = new ArrayList<>(List.of(notifications, clipboardOffers));
+        tools.addAll(harness.tools());
+        NodeTools nodeTools = new NodeTools(tools);
         NodeSocket socket = new NodeSocket(new NodeSocket.Listener() {
             @Override
             public void turnStarted(String turn, String cause) {
@@ -212,6 +221,11 @@ public final class JoiNodeCli {
             public void manifest(Manifest changed) {
                 socket.manifest(changed);
             }
+
+            @Override
+            public void progress(String callId, String message) {
+                socket.progress(callId, message);
+            }
         });
         try {
             socket.localSocket(client.localSocket());
@@ -237,9 +251,18 @@ public final class JoiNodeCli {
                     return;
                 }
                 case "/stop" -> socket.stop(null);
-                case "/yes", "/no" -> {
+                case "/yes", "/no", "/session" -> {
+                    CompletableFuture<NodeTools.Scope> harnessAsked = harnessAsking.get();
                     CompletableFuture<Boolean> asked = asking.get();
-                    if (asked != null) {
+                    if (harnessAsked != null) {
+                        harnessAsked.complete(switch (line) {
+                            case "/yes" -> NodeTools.Scope.ONCE;
+                            case "/session" -> NodeTools.Scope.SESSION;
+                            default -> NodeTools.Scope.DENIED;
+                        });
+                    } else if ("/session".equals(line)) {
+                        out.println("[nothing asks now]");
+                    } else if (asked != null) {
                         asked.complete("/yes".equals(line));
                     } else {
                         answer(client, chosen.id(), questions, line, null);
@@ -271,6 +294,19 @@ public final class JoiNodeCli {
                         out.println("[not kept: " + e.getMessage() + "]");
                     }
                 }
+                case "/files", "/shell", "/roots" -> harnessState(harness);
+                case "/files on", "/files off", "/shell ask", "/shell off" -> {
+                    try {
+                        if (line.startsWith("/files")) {
+                            harness.setFiles(line.endsWith("on"));
+                        } else {
+                            harness.setShell(line.endsWith("ask"));
+                        }
+                        harnessState(harness);
+                    } catch (IOException e) {
+                        out.println("[not kept: " + e.getMessage() + "]");
+                    }
+                }
                 case "/tasks" -> tasks(client, chosen.id());
                 case "/auto" -> autoApproved(client, chosen.id(), null, null);
                 case "/sleep" -> {
@@ -281,6 +317,17 @@ public final class JoiNodeCli {
                 default -> {
                     if (line.startsWith("/no ")) {
                         answer(client, chosen.id(), questions, "/no", line.substring(4).strip());
+                    } else if (line.startsWith("/roots add ") || line.startsWith("/roots remove ")) {
+                        try {
+                            if (line.startsWith("/roots add ")) {
+                                harness.addRoot(line.substring(11).strip());
+                            } else {
+                                harness.removeRoot(line.substring(14).strip());
+                            }
+                            harnessState(harness);
+                        } catch (IOException e) {
+                            out.println("[not kept: " + e.getMessage() + "]");
+                        }
                     } else if (line.startsWith("/image ")) {
                         image(client, chosen.id(), socket, line.substring(7).strip());
                     } else if (line.startsWith("/auto ")) {
@@ -313,6 +360,32 @@ public final class JoiNodeCli {
             out.println("[the image was not sent: " + e.getMessage() + "]");
         } catch (IOException | InterruptedException e) {
             out.println("[the image was not sent: " + e.getMessage() + "]");
+        }
+    }
+
+    /** What the harness lets her do now. */
+    private void harnessState(Harness harness) {
+        Policy policy = harness.policy();
+        out.println("[files: " + (policy.filesOn() ? "on" : "off") + " (/files on or off); shell: " + (policy.shellOn() ? "ask" : "off")
+                + " (/shell ask or off); your folders: " + (policy.roots().isEmpty() ? "none" : String.join(", ", policy.roots()))
+                + " (/roots add or remove <path>); the policy is " + harness.policyFile() + ", the audit " + harness.auditFile() + "]");
+    }
+
+    /** Asks the user about a call of the harness on the terminal: /yes, /session or /no; null when no answer came in time. */
+    private static NodeTools.Scope askHarness(PrintStream out, AtomicReference<CompletableFuture<NodeTools.Scope>> asking,
+                                              Harness.Question question, long seconds) throws InterruptedException {
+        CompletableFuture<NodeTools.Scope> answer = new CompletableFuture<>();
+        asking.set(answer);
+        out.println("[asks] " + question.title() + ": " + question.target()
+                + (question.detail() == null ? "" : "\n" + question.detail())
+                + (question.warning() == null ? "" : "\n(" + question.warning() + ")")
+                + "\n - /yes, /session (the same until the node quits) or /no");
+        try {
+            return answer.get(seconds, TimeUnit.SECONDS);
+        } catch (java.util.concurrent.ExecutionException | java.util.concurrent.TimeoutException e) {
+            return null;
+        } finally {
+            asking.compareAndSet(answer, null);
         }
     }
 

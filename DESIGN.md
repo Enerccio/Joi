@@ -1886,6 +1886,45 @@ enforces its harness again.
   (the policy file itself, sudo, system paths).
 - Local append-only audit log (`audit.jsonl`): request, resolved path / command, who approved, exit code.
 
+**Built (2026-11-27): files and the shell** (`node/harness`: `Policy`, `PathGuard`, `Audit`, `Harness`, `FileTools`,
+`ShellTool`). All on the node; the server only routes the calls (the tier is shown to her, an asked call waits for the
+user, `tool_progress` restarts the timeout, `tool_cancel` stops it). No change of the protocol.
+
+- **The policy** is `<home>/policy.json`, written only by the node's own UI (or by hand); nothing from the server reaches it.
+  It is read again on every call, so a hand edit applies at once. Its keys: `files` (`off`, the default, or `on`), `shell`
+  (`off`, the default, or `ask`), `roots` (the user's folders, none by default), `denied` (never read nor written),
+  `deniedWrites` (system folders: readable, never written), `deniedCommands` (programs a command may not name). Both off: no
+  tool in the manifest, she does not know they exist.
+- **The tools:** `read_file` (a text file, by lines: `offset`, `limit`, at most 2000 lines and 100 000 characters a call; a
+  binary file is refused), `list_files` (a folder, up to 500 entries), `write_file` (a whole text file, up to 1 000 000
+  characters, `create_folders` optional) and `run_command` (a command line in the user's login shell, `cwd` and
+  `timeout_seconds` optional, 60 by default, at most 600).
+- **Tiers:** reads and lists inside a root are ALLOW, elsewhere ASK (the manifest says `depends`, or `ask` with no roots).
+  Every write and every command is ASK. DENY, whatever she asks: a denied path, a write under a denied-for-writes path,
+  the node's home (its credentials, the policy, the audit: hard-coded, not in the file), a command that names a denied
+  program (`sudo`, `su`, `doas`, `pkexec`, `runas` by default, matched as words between the shell's separators) or
+  contains a denied path or the node's home. The command check is a backstop: the real gate is the user, who reads the command.
+- **Paths:** `~` is the user's home, a relative path is under the first root (else the home). The longest part that
+  exists is resolved with `toRealPath()` and the rest appended, so `..` and links cannot escape; the call works on that
+  resolved path, and a write opens it with `NOFOLLOW_LINKS`. On macOS and Windows the checks ignore case. The default
+  denied list: SSH, GnuPG, cloud and container credentials (`.aws`, `.azure`, `gcloud`, `.kube`, `.docker`), `.netrc`,
+  `.git-credentials`, the GitHub CLI's config, `.npmrc`, `.pypirc`, Maven's `settings.xml` and `settings-security.xml`,
+  the password store, the macOS keychains and cookies, and the browsers' profiles.
+- **Asking:** the user sees what (the tool, the resolved path or the command and its folder, a preview of what is written)
+  and answers **Allow once**, **Allow for session** (the same tool on the same target, until the node quits: the same
+  folder for reads, the same file for writes, the same command line for the shell) or **Deny**; no answer in two minutes
+  is a no. The `approval` frames carry `once` or `session`.
+- **The shell:** `$SHELL -l -c <command>` (the login shell, so the user's PATH), else `/bin/sh -c`; `cmd.exe /c` on
+  Windows. No input, output and errors together, kept to 64 000 characters (the start and the end); a `tool_progress`
+  every 15 s; at the timeout or a `tool_cancel` the process and its children are killed.
+- **The audit** is `<home>/audit.jsonl`, appended: a JSON line when a call is decided and one when it ends. Time, call, turn, tool, the resolved target
+  (or the command and its folder), the decision (`allow`, `ask`, `deny`) and the answer (`once`, `session`, `denied`,
+  `no_answer`), how it was answered, ok, the error, the exit code, bytes. Never the content. A call whose line cannot be
+  written does not run.
+- **UI:** the terminal node `/files on|off`, `/shell ask|off`, `/roots`, `/roots add <path>`, `/roots remove <path>`, an asked
+  call answered with `/yes`, `/session` or `/no`; the JavaFX node **Joi → Files and shell…** (the two switches and the
+  folders) and a dialog with the three buttons.
+
 ### Web
 
 Search and fetch can run **on the server** (when enabled for the assistant) or **on a node**:
@@ -2395,9 +2434,10 @@ with avatars whose shaders match the installed Poiyomi.
 
 **The first production version** (decided 2026-11-21) is the server with text chat, the avatar, memory and the summaries.
 Before it: the node's `--joi-home-dir` / `JOI_HOME_DIR` (built), a deployment guide and the Docker image (`Dockerfile`, written 2026-11-21; deployed and
-running on the user's server since 2026-11-27; still to try: a restore of a backup on another machine), the first full verification pass
+running on the user's server since 2026-11-27; a restore works as Marginalia's: the server was set up by copying the data folder), the first full verification pass
 (`verification.md`). The Flyway V1 freeze is done (2026-11-23): `V1__platform.sql` is never edited again, later changes are V2 and up. **After it,** because each is an addition and none changes the server's schema: the node's harness
-(it is only more tools in the manifest; ship it whole, with its ALLOW / ASK / DENY policy and audit), voice in (audio in is
+(it is only more tools in the manifest; ship it whole, with its ALLOW / ASK / DENY policy and audit; files and the shell built
+2026-11-27, see Node → Harness), voice in (audio in is
 a new minor version of the protocol), and the privacy mode (not built at all yet; see Privacy mode).
 
 **Packaging** (2026-11-22): the desktop app (`joi-desktop`, see *The desktop app* under Node) and the GitHub builds (`server.yml`: the WAR, the
