@@ -282,7 +282,7 @@ import Testing
 
     @Test func hello1() throws {
         let json = #"""
-{"protocol":"1.13","nodeId":"6f1d-4c2a","name":"desk","kind":"desktop","software":"joi-node 0.1.0","joi":"2f0c","parts":["tools","audio-out","approvals"],"token":null,"resumed":null,"resume":null}
+{"protocol":"1.14","nodeId":"6f1d-4c2a","name":"desk","kind":"desktop","software":"joi-node 0.1.0","joi":"2f0c","parts":["tools","audio-out","approvals"],"token":null,"resumed":null,"resume":null}
 """#
         try roundTrip(Hello.self, json)
     }
@@ -492,14 +492,21 @@ import Testing
 
     @Test func toolResult1() throws {
         let json = #"""
-{"callId":"c1","ok":true,"content":"milk, eggs","error":null}
+{"callId":"c1","ok":true,"content":"milk, eggs","error":null,"images":null}
 """#
         try roundTrip(ToolResult.self, json)
     }
 
     @Test func toolResult2() throws {
         let json = #"""
-{"callId":"c2","ok":false,"content":"The user said no","error":"denied"}
+{"callId":"c2","ok":false,"content":"The user said no","error":"denied","images":null}
+"""#
+        try roundTrip(ToolResult.self, json)
+    }
+
+    @Test func toolResult3() throws {
+        let json = #"""
+{"callId":"c3","ok":true,"content":"The picture /Users/me/cat.jpg (1200x800) is shown to you after the results.","error":null,"images":["img1"]}
 """#
         try roundTrip(ToolResult.self, json)
     }
@@ -541,7 +548,7 @@ import Testing
 
     @Test func frame1() throws {
         let json = #"""
-{"type":"hello","id":null,"ref":null,"data":{"protocol":"1.13","nodeId":"6f1d-4c2a","name":"desk","kind":"desktop","software":"joi-node 0.1.0","joi":"2f0c","parts":["tools","audio-out","approvals"],"token":null,"resumed":null,"resume":null}}
+{"type":"hello","id":null,"ref":null,"data":{"protocol":"1.14","nodeId":"6f1d-4c2a","name":"desk","kind":"desktop","software":"joi-node 0.1.0","joi":"2f0c","parts":["tools","audio-out","approvals"],"token":null,"resumed":null,"resume":null}}
 """#
         try roundTrip(Frame.self, json)
         try typedFrame(json)

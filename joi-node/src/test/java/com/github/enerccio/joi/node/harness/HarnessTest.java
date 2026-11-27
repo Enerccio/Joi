@@ -331,4 +331,49 @@ class HarnessTest {
         small.append("abcdefg".toCharArray(), 7);
         assertThat(small.text()).isEqualTo("abcdefg");
     }
+
+    @Test
+    void aPictureIsUploadedAndItsIdComesWithTheResultAsTheUsersChoiceSays() throws Exception {
+        filesOn();
+        // not offered until the node knows how pictures reach the server
+        assertThat(tools.manifest().tools()).extracting(d -> d.name()).doesNotContain("view_image");
+        List<Path> uploaded = new CopyOnWriteArrayList<>();
+        harness.imageUploader(file -> {
+            uploaded.add(file);
+            return "img" + uploaded.size();
+        });
+        assertThat(tools.manifest().tools()).extracting(d -> d.name()).contains("view_image");
+        Path cat = Files.write(root.resolve("cat.png"), new byte[]{1, 2, 3});
+        Path dog = Files.write(outside.resolve("dog.jpg"), new byte[]{4, 5});
+
+        // in the user's folders: silent
+        ToolResult seen = call("view_image", "{\"path\":\"" + arg(cat) + "\"}");
+        assertThat(seen.ok()).isTrue();
+        assertThat(seen.images()).containsExactly("img1");
+        assertThat(seen.content()).contains("cat.png").contains("after the results");
+        assertThat(asked).isEmpty();
+        // elsewhere: asked
+        assertThat(call("view_image", "{\"path\":\"" + arg(dog) + "\"}").images()).containsExactly("img2");
+        assertThat(asked).hasSize(1);
+        // allowed anywhere: not asked; asked each time: asked in the folders too
+        harness.setImages("allow");
+        assertThat(call("view_image", "{\"path\":\"" + arg(dog) + "\"}").ok()).isTrue();
+        assertThat(asked).hasSize(1);
+        harness.setImages("ask");
+        assertThat(call("view_image", "{\"path\":\"" + arg(cat) + "\"}").ok()).isTrue();
+        assertThat(asked).hasSize(2);
+        harness.setImages("off");
+        assertThat(tools.manifest().tools()).extracting(d -> d.name()).doesNotContain("view_image");
+        harness.setImages("folders");
+        assertThat(harness.policy().images).isNull();
+
+        // not a picture, a denied path: refused without asking or uploading
+        Files.writeString(root.resolve("notes.txt"), "x");
+        assertThat(call("view_image", "{\"path\":\"" + arg(root.resolve("notes.txt")) + "\"}").error()).isEqualTo("bad_arguments");
+        Files.write(home.resolve(".ssh/key.png"), new byte[]{1});
+        assertThat(call("view_image", "{\"path\":\"" + arg(home.resolve(".ssh/key.png")) + "\"}").error()).isEqualTo("denied");
+        assertThat(uploaded).hasSize(4);
+        assertThat(asked).hasSize(2);
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> harness.setImages("sometimes")).isInstanceOf(IllegalArgumentException.class);
+    }
 }

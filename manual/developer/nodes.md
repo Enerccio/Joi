@@ -98,7 +98,7 @@ then, not only the parts', as an outfit sets toggles that are in no part. The re
 | `NodeTools`, `NodeTool` | the tools the user switches on: the manifest with the ones that are on (a new, higher version when a choice changes), the routing of a call by its name, the `approval` frames of a call that asks |
 | `Notifications` | the tool `notify`: off, ask or allow |
 | `ClipboardOffers`, `DesktopClipboard` | the tool `offer_to_clipboard`: off, ask or allow; the clipboard of the terminal node |
-| `harness/` | the harness: `Policy` (`policy.json`), `PathGuard` (real paths, roots, denied paths), `Audit` (`audit.jsonl`), `Harness` (the flow of a call), `FileTools` (`read_file`, `list_files`, `write_file`), `ShellTool` (`run_command`); see *The harness* below |
+| `harness/` | the harness: `Policy` (`policy.json`), `PathGuard` (real paths, roots, denied paths), `Audit` (`audit.jsonl`), `Harness` (the flow of a call), `FileTools` (`read_file`, `list_files`, `write_file`, `view_image`), `ShellTool` (`run_command`); see *The harness* below |
 | `browser/` | the browser companion's plumbing: `BrowserLink` (the node's socket `browser.sock`), `NativeHost` (Firefox's native messaging host), `BrowserHost` (Connect Firefox: the launcher and the host's manifest); the tools are `harness/BrowserTools`. See *The browser companion* below |
 | `TaskQuestions` | the tasks that wait for the user's answer |
 | `voice/` | voice in, push-to-talk: the microphone, Silero VAD, the end of an utterance, speech to text with sherpa-onnx, the download of the models; its setting is `voicePauseMs` in `node.json`. See [Voice in](voice.md) |
@@ -162,9 +162,17 @@ the process and its descendants are killed. `NodeSocket` keeps the thread of eac
 separators, without a folder or `.exe`; `deniedPath`: a denied path written out, from `~`, `$HOME`, `${HOME}` or
 `%USERPROFILE%`, as a whole name) are a backstop. The gate is the question.
 
+`FileTools.ViewImage` (`view_image`) is offered when the files are on, the policy's `images` tier (`Policy.imagesTier`: `allow`,
+`folders` (the default, `null` in the file), `ask`, `off`; an unknown word is off) is not off and the node has set an
+`Harness.ImageUploader`. The JavaFX and the terminal node set one when they connect: it uploads the file with
+`ServerClient.uploadImage` (`POST .../images`) and answers the id. The tool refuses what is not a picture by its extension or
+is over 20 MB, asks by the tier (session key: the folder), uploads the picture and answers a `ToolResult` with the id in
+`images` (protocol 1.14). The server shows the picture to her after the round's results (see [A chat turn](chat-turn.md)).
+`Harness.setImages` writes the tier, from **Pictures she may look at** in the dialog or `/images`.
+
 The terminal node asks with `/yes`, `/session` and `/no` (`JoiNodeCli.askHarness`), the JavaFX node with `fx/HarnessDialogs`
 (the question, and **Joi → Files and shell…**). `HarnessTest` covers the tiers, `..` and links, denied paths and the node's home,
-the session, the audit, a policy that cannot be read, and the shell's checks, timeout and cancel.
+the session, the audit, a policy that cannot be read, the shell's checks, timeout and cancel, and `view_image` by its tiers.
 
 ## The browser companion
 

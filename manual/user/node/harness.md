@@ -13,6 +13,7 @@ off until you turn it on, and the node decides every call itself, under a policy
 |---|---|---|
 | `read_file` | read a text file, by lines (up to 2000 lines a call) | not inside your folders; every time elsewhere |
 | `list_files` | see what a folder holds | not inside your folders; every time elsewhere |
+| `view_image` | look at a picture (PNG, JPEG, GIF, BMP, WebP, TIFF, HEIC; up to 20 MB) | as you chose under *Pictures* below |
 | `write_file` | write a whole text file, new or replacing one | every time |
 | `run_command` | run a command line in your shell (60 s by default, at most 10 minutes) | every time |
 
@@ -32,6 +33,23 @@ In the terminal node:
 | `/files on`, `/files off` | the file tools |
 | `/shell ask`, `/shell off` | the shell tool |
 | `/roots add <path>`, `/roots remove <path>` | your folders (`~` is your home) |
+| `/images allow`, `/images folders`, `/images ask`, `/images off` | the pictures she may look at (see below) |
+
+## Pictures
+
+With **Files** on, she can also look at a picture on this machine. The node sends it to the server like a picture you send her
+in the chat, and she sees it after the results of her tools. If her chat model cannot see pictures, the describing model writes what
+the picture shows and she gets that text. **Pictures she may look at** in **Joi → Files and shell…** chooses when you are asked:
+
+| Choice | When you are asked |
+|---|---|
+| **Allow anywhere** | never (the paths she never gets stay refused) |
+| **In my folders, ask elsewhere** | outside your folders (the default) |
+| **Ask each time** | every time |
+| **Off** | she has no `view_image` |
+
+**Allow for session** covers the pictures of the same folder. She sees the picture only in the turn she asked for it; later she
+looks again.
 
 ## When you are asked
 
@@ -72,6 +90,7 @@ every call. A file the node cannot read allows nothing.
 {
   "files": "on",
   "shell": "ask",
+  "images": "folders",
   "roots": ["~/Projects", "~/Documents/notes"],
   "denied": ["~/.ssh", "~/Private"],
   "deniedWrites": ["/System", "/usr"],
@@ -91,4 +110,4 @@ write the audit, the call does not run.
 ## What the server sees
 
 The names of your folders go into the descriptions of her tools, so she knows where she can read. What she reads, and what a
-command prints, goes to her model like any tool result. A long output is cut to its first and last 32 000 characters.
+command prints, goes to her model like any tool result, and so does a picture she looks at. A long output is cut to its first and last 32 000 characters.

@@ -7,6 +7,7 @@ import com.github.enerccio.joi.domain.templates.ChatTemplateData;
 import com.github.enerccio.joi.domain.templates.MessageStampTemplateData;
 import com.github.enerccio.joi.domain.templates.ImageDescriptionTemplateData;
 import com.github.enerccio.joi.domain.templates.ImageNoteTemplateData;
+import com.github.enerccio.joi.domain.templates.ToolImagesTemplateData;
 import com.github.enerccio.joi.domain.templates.RecalledMemoriesTemplateData;
 import com.github.enerccio.joi.domain.templates.DaySummaryTemplateData;
 import com.github.enerccio.joi.domain.templates.FactsTemplateData;
@@ -72,6 +73,8 @@ public enum JoiPromptField {
             PersonaAttributes::setRecalledMemories, JoiDefaults::recalledMemories),
     IMAGE_NOTE("imageNote", ImageNoteTemplateData.class, PersonaAttributes::getImageNote,
             PersonaAttributes::setImageNote, JoiDefaults::imageNote),
+    TOOL_IMAGES("toolImages", ToolImagesTemplateData.class, PersonaAttributes::getToolImages,
+            PersonaAttributes::setToolImages, JoiDefaults::toolImages),
     IMAGE_DESCRIPTION_PROMPT("imageDescriptionPrompt", ImageDescriptionTemplateData.class, PersonaAttributes::getImageDescriptionPrompt,
             PersonaAttributes::setImageDescriptionPrompt, JoiDefaults::imageDescriptionPrompt),
     PART_REQUEST_EVENT("partRequestEvent", PartRequestTemplateData.class, PersonaAttributes::getPartRequestEvent,

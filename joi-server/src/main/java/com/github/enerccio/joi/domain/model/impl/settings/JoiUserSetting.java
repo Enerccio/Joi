@@ -117,6 +117,11 @@ public class JoiUserSetting extends BaseUserSetting implements PersonaAttributes
     @Transient
     private String imageNote;
 
+    /** What she is told with the pictures of her tools' results ({@code ToolImagesTemplateData}). */
+    @ExtendedAttribute
+    @Transient
+    private String toolImages;
+
     /** The request to a model that can see, to describe an image for one that cannot ({@code ImageDescriptionTemplateData}). */
     @ExtendedAttribute
     @Transient
@@ -558,6 +563,14 @@ public class JoiUserSetting extends BaseUserSetting implements PersonaAttributes
 
     public void setImageNote(String imageNote) {
         this.imageNote = imageNote;
+    }
+
+    public String getToolImages() {
+        return toolImages;
+    }
+
+    public void setToolImages(String toolImages) {
+        this.toolImages = toolImages;
     }
 
     public String getImageDescriptionPrompt() {

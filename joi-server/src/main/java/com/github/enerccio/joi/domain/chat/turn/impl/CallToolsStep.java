@@ -1,6 +1,14 @@
 package com.github.enerccio.joi.domain.chat.turn.impl;
 
 import com.github.enerccio.joi.domain.chat.ToolEffects;
+import com.github.enerccio.joi.domain.chat.ToolImages;
+import com.github.enerccio.joi.domain.model.impl.Joi;
+import com.github.enerccio.joi.domain.persona.JoiPromptField;
+import com.github.enerccio.joi.domain.service.ChatImageService;
+import com.github.enerccio.joi.domain.service.PersonaService;
+import com.github.enerccio.joi.domain.templates.ToolImagesTemplateData;
+import com.github.enerccio.marginalia.domain.service.impl.generation.dto.LLMAttachment;
+import com.github.enerccio.marginalia.domain.service.impl.generation.dto.LLMRole;
 import com.github.enerccio.joi.domain.chat.ToolUsage;
 import com.github.enerccio.joi.domain.chat.turn.TurnController;
 import com.github.enerccio.joi.domain.chat.turn.TurnEvents;
@@ -32,10 +40,21 @@ public class CallToolsStep extends TurnStepBase {
     @Autowired
     private JoiWorkspaceService workspaceService;
 
+    @Autowired
+    private ToolImages toolImages;
+
+    @Autowired
+    private ChatImageService chatImageService;
+
+    @Autowired
+    private PersonaService personaService;
+
     @Override
     protected void onStep(TurnController controller) throws Exception {
         List<LLMToolCall> calls = controller.getProperties().get(TurnProperties.ROUND_CALLS) instanceof List<?> list
                 ? list.stream().map(LLMToolCall.class::cast).toList() : List.of();
+        // a result that came after its turn was stopped left its pictures: they are not of this round
+        toolImages.take(controller.getJoi().getId());
         forEachAsync(controller, calls, (call, next) -> call(controller, call, next), () -> afterCalls(controller, calls));
     }
 
@@ -51,6 +70,14 @@ public class CallToolsStep extends TurnStepBase {
                 controller.getPayload().add(looked);
             }
         }
+        // the pictures of a node's results (tool_result.images): the same, in a message after the results
+        List<ToolImages.Shown> pictures = toolImages.take(controller.getJoi().getId());
+        if (!pictures.isEmpty()) {
+            LLMChatMessage message = toolImagesMessage(controller, pictures);
+            if (message != null) {
+                controller.getPayload().add(message);
+            }
+        }
         List<ToolUsage> usages = controller.getToolUsages();
         boolean said = StringUtils.isNotBlank((String) controller.getProperties().get(TurnProperties.ROUND_TEXT));
         boolean gestures = !calls.isEmpty() && calls.stream().allMatch(call -> ToolEffects.needsNoAnswer(call.getName()));
@@ -62,6 +89,50 @@ public class CallToolsStep extends TurnStepBase {
             return;
         }
         controller.jumpTo(TurnStepType.INFERENCE);
+    }
+
+    /**
+     * The pictures as her chat model takes them: attached when it sees, else described by the user's model that can see. A picture
+     * that is not the user's (or gone) is left out; null when none is left.
+     */
+    private LLMChatMessage toolImagesMessage(TurnController controller, List<ToolImages.Shown> pictures) throws Exception {
+        Joi joi = controller.getJoi();
+        boolean sees = controller.getAi().isMultimodal();
+        LLMChatMessage message = LLMChatMessage.of(LLMRole.USER, "");
+        java.util.LinkedHashSet<String> tools = new java.util.LinkedHashSet<>();
+        StringBuilder shows = new StringBuilder();
+        int shown = 0;
+        for (ToolImages.Shown picture : pictures) {
+            if (chatImageService.find(picture.image()) == null) {
+                log.debug("A picture of {} is not the user's or is gone: {}", picture.tool(), picture.image());
+                continue;
+            }
+            if (sees) {
+                LLMAttachment attachment = chatImageService.attachment(picture.image());
+                if (attachment == null) {
+                    continue;
+                }
+                message.addAttachment(attachment);
+            } else {
+                String note;
+                try {
+                    note = chatImageService.describe(joi, picture.image(), "");
+                } catch (Exception e) {
+                    note = "(it could not be described: " + e.getMessage() + ")";
+                }
+                shows.append(shows.isEmpty() ? "" : "\n").append(shown + 1).append(". ").append(note);
+            }
+            tools.add(picture.tool());
+            shown++;
+        }
+        if (shown == 0) {
+            return null;
+        }
+        ToolImagesTemplateData data = new ToolImagesTemplateData();
+        data.setTools(String.join(", ", tools));
+        data.setShows(shows.toString());
+        message.setContent(personaService.render(joi, JoiPromptField.TOOL_IMAGES, data));
+        return message;
     }
 
     private void call(TurnController controller, LLMToolCall call, TurnController.FromEventCallback next) {

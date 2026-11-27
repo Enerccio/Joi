@@ -29,6 +29,11 @@ public final class Policy {
     public String files;
     /** {@code ask}: she may run commands, each one asked about; {@code off} (null too): no shell tool. */
     public String shell;
+    /**
+     * Whether she may look at pictures ({@code view_image}, with files on): {@code allow} (anywhere but the denied paths, never asked),
+     * {@code folders} (silent in the user's folders, asked elsewhere; also when null), {@code ask} (each one asked) or {@code off}.
+     */
+    public String images;
     /** The user's folders: reads and lists inside them are silent, everything else is asked about. */
     public List<String> roots;
     /** Never read nor written (credentials, browser profiles). */
@@ -46,6 +51,15 @@ public final class Policy {
 
     public boolean filesOn() {
         return "on".equalsIgnoreCase(files == null ? null : files.strip());
+    }
+
+    /** The tier of {@code view_image}: {@code allow}, {@code folders} (the default), {@code ask} or {@code off} (an unknown word too). */
+    public String imagesTier() {
+        if (images == null || images.isBlank()) {
+            return "folders";
+        }
+        String t = images.strip().toLowerCase(java.util.Locale.ROOT);
+        return List.of("allow", "folders", "ask", "off").contains(t) ? t : "off";
     }
 
     public boolean browserOn() {

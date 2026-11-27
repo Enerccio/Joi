@@ -4,8 +4,8 @@
 
 /// The version and the paths of Joi's API.
 public enum JoiProtocolInfo {
-    public static let version = "1.13"
-    public static let nodeVersion = "1.13"
+    public static let version = "1.14"
+    public static let nodeVersion = "1.14"
     public static let api = "/api/v1"
     public static let node = "/api/v1/node"
     public static let oauth = "/oauth"

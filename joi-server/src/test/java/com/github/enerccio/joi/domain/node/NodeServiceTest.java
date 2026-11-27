@@ -80,6 +80,8 @@ class NodeServiceTest extends PlatformTestBase {
     @Autowired
     private PersonaService personaService;
     @Autowired
+    private com.github.enerccio.marginalia.domain.service.SettingService settingService;
+    @Autowired
     private QueuedEventService queuedEventService;
     @Autowired
     private WebTaskService webTaskService;
@@ -334,6 +336,50 @@ class NodeServiceTest extends PlatformTestBase {
         assertThat(node.next("error").getAsJsonObject("data").get("code").getAsString()).isEqualTo("not_found");
         nodeService.closed(node.session);
         assertThat(nodeService.sessions(joi)).isEmpty();
+    }
+
+    @Test
+    void thePicturesOfAToolResultAreShownToHerAfterTheResults() throws Exception {
+        chatModelSees();
+        Node node = readyNode();
+        String picture = image();
+        llm.enqueue(MockLLMResponse.text("").andToolCall("desk__note", "{\"text\":\"cat\"}"), MockLLMResponse.text("A black cat."));
+        node.frame("say", "t1", "{\"text\": \"Look at cat.png\", \"speak\": false}");
+        String callId = node.next("tool_call").getAsJsonObject("data").get("callId").getAsString();
+        // an id that is not one of the user's uploads is left out
+        node.frame("tool_result", null, "{\"callId\": \"" + callId + "\", \"ok\": true, \"content\": \"The picture is shown to you.\", "
+                + "\"images\": [\"" + picture + "\", \"not-an-upload\"]}");
+        node.next("done");
+        MockLLMRequest second = llm.getCompletionRequests().get(1);
+        assertThat(second.getRawBody().split("\"type\":\"image_url\"", -1).length - 1).isEqualTo(1);
+        assertThat(second.getRawBody()).contains("The pictures that came with the results of desk__note");
+        assertThat(second.getLastMessage().content()).contains("desk__note").doesNotContain("cannot see");
+        // the next round has none left
+        llm.enqueue(MockLLMResponse.text("Hi."));
+        node.frame("say", "t2", "{\"text\": \"Hi\", \"speak\": false}");
+        node.next("done");
+        assertThat(llm.getCompletionRequests().getLast().getRawBody()).doesNotContain("results of desk__note");
+    }
+
+    @Test
+    void aChatModelThatCannotSeeGetsThePicturesOfAToolResultDescribed() throws Exception {
+        com.github.enerccio.marginalia.domain.model.impl.OpenAICompatible describer = createAI();
+        describer.setMultimodal(true);
+        describer = (com.github.enerccio.marginalia.domain.model.impl.OpenAICompatible) aiService.save(describer);
+        com.github.enerccio.joi.domain.model.impl.settings.JoiUserSetting setting = personaService.getUserSetting();
+        setting.setReasoningModel(describer.getId());
+        settingService.save(setting);
+        Node node = readyNode();
+        String picture = image();
+        llm.enqueue(MockLLMResponse.text("").andToolCall("desk__note", "{\"text\":\"cat\"}"), MockLLMResponse.text("A black square."),
+                MockLLMResponse.text("It is a black square."));
+        node.frame("say", "t1", "{\"text\": \"Look\", \"speak\": false}");
+        String callId = node.next("tool_call").getAsJsonObject("data").get("callId").getAsString();
+        node.frame("tool_result", null, "{\"callId\": \"" + callId + "\", \"ok\": true, \"content\": \"Shown.\", \"images\": [\"" + picture + "\"]}");
+        node.next("done");
+        MockLLMRequest last = llm.getCompletionRequests().getLast();
+        assertThat(last.getRawBody()).doesNotContain("\"type\":\"image_url\"");
+        assertThat(last.getLastMessage().content()).contains("You cannot see them").contains("1. A black square.");
     }
 
     /** A node that is connected and ready, as the tests of the turns start. */

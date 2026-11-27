@@ -30,7 +30,7 @@ changes the schema, the record and the docs together with the code.**
 
 ## Versioning
 
-`JoiProtocol.VERSION` is `major.minor` (now 1.13), sent in the handshake. A minor version only adds things; both sides ignore fields and message types they
+`JoiProtocol.VERSION` is `major.minor` (now 1.14), sent in the handshake. A minor version only adds things; both sides ignore fields and message types they
 do not know. The server supports at least the previous major version and says so when a node is too old.
 
 ## The HTTP API
@@ -59,6 +59,13 @@ is the device grant (RFC 8628): the device asks `/oauth/device_authorization` fo
 `/oauth/token` and gets an access token (`joia_...`, an hour by default) and a refresh token (`joir_...`, 90 days; each refresh gives a new pair). **No auth** is the
 configuration's (`joi.api.no-auth`): a call without credentials acts as `joi.api.no-auth-user`, else the first administrator; a credential that is sent must
 still be valid. Credentials are `AccessToken` rows (prefix and SHA-256).
+
+**Pictures in a tool result (1.14).** `ToolResult.images` (up to four ids of images uploaded with `POST .../images`) carries pictures with a
+node tool's result, as the node's `view_image` does. A result is text for the model, so `NodeServiceImpl.result` puts the ids into
+`ToolImages` (per assistant: her turns run one at a time), and `CallToolsStep` takes them after the round's calls and adds one message:
+the pictures as attachments for a multimodal chat model, else the describing model's notes (`ChatImageService.describe`), in the
+template `TOOL_IMAGES` (`ToolImagesTemplateData`: `tools`, `shows`). The message stays in that turn only. An id that is not the
+user's image is skipped. A node older than 1.14 sends no `images`.
 
 **Administration (1.13).** Marginalia's `/admin` calls of its `ApiDispatcher`, in Joi's API: `JoiAdminApi`, called by `JoiApi.route` for a path that
 starts with `admin`. A token has administration scopes (`AdminScope`: `update`, `extensions`; `AccessToken.scopes`, an extended attribute, names

@@ -80,6 +80,10 @@ public interface PersonaAttributes {
 
     void setImageNote(String imageNote);
 
+    String getToolImages();
+
+    void setToolImages(String toolImages);
+
     String getImageDescriptionPrompt();
 
     void setImageDescriptionPrompt(String imageDescriptionPrompt);

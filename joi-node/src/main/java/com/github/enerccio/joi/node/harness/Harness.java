@@ -113,7 +113,7 @@ public final class Harness {
         this.asker = asker;
         this.via = via;
         this.audit = new Audit(this.nodeHome);
-        List<NodeTool> all = new ArrayList<>(List.of(new FileTools.ReadFile(this), new FileTools.ListFiles(this), new FileTools.WriteFile(this),
+        List<NodeTool> all = new ArrayList<>(List.of(new FileTools.ReadFile(this), new FileTools.ListFiles(this), new FileTools.WriteFile(this), new FileTools.ViewImage(this),
                 new ShellTool(this)));
         this.browser = browser;
         if (browser != null) {
@@ -122,6 +122,33 @@ public final class Harness {
             browser.listener(connected -> toolsChanged());
         }
         this.tools = List.copyOf(all);
+    }
+
+    /** Gives the server a picture of this machine for her (the image upload of the HTTP API); answers its id. */
+    public interface ImageUploader {
+        String upload(Path file) throws IOException, InterruptedException;
+    }
+
+    private volatile ImageUploader imageUploader;
+
+    /** How pictures reach her: set when the node knows its server and assistant; {@code view_image} is offered only then. */
+    public void imageUploader(ImageUploader uploader) {
+        this.imageUploader = uploader;
+        toolsChanged();
+    }
+
+    ImageUploader imageUploader() {
+        return imageUploader;
+    }
+
+    /** The user's choice for pictures: {@code allow}, {@code folders}, {@code ask} or {@code off}. A new manifest goes out. */
+    public synchronized void setImages(String tier) throws IOException {
+        if (!List.of("allow", "folders", "ask", "off").contains(tier)) {
+            throw new IllegalArgumentException("Pictures are allow, folders, ask or off, not " + tier);
+        }
+        Policy policy = policy();
+        policy.images = "folders".equals(tier) ? null : tier;
+        save(policy);
     }
 
     /** The browser companion's link, null when this node has none. */

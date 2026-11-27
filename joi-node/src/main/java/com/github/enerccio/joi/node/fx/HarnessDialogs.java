@@ -85,6 +85,15 @@ final class HarnessDialogs {
         CheckBox files = new CheckBox("Files: she may read and list files (silent in your folders, asked elsewhere) and write them (always asked)");
         files.setWrapText(true);
         files.setSelected(policy.filesOn());
+        ChoiceBox<String> images = new ChoiceBox<>();
+        images.getItems().setAll(IMAGE_LABELS.values());
+        images.setValue(IMAGE_LABELS.get(policy.imagesTier()));
+        images.setOnAction(e -> {
+            String chosen = IMAGE_LABELS.entrySet().stream().filter(t -> t.getValue().equals(images.getValue())).map(java.util.Map.Entry::getKey)
+                    .findFirst().orElse("folders");
+            keep(note, () -> harness.setImages(chosen));
+        });
+        HBox imagesRow = new HBox(8, new Label("Pictures she may look at (with Files on):"), images);
         CheckBox shell = new CheckBox("Shell: she may run commands, each one asked");
         shell.setWrapText(true);
         shell.setSelected(policy.shellOn());
@@ -115,7 +124,7 @@ final class HarnessDialogs {
                 roots.getItems().setAll(harness.policy().roots());
             }
         });
-        VBox content = new VBox(10, files, shell, new Label("Your folders (reads and lists inside them are not asked about):"), roots,
+        VBox content = new VBox(10, files, imagesRow, shell, new Label("Your folders (reads and lists inside them are not asked about):"), roots,
                 new HBox(8, add, remove), where);
         content.setPadding(new Insets(4));
         content.setPrefWidth(560);
@@ -186,6 +195,16 @@ final class HarnessDialogs {
         alert.setHeaderText("Joi in Firefox");
         alert.getDialogPane().setContent(content);
         alert.show();
+    }
+
+    /** The choices for pictures ({@code view_image}) as the user reads them. */
+    private static final java.util.Map<String, String> IMAGE_LABELS = new java.util.LinkedHashMap<>();
+
+    static {
+        IMAGE_LABELS.put("allow", "Allow anywhere");
+        IMAGE_LABELS.put("folders", "In my folders, ask elsewhere");
+        IMAGE_LABELS.put("ask", "Ask each time");
+        IMAGE_LABELS.put("off", "Off");
     }
 
     /** The tiers of a browser tool as the user reads them, in the order of the choice. */

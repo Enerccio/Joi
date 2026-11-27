@@ -1,7 +1,7 @@
 asyncapi: 3.0.0
 info:
   title: Joi node WebSocket
-  version: "1.13"
+  version: "1.14"
   description: |
     The live connection between a node and a Joi server: who the node is, the tools it offers and their calls, the
     user talking to her through it and her answer in text and speech, approvals, and what changes on the server. The
@@ -94,6 +94,10 @@ info:
          exactly one `tool_result`. Each frame about a call restarts its timeout; an approval that is asked waits for
          the user. `tool_cancel` says the result is no longer wanted; the node still answers, `cancelled` when it
          stopped in time. Calls may overlap.
+         A result may come with **pictures** (since 1.14): the node uploads each first with the image upload of the HTTP
+         API (`POST /api/v1/jois/{id}/images`, the same limits as the chat's) and puts the ids into `tool_result.images`
+         (at most 4). The server shows them to her after the results of the round: as pictures when her chat model takes
+         images, else described by the user's multimodal model. They are for that turn; an id that is not the user's is left out.
        - **Events.** The server sends `event` when something the node may show changed (`body`, `joi`).
        - **Heartbeat.** Either side sends `ping` (with an `id`); the other answers `pong` with that `ref`. Send a
          frame at least every `welcome.heartbeatSeconds`; a connection silent for twice that is closed.

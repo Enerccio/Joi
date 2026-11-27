@@ -1927,9 +1927,16 @@ user, `tool_progress` restarts the timeout, `tool_cancel` stops it). No change o
   (or the command and its folder), the decision (`allow`, `ask`, `deny`) and the answer (`once`, `session`, `denied`,
   `no_answer`), how it was answered, ok, the error, the exit code, bytes. Never the content. A call whose line cannot be
   written does not run.
-- **UI:** the terminal node `/files on|off`, `/shell ask|off`, `/roots`, `/roots add <path>`, `/roots remove <path>`, an asked
-  call answered with `/yes`, `/session` or `/no`; the JavaFX node **Joi → Files and shell…** (the two switches and the
-  folders) and a dialog with the three buttons.
+- **Pictures (built, protocol 1.14):** `view_image(path)` on the node, offered with the files when the policy's `images` is not
+  `off`: `allow` (never asked), `folders` (the default: asked outside the roots), `ask` (every time). A picture by its extension
+  (PNG, JPEG, GIF, BMP, WebP, TIFF, HEIC), at most 20 MB, the denied paths refused as for a read. The node uploads it as a chat
+  image and sends its id in `ToolResult.images` (at most four). The server (`ToolImages`, `CallToolsStep`) adds one message after
+  the round's results, from the template `TOOL_IMAGES`: the pictures for a multimodal chat model, the describing model's notes
+  for another. The message stays in that turn only; the picture is not shown in the Chats tab, and an unused upload is swept
+  like any other.
+- **UI:** the terminal node `/files on|off`, `/shell ask|off`, `/images allow|folders|ask|off`, `/roots`, `/roots add <path>`, `/roots remove <path>`, an asked
+  call answered with `/yes`, `/session` or `/no`; the JavaFX node **Joi → Files and shell…** (the two switches, the
+  pictures' choice and the folders) and a dialog with the three buttons.
 
 ### Web
 

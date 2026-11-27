@@ -13,11 +13,14 @@ public struct ToolResult: Codable, Hashable, Sendable {
     public var content: String
     /// When not ok, a stable word: denied, failed, cancelled, timeout, unknown_tool, bad_arguments.
     public var error: String?
+    /// Pictures that come with the result (since 1.14): the ids the node got from POST /api/v1/jois/{id}/images (ImageUpload.id), at most 4. The server shows them to her after the results. Null or missing for none.
+    public var images: [String]?
 
-    public init(callId: String, ok: Bool, content: String, error: String? = nil) {
+    public init(callId: String, ok: Bool, content: String, error: String? = nil, images: [String]? = nil) {
         self.callId = callId
         self.ok = ok
         self.content = content
         self.error = error
+        self.images = images
     }
 }

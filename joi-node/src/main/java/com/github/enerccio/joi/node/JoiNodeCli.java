@@ -53,7 +53,7 @@ import java.util.concurrent.atomic.AtomicReference;
  * {@code /clipboard off|ask|allow} sets whether she may put text on the clipboard ({@link ClipboardOffers}; with {@code ask} each
  * offer is shown and asked about, {@code /yes} or {@code /no}),
  * {@code /notify off|ask|allow} sets whether she gets the notification tool ({@link Notifications}), {@code /notify test}
- * shows one; the harness ({@link Harness}, the files and the shell of this machine): {@code /files on|off}, {@code /shell ask|off},
+ * shows one; the harness ({@link Harness}, the files and the shell of this machine): {@code /files on|off}, {@code /images allow|folders|ask|off}, {@code /shell ask|off},
  * {@code /roots}, {@code /roots add <path>} and {@code /roots remove <path>}, and a call it asks about is answered with {@code /yes},
  * {@code /session} (the same again until the node quits) or {@code /no}; the browser companion: {@code /browser on|off},
  * {@code /browser <tool> allow|asked|ask|off} and {@code /browser connect} (registers this node as Firefox's native host, {@link BrowserHost}); {@code /image <file> [words]} sends an image (streamed to the server) with the words.
@@ -129,6 +129,9 @@ public final class JoiNodeCli {
             out.println("[the browser companion is not available: " + e.getMessage() + "]");
         }
         Harness harness = new Harness(settings.dir(), (question, seconds) -> askHarness(out, harnessAsking, question, seconds), "keyboard", browserLink);
+        // view_image: a picture goes to the server through the chat's upload, for this assistant
+        String joiId = chosen.id();
+        harness.imageUploader(file -> client.uploadImage(joiId, file).id());
         List<NodeTool> tools = new ArrayList<>(List.of(notifications, clipboardOffers));
         tools.addAll(harness.tools());
         NodeTools nodeTools = new NodeTools(tools);
@@ -324,6 +327,14 @@ public final class JoiNodeCli {
                         out.println("[Firefox could not be connected: " + e.getMessage() + "]");
                     }
                 }
+                case "/images allow", "/images folders", "/images ask", "/images off" -> {
+                    try {
+                        harness.setImages(line.substring("/images ".length()));
+                        harnessState(harness);
+                    } catch (IOException e) {
+                        out.println("[not kept: " + e.getMessage() + "]");
+                    }
+                }
                 case "/files on", "/files off", "/shell ask", "/shell off" -> {
                     try {
                         if (line.startsWith("/files")) {
@@ -414,7 +425,8 @@ public final class JoiNodeCli {
     /** What the harness lets her do now. */
     private void harnessState(Harness harness) {
         Policy policy = harness.policy();
-        out.println("[files: " + (policy.filesOn() ? "on" : "off") + " (/files on or off); shell: " + (policy.shellOn() ? "ask" : "off")
+        out.println("[files: " + (policy.filesOn() ? "on" : "off") + " (/files on or off); pictures: " + policy.imagesTier()
+                + " (/images allow, folders, ask or off); shell: " + (policy.shellOn() ? "ask" : "off")
                 + " (/shell ask or off); your folders: " + (policy.roots().isEmpty() ? "none" : String.join(", ", policy.roots()))
                 + " (/roots add or remove <path>); the policy is " + harness.policyFile() + ", the audit " + harness.auditFile() + "]");
     }

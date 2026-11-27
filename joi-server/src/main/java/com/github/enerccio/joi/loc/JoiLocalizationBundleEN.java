@@ -99,6 +99,7 @@ public class JoiLocalizationBundleEN extends TextBundleBase<J_L> {
         setValue(J_L.LABEL_CONNECTED_EVENT, "User is back (the event when the user comes back to her on a node)");
         setValue(J_L.LABEL_LOOKING_GLASS_ENTERED_EVENT, "On the Looking Glass (the event when the user moves her onto a Looking Glass)");
         setValue(J_L.LABEL_MESSAGE_STAMP, "Time of a message (the line before a message of the user or an event: when it was said)");
+        setValue(J_L.LABEL_TOOL_IMAGES, "The pictures of her tools' results (a file, a screenshot; in a message after the results)");
         setValue(J_L.LABEL_IMAGE_NOTE, "An image of the user, for a chat model that cannot see (added to the message of the user)");
         setValue(J_L.LABEL_IMAGE_DESCRIPTION_PROMPT, "Describing an image of the user (the request to a model that can see, for a chat model that cannot)");
         setValue(J_L.LABEL_RECALLED_MEMORIES, "Memories that fit a message (added to the message of the user)");
@@ -638,6 +639,8 @@ public class JoiLocalizationBundleEN extends TextBundleBase<J_L> {
         setValue(J_L.DESC_TEMPLATE_PERSONALITY, "The personality, rendered ({{user}} and {{char}} work in it).");
         setValue(J_L.DESC_TEMPLATE_MOOD, "Today's mood as it sounds in the personality.");
         setValue(J_L.DESC_TEMPLATE_PROFILE, "The short block about the user that is always in the prompt.");
+        setValue(J_L.DESC_TEMPLATE_TOOL_IMAGES_TOOLS, "The functions whose results brought the pictures.");
+        setValue(J_L.DESC_TEMPLATE_TOOL_IMAGES_SHOWS, "What a model that can see wrote about each picture, numbered; empty when her chat model sees them.");
         setValue(J_L.DESC_TEMPLATE_IMAGE_DESCRIPTION, "What a model that can see wrote about the image.");
         setValue(J_L.DESC_TEMPLATE_USER_TEXT, "What the user wrote with the image, empty when nothing.");
         setValue(J_L.DESC_TEMPLATE_MEMORIES, "What the assistant remembers that matters now: facts and past episodes.");

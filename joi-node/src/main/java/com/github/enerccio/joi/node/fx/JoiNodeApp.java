@@ -798,6 +798,10 @@ public class JoiNodeApp extends Application {
         }
         Harness harness = new Harness(settings.dir(), (question, seconds) -> HarnessDialogs.ask(stage, question, seconds), "click", browserLink);
         this.harness = harness;
+        // view_image: a picture goes to the server through the chat's upload, for this assistant
+        ServerClient uploads = client;
+        String joiId = loaded.summary().id();
+        harness.imageUploader(file -> uploads.uploadImage(joiId, file).id());
         java.util.List<com.github.enerccio.joi.node.NodeTool> tools = new java.util.ArrayList<>(java.util.List.of(notifications, clipboardOffers));
         tools.addAll(harness.tools());
         nodeTools = new NodeTools(tools);

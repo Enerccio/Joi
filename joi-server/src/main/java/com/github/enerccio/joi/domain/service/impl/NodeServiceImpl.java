@@ -7,6 +7,7 @@ import com.github.enerccio.joi.api.JoiApi;
 import com.github.enerccio.joi.domain.bodies.Profiles;
 import com.github.enerccio.joi.domain.chat.ChatService;
 import com.github.enerccio.joi.domain.chat.ToolEffects;
+import com.github.enerccio.joi.domain.chat.ToolImages;
 import com.github.enerccio.joi.domain.chat.ChatService.NoModelException;
 import com.github.enerccio.joi.domain.chat.ChatService.NoVisionException;
 import com.github.enerccio.joi.domain.chat.turn.TurnControllerEvent.Registration;
@@ -104,6 +105,9 @@ public class NodeServiceImpl implements NodeService, InitializingBean, Disposabl
     public static final String EVENTS_WAITED = "events_waited";
     /** The tool she decides on the user's requests to change her parts with ({@code PART_REQUEST_EVENT}). */
     public static final String DECIDE_PART_CHANGE = "decide_part_change";
+
+    @Autowired
+    private ToolImages toolImages;
 
     @Autowired
     private JoiApi joiApi;
@@ -1280,6 +1284,11 @@ public class NodeServiceImpl implements NodeService, InitializingBean, Disposabl
             return;
         }
         session.calls().remove(result.callId());
+        if (result.ok() && result.images() != null && !result.images().isEmpty()) {
+            // a result is text: the pictures wait for the end of the round, when the turn shows them to her (CallToolsStep)
+            toolImages.add(session.joiId(), session.name() + "__" + call.tool(),
+                    result.images().stream().filter(StringUtils::isNotBlank).limit(ToolResult.MAX_IMAGES).toList());
+        }
         if (result.ok()) {
             call.continuation().complete(StringUtils.defaultString(result.content()));
         } else {

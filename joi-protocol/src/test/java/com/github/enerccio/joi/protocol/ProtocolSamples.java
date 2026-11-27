@@ -140,6 +140,7 @@ public final class ProtocolSamples {
         out.add(new ToolProgress("c1", "Reading"));
         out.add(new ToolResult("c1", true, "milk, eggs", null));
         out.add(new ToolResult("c2", false, "The user said no", "denied"));
+        out.add(new ToolResult("c3", true, "The picture /Users/me/cat.jpg (1200x800) is shown to you after the results.", null, List.of("img1")));
         out.add(new ToolCancel("c2", null));
         out.add(new Approval("c2", ApprovalState.ASKED, null, null));
         out.add(new Approval("c2", ApprovalState.ALLOWED, "session", "voice"));
