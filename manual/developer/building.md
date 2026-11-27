@@ -18,7 +18,7 @@ covers:
   - .github/workflows/server.yml
   - .github/workflows/test.yml
   - .github/dependabot.yml
-verified: b2f601d
+verified: 88455e1
 ---
 
 # Building
@@ -127,6 +127,20 @@ mvn -Pfx compile exec:exec@run -pl joi-node -Dnode.args="--joi-home-dir ~/.joi-d
 
 Run it with `exec:exec@run` (`fx/Launcher`), not `javafx:run`, which leaves the Chromium jars off the class path. The renderer page is
 `joi-node/src/main/renderer`; the server's `joi-model-viewer.js` is copied in at build time.
+
+## The Firefox extension
+
+`joi-browser/` is not in the Maven reactor. It is built with Mozilla's `web-ext` (`package.json`, run from `joi-browser/`):
+
+```bash
+npm run lint      # web-ext lint
+npm run run       # a Firefox with the extension loaded, in a temporary profile
+npm run build     # the zip, into joi-browser/target
+npm run sign      # signed by Mozilla as an unlisted add-on: needs WEB_EXT_API_KEY and WEB_EXT_API_SECRET from AMO
+```
+
+The keys come from the environment, never from Git. The node registers itself as the extension's native host with **Connect
+Firefox** (see [Writing a node](nodes.md#the-browser-companion)).
 
 ## The desktop app
 
