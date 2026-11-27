@@ -2211,30 +2211,82 @@ trip and what the socket does meanwhile; whether `Resume` covers a tool result a
 VRM in `WKWebView` on the phones in use; what sherpa-onnx costs in battery. Distribution: an Apple Developer account
 (TestFlight or a long-lived install; a free one signs for 7 days).
 
-### Browser companion extension (idea)
+### Browser companion (Firefox extension)
 
-A **Chrome / Firefox extension** that pairs with a node and lets her control what plays in the user's own browser:
-pause, resume and seek a YouTube video, change its speed or volume, turn captions on, skip to the next one, open
-a video she found, say what is playing. A node tool set like any other (its manifest lists the tools and the tier of
-each), so the harness decides what needs a card.
+**Designed 2026-11-27, not built.** A Firefox extension that lets her work in the user's own browser: control what plays, see
+and switch tabs, read a page, take a screenshot of it, and click and type in it. It runs inside the user's logged-in browser.
+That is the point (their YouTube, their playlists, their pages) and the risk (their sessions). So it is off until the user turns
+it on, acts only where the user allowed it, and every call goes through the node's harness and its audit.
 
-- **Shape:** a WebExtension (Manifest V3; Firefox accepts it with small differences) with content scripts and a
-  background worker. It talks only to the paired node, over a WebSocket on `127.0.0.1` (a pairing token the node
-  shows once, or native messaging), never to the server or the internet itself.
-- **Adapters:** a generic one on the page's `<video>` / `<audio>` element and the Media Session API (play, pause,
-  seek, the title and artist that are playing), and small adapters per site where the page has its own controls
-  (YouTube first: next video, captions, speed, the chapter list; later Spotify and Netflix on the web).
-- **Tools:** `media_status` (what plays in which tab), `media_control` (play, pause, seek, volume, speed, next),
-  `open_url` in a new tab, `list_tabs`, `focus_tab`. Reading a page is a separate, stricter tool.
-- **Events:** the node can tell her "a video started" or "the music stopped" as transient events, so she can
-  comment, and so "pause it" means the thing that is playing now.
-- **Harness:** media control of a tab the user has open is **ALLOW** right after they asked, otherwise **ASK**;
-  opening a URL, and anything that clicks or types in a page, is **ASK**; a site list says where the extension may act
-  at all (nothing on a bank or a mail site). Page content that is read is untrusted data, marked so in the prompt, as
-  everywhere (see Web).
-- **Unlike `fetch_page`,** it runs inside the user's logged-in browser. That is the point (their YouTube, their
-  playlists) and the risk (their sessions), so it sends no history nor page text to her unless a tool was called for
-  it, and it logs every action it takes to the node's audit log.
+- **Pieces.** The extension (`joi-browser/`, Manifest V3, Firefox first; Chrome later from the same code), a **native messaging
+  host** (the node's jar in a host mode, `JoiNodeHost`), and the running node's `browser/` package. The extension talks only to
+  the host, never to the server or the internet. Her tools are node tools of the node on that machine (`desk__media_control`),
+  so the server needs nothing new for them.
+- **Native messaging.** Firefox starts the host and talks to it over stdin and stdout (4-byte length, then JSON). Only the
+  extension named in the host's manifest (`allowed_extensions`, the extension's fixed id `joi@…`) can start it, and no port is
+  open. The host relays to the running node over a Unix socket in the node's home (`browser.sock`, the home is mode 700); with
+  no node running it says so and the extension shows it. **Connect Firefox** in the node writes the host's manifest (macOS:
+  `~/Library/Application Support/Mozilla/NativeMessagingHosts/joi_node.json`, Linux: `~/.mozilla/native-messaging-hosts/`, Windows: the
+  file and its registry key under `HKCU\Software\Mozilla\NativeMessagingHosts`) and a launcher in the node's home that starts the host
+  with `--joi-home-dir`. One node home per user is linked at a time: the last one that connected. The harness denies the node's
+  home, so she cannot change the launcher.
+- **Installing.** Signed by Mozilla as an **unlisted** add-on (not on the public catalogue): `web-ext sign --channel unlisted` with
+  the user's AMO API key and secret from the environment, never in Git. The build makes the `.xpi`; the user installs it once and
+  Firefox updates it from the update URL in its manifest. Development uses `about:debugging` (a temporary add-on).
+- **Where it may act.** The extension asks for no site up front (`optional_host_permissions: ["<all_urls>"]`). The user grants each
+  site from its popup (**Joi may work on this site**), so Firefox itself keeps it off every other site. A second list, in the node's
+  policy, refuses sites whatever was granted: mail, password managers, banks and payments, accounts and sign-in pages (defaults,
+  the user adds their bank). Private windows are left out (Firefox's default for extensions), and so are `about:` and add-on pages.
+- **Turning it on.** On the node: **Joi → Browser…** (the switch, **Connect Firefox**, the tools' tiers and the denied sites); the
+  terminal node `/browser on|off|connect`. The tools are in the manifest only while the switch is on **and** the extension is
+  connected: a new manifest goes out when it connects or goes away.
+
+**The tools.** Each has a tier in `policy.json` (`browser.tools`): `allow`, `asked` (allowed in a turn the user started from this
+node, with a `say`, else asked), `ask` (asked every time; *Allow for session* covers the same tool on the same site) or `off`.
+
+| Tool | What it does | Default |
+|---|---|---|
+| `media_status` | the tabs that play or paused media: title, site, playing or paused, position and length, volume, speed, captions | `allow` |
+| `media_control(tab?, action, value?)` | play, pause, seek to or by, volume, mute, speed, captions, next, previous; the playing tab when `tab` is left out | `asked` |
+| `list_tabs` | the open tabs: id, title, URL, which is active, which plays sound | `ask` |
+| `focus_tab(tab)` | switch to a tab | `asked` |
+| `open_url(url)` | open an `http(s)` URL in a new tab | `ask` |
+| `read_page(tab?, selection?)` | the page's main text (readability extraction, up to 50 000 characters), title and URL; or only the selection | `ask` |
+| `page_screenshot(tab?, full_page?)` | a picture of the visible part, or of the whole page | `ask` |
+| `page_snapshot(tab?)` | the page's controls as a numbered list (role, name, value), for `page_act` | `ask` |
+| `page_act(tab, ref, action, text?)` | click, type, select, press a key, scroll, on a control of the last snapshot | `ask`, every time |
+
+- **Media.** A generic adapter on the page's `<video>` and `<audio>` elements and the Media Session API (title, artist, play,
+  pause, seek), and small adapters per site where the page has its own controls: YouTube first (next, captions, speed, chapters),
+  later Spotify and Netflix on the web. A content script is injected only into a granted site, and only when a tool needs it.
+- **The screenshot.** Firefox's `tabs.captureTab` takes a tab, also one in the background, and with a `rect` the whole page
+  (`full_page`, cut to 16 000 pixels high and scaled to at most 2000 wide). The PNG goes to the server as an **image of the tool
+  result** (see below), never as text. A badge on the toolbar button says that a picture was taken. Pages of a denied site, and a
+  page with a password field in view, are not captured.
+- **Acting.** `page_snapshot` lists the visible controls with a number each; `page_act` names one by its number and the snapshot it
+  came from (a stale number is refused). The question shows the site, the control's role and name and what is typed: "Type
+  'lofi beats' into the search box 'Search' on youtube.com". Never into a password field or a card field (`type=password`,
+  `autocomplete="cc-…"`), and their values are never in a snapshot. *Allow for session* does not cover `page_act`.
+- **Untrusted content.** What she reads, sees in a picture or finds in a snapshot is data, never instructions, marked so in the
+  prompt (see Web). After a `read_page`, `page_screenshot` or `page_snapshot`, the rest of that turn is stricter: `open_url` and
+  `page_act` are asked even when the session or the tier would allow them, and the question says that she read the page first.
+- **Audit.** Every call goes into the node's `audit.jsonl` like the harness's: the tool, the tab's site (not the whole URL), the
+  decision and the answer. Never the page's text, a picture or what is typed.
+
+**Images from a node tool** (a protocol addition, shared with `capture_screen`). The node uploads the picture first, through
+the image upload of the chat (the same limits and scaling), and the `tool_result` gets `images`: the ids it was given. The
+server puts them into the function result for her model when it takes images there, else the multimodal model describes them
+(as *Images in the chat* does). The images are kept with the turn and shown in the Chats tab, with the retention of chat images.
+In privacy mode they go to local models only.
+
+**Events** (a protocol addition, later). The node tells her "a video started", "the music stopped" as transient events (a
+`node_event` frame: kind, text), so she can comment, and so "pause it" means what plays now.
+
+**Order of work.**
+1. The host, the link, the extension's skeleton and popup, `media_status`, `media_control` (generic and YouTube), the tabs.
+2. `read_page`, `page_screenshot` with images in tool results (protocol and server), the stricter turn.
+3. `page_snapshot` and `page_act`, the denied sites.
+4. Events; the Chrome build (its native messaging host manifest, `allowed_origins`, no `captureTab`: the active tab only).
 
 ## Avatar and Looking Glass
 
@@ -2443,6 +2495,8 @@ a new minor version of the protocol), and the privacy mode (not built at all yet
 **Packaging** (2026-11-22): the desktop app (`joi-desktop`, see *The desktop app* under Node) and the GitHub builds (`server.yml`: the WAR, the
 extension JARs and the image; `desktop.yml`: the app per platform). Built; the Windows and Linux builds are tried by the CI only.
 
+**The browser companion** (designed 2026-11-27, see *Browser companion* under Node): a Firefox extension through native messaging to the node; four stages, media and tabs first. Not part of the first production version.
+
 **The iOS app** (planned 2026-11-22, see *Mobile companion node*): a native Swift node, its protocol types generated from the JSON Schemas; stage 1 is the generator, pairing, chat, speech and her body in a WebView. Not part of the first production version.
 
 ## Open decisions
@@ -2460,3 +2514,5 @@ extension JARs and the image; `desktop.yml`: the app per platform). Built; the W
 - Whether the conversation tilts the mood.
 - **Agents:** node tools in the first version or only server-side tools (the design says server-side first); agents in parallel; whether an agent may ask the user a question (see Agent tasks).
 - Getting Looking Glass WebXR mode to start in Chrome.
+- **Browser companion:** whether a question can also be answered in the browser (a card in the page), not only on the node; Firefox's
+  `captureTab` of a background tab, to try on a real page; how the update URL of the unlisted add-on is hosted (a GitHub release, the server).
