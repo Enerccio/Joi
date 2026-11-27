@@ -7,7 +7,7 @@ covers:
   - joi-server/src/main/java/com/github/enerccio/joi/domain/animations
   - joi-server/src/main/java/com/github/enerccio/joi/domain/service/impl/BodyServiceImpl.java
   - joi-server/src/main/java/com/github/enerccio/joi/domain/service/impl/ProfileServiceImpl.java
-verified: d276400
+verified: 505f64b
 ---
 
 # Bodies and models
@@ -22,7 +22,7 @@ body of hers is active. Her bodies have different names, case aside (she switche
 
 | Class | In `domain/bodies` | What it is |
 |---|---|---|
-| `ModelCapabilities` | | read from the VRM's glTF JSON: expressions, toggles, humanoid bones |
+| `ModelCapabilities` | | read from the VRM's glTF JSON: expressions (the ones she can show with `set_expression` are `BodyService.expressions`: the mood presets but neutral and the model's own), toggles, humanoid bones |
 | `ToggleTree` | | what is part of what; the effective state of a toggle |
 | `Appearance` | | the description plus the sentence of each part off its default, put together for a state |
 | `AppearanceProposal` | | what the multimodal model proposed, kept until used or discarded |
