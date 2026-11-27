@@ -18,7 +18,7 @@ See the [Developer guide](index.md). The server's Java is under `com.github.ener
 
 | Package | What is in it |
 |---|---|
-| `api` | `JoiApiServlet` and `JoiApi` (the HTTP API), `NodeEndpoint` (the node WebSocket), `ApiConfiguration`, `ApiAccess` |
+| `api` | `JoiApiServlet` and `JoiApi` (the HTTP API), `JoiAdminApi` (its administration calls), `NodeEndpoint` (the node WebSocket), `ApiConfiguration`, `ApiAccess` |
 | `defaults` | built-in texts and values: `JoiDefaults` (every prompt), `PersonalityDefault`, `MoodDefault` |
 | `domain.model.impl` | the entities (below) |
 | `domain.repository`, `.impl` | repository interfaces and their `Jpa*Repository` classes |
