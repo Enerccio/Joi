@@ -1381,7 +1381,7 @@ UI — nothing is deleted):
 - **Self-image:** the result is the model's appearance description (what never changes, and each toggle described
   apart, shown and hidden), editable in the UI and tied to a hash of the model; when the model changes, the snapshots are retaken and the LLM proposes an update to review. Joi gets
   the active body's description in her prompt (she knows how she looks), its capabilities as tools (`play_animation`,
-  `set_expression`, `toggle_outfit`, `look_at`), and the list of her other bodies (she or you can switch).
+  `set_expression` (built), `toggle_outfit`, `look_at`), and the list of her other bodies (she or you can switch).
 - **Toggles work both ways.** The body's state (active body, outfit parts, eyepatch up / down, halo, effects,
   expression overrides) lives on the server, and both sides change it through the same path:
   - **The user** toggles from the UI, a Stream Deck key or by voice → the server updates the state, the renderer
@@ -1549,6 +1549,10 @@ UI — nothing is deleted):
     (shut while she sleeps, easing over a few seconds as she falls asleep and wakes up) and **her mood** (a soft expression from the `Mood`'s own face,
     sent in the `mood` frame: calm → relaxed, happy → happy, grumpy → angry, melancholic → sad, sleepy → half closed eyes, excited → wide eyes...; see Moods). The mood's expression leaves her eyes out (a copy of the model's expression
     without the eye and lid shape keys): many models' happy and relaxed shut the eyes, which held for a day looks like she sleeps; the eyes are the state's, the mood's `eyes`, or blinking.
+    **Her own expressions (built, protocol 1.15):** `set_expression` (`ExpressionTools`) lists the expressions of the active body's model (its mood
+    presets but neutral, and its own ones) and sends the `expression` frame: the node holds it whole for a few seconds (4 by default, at most 60) over
+    the mood's and the animation's expression, never over the eyes, then fades back. Nothing is stored and she is not told of it later. Her master
+    template asks her to use it when a feeling comes, not in every reply.
     **Next:** more face targets (ARKit shapes), looking at the user rather than the camera.
   - **Both ways:** Joi plays them with a tool (`play_animation`, listing what fits the active body and shot), e.g. waves
     hello, shrugs, dances when asked; you trigger them from the UI or a Stream Deck key and she is told.

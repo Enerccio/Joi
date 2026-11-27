@@ -31,7 +31,7 @@ Each step (`TurnStepType`) is a bean listed under the chat service in `services-
 | `SPEECH` | the speech of the reply |
 | `CLEANUP` | closes the turn |
 
-`INFERENCE` and `CALL_TOOLS` loop until a round has no calls. After the platform's `MAX_FUNCTION_ROUNDS` the model must answer in text. The exception is a round that has said its words and made only calls whose result says nothing (`ToolEffects.needsNoAnswer`: `play_animation`, `set_mood`, a node's
+`INFERENCE` and `CALL_TOOLS` loop until a round has no calls. After the platform's `MAX_FUNCTION_ROUNDS` the model must answer in text. The exception is a round that has said its words and made only calls whose result says nothing (`ToolEffects.needsNoAnswer`: `play_animation`, `set_expression`, `set_mood`, a node's
 `notify`, all succeeded): `CALL_TOOLS` ends the turn at `STORE` for it, since the next round would have nothing to add (a small model fills it with nothing until its
 token budget is gone).
 
@@ -68,7 +68,7 @@ words or calls to `STORE` once (never one that was stopped, or failed before it 
 conversation: the web chat and the nodes (as a `log` frame) show it and the model never sees it. The turn still ends as a failure: the caller's future fails, the node gets `error`,
 the job and the outcome are `FAILED`. `ChatTurnTest` has the case (the second round uses its budget after a call).
 
-Who hooks in: her memories in the prompt, the server tools (`remember`, `recall`, `play_animation`, `set_mood`, `change_body_part`, `list_outfits`,
+Who hooks in: her memories in the prompt, the server tools (`remember`, `recall`, `play_animation`, `set_expression`, `set_mood`, `change_body_part`, `list_outfits`,
 `set_outfit`, `list_bodies`, `switch_body`, `web_search`, `fetch_page`, `list_files` and the other file functions, `list_chat_images`, `save_chat_image`, `offer_file_to_clipboard`) and the nodes' tools and approvals (`NodeService` registers a
 `COLLECT_TOOLS` listener).
 
@@ -84,6 +84,10 @@ A mood changes in one place, `ChatService.changeMood(joi, key, byUser)`: it save
 the watchers (`watchMoods`: `NodeService` sends the `mood` frame to her nodes, a watcher as for `watchLogs` so that no service needs the other), and, when the user
 changed it and she has chatted, queues `mood.changed`. The day's roll tells the watchers too. `MoodTools` offers `set_mood` to every turn through `COLLECT_TOOLS`: her
 own choice, so no event. The face of a mood is `Mood.face` (`MoodFace`, the built-in value changed by the user's `MoodSetting`), sent with the frame.
+`ExpressionTools` offers `set_expression` the same way: the expressions of the active body's model (`BodyService.expressions`: its mood presets but
+`neutral`, and its own ones, with something bound) as an enum, `strength` (0.1 to 1) and `seconds` (1 to 60), clamped; `NodeService.express` sends the
+`expression` frame (`ShowExpression`, protocol 1.15) to her nodes. Nothing is stored and there is no event. `ToolEffects` lists it as changing nothing and
+needing no answer, like `play_animation`.
 
 ## The prompt is built for the model's cache
 

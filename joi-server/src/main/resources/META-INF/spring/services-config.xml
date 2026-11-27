@@ -340,6 +340,7 @@
     <!-- she plays an animation of her body herself -->
     <bean class="com.github.enerccio.joi.domain.chat.AnimationTools" />
     <bean class="com.github.enerccio.joi.domain.chat.MoodTools" />
+    <bean class="com.github.enerccio.joi.domain.chat.ExpressionTools" />
     <!-- she writes down and looks up what she remembers -->
     <bean class="com.github.enerccio.joi.domain.chat.MemoryTools" />
     <!-- she searches the web and reads pages through tasks of the stronger model -->

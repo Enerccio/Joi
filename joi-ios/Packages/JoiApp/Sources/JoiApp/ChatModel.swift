@@ -400,6 +400,8 @@ public final class ChatModel: AvatarOutput {
             director.gesture(play.animation, loop: play.loop ?? false)
         case .mood(let mood):
             player?.setMood(mood)
+        case .expression(let shown):
+            player?.showExpression(shown)
         case .event(let event):
             // her body was read again: the outfit is on
             if event.name == "body" { endOutfit(outfitRef, failure: nil) }

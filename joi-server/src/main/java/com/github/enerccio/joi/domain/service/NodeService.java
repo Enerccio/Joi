@@ -86,6 +86,13 @@ public interface NodeService {
     int animate(Joi joi, String animation, String name, boolean loop);
 
     /**
+     * Has her nodes show an expression on her face for a few seconds (the {@code expression} frame, her {@code set_expression}).
+     *
+     * @return to how many nodes it went
+     */
+    int express(Joi joi, com.github.enerccio.joi.protocol.node.ShowExpression expression);
+
+    /**
      * Tells her nodes her mood and how it shows on her face (a {@code mood} frame): after the mood changed, or the user edited it.
      * Called by the user's own thread (the mood is looked up for the user in scope). A node that connects is told by itself.
      */

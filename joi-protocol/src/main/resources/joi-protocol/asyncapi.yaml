@@ -1,7 +1,7 @@
 asyncapi: 3.0.0
 info:
   title: Joi node WebSocket
-  version: "1.14"
+  version: "1.15"
   description: |
     The live connection between a node and a Joi server: who the node is, the tools it offers and their calls, the
     user talking to her through it and her answer in text and speech, approvals, and what changes on the server. The
@@ -66,6 +66,11 @@ info:
          node's manifest, and each time her mood changes: the daily roll, the user switching it in her dialog, she
          choosing it with her `set_mood` function, the user editing the mood. The node shows it as a soft expression on
          her body; an animation's own face and her state (shut eyes while she sleeps) win over it. It may ignore it.
+       - **Her expressions** (since 1.15). The server sends `expression` (a `ShowExpression`: the name of an expression of
+         her model, its `weight` 0 to 1, how many `seconds` it is held, at most 60) when she chooses one with her
+         `set_expression` function, outside any turn's frames. The node fades it in over her mood's face, holds it and
+         fades it out; it wins over the mood's and an animation's expression while it is held, not over the eyes of her
+         state. A null `expression` ends the one shown. The node ignores an expression the model does not have.
        - **Her outfits** (since 1.12). `GET .../body` lists the body's outfits (`BodyInfo.outfits`: id, name, description, and
          which one she `worn`). The node sends `outfit` (an `OutfitSwitch`: the outfit's id) when the user puts one on. The server
          keeps it in the profile of the node, tells her as it does a part (a turn with the cause `part_switched`, her events), and
@@ -175,6 +180,7 @@ channels:
       part_refused: { $ref: "#/components/messages/part_refused" }
       animation: { $ref: "#/components/messages/animation" }
       mood: { $ref: "#/components/messages/mood" }
+      expression: { $ref: "#/components/messages/expression" }
       log: { $ref: "#/components/messages/log" }
       task: { $ref: "#/components/messages/task" }
       reasoning: { $ref: "#/components/messages/reasoning" }
@@ -221,6 +227,7 @@ operations:
       - { $ref: "#/channels/node/messages/part_refused" }
       - { $ref: "#/channels/node/messages/animation" }
       - { $ref: "#/channels/node/messages/mood" }
+      - { $ref: "#/channels/node/messages/expression" }
       - { $ref: "#/channels/node/messages/log" }
       - { $ref: "#/channels/node/messages/task" }
       - { $ref: "#/channels/node/messages/reasoning" }
@@ -290,6 +297,10 @@ components:
       name: mood
       summary: Her mood now and how it shows on her face (since 1.10)
       payload: { $ref: "#/components/schemas/moodFrame" }
+    expression:
+      name: expression
+      summary: She shows an expression on her face for a few seconds, her own choice (since 1.15)
+      payload: { $ref: "#/components/schemas/expressionFrame" }
     log:
       name: log
       summary: A note in her conversation, not given to the model (since 1.6)
@@ -423,6 +434,11 @@ components:
       allOf:
         - $ref: "schemas/Frame.schema.json"
         - properties: { type: { const: mood }, data: { $ref: "schemas/MoodState.schema.json" } }
+          required: [ data ]
+    expressionFrame:
+      allOf:
+        - $ref: "schemas/Frame.schema.json"
+        - properties: { type: { const: expression }, data: { $ref: "schemas/ShowExpression.schema.json" } }
           required: [ data ]
     logFrame:
       allOf:

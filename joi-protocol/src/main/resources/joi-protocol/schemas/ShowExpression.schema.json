@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Enerccio/joi/protocol/v1/ShowExpression.schema.json",
+  "title": "ShowExpression",
+  "description": "expression (since 1.15): she shows an expression on her face now (her set_expression function), for a few seconds, over her mood's face. The node fades it in, holds it and fades it out; an expression her model does not have is ignored, and a null expression ends the one shown. A node may ignore the frame.",
+  "type": "object",
+  "properties": {
+    "expression": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "The name of the expression of her model (a VRM preset such as happy, sad, angry, relaxed, surprised, or one of the model's own); null ends the one shown."
+    },
+    "weight": {
+      "type": [
+        "number",
+        "null"
+      ],
+      "minimum": 0,
+      "maximum": 1,
+      "description": "How strong it is, 0 to 1; null for 0.8."
+    },
+    "seconds": {
+      "type": [
+        "number",
+        "null"
+      ],
+      "minimum": 0,
+      "maximum": 60,
+      "description": "How long it is held, at most 60; null for 4."
+    }
+  },
+  "required": []
+}

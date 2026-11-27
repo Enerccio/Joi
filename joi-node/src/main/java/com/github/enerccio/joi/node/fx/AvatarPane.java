@@ -136,6 +136,11 @@ class AvatarPane extends BorderPane {
         renderer.mood(mood);
     }
 
+    /** An expression she shows for a few seconds ({@code expression} frame): the page holds it on her face. */
+    void expression(com.github.enerccio.joi.protocol.node.ShowExpression shown) {
+        renderer.expression(shown);
+    }
+
     void state(AvatarDirector.State next) {
         // her eyes follow what she does: shut while she sleeps (slowly as she falls asleep), open again as she wakes up
         switch (next) {

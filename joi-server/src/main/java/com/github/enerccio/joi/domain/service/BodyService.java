@@ -173,6 +173,12 @@ public interface BodyService extends ExtendableService<Body, BodyRepository> {
      */
     List<AnimationPack> animations(Body body) throws Exception;
 
+    /**
+     * The expressions she can show on the body's model (her {@code set_expression}): the VRM's mood presets but neutral, and
+     * its own ones, by name; empty without a model.
+     */
+    List<String> expressions(Body body) throws Exception;
+
     /** The body's {@code .joia} of its animations, null when it has none. */
     File animationsFile(Body body) throws Exception;
 

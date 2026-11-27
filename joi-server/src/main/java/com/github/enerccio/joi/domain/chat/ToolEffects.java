@@ -13,18 +13,19 @@ import java.util.stream.Stream;
 public final class ToolEffects {
 
     /** The functions that change nothing: a gesture, a look at what she has, a look at what she remembers. */
-    private static final Set<String> READ_ONLY = Stream.concat(Stream.of(AnimationTools.PLAY_ANIMATION, BodyTools.LIST_OUTFITS,
+    private static final Set<String> READ_ONLY = Stream.concat(Stream.of(AnimationTools.PLAY_ANIMATION, ExpressionTools.SET_EXPRESSION, BodyTools.LIST_OUTFITS,
             BodyTools.LIST_BODIES, MemoryTools.RECALL), WorkspaceTools.READ_ONLY.stream()).collect(Collectors.toUnmodifiableSet());
 
     /** The functions whose result says nothing the model could use: a gesture, a mood, a notice on the user's screen. */
-    private static final Set<String> NO_ANSWER = Set.of(AnimationTools.PLAY_ANIMATION, MoodTools.SET_MOOD);
+    private static final Set<String> NO_ANSWER = Set.of(AnimationTools.PLAY_ANIMATION, ExpressionTools.SET_EXPRESSION,
+            MoodTools.SET_MOOD);
 
     private ToolEffects() {
     }
 
     /**
      * Whether a function only does something and its result gives the model nothing to say about (so a round that has already said its
-     * words and made only such calls needs no round after them): a gesture, a mood, and a node's {@code notify}.
+     * words and made only such calls needs no round after them): a gesture, an expression, a mood, and a node's {@code notify}.
      */
     public static boolean needsNoAnswer(String function) {
         return function != null && (NO_ANSWER.contains(function) || function.endsWith("__notify"));

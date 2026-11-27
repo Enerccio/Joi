@@ -1081,6 +1081,11 @@ public class JoiNodeApp extends Application {
             }
 
             @Override
+            public void expression(com.github.enerccio.joi.protocol.node.ShowExpression shown) {
+                Platform.runLater(() -> avatarPane.expression(shown));
+            }
+
+            @Override
             public void animation(com.github.enerccio.joi.protocol.node.PlayAnimation play) {
                 Platform.runLater(() -> director.gesture(play.animation(), play.loops()));
             }

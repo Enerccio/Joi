@@ -182,6 +182,24 @@ public class RendererServer implements AutoCloseable {
         broadcast(message);
     }
 
+    /**
+     * An expression she shows for a few seconds (the server's {@code expression} frame): the page holds it over her mood's face
+     * and lets it go. Sent to the pages open only: it is over before a page that opens later would show it.
+     */
+    public synchronized void expression(com.github.enerccio.joi.protocol.node.ShowExpression shown) {
+        JsonObject message = message("expression");
+        if (shown != null && shown.expression() != null) {
+            message.addProperty("expression", shown.expression());
+            if (shown.weight() != null) {
+                message.addProperty("weight", shown.weight());
+            }
+            if (shown.seconds() != null) {
+                message.addProperty("seconds", shown.seconds());
+            }
+        }
+        broadcast(message);
+    }
+
     /** The server is gone ({@code true}) or back: the pages freeze her and show her in gray, or let her go on. */
     public synchronized void offline(boolean offline) {
         JsonObject message = message("offline");

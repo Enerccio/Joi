@@ -33,7 +33,8 @@ In her dialog's **Animations** tab you choose which animations she plays in her 
 | **Idle** | while she waits: a list, one is played at a time, another each time |
 | **Talking** | while she speaks: a list, one at a time |
 
-She can also play an animation herself, with her function `play_animation`, whenever she likes to: before or while she speaks.
+She can also play an animation herself, with her function `play_animation`, whenever she likes to: before or while she speaks. Her
+face has its own function, `set_expression`: she shows one of her model's expressions for a few seconds (see [The JavaFX node](../node/javafx.md)).
 Her prompt asks her to do it often and not to repeat the last one. The node plays it once on top of her state. If she starts
 talking while it plays, her talking animation waits for its end.
 

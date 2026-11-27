@@ -133,6 +133,9 @@ public final class ProtocolSamples {
         out.add(new MoodState("happy", "Happy", "happy", 0.7, null));
         out.add(new MoodState("sleepy", "Sleepy", "relaxed", 0.3, "half"));
         out.add(new MoodState(null, null, null, null, null));
+        out.add(new ShowExpression("happy", 0.9, 3.0));
+        out.add(new ShowExpression("blush", null, null));
+        out.add(new ShowExpression(null, null, null));
         out.add(new ToolUse("desk__read_file", "{\"path\":\"~/notes.md\"}", "milk, eggs", true));
         out.add(new ToolUse("desk__shell", "{}", null, false));
         out.add(new ToolCall("c1", "read_file", arguments, "t1", 60));

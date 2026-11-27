@@ -7,7 +7,7 @@ import java.nio.file.Path;
 
 /**
  * The renderer page with a body from files, without a server: for development. Prints the page's address; reads
- * {@code play <animation uuid> [loop]}, {@code stop}, {@code eyes <auto|closed> [seconds]}, {@code mood <expression|none> [weight] [half|wide]} and {@code speak <a wav or mp3 file>} (her mouth follows it, played by nothing: the
+ * {@code play <animation uuid> [loop]}, {@code stop}, {@code eyes <auto|closed> [seconds]}, {@code mood <expression|none> [weight] [half|wide]}, {@code expression <name|none> [weight] [seconds]} and {@code speak <a wav or mp3 file>} (her mouth follows it, played by nothing: the
  * page's mouth runs on the clock) from the standard input.
  * <p>
  * {@code java ... RendererPreview <her .joim> <her .joia> <a folder to unpack into>}
@@ -38,6 +38,9 @@ public final class RendererPreview {
                     server.mood(none ? new com.github.enerccio.joi.protocol.node.MoodState(null, null, null, null, null)
                             : new com.github.enerccio.joi.protocol.node.MoodState("preview", "Preview", words[1],
                             words.length > 2 ? Double.parseDouble(words[2]) : 0.6, words.length > 3 ? words[3] : null));
+                } else if (words[0].equals("expression") && words.length > 1) {
+                    server.expression(new com.github.enerccio.joi.protocol.node.ShowExpression(words[1].equals("none") ? null : words[1],
+                            words.length > 2 ? Double.parseDouble(words[2]) : null, words.length > 3 ? Double.parseDouble(words[3]) : null));
                 } else if (words[0].equals("stop")) {
                     server.play(null, true);
                 }

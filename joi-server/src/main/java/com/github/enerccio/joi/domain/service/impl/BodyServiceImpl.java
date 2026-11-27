@@ -966,6 +966,22 @@ public class BodyServiceImpl extends ExtendableServiceImpl<Body, BodyRepository>
 
     @Override
     @CommonTxReadOnly
+    public List<String> expressions(Body body) throws Exception {
+        Model model = model(body);
+        ModelCapabilities capabilities = model == null || model.getCapabilities() == null ? null
+                : ModelCapabilities.fromJson(model.getCapabilities());
+        if (capabilities == null || capabilities.expressions() == null) {
+            return List.of();
+        }
+        return capabilities.expressions().stream()
+                .filter(expression -> expression.keys() > 0)
+                .filter(expression -> "custom".equals(expression.kind())
+                        || "mood".equals(expression.kind()) && !"neutral".equals(expression.name()))
+                .map(ModelCapabilities.Expression::name).distinct().toList();
+    }
+
+    @Override
+    @CommonTxReadOnly
     public List<AnimationPack> animations(Body body) throws Exception {
         List<AnimationPack> all = packService.findAllByName();
         List<String> chosen = body.animationUuids();

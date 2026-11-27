@@ -59,6 +59,9 @@ sleeps (slowly as she falls asleep, opening slowly as she wakes up), open the re
 (happy: a smile, grumpy: a frown, sleepy: half closed eyes, excited: wide eyes and a big smile...), taken from the mood's settings, so it changes with the day's mood, as soon as the mood changes. The mood's expression
 never closes her eyes (on many models a happy or relaxed face does): only her sleep and the mood's own eyes setting do.
 An animation can set her face itself (see [Animations](../animations/animations.md)); while it plays that wins.
+She can also show a feeling of the moment herself, with her function `set_expression`: a smile at a joke, surprise at news. She picks
+one of the expressions her model has and holds it for a few seconds (4 unless she says otherwise, at most a minute), over her mood's
+face and over an animation's expression; then her face goes back to her mood's. It does not change her eyes.
 
 When she waits she plays one of her idle animations, another each time; while she speaks, one of her talking ones. She plays
 the animation she picks herself once on top.

@@ -106,6 +106,7 @@ The app's own code, so that it builds and is tested on the Mac: SwiftUI and the 
 - **Her face.** Her eyes and her mood are messages to the page like the mouth (see *Her face* in [Writing a node](nodes.md)): `ChatModel.state` sets her eyes from her state
   (`AnimationPlayer.setEyes`), the `mood` frame (`MoodState`) sets her mood (`setMood`); `RendererBridge` sends `eyes` and `mood`
   and sends them again to a page that opens later, and puts an animation's `eyes` and `expression` (`JoiaAnimation`) into the `face` of its sequence.
+  The `expression` frame (`ShowExpression`, 1.15) goes to the open page only (`showExpression`).
 - **Her body.** `AvatarModel` loads it: `GET .../body`, her `.joim` and `.joia` downloaded into the caches folder (`joi-body`, by hash; what she wore before is
   cleaned away), unpacked in `BodyFiles` (a folder `<hash>-joim` with `model.vrm`, a folder `<hash>-joia` with `<index>.vrma`, each with the marker `.unpacked`) off the main
   thread, and shown. The server's `event` named `body` loads it again, `joi` reads her animation roles again (`ChatModel.onServerEvent`, wired in `AppModel`). The page is the

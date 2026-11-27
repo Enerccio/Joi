@@ -33,6 +33,8 @@ public enum NodeMessage {
     ANIMATION("animation", Direction.TO_NODE, PlayAnimation.class),
     /** {@link MoodState}: her mood now and how it shows on her face (since 1.10). */
     MOOD("mood", Direction.TO_NODE, MoodState.class),
+    /** {@link ShowExpression}: she shows an expression on her face for a few seconds (since 1.15), a function of hers. */
+    EXPRESSION("expression", Direction.TO_NODE, ShowExpression.class),
     /** {@link ChatLog}: a note in her conversation, not given to the model (since 1.6). */
     LOG("log", Direction.TO_NODE, ChatLog.class),
     /** {@link TaskInfo}: a task of hers is made or changed its status; one that {@code waits} is for the node to ask the user about (since 1.7). */

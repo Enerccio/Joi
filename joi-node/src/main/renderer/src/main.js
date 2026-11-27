@@ -10,7 +10,9 @@
 // {type: "speech", index, data} (a piece of her voice, a wav or mp3 file in Base64: read for her mouth), {type: "speech-start", index, at} (at: the wall-clock time in ms the sound begins at)
 // (that piece plays now, by the node's own player) and {type: "speech-stop"} (her speech ended or was stopped): her mouth follows her voice (joi-lipsync.js).
 // {type: "eyes", eyes: "auto"|"closed", ease} (her state's eyes, reached over `ease` seconds) and {type: "mood", mood, expression, weight, eyes}
-// (her mood as the server's mood frame says it: the expression it shows and the eyes it gives her; just {type: "mood"} for none): her face layer (the viewer's setFace); an animation's own face comes in its sequence ({face: {eyes, expression}}).
+// (her mood as the server's mood frame says it: the expression it shows and the eyes it gives her; just {type: "mood"} for none) and
+// {type: "expression", expression, weight, seconds} (one she shows for a few seconds, the expression frame; no expression ends it): her face
+// layer (the viewer's setFace); an animation's own face comes in its sequence ({face: {eyes, expression}}).
 // With ?looking-glass the page renders her for the Looking Glass whose calibration the node serves (looking-glass.js);
 // {type: "tuning", tuning} changes how (the node's tuning panel).
 import './generated/joi-model-viewer.js';
@@ -135,6 +137,9 @@ function receive(message) {
       break;
     case 'mood':
       viewer.setFace({mood: message.mood ? {expression: message.expression, weight: message.weight, eyes: message.eyes} : null});
+      break;
+    case 'expression':
+      viewer.setFace({shown: message.expression ? {expression: message.expression, weight: message.weight, seconds: message.seconds} : null});
       break;
     case 'speech':
       speech(message);

@@ -437,6 +437,15 @@ public class NodeServiceImpl implements NodeService, InitializingBean, Disposabl
         return nodes.size();
     }
 
+    @Override
+    public int express(Joi joi, com.github.enerccio.joi.protocol.node.ShowExpression expression) {
+        List<NodeSession> nodes = sessions(joi);
+        for (NodeSession session : nodes) {
+            session.send(NodeMessage.EXPRESSION, null, null, expression);
+        }
+        return nodes.size();
+    }
+
     private static String key(NodeSession session) {
         return session.principal().user().getId() + "/" + session.joiId() + "/" + session.hello().nodeId();
     }

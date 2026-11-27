@@ -168,6 +168,25 @@ class RendererServerTest {
     }
 
     @Test
+    void anExpressionSheShowsGoesToThePagesOpenOnly() throws Exception {
+        BlockingQueue<JsonObject> open = events();
+        Thread.sleep(300);
+        server.expression(new com.github.enerccio.joi.protocol.node.ShowExpression("happy", 0.9, 3.0));
+        JsonObject shown = open.poll(5, TimeUnit.SECONDS);
+        assertThat(shown.get("type").getAsString()).isEqualTo("expression");
+        assertThat(shown.get("expression").getAsString()).isEqualTo("happy");
+        assertThat(shown.get("weight").getAsDouble()).isEqualTo(0.9);
+        assertThat(shown.get("seconds").getAsDouble()).isEqualTo(3);
+        server.expression(new com.github.enerccio.joi.protocol.node.ShowExpression(null, null, null));
+        assertThat(open.poll(5, TimeUnit.SECONDS).has("expression")).isFalse();
+        // it is over before a later page would show it
+        BlockingQueue<JsonObject> later = events();
+        for (JsonObject message = later.poll(1, TimeUnit.SECONDS); message != null; message = later.poll(500, TimeUnit.MILLISECONDS)) {
+            assertThat(message.get("type").getAsString()).isNotEqualTo("expression");
+        }
+    }
+
+    @Test
     void herVoiceGoesToThePagesOpenForHerMouth() throws Exception {
         BlockingQueue<JsonObject> open = events();
         Thread.sleep(300);

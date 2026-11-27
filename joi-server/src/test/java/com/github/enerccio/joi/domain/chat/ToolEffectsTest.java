@@ -9,6 +9,8 @@ class ToolEffectsTest {
     @Test
     void gesturesAndLooksChangeNothing() {
         assertThat(ToolEffects.changesState(AnimationTools.PLAY_ANIMATION)).isFalse();
+        assertThat(ToolEffects.changesState(ExpressionTools.SET_EXPRESSION)).isFalse();
+        assertThat(ToolEffects.needsNoAnswer(ExpressionTools.SET_EXPRESSION)).isTrue();
         assertThat(ToolEffects.changesState(BodyTools.LIST_OUTFITS)).isFalse();
         assertThat(ToolEffects.changesState(BodyTools.LIST_BODIES)).isFalse();
         assertThat(ToolEffects.changesState(MemoryTools.RECALL)).isFalse();

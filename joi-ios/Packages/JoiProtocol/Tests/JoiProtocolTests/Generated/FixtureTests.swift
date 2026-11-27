@@ -282,7 +282,7 @@ import Testing
 
     @Test func hello1() throws {
         let json = #"""
-{"protocol":"1.14","nodeId":"6f1d-4c2a","name":"desk","kind":"desktop","software":"joi-node 0.1.0","joi":"2f0c","parts":["tools","audio-out","approvals"],"token":null,"resumed":null,"resume":null}
+{"protocol":"1.15","nodeId":"6f1d-4c2a","name":"desk","kind":"desktop","software":"joi-node 0.1.0","joi":"2f0c","parts":["tools","audio-out","approvals"],"token":null,"resumed":null,"resume":null}
 """#
         try roundTrip(Hello.self, json)
     }
@@ -455,6 +455,27 @@ import Testing
         try roundTrip(MoodState.self, json)
     }
 
+    @Test func showExpression1() throws {
+        let json = #"""
+{"expression":"happy","weight":0.9,"seconds":3.0}
+"""#
+        try roundTrip(ShowExpression.self, json)
+    }
+
+    @Test func showExpression2() throws {
+        let json = #"""
+{"expression":"blush","weight":null,"seconds":null}
+"""#
+        try roundTrip(ShowExpression.self, json)
+    }
+
+    @Test func showExpression3() throws {
+        let json = #"""
+{"expression":null,"weight":null,"seconds":null}
+"""#
+        try roundTrip(ShowExpression.self, json)
+    }
+
     @Test func toolUse1() throws {
         let json = #"""
 {"name":"desk__read_file","arguments":"{\"path\":\"~/notes.md\"}","result":"milk, eggs","ok":true}
@@ -548,7 +569,7 @@ import Testing
 
     @Test func frame1() throws {
         let json = #"""
-{"type":"hello","id":null,"ref":null,"data":{"protocol":"1.14","nodeId":"6f1d-4c2a","name":"desk","kind":"desktop","software":"joi-node 0.1.0","joi":"2f0c","parts":["tools","audio-out","approvals"],"token":null,"resumed":null,"resume":null}}
+{"type":"hello","id":null,"ref":null,"data":{"protocol":"1.15","nodeId":"6f1d-4c2a","name":"desk","kind":"desktop","software":"joi-node 0.1.0","joi":"2f0c","parts":["tools","audio-out","approvals"],"token":null,"resumed":null,"resume":null}}
 """#
         try roundTrip(Frame.self, json)
         try typedFrame(json)

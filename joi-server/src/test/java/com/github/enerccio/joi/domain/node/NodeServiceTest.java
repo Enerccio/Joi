@@ -995,6 +995,34 @@ class NodeServiceTest extends PlatformTestBase {
     }
 
     @Test
+    void sheShowsAnExpressionOfHerModelAndTheNodeShowsIt() throws Exception {
+        haloBody();
+        llm.enqueue(MockLLMResponse.toolCall("set_expression", "{\"expression\":\"Happy\",\"strength\":3,\"seconds\":2}"),
+                MockLLMResponse.text("Ha!"),
+                MockLLMResponse.toolCall("set_expression", "{\"expression\":\"smug\"}"),
+                MockLLMResponse.text("Hm."));
+        Node node = connect("Bearer " + token);
+        node.hello("n1", "desk", joi.getUuid(), "1.15");
+        node.next("welcome");
+        node.manifest(1);
+        node.frame("say", "t1", "{\"text\": \"A joke\", \"speak\": false}");
+        JsonObject shown = node.next("expression").getAsJsonObject("data");
+        // the model's name, the strength kept within 1
+        assertThat(shown.get("expression").getAsString()).isEqualTo("happy");
+        assertThat(shown.get("weight").getAsDouble()).isEqualTo(1.0);
+        assertThat(shown.get("seconds").getAsDouble()).isEqualTo(2.0);
+        node.next("done");
+        assertThat(llm.getCompletionRequests().getFirst().getRawBody()).contains("set_expression").contains("Your expressions: happy.");
+        assertThat(llm.getCompletionRequests().getFirst().getPromptText()).contains("set_expression shows a feeling");
+        assertThat(llm.getCompletionRequests().get(1).getLastMessage().content()).contains("You show happy.");
+
+        // one the model does not have: she is told which it has, nothing is shown
+        node.frame("say", "t2", "{\"text\": \"Be smug\", \"speak\": false}");
+        node.next("done");
+        assertThat(llm.getCompletionRequests().get(3).getLastMessage().content()).contains("no such expression").contains("happy");
+    }
+
+    @Test
     void aNoteInHerConversationReachesTheNodeAndIsNeverGivenToTheModel() throws Exception {
         llm.enqueue(MockLLMResponse.text("Hello."), MockLLMResponse.text("Fine."));
         Node node = connect("Bearer " + token);
@@ -1223,7 +1251,7 @@ class NodeServiceTest extends PlatformTestBase {
 
         List<String> without = toolNames(llm.getCompletionRequests().get(0).getRawBody());
         List<String> with = toolNames(llm.getCompletionRequests().get(1).getRawBody());
-        assertThat(without).contains("decide_part_change", "play_animation", "set_mood", "set_outfit", "switch_body", "list_files", "write_file", "read_file");
+        assertThat(without).contains("decide_part_change", "play_animation", "set_expression", "set_mood", "set_outfit", "switch_body", "list_files", "write_file", "read_file");
         assertThat(with).isEqualTo(without);
     }
 

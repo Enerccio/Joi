@@ -18,7 +18,9 @@
 // they are applied each frame after the animation, so a clip does not take them over; null gives the mouth back.
 // setFace({eyes, ease, mood}) turns on her face layer (off until it is called: the dialogs that try expressions need none) and says
 // how it is: eyes "auto" (open, blinking now and then, looking at the camera), "closed", "half" or "wide" (open, never blinking), reached
-// over `ease` seconds; mood {expression, weight, eyes} (her mood's face, from the server: a soft expression and, for some moods, the eyes).
+// over `ease` seconds; mood {expression, weight, eyes} (her mood's face, from the server: a soft expression and, for some moods, the eyes);
+// shown {expression, weight, seconds} (an expression she chose, her set_expression: held for `seconds`, then her face goes back; it wins
+// over the expression of her mood and of an animation, not over the eyes; null ends it).
 // An animation can say better: the sequence of playSequence may have face: {eyes, expression} (expression: happy, sad, angry, relaxed
 // or surprised), which wins over her state and her mood while that animation plays (setFace(null) turns the layer off). An animation
 // with a face turns the layer on when nobody did; then the next animation without one turns it off again (the dialogs of the server).
@@ -339,6 +341,14 @@ class JoiModelViewer extends HTMLElement {
       ease: face.ease > 0 ? face.ease : face.ease === undefined ? was.ease : 0.05,
       mood: face.mood === undefined ? was.mood : face.mood || null
     };
+    if (face.shown !== undefined) {
+      const shown = face.shown;
+      this._shown = shown && shown.expression ? {
+        name: shown.expression,
+        weight: shown.weight > 0 ? Math.min(1, shown.weight) : 0.8,
+        until: performance.now() / 1000 + (shown.seconds > 0 ? Math.min(60, shown.seconds) : 4)
+      } : null;
+    }
   }
 
   /** What decides her face now: the animation's face, else her state's eyes, else her mood's. */
@@ -350,7 +360,12 @@ class JoiModelViewer extends HTMLElement {
     const animated = animation.eyes === 'auto' ? null : animation.eyes;
     // her mood's expression is held for hours: without its eyes (a model's happy or relaxed often shuts them), which are
     // the state's and the blinking's; an animation's is short and whole
-    const expression = animation.expression
+    if (this._shown && performance.now() / 1000 >= this._shown.until) {
+      this._shown = null;
+    }
+    const shown = this._shown;
+    // one she chose is held for seconds, whole, over the animation's and her mood's
+    const expression = shown ? {name: shown.name, weight: shown.weight} : animation.expression
       ? {name: animation.expression, weight: animation.weight > 0 ? animation.weight : 0.7}
       : mood && mood.expression ? {name: this._withoutEyes(mood.expression), weight: mood.weight > 0 ? mood.weight : 0.5} : null;
     return {eyes: animated || state || (mood && mood.eyes) || 'auto', expression};

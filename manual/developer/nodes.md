@@ -245,7 +245,8 @@ expressions one by one, need none), and run each frame after the animation mixer
 it on at the start. In the server's dialogs an animation with a face turns it on for itself, and the next animation without one turns it off again, so the
 dialogs that try expressions get the face back. The layer has three inputs, the first that says something wins: **the animation's face** (`sequence.face`: `{eyes, expression}` of the animation
 being played, from its `.joia`), **her state's eyes** (`eyes`: `{eyes: "auto"|"closed", ease}`) and **her mood** (`mood`: `{mood, expression, weight, eyes}`, the server's `mood` frame as it is: the mood's face is its own setting, so the page has no table
-and a mood of the user's works). The messages `eyes` and `mood` are kept and sent again to a page that opens
+and a mood of the user's works). Over all of them for the expression, not the eyes: **an expression she chose** (`shown`: `{expression, weight, seconds}`, the
+server's `expression` frame, her `set_expression`; held whole until its time is up, then the layer fades it out; `null` ends it). The messages `eyes` and `mood` are kept and sent again to a page that opens
 later (`RendererServer.eyes` / `mood`); the node says them from the director: `AvatarPane.state` (sleeping: closed in 0.4 s, falling asleep: closed over 3 s,
 waking up: open over 1.5 s, else open) and the `mood` frame (`NodeSocket.Listener.mood`, sent after the manifest and on each change of her mood: the Mood today box, her `set_mood`, the roll). The iOS app does the same (`ChatModel.state`, `RendererBridge.setEyes` / `setMood`).
 
@@ -256,5 +257,7 @@ model's expression without the shape keys of the eyes and lids (`_withoutEyes`: 
 the eyes; an animation's expression is short and stays whole. The VRM `lookAt` follows the camera plus a small random offset that changes every 0.6 to 2.5 s, and nothing while the eyes are closed. A model without
 the expression ignores it. The animation's `eyes` and `expression` are fields of `AnimationPack` (extended attributes, so no migration; `AnimationFace` keeps the allowed values and
 drops the others), of `JoiaMetadata.Animation` (the `.joia`), and set in the animation's dialog (`AnimationPackDialog`, whose preview shows them: `ClipPreview.setFace`).
-Tried with `RendererPreview`'s `eyes <auto|closed> [seconds]` and `mood <expression|none> [weight] [half|wide]` commands.
+The `expression` message is not kept (`RendererServer.expression`): it is over before a page that opens later would show it. The node passes it on from
+`NodeSocket.Listener.expression` through `AvatarPane.expression`; the iOS app from `ChatModel` through `AnimationPlayer.showExpression`.
+Tried with `RendererPreview`'s `eyes <auto|closed> [seconds]`, `mood <expression|none> [weight] [half|wide]` and `expression <name|none> [weight] [seconds]` commands.
 

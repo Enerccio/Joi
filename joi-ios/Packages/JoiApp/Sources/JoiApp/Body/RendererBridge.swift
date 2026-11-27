@@ -12,6 +12,8 @@ import JoiClient
     func setEyes(_ eyes: String, seconds: Double)
     /// Her mood and how it shows on her face (the server's `mood` frame, nil for none): a soft expression and the eyes it gives her.
     func setMood(_ mood: MoodState?)
+    /// An expression she shows for a few seconds (the server's `expression` frame, since 1.15): held over her mood's face, then let go.
+    func showExpression(_ shown: ShowExpression)
     /// Called once an animation played with `play` that does not loop is over.
     var onEnded: (@MainActor () -> Void)? { get set }
 }
@@ -19,6 +21,7 @@ import JoiClient
 extension AnimationPlayer {
     public func setEyes(_ eyes: String, seconds: Double) {}
     public func setMood(_ mood: MoodState?) {}
+    public func showExpression(_ shown: ShowExpression) {}
 }
 
 /// The messages of the renderer page (`joi-node/src/main/renderer/src/main.js`, its native mode) and the files it reads: the part of the
@@ -108,6 +111,17 @@ extension AnimationPlayer {
         let message = Self.message("mood", members)
         moodMessage = message
         broadcast(message)
+    }
+
+    public func showExpression(_ shown: ShowExpression) {
+        var members: [String: JSONValue] = [:]
+        if let expression = shown.expression {
+            members["expression"] = .string(expression)
+            if let weight = shown.weight { members["weight"] = .double(weight) }
+            if let seconds = shown.seconds { members["seconds"] = .double(seconds) }
+        }
+        // the open page only: it is over before a page that opens later would show it
+        broadcast(Self.message("expression", members))
     }
 
     public func setOffline(_ offline: Bool) {
