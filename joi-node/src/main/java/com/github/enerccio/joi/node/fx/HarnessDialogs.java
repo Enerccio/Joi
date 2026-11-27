@@ -10,9 +10,11 @@ import javafx.scene.control.Button;
 import javafx.scene.control.ButtonBar;
 import javafx.scene.control.ButtonType;
 import javafx.scene.control.CheckBox;
+import javafx.scene.control.ChoiceBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.ListView;
 import javafx.scene.control.TextArea;
+import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
 import javafx.stage.DirectoryChooser;
@@ -51,7 +53,8 @@ final class HarnessDialogs {
             area.setWrapText(true);
             area.setPrefColumnCount(70);
             area.setPrefRowCount(question.detail() == null ? 4 : 14);
-            Label note = new Label("Allow for session allows the same again until the node quits. No answer in "
+            Label note = new Label("Allow for session allows the same again until the node quits: a browser tool on any site, a file "
+                    + "read in this folder, a write to this file, a command only exactly as it is. No answer in "
                     + seconds / 60 + " minutes is a no.");
             note.setWrapText(true);
             alert.getDialogPane().setContent(new VBox(8, area, note));
@@ -154,7 +157,25 @@ final class HarnessDialogs {
         Label sites = new Label("The extension works only on the sites you allow from its button in Firefox. Mail, password managers and "
                 + "payments are refused whatever you allow (deniedSites in " + harness.policyFile() + ", with each tool's tier in browserTools).");
         sites.setWrapText(true);
-        VBox content = new VBox(10, on, new HBox(8, connect), state, sites);
+        GridPane tiers = new GridPane();
+        tiers.setHgap(10);
+        tiers.setVgap(6);
+        int row = 0;
+        for (Harness.BrowserTier tier : harness.browserTiers()) {
+            ChoiceBox<String> choice = new ChoiceBox<>();
+            choice.getItems().setAll(TIER_LABELS.values());
+            choice.setValue(TIER_LABELS.get(tier.tier()));
+            choice.setOnAction(e -> {
+                String chosen = TIER_LABELS.entrySet().stream().filter(t -> t.getValue().equals(choice.getValue())).map(java.util.Map.Entry::getKey)
+                        .findFirst().orElse(tier.defaultTier());
+                keep(note, () -> harness.setBrowserTier(tier.tool(), chosen));
+            });
+            tiers.addRow(row++, new Label(TOOL_LABELS.getOrDefault(tier.tool(), tier.tool())), choice);
+        }
+        Label tiersNote = new Label("Allow: never asked. When I ask: done at once when you asked her in this turn, otherwise asked. "
+                + "Ask each time: always asked (Allow for session lets that tool go on until the node quits).");
+        tiersNote.setWrapText(true);
+        VBox content = new VBox(10, on, new HBox(8, connect), state, new Label("What she may do without asking:"), tiers, tiersNote, sites);
         content.setPadding(new Insets(4));
         content.setPrefWidth(560);
         Alert alert = new Alert(Alert.AlertType.NONE, null, ButtonType.CLOSE);
@@ -166,6 +187,23 @@ final class HarnessDialogs {
         alert.getDialogPane().setContent(content);
         alert.show();
     }
+
+    /** The tiers of a browser tool as the user reads them, in the order of the choice. */
+    private static final java.util.Map<String, String> TIER_LABELS = new java.util.LinkedHashMap<>(java.util.Map.of());
+
+    static {
+        TIER_LABELS.put("allow", "Allow");
+        TIER_LABELS.put("asked", "When I ask");
+        TIER_LABELS.put("ask", "Ask each time");
+        TIER_LABELS.put("off", "Off");
+    }
+
+    private static final java.util.Map<String, String> TOOL_LABELS = java.util.Map.of(
+            "media_status", "See what plays",
+            "media_control", "Control what plays",
+            "list_tabs", "See your tabs",
+            "focus_tab", "Switch tabs",
+            "open_url", "Open pages");
 
     private interface Change {
         void run() throws IOException;

@@ -143,7 +143,7 @@ class BrowserToolsTest {
         harness.setBrowser(true);
         List<ToolDefinition> offered = tools.manifest().tools();
         assertThat(offered).extracting(ToolDefinition::name).containsExactly("media_status", "media_control", "list_tabs", "focus_tab", "open_url");
-        assertThat(offered).extracting(ToolDefinition::tier).containsExactly(ToolTier.ALLOW, ToolTier.DEPENDS, ToolTier.ASK, ToolTier.DEPENDS, ToolTier.ASK);
+        assertThat(offered).extracting(ToolDefinition::tier).containsExactly(ToolTier.ALLOW, ToolTier.ALLOW, ToolTier.ASK, ToolTier.DEPENDS, ToolTier.ASK);
         int before = manifests.size();
         firefox.close();
         long until = System.currentTimeMillis() + 5000;
@@ -158,6 +158,10 @@ class BrowserToolsTest {
     void mediaControlRunsAtOnceInATurnTheUserStartedAndIsAskedOtherwise() throws Exception {
         connect();
         harness.setBrowser(true);
+        // allowed by default (the site is the extension's grant): asked only when the user chose "When I ask"
+        assertThat(call("media_control", "{\"action\":\"play\"}", "an-event").ok()).isTrue();
+        assertThat(asked).isEmpty();
+        harness.setBrowserTier("media_control", "asked");
         harness.turnStarted("mine", "say");
         ToolResult paused = call("media_control", "{\"action\":\"pause\"}", "mine");
         assertThat(paused.ok()).isTrue();
@@ -203,5 +207,41 @@ class BrowserToolsTest {
         assertThat(opened.content()).contains("tab 9");
         assertThat(asked).isEmpty();
         assertThat(Files.readString(harness.auditFile())).contains("\"site\":\"example.com\"").doesNotContain("/a\"");
+    }
+
+    @Test
+    void allowForSessionCoversTheToolOnEverySite() throws Exception {
+        connect();
+        harness.setBrowser(true);
+        answer.set(NodeTools.Scope.SESSION);
+        assertThat(call("open_url", "{\"url\":\"https://example.com/a\"}", "an-event").ok()).isTrue();
+        assertThat(asked).hasSize(1);
+        answer.set(NodeTools.Scope.DENIED);
+        // another site: the extension's grant and the denied sites say where, the node does not ask again
+        assertThat(call("open_url", "{\"url\":\"https://news.example.org/\"}", "an-event").ok()).isTrue();
+        assertThat(asked).hasSize(1);
+        assertThat(Files.readString(harness.auditFile())).contains("\"via\":\"earlier\"");
+        // another tool is asked about on its own
+        assertThat(call("list_tabs", "{}", "an-event").error()).isEqualTo("denied");
+        assertThat(asked).hasSize(2);
+        // a denied site stays denied
+        assertThat(call("open_url", "{\"url\":\"https://mail.google.com/\"}", "an-event").error()).isEqualTo("denied");
+    }
+
+    @Test
+    void theUserSetsATierAndTheDefaultIsLeftOutOfThePolicy() throws Exception {
+        connect();
+        harness.setBrowser(true);
+        harness.setBrowserTier("open_url", "allow");
+        assertThat(harness.policy().browserTools).containsEntry("open_url", "allow");
+        assertThat(harness.browserTiers()).contains(new Harness.BrowserTier("open_url", "allow", "ask"));
+        assertThat(call("open_url", "{\"url\":\"https://example.com/\"}", "an-event").ok()).isTrue();
+        assertThat(asked).isEmpty();
+        harness.setBrowserTier("open_url", "ask");
+        assertThat(harness.policy().browserTools).isNull();
+        harness.setBrowserTier("list_tabs", "off");
+        assertThat(tools.manifest().tools()).extracting(ToolDefinition::name).doesNotContain("list_tabs");
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> harness.setBrowserTier("list_tabs", "maybe")).isInstanceOf(IllegalArgumentException.class);
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> harness.setBrowserTier("read_mail", "allow")).isInstanceOf(IllegalArgumentException.class);
     }
 }

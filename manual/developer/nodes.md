@@ -192,7 +192,12 @@ when `browser` is `on` in the policy, its tier is not `off` and the link is conn
 the turn: both nodes pass every `turnStarted(turn, cause)` to `Harness.turnStarted`, which keeps the last 50 turns of cause `say`. A
 tool that names a tab first asks the extension for it (`tab_info`, also `pick: "media"` for the tab that plays) and refuses a denied
 site (`BrowserTools.deniedSite`: the host or a subdomain of a `deniedSites` entry) before the question. The audit gets the site, not
-the address.
+the address. "Allow for session" covers a browser tool on every site (its session key is the tool's name): the sites are the extension's
+grant and `deniedSites`, so the node does not ask per site. `media_control` is `allow` by default for the same reason (it runs a
+script only in a granted tab). `Harness.browserTiers()` lists the tools with their tier and default, and
+`Harness.setBrowserTier(tool, tier)` keeps a choice (a tier equal to the default is removed from `browserTools`) and sends a new
+manifest; **Joi → Browser…** (`HarnessDialogs.browser`) and `/browser <tool> <tier>` (`JoiNodeCli`) use them. `BrowserToolsTest`
+covers the session across sites and the choices.
 
 `BrowserHost.install` takes the Java of this run (`java.home/bin/java`) and the class path the node's classes came from (the
 `URLClassLoader`'s URLs under Maven's `exec:java`, else `java.class.path`). It writes the host's manifest into
@@ -201,7 +206,8 @@ leaves the manifest in the node's home and writes the registry key `HKCU\Softwar
 manifest allows only the extension's id, `BrowserHost.EXTENSION_ID`.
 
 The extension is built with `web-ext` (`joi-browser/package.json`: `npm run lint`, `build`, `run`, and `sign`, which needs
-`WEB_EXT_API_KEY` and `WEB_EXT_API_SECRET` from AMO in the environment). `BrowserCompanionTest` runs the real host between a fake
+`WEB_EXT_API_KEY` and `WEB_EXT_API_SECRET` from AMO in the environment; `tools/sign_firefox_extension.sh` and the workflow `browser.yml`
+sign it, see [Building](building.md#the-firefox-extension)). `BrowserCompanionTest` runs the real host between a fake
 Firefox (`FakeFirefox`, pipes for stdin and stdout) and the node's socket; `BrowserToolsTest` runs the tools through it.
 
 ## Her mouth

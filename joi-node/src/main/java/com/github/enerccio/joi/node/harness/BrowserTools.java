@@ -63,6 +63,7 @@ final class BrowserTools {
             this.link = link;
         }
 
+        /** Its tier when the policy names none: {@code allow}, {@code asked} or {@code ask}. */
         abstract String defaultTier();
 
         String tier(Policy policy) {
@@ -258,7 +259,8 @@ final class BrowserTools {
 
         @Override
         String defaultTier() {
-            return "asked";
+            // the site is the extension's grant: it works only where the user allowed Joi
+            return "allow";
         }
 
         @Override
@@ -294,7 +296,7 @@ final class BrowserTools {
             int id = tab.get("id").getAsInt();
             Harness.Question question = new Harness.Question(TOOL, "She wants to " + act.replace('_', ' ')
                     + (value == null ? "" : " (" + value + ")") + " in Firefox", site + ": " + text(tab, "title"), null, null);
-            return new Harness.Go(asks(call, policy), TOOL + ":" + site, question, audit, () -> {
+            return new Harness.Go(asks(call, policy), TOOL, question, audit, () -> {
                 JsonObject args = new JsonObject();
                 args.addProperty("tab", id);
                 args.addProperty("action", act);
@@ -389,7 +391,7 @@ final class BrowserTools {
             }
             int id = tab.get("id").getAsInt();
             Harness.Question question = new Harness.Question(TOOL, "She wants to switch Firefox to a tab", site + ": " + text(tab, "title"), null, null);
-            return new Harness.Go(asks(call, policy), TOOL + ":" + site, question, site(site), () -> {
+            return new Harness.Go(asks(call, policy), TOOL, question, site(site), () -> {
                 JsonObject args = new JsonObject();
                 args.addProperty("tab", id);
                 request("focus_tab", args);
@@ -441,7 +443,7 @@ final class BrowserTools {
             }
             String address = uri.toString();
             Harness.Question question = new Harness.Question(TOOL, "She wants to open a page in Firefox", address, null, null);
-            return new Harness.Go(asks(call, policy), TOOL + ":" + host, question, site(host), () -> {
+            return new Harness.Go(asks(call, policy), TOOL, question, site(host), () -> {
                 JsonObject args = new JsonObject();
                 args.addProperty("url", address);
                 JsonObject data = request("open_url", args);

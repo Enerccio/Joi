@@ -10,7 +10,9 @@ import com.google.gson.JsonObject;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -157,6 +159,46 @@ public final class Harness {
     public synchronized void setBrowser(boolean on) throws IOException {
         Policy policy = policy();
         policy.browser = on ? "on" : "off";
+        save(policy);
+    }
+
+    /** A browser tool as the user sees it: its name, its tier now and the one it has when the policy names none. */
+    public record BrowserTier(String tool, String tier, String defaultTier) {
+    }
+
+    /** The browser tools of this node with their tiers, for the settings (empty without the browser companion). */
+    public List<BrowserTier> browserTiers() {
+        Policy policy = policy();
+        List<BrowserTier> list = new ArrayList<>();
+        for (NodeTool tool : tools) {
+            if (tool instanceof BrowserTools.BrowserTool browserTool) {
+                list.add(new BrowserTier(browserTool.name(), browserTool.tier(policy), browserTool.defaultTier()));
+            }
+        }
+        return list;
+    }
+
+    /**
+     * The user's choice for a browser tool: {@code allow} (never asked), {@code asked} (done at once when the user asked for it in
+     * the turn, else asked), {@code ask} (each use asked) or {@code off}. The default tier is kept by leaving the tool out of the policy.
+     * A new manifest goes out.
+     *
+     * @throws IllegalArgumentException for an unknown tool or tier
+     */
+    public synchronized void setBrowserTier(String tool, String tier) throws IOException {
+        BrowserTier current = browserTiers().stream().filter(t -> t.tool().equals(tool)).findFirst()
+                .orElseThrow(() -> new IllegalArgumentException("No browser tool " + tool));
+        if (!List.of("allow", "asked", "ask", "off").contains(tier)) {
+            throw new IllegalArgumentException("A tier is allow, asked, ask or off, not " + tier);
+        }
+        Policy policy = policy();
+        Map<String, String> tiers = policy.browserTools == null ? new LinkedHashMap<>() : new LinkedHashMap<>(policy.browserTools);
+        if (tier.equals(current.defaultTier())) {
+            tiers.remove(tool);
+        } else {
+            tiers.put(tool, tier);
+        }
+        policy.browserTools = tiers.isEmpty() ? null : tiers;
         save(policy);
     }
 

@@ -2251,12 +2251,15 @@ it on, acts only where the user allowed it, and every call goes through the node
   connected: a new manifest goes out when it connects or goes away.
 
 **The tools.** Each has a tier in `policy.json` (`browser.tools`): `allow`, `asked` (allowed in a turn the user started from this
-node, with a `say`, else asked), `ask` (asked every time; *Allow for session* covers the same tool on the same site) or `off`.
+node, with a `say`, else asked), `ask` (asked every time; *Allow for session* covers the same tool on every site until the node quits) or `off`. Which sites she
+may touch is the extension's grant (and the denied sites): the node does not ask again per site. The tiers are chosen in
+**Joi → Browser…** (*Allow*, *When I ask*, *Ask each time*, *Off*) or with `/browser <tool> <tier>` in the terminal node; a tier
+equal to the default is left out of `policy.json`.
 
 | Tool | What it does | Default |
 |---|---|---|
 | `media_status` | the tabs that play or paused media: title, site, playing or paused, position and length, volume, speed, captions | `allow` |
-| `media_control(tab?, action, value?)` | play, pause, seek to or by, volume, mute, speed, captions, next, previous; the playing tab when `tab` is left out | `asked` |
+| `media_control(tab?, action, value?)` | play, pause, seek to or by, volume, mute, speed, captions, next, previous; the playing tab when `tab` is left out || `allow` (only on a granted site) |
 | `list_tabs` | the open tabs: id, title, URL, which is active, which plays sound | `ask` |
 | `focus_tab(tab)` | switch to a tab | `asked` |
 | `open_url(url)` | open an `http(s)` URL in a new tab | `ask` |

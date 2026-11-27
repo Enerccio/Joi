@@ -55,8 +55,8 @@ import java.util.concurrent.atomic.AtomicReference;
  * {@code /notify off|ask|allow} sets whether she gets the notification tool ({@link Notifications}), {@code /notify test}
  * shows one; the harness ({@link Harness}, the files and the shell of this machine): {@code /files on|off}, {@code /shell ask|off},
  * {@code /roots}, {@code /roots add <path>} and {@code /roots remove <path>}, and a call it asks about is answered with {@code /yes},
- * {@code /session} (the same again until the node quits) or {@code /no}; the browser companion: {@code /browser on|off} and
- * {@code /browser connect} (registers this node as Firefox's native host, {@link BrowserHost}); {@code /image <file> [words]} sends an image (streamed to the server) with the words.
+ * {@code /session} (the same again until the node quits) or {@code /no}; the browser companion: {@code /browser on|off},
+ * {@code /browser <tool> allow|asked|ask|off} and {@code /browser connect} (registers this node as Firefox's native host, {@link BrowserHost}); {@code /image <file> [words]} sends an image (streamed to the server) with the words.
  * <p>
  * {@code java ... JoiNodeCli [http://server:port]}
  */
@@ -346,6 +346,14 @@ public final class JoiNodeCli {
                 default -> {
                     if (line.startsWith("/no ")) {
                         answer(client, chosen.id(), questions, "/no", line.substring(4).strip());
+                    } else if (line.startsWith("/browser ") && line.split("\\s+").length == 3) {
+                        String[] words = line.split("\\s+");
+                        try {
+                            harness.setBrowserTier(words[1], words[2]);
+                            browserState(harness, settings);
+                        } catch (IllegalArgumentException | IOException e) {
+                            out.println("[not kept: " + e.getMessage() + "]");
+                        }
                     } else if (line.startsWith("/roots add ") || line.startsWith("/roots remove ")) {
                         try {
                             if (line.startsWith("/roots add ")) {
@@ -398,7 +406,9 @@ public final class JoiNodeCli {
         Policy policy = harness.policy();
         out.println("[browser: " + (policy.browserOn() ? "on" : "off") + " (/browser on or off); Firefox "
                 + (harness.browser().connected() ? "is connected" : BrowserHost.installed(settings.dir()) ? "is not connected (is the Joi extension installed?)"
-                : "cannot reach this node yet (/browser connect)") + "]");
+                : "cannot reach this node yet (/browser connect)") + "; tools: "
+                + String.join(", ", harness.browserTiers().stream().map(t -> t.tool() + " " + t.tier()).toList())
+                + " (/browser <tool> allow, asked, ask or off)]");
     }
 
     /** What the harness lets her do now. */

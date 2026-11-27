@@ -45,7 +45,7 @@ permission for the site. Private windows are left out.
 | Tool | What it does | Asked? |
 |---|---|---|
 | `media_status` | what plays or is paused in which tab: title, position, volume, speed, captions | no |
-| `media_control` | play, pause, seek, volume, mute, speed, captions, next, previous (YouTube has its own next, previous and captions) | not when you asked for it in this turn; otherwise yes |
+| `media_control` | play, pause, seek, volume, mute, speed, captions, next, previous (YouTube has its own next, previous and captions) | no: it works only on the sites you allowed in Firefox |
 | `list_tabs` | the open tabs: title, address, which is active, which plays sound | yes |
 | `focus_tab` | switch to a tab | not when you asked for it in this turn; otherwise yes |
 | `open_url` | open an `http` or `https` page in a new tab | yes |
@@ -53,13 +53,24 @@ permission for the site. Private windows are left out.
 "When you asked for it in this turn" means the turn started from your own message on this node. A turn she started herself (an
 event, a task) asks you.
 
-The questions are answered like the harness's: **Allow once**, **Allow for session** (the same tool on the same site until the node
-quits) or **Deny**; in the terminal node `/yes`, `/session` or `/no`.
+The questions are answered like the harness's: **Allow once**, **Allow for session** (that tool, on every site, until the node
+quits) or **Deny**; in the terminal node `/yes`, `/session` or `/no`. The node does not ask again for each site: which sites she
+may work on is what you allow from the Joi button in Firefox, and the refused sites below.
 
 ## Changing the tiers
 
-Each tool's tier is in `policy.json` in the node's home, under `browserTools`: `allow`, `asked` (silent when you asked for it in
-this turn), `ask` or `off` (she does not get the tool). A tool you leave out keeps its default.
+**Joi → Browser…** lists the tools with a choice for each:
+
+| Choice | Meaning |
+|---|---|
+| **Allow** | never asked |
+| **When I ask** | done at once when you asked for it in this turn, otherwise asked |
+| **Ask each time** | always asked (Allow for session lets it go on until the node quits) |
+| **Off** | she does not get the tool |
+
+In the terminal node: `/browser` shows them, `/browser <tool> allow`, `asked`, `ask` or `off` changes one (`/browser open_url allow`).
+The choice is kept in `policy.json` in the node's home, under `browserTools`; a tool at its default is left out. It can be
+edited by hand too:
 
 ```json
 {
