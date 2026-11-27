@@ -1,0 +1,141 @@
+# Builds the browser companion (joi-browser, the Firefox extension) and, for a v* tag, has Mozilla sign it.
+#
+# Every build: web-ext lint and build, the zip as an artifact.
+# A v* tag: the manifest gets the version of the tag (1.2.3; Firefox takes only numbers, so a tag with a suffix is not signed),
+# web-ext signs it as an unlisted add-on on addons.mozilla.org (it is not listed in the catalogue; AMO keeps each version once,
+# so a version is signed only once) and the signed joi-browser-<version>.xpi is attached to the GitHub release.
+#
+# Signing needs the repository secrets AMO_JWT_ISSUER and AMO_JWT_SECRET (addons.mozilla.org -> Developer Hub -> Tools ->
+# Manage API Keys). Without them the job says so and signs nothing.
+
+name: Browser
+
+on:
+  push:
+    branches: [master]
+    tags: ['v*']
+    paths:
+      - 'joi-browser/**'
+      - '.github/workflows/browser.yml'
+  pull_request:
+    paths:
+      - 'joi-browser/**'
+      - '.github/workflows/browser.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: browser-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  NODE_VERSION: '22'
+
+jobs:
+  build:
+    name: Lint and build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: joi-browser
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: joi-browser/package-lock.json
+
+      - run: npm ci --no-audit --no-fund
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Build
+        run: npm run build
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: joi-browser
+          path: joi-browser/target/*.zip
+          if-no-files-found: error
+
+  sign:
+    name: Sign with Mozilla
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: joi-browser
+    env:
+      WEB_EXT_API_KEY: ${{ secrets.AMO_JWT_ISSUER }}
+      WEB_EXT_API_SECRET: ${{ secrets.AMO_JWT_SECRET }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: joi-browser/package-lock.json
+
+      - run: npm ci --no-audit --no-fund
+
+      - name: Take the version from the tag
+        id: version
+        run: |
+          version="${GITHUB_REF#refs/tags/v}"
+          if [[ ! "$version" =~ ^[0-9]+(\.[0-9]+){0,3}$ ]]; then
+            echo "::warning::The tag v$version has a suffix: Firefox versions are numbers only, so it is not signed"
+            echo "sign=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if [ -z "$WEB_EXT_API_KEY" ] || [ -z "$WEB_EXT_API_SECRET" ]; then
+            echo "::warning::No AMO_JWT_ISSUER / AMO_JWT_SECRET secrets: the extension is not signed"
+            echo "sign=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          jq --arg v "$version" '.version = $v' src/manifest.json > manifest.tmp && mv manifest.tmp src/manifest.json
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "sign=true" >> "$GITHUB_OUTPUT"
+
+      - name: Sign
+        if: steps.version.outputs.sign == 'true'
+        run: |
+          npm run sign
+          mkdir -p ../dist
+          for xpi in target/*.xpi; do
+            cp "$xpi" "../dist/joi-browser-${{ steps.version.outputs.version }}.xpi"
+          done
+          ls -l ../dist
+
+      - uses: actions/upload-artifact@v4
+        if: steps.version.outputs.sign == 'true'
+        with:
+          name: joi-browser-signed
+          path: dist/*.xpi
+          if-no-files-found: error
+
+  release:
+    name: Attach to release
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: sign
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        id: download
+        continue-on-error: true
+        with:
+          name: joi-browser-signed
+          path: dist
+
+      - uses: softprops/action-gh-release@v2
+        if: steps.download.outcome == 'success'
+        with:
+          files: dist/*.xpi

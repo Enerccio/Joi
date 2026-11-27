@@ -84,7 +84,7 @@ with the code.
   `swift test` runs a package alone. See `manual/developer/ios-app.md`.
 - `joi-extensions/` — the extensions that come with Joi (OSGi bundles: the model providers `anthropic`, `google-genai`, `grok`, built against the platform only), loaded from the
   extensions folder of the data folder (Administration → Extensions); the API of Joi's own extensions is `joi-server/.../extensions` (`JoiExtension`).
-- `joi-browser/` — the browser companion, a Firefox extension (Manifest V2, `src/`: `background.js`, `media.js`, the popup) that talks to the node through native messaging (`DESIGN.md` → Browser companion); built and signed with `web-ext` (`package.json`, AMO keys from the environment), not in the Maven reactor.
+- `joi-browser/` — the browser companion, a Firefox extension (Manifest V2, `src/`: `background.js`, `media.js`, the popup) that talks to the node through native messaging (`DESIGN.md` → Browser companion); built and signed with `web-ext` (`package.json`, AMO keys from the environment or `joi-browser/firefox.jwt.issuer` / `.secret`, which are in `.git/info/exclude`: never print or commit them), not in the Maven reactor; `tools/sign_firefox_extension.sh [version]` signs it as an unlisted add-on (AMO signs each version once) and `.github/workflows/browser.yml` builds it and signs it for a `v*` tag.
 - `joi-desktop/` — the desktop app, in the reactor only with the root POM's profile `desktop`: `DesktopLauncher` (JDK only: runs jetty-home with the WAR, the
   web UI on a loopback port with its login, the API on a Unix socket in the data folder where the node of this machine needs no key
   (`POST /oauth/local`, `joi.api.local-socket`), a tray icon that starts the node, one node per home by the lock `node.lock`), and the POM that

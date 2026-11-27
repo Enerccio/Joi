@@ -17,6 +17,9 @@ covers:
   - tools/version_from_tag.sh
   - .github/workflows/server.yml
   - .github/workflows/test.yml
+  - .github/workflows/browser.yml
+  - tools/sign_firefox_extension.sh
+  - joi-browser/package.json
   - .github/dependabot.yml
 verified: 88455e1
 ---
@@ -139,7 +142,21 @@ npm run build     # the zip, into joi-browser/target
 npm run sign      # signed by Mozilla as an unlisted add-on: needs WEB_EXT_API_KEY and WEB_EXT_API_SECRET from AMO
 ```
 
-The keys come from the environment, never from Git. The node registers itself as the extension's native host with **Connect
+`npm run sign` uploads the extension to addons.mozilla.org only to be signed: an unlisted add-on is not in the catalogue, and the signed
+`.xpi` comes back into `joi-browser/target` to be installed from the file. AMO signs each version once, so a new signing needs a new
+`version` in `src/manifest.json`. The manifest declares `data_collection_permissions: none` (AMO requires the key of every new extension;
+what the extension sees goes only to the node on the same machine). web-ext is 10.x: 8.3 lost the file name of the upload on Node 26 and
+AMO refused it as an unsupported file type.
+
+`tools/sign_firefox_extension.sh [version]` does it in one step on a developer's machine: it sets the version when one is given, reads
+the keys from `joi-browser/firefox.jwt.issuer` and `firefox.jwt.secret` (kept out of Git by `.git/info/exclude`), lints, signs, and names
+the result `joi-browser/target/joi-browser-<version>.xpi`.
+
+The workflow `browser.yml` lints and builds the extension on every change of `joi-browser/`, and for a `v*` tag sets the tag's version in
+the manifest, signs it with the repository secrets `AMO_JWT_ISSUER` and `AMO_JWT_SECRET` and attaches `joi-browser-<version>.xpi` to the
+release. A tag with a suffix, or a repository without the secrets, is built but not signed.
+
+The keys come from the environment or those two files, never from Git. The node registers itself as the extension's native host with **Connect
 Firefox** (see [Writing a node](nodes.md#the-browser-companion)).
 
 ## The desktop app

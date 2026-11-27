@@ -37,3 +37,7 @@ retype.manifest
 
 # the commit the running container was built from (rebuild.sh, rebuild.bat)
 /.rebuild-deployed
+
+# web-ext: the state of an AMO upload
+joi-browser/src/.amo-upload-uuid
+joi-browser/src/.web-extension-id
