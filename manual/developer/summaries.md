@@ -7,7 +7,7 @@ covers:
   - joi-server/src/main/java/com/github/enerccio/joi/domain/service/SummarizerService.java
   - joi-server/src/main/java/com/github/enerccio/joi/domain/service/impl/SummarizerServiceImpl.java
   - joi-server/src/main/java/com/github/enerccio/joi/domain/service/impl/SummaryServiceImpl.java
-verified: b338033
+verified: a48bf19
 ---
 
 # Summaries
@@ -24,7 +24,7 @@ The user side is in [Summaries](../user/jois/summaries.md). This page is how it 
 | `SummaryPlan` | `domain/summary` | decides what is due now from the summaries and the messages no summary covers. Pure, tested on its own |
 | `SummaryQueue` | `domain/summary` | the queue: lanes, limits, the order of one assistant's jobs. Pure |
 | `SummaryText` | `domain/summary` | the words about a time, for the prompt and the events. Pure |
-| `ModelRound` | `domain/summary` | one request to a model that answers in text |
+| `ModelRound` | `domain/summary` | one request to a model that answers in text; a job's requests go with the cache key of `JoiInference.SUMMARIZE` (see [A chat turn](chat-turn.md)) |
 | `SummarizerService` | `domain/service` | the tick, the jobs, the manual summary and the event she is told |
 | `SummaryService.lane` | `domain/service` | which lane a model's summaries wait in, and its limit |
 
