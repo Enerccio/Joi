@@ -21,7 +21,7 @@ covers:
   - tools/sign_firefox_extension.sh
   - joi-browser/package.json
   - .github/dependabot.yml
-verified: 6533970
+verified: ad275e2
 ---
 
 # Building
