@@ -7,7 +7,7 @@ covers:
   - joi-server/src/main/java/com/github/enerccio/joi/domain/animations
   - joi-server/src/main/java/com/github/enerccio/joi/domain/service/impl/BodyServiceImpl.java
   - joi-server/src/main/java/com/github/enerccio/joi/domain/service/impl/ProfileServiceImpl.java
-verified: 505f64b
+verified: 4b3d99c
 ---
 
 # Bodies and models
