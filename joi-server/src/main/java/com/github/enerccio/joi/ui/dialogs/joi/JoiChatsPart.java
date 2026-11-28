@@ -93,6 +93,9 @@ public class JoiChatsPart implements JoiDialogPart {
     @Autowired
     private SummarizerService summarizerService;
 
+    /** Up to when the summaries cover the messages (read at each load): the cards before it are shown faded. */
+    private Date covered;
+
     @Autowired
     private ChatImageService chatImageService;
 
@@ -372,6 +375,7 @@ public class JoiChatsPart implements JoiDialogPart {
         checked.clear();
         anchor = null;
         panel.removeAll();
+        covered = summarizerService.coveredUpTo(joi);
         List<ChatMessage> latest = chatMessageService.findLatest(joi, PAGE + 1);
         hasEarlier = latest.size() > PAGE;
         if (hasEarlier) {
@@ -440,6 +444,7 @@ public class JoiChatsPart implements JoiDialogPart {
 
     /** The turn ended: its waiting card goes, and the message it stored (none when it was stopped) takes its place. */
     private void answered(String turn, ChatMessage message) {
+        fadeSummarized();
         Waiting done = turn == null ? null : waiting.remove(turn);
         if (done != null) {
             panel.remove(done.card());
@@ -455,6 +460,27 @@ public class JoiChatsPart implements JoiDialogPart {
         }
         showEmpty();
         followEnd();
+    }
+
+    /** A summary may have been written meanwhile (it is told to her as an event): the cards it covers are faded now. */
+    private void fadeSummarized() {
+        try {
+            Date now = summarizerService.coveredUpTo(joi);
+            if (now == null || now.equals(covered)) {
+                return;
+            }
+            covered = now;
+            for (ChatMessage shownMessage : shown) {
+                Div card = cards.get(shownMessage.getId());
+                if (card != null && shownMessage.getSentAt() != null && shownMessage.getSentAt().before(covered)
+                        && !card.hasClassName(JoiCssStyles.CHAT_MESSAGE_SUMMARIZED)) {
+                    card.addClassName(JoiCssStyles.CHAT_MESSAGE_SUMMARIZED);
+                    card.getElement().setAttribute("title", loc.getValue(J_L.LABEL_CHAT_SUMMARIZED));
+                }
+            }
+        } catch (Exception e) {
+            org.slf4j.LoggerFactory.getLogger(JoiChatsPart.class).warn("Could not read what the summaries cover", e);
+        }
     }
 
     /** The message got its clip: its card is made again, with the play button. */
@@ -756,6 +782,11 @@ public class JoiChatsPart implements JoiDialogPart {
     Component card(ChatMessage message) {
         Div card = new Div();
         card.addClassName(JoiCssStyles.CHAT_MESSAGE);
+        if (covered != null && message.getSentAt() != null && message.getSentAt().before(covered)) {
+            // a summary stands in its place: it is no longer given to her as a message
+            card.addClassName(JoiCssStyles.CHAT_MESSAGE_SUMMARIZED);
+            card.getElement().setAttribute("title", loc.getValue(J_L.LABEL_CHAT_SUMMARIZED));
+        }
 
         boolean event = message.getType() == com.github.enerccio.joi.domain.collections.ChatMessageType.EVENT;
         boolean note = message.getType() == com.github.enerccio.joi.domain.collections.ChatMessageType.LOG;

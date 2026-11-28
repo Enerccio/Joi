@@ -30,7 +30,7 @@ changes the schema, the record and the docs together with the code.**
 
 ## Versioning
 
-`JoiProtocol.VERSION` is `major.minor` (now 1.15), sent in the handshake. A minor version only adds things; both sides ignore fields and message types they
+`JoiProtocol.VERSION` is `major.minor` (now 1.16), sent in the handshake. A minor version only adds things; both sides ignore fields and message types they
 do not know. The server supports at least the previous major version and says so when a node is too old.
 
 ## The HTTP API
@@ -41,7 +41,7 @@ do not know. The server supports at least the previous major version and says so
 | `GET /api/v1/jois`, `GET /api/v1/jois/{id}` | her assistants; one with names, personality, today's mood, chat model, voice and her animations |
 | `POST /api/v1/jois/{id}/chat` | `{"text": ...}`: she answers in text and speech. Whole, or streamed as server-sent events with `"stream": true` or `Accept: text/event-stream` (text pieces, `reply`, `audio` pieces, `done`, `error`, keep-alives every 15 s) |
 | `POST /api/v1/jois/{id}/images`, `GET /api/v1/images/{id}` | an image for her: the raw body, streamed to a file; answer `ImageUpload` (id, size, width, height). The id goes in `ChatRequest.images` / `Say.images`; `GET` gives the image back (ETag = id) |
-| `GET /api/v1/jois/{id}/chat` | her history, the latest 50 exchanges (`limit` up to 200) oldest first; `more` and `before` page back |
+| `GET /api/v1/jois/{id}/chat` | her history, the latest 500 exchanges (`limit` up to 1000) oldest first; `more` and `before` slide the window back; `summarized` and `toolImages` since 1.16 |
 | `GET /api/v1/jois/{id}/body` | the body she is in: models with their `.joim`, the parts that can be switched, how she looks, the animations with their `.joia`, her outfits (`outfits`, the worn one marked; 1.12); `?node=<nodeId>` (1.12) gives the body of the profile that node is in; 404 `no_body` for none |
 | `GET /api/v1/models/{id}/joim`, `GET /api/v1/bodies/{id}/joia` | stream the files from disk, with the hash as the ETag (304 to `If-None-Match`) |
 | `GET .../tasks`, `.../tasks/{task}`, `POST .../approve`, `.../deny`, `.../cancel` | her tasks; answer one (`approve` with `{always: true}` is the standing approval) |
@@ -70,9 +70,16 @@ node tool's result, as the node's `view_image` does. A result is text for the mo
 the pictures as attachments for a multimodal chat model, else the describing model's notes (`ChatImageService.describe`), in the
 template `TOOL_IMAGES` (`ToolImagesTemplateData`: `tools`, `shows`). The message stays in that turn only. The ids shown go into the
 turn's `TurnProperties.TOOL_IMAGES`; `StoreStep` writes them into her message (`ChatMessage.toolImages`) and links them to it
-(`ChatImageService.attach`), `ChatImageService.deleteOf` deletes them with it, and `JoiChatsPart` shows them with her reply. They are
-not in `ChatEntry` yet. An id that is not the
+(`ChatImageService.attach`), `ChatImageService.deleteOf` deletes them with it, and `JoiChatsPart` shows them with her reply. The history gives
+them as `ChatEntry.toolImages` (1.16). An id that is not the
 user's image is skipped. A node older than 1.14 sends no `images`.
+
+**The history window and what is summarized (1.16).** `JoiApi.history` gives the latest 500 messages by default (`DEFAULT_HISTORY`;
+`limit` 1 to 1000, `MAX_HISTORY`), and `before` (the first id given) slides the window back. Each entry has `summarized` when it was sent
+before `SummarizerService.coveredUpTo` (the prompt's history starts there, see [The chat turn](chat-turn.md)), null otherwise, and
+`toolImages` from `ChatMessage.toolImageUuids`. The JavaFX node (`ChatPane.drawPast`) draws a line after the last summarized entry and
+pictures with `ServerClient.image` (cached in `<home>/cache/images`), "Show earlier messages" when `more`, and a Copy menu on every
+line; the app (`ChatModel.messages(of:)`) adds a `.summaryBreak` row and counts the pictures.
 
 **Administration (1.13).** Marginalia's `/admin` calls of its `ApiDispatcher`, in Joi's API: `JoiAdminApi`, called by `JoiApi.route` for a path that
 starts with `admin`. A token has administration scopes (`AdminScope`: `update`, `extensions`; `AccessToken.scopes`, an extended attribute, names

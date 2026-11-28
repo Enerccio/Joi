@@ -9,6 +9,8 @@ public struct ChatMessage: Identifiable, Equatable, Sendable {
         /// Something that happened (the node connected, she woke up), or a note of the server.
         case note
         case error
+        /// The line after the last message a summary covers (since 1.16): she no longer gets the messages above it, only the summary.
+        case summaryBreak
     }
 
     public let id: UUID
@@ -19,12 +21,15 @@ public struct ChatMessage: Identifiable, Equatable, Sendable {
     public var streaming: Bool
     /// How many images the user sent with the words (since 1.11).
     public var imageCount: Int
+    /// How many pictures her tools brought in the turn of her reply (`ChatEntry.toolImages`, since 1.16).
+    public var toolImageCount: Int
 
-    public init(role: Role, text: String, turn: String? = nil, streaming: Bool = false, imageCount: Int = 0, id: UUID = UUID()) {
+    public init(role: Role, text: String, turn: String? = nil, streaming: Bool = false, imageCount: Int = 0, toolImageCount: Int = 0, id: UUID = UUID()) {
         self.id = id
         self.role = role
         self.text = text
         self.imageCount = imageCount
+        self.toolImageCount = toolImageCount
         self.turn = turn
         self.streaming = streaming
     }
@@ -318,7 +323,7 @@ public final class ChatModel: AvatarOutput {
 
     private func loadHistory() async {
         do {
-            let page = try await history.history(joiID, limit: 50, before: nil)
+            let page = try await history.history(joiID, limit: Self.historyWindow, before: nil)
             messages = Self.messages(of: page.messages)
             hasMoreHistory = page.more
         } catch {
@@ -326,9 +331,14 @@ public final class ChatModel: AvatarOutput {
         }
     }
 
+    /// How many messages of her history the chat starts with (the server's default since 1.16).
+    static let historyWindow = 500
+
     static func messages(of entries: [ChatEntry]) -> [ChatMessage] {
         var out: [ChatMessage] = []
-        for entry in entries {
+        // the line goes after the last message a summary covers
+        let lastSummarized = entries.lastIndex { $0.summarized == true }
+        for (index, entry) in entries.enumerated() {
             switch entry.type {
             case "user":
                 let count = entry.images?.count ?? 0
@@ -341,7 +351,15 @@ public final class ChatModel: AvatarOutput {
                 // an event she was told: what happened, and her answer to it
                 out.append(ChatMessage(role: .note, text: eventNote(entry.event ?? entry.type)))
             }
-            if let reply = entry.reply, !reply.isEmpty { out.append(ChatMessage(role: .joi, text: reply)) }
+            let pictures = entry.toolImages?.count ?? 0
+            if let reply = entry.reply, !reply.isEmpty {
+                out.append(ChatMessage(role: .joi, text: reply, toolImageCount: pictures))
+            } else if pictures > 0 {
+                out.append(ChatMessage(role: .joi, text: "", toolImageCount: pictures))
+            }
+            if index == lastSummarized {
+                out.append(ChatMessage(role: .summaryBreak, text: "Summarized above: no longer sent to her"))
+            }
         }
         return out
     }

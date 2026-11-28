@@ -25,6 +25,8 @@ class JoiChatsPartTest extends PlatformTestBase {
     @Autowired
     private ChatMessageService chatMessageService;
     @Autowired
+    private com.github.enerccio.joi.domain.service.SummaryService summaryService;
+    @Autowired
     private com.github.enerccio.joi.domain.chat.ChatService chatService;
     @Autowired
     private com.github.enerccio.joi.domain.service.ChatImageService imageService;
@@ -152,6 +154,34 @@ class JoiChatsPartTest extends PlatformTestBase {
                 .findFirst().orElseThrow();
         assertThat(reply.getOuterHTML()).contains("chat-image").contains("A picture her tool brought").contains("chat-markdown");
         assertThat(card.getOuterHTML().indexOf("chat-image")).isGreaterThan(card.getOuterHTML().indexOf("Look at my screen"));
+    }
+
+    @Test
+    void theMessagesASummaryCoversAreFaded() throws Exception {
+        Joi joi = joiService.create("Mira");
+        for (int n = 0; n < 4; n++) {
+            chat(joi, n, 1_000_000L + n * 1000L);
+        }
+        // the summary covers the first two
+        com.github.enerccio.joi.domain.model.impl.Summary summary = new com.github.enerccio.joi.domain.model.impl.Summary();
+        summary.setJoi(joi);
+        summary.setSummaryType(com.github.enerccio.joi.domain.collections.SummaryType.DAY);
+        summary.setCoverFrom(new java.util.Date(0));
+        summary.setCoverTo(new java.util.Date(1_001_500L));
+        summary.setSummary("They said hello.");
+        summaryService.save(summary);
+
+        JoiChatsPart part = chats(joi);
+        java.util.List<ChatMessage> shown = java.util.List.copyOf(part.getShown());
+        assertThat(shown).hasSize(4);
+        for (int n = 0; n < 4; n++) {
+            String html = part.card(shown.get(n)).getElement().getOuterHTML();
+            if (n < 2) {
+                assertThat(html).contains("chat-message-summarized");
+            } else {
+                assertThat(html).doesNotContain("chat-message-summarized");
+            }
+        }
     }
 
     @Test

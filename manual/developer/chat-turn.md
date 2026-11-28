@@ -119,7 +119,7 @@ images and no words is in the history like any other. The summarizer's transcrip
 The pictures of a node's tools (`tool_result.images`: the node's `view_image`, a page's screenshot; not the server's `view_image`,
 whose chat images are already the user's messages') are given to the model in their turn only. `CallToolsStep` collects the uuids it showed in `TurnProperties.TOOL_IMAGES`; `StoreStep` writes them into her message's extended
 attribute `toolImages` and links them with `ChatImageService.attach`, and `deleteOf` deletes them with the message. A turn that stops before
-`StoreStep` leaves them unlinked, and the sweep deletes them. Later prompts do not give them again, and `ChatEntry` does not carry them yet.
+`StoreStep` leaves them unlinked, and the sweep deletes them. Later prompts do not give them again. The API's history carries them as `ChatEntry.toolImages` (1.16).
 
 ## Inference
 

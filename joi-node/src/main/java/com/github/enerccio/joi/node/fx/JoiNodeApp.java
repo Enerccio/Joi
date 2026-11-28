@@ -54,7 +54,7 @@ import java.util.*;
 public class JoiNodeApp extends Application {
 
     /** How many of her latest exchanges the chat starts with. */
-    private static final int HISTORY = 50;
+    private static final int HISTORY = 500;
     /** How long the user has to leave her parts alone before what they changed goes to the server, in one batch. */
     private static final long PART_QUIET_MILLIS = 4000;
     /**
@@ -491,7 +491,7 @@ public class JoiNodeApp extends Application {
     // ----------------------------------------------------------------------------------------------------------------
 
     /** What the loading screen got: her, her body (null for none) and the names of her animations. */
-    private record Loaded(JoiSummary summary, JoiInfo joi, List<ChatEntry> history, BodyInfo body, Map<String, String> animations,
+    private record Loaded(JoiSummary summary, JoiInfo joi, com.github.enerccio.joi.protocol.http.ChatHistory history, BodyInfo body, Map<String, String> animations,
                           BodyFiles files, org.cef.CefClient chromium) {
     }
 
@@ -511,13 +511,13 @@ public class JoiNodeApp extends Application {
                 node.joi = chosen.id();
                 settings.saveNode();
                 JoiInfo joi = client.joi(chosen.id());
-                List<ChatEntry> history;
+                com.github.enerccio.joi.protocol.http.ChatHistory history;
                 try {
-                    history = client.history(chosen.id(), HISTORY).messages();
+                    history = client.history(chosen.id(), HISTORY);
                 } catch (ServerClient.ServerException e) {
                     // a server before 1.3: the chat starts empty
                     System.err.println("No chat history: " + e.getMessage());
-                    history = List.of();
+                    history = new com.github.enerccio.joi.protocol.http.ChatHistory(List.of(), false);
                 }
                 BodyInfo body = client.body(chosen.id());
                 Map<String, String> names = new HashMap<>();
@@ -820,6 +820,9 @@ public class JoiNodeApp extends Application {
             }
         }));
         clipMenu.setDisable(false);
+        // the pictures of the chat come from the server's cache of them; earlier messages slide the window back
+        chat.setImages(client::image);
+        chat.setOnEarlier(before -> client.history(joiId, HISTORY, before));
         chat.history(loaded.history());
         SpeechPlayer speech = new SpeechPlayer();
         // her mouth follows her voice: the page reads each piece and is told when it plays
@@ -1551,7 +1554,11 @@ public class JoiNodeApp extends Application {
             this.name = name;
             lines.setPadding(new Insets(12));
             scroll.setFitToWidth(true);
-            lines.heightProperty().addListener((o, a, b) -> scroll.setVvalue(1));
+            lines.heightProperty().addListener((o, a, b) -> {
+                if (!keepScroll) {
+                    scroll.setVvalue(1);
+                }
+            });
             input.setPromptText("Talk to " + name);
             input.setOnAction(e -> send());
             send.setOnAction(e -> send());
@@ -1818,17 +1825,177 @@ public class JoiNodeApp extends Application {
             onSayImages.accept(text, files);
         }
 
+        /** Fetches an image of the chat by its id (the server's, cached); null shows none. Called off the FX thread. */
+        interface ImageSource {
+            java.nio.file.Path image(String id) throws Exception;
+        }
+
+        /** The page of her history before a message (its id). Called off the FX thread. */
+        interface EarlierSource {
+            com.github.enerccio.joi.protocol.http.ChatHistory before(String id) throws Exception;
+        }
+
+        private ImageSource images;
+        private EarlierSource earlier;
+        /** Her history as loaded, oldest first: the top of the chat, drawn again when earlier pages come. */
+        private final List<ChatEntry> past = new ArrayList<>();
+        private final VBox pastBox = new VBox(8);
+        private final Hyperlink showEarlier = new Hyperlink("Show earlier messages");
+        private boolean more;
+        /** Set while earlier messages are put on top: the chat stays where the user is, it does not jump to the end. */
+        private boolean keepScroll;
+
+        void setImages(ImageSource images) {
+            this.images = images;
+        }
+
+        void setOnEarlier(EarlierSource earlier) {
+            this.earlier = earlier;
+        }
+
         /** Her history from the server: the chat goes on where it was. */
-        void history(List<ChatEntry> entries) {
-            for (ChatEntry entry : entries) {
-                if (entry.text() != null || (entry.images() != null && !entry.images().isEmpty())) {
-                    add("You: " + (entry.text() == null ? "" : entry.text())
-                            + (entry.images() == null || entry.images().isEmpty() ? "" : " [" + entry.images().size() + (entry.images().size() == 1 ? " image]" : " images]")));
+        void history(com.github.enerccio.joi.protocol.http.ChatHistory page) {
+            past.clear();
+            past.addAll(page.messages());
+            more = page.more();
+            // the words field keeps the focus: a space typed into the window must not load a page
+            showEarlier.setFocusTraversable(false);
+            showEarlier.setOnAction(e -> loadEarlier());
+            if (!lines.getChildren().contains(pastBox)) {
+                lines.getChildren().addFirst(pastBox);
+            }
+            drawPast();
+        }
+
+        /** The page before the first message shown, put on top. */
+        private void loadEarlier() {
+            if (earlier == null || past.isEmpty()) {
+                return;
+            }
+            String first = past.getFirst().id();
+            showEarlier.setDisable(true);
+            Thread.ofVirtual().start(() -> {
+                try {
+                    com.github.enerccio.joi.protocol.http.ChatHistory page = earlier.before(first);
+                    javafx.application.Platform.runLater(() -> {
+                        double before = lines.getHeight();
+                        double at = scroll.getVvalue() * Math.max(0, before - scroll.getViewportBounds().getHeight());
+                        past.addAll(0, page.messages());
+                        more = page.more();
+                        keepScroll = true;
+                        drawPast();
+                        // keep the message that was on top where it was: scroll down by what was added
+                        lines.applyCss();
+                        lines.layout();
+                        double after = lines.getHeight();
+                        double room = Math.max(1, after - scroll.getViewportBounds().getHeight());
+                        scroll.setVvalue(Math.min(1, (at + after - before) / room));
+                        keepScroll = false;
+                        showEarlier.setDisable(false);
+                    });
+                } catch (Exception ex) {
+                    javafx.application.Platform.runLater(() -> {
+                        showEarlier.setDisable(false);
+                        note("Earlier messages could not be loaded: " + ex.getMessage());
+                    });
                 }
-                if (entry.reply() != null) {
-                    add(name + ": " + entry.reply());
+            });
+        }
+
+        /**
+         * Draws the history: "Show earlier" on top while there is more, the exchanges with their pictures, and a line after the
+         * last one a summary covers (above it she no longer gets the messages, only the summary).
+         */
+        private void drawPast() {
+            pastBox.getChildren().clear();
+            if (more) {
+                pastBox.getChildren().add(showEarlier);
+            }
+            int lastSummarized = -1;
+            for (int i = 0; i < past.size(); i++) {
+                if (past.get(i).isSummarized()) {
+                    lastSummarized = i;
                 }
             }
+            for (int i = 0; i < past.size(); i++) {
+                ChatEntry entry = past.get(i);
+                if (entry.text() != null || (entry.images() != null && !entry.images().isEmpty())) {
+                    pastBox.getChildren().add(line("You: " + (entry.text() == null ? "" : entry.text())
+                            + (entry.images() == null || entry.images().isEmpty() ? "" : " [" + entry.images().size() + (entry.images().size() == 1 ? " image]" : " images]"))));
+                    thumbnails(pastBox, entry.images());
+                } else if (entry.text() == null && entry.event() != null && entry.reply() != null) {
+                    // an event she answered: the kind, so her reply is not out of nowhere
+                    Label kind = line("(" + entry.event() + ")");
+                    kind.setStyle("-fx-opacity: 0.6;");
+                    pastBox.getChildren().add(kind);
+                }
+                if (entry.reply() != null) {
+                    pastBox.getChildren().add(line(name + ": " + entry.reply()));
+                }
+                thumbnails(pastBox, entry.toolImages());
+                if (i == lastSummarized) {
+                    pastBox.getChildren().add(summaryBreak());
+                }
+            }
+        }
+
+        /** The line under the summarized messages: she no longer gets them, only the summary of them. */
+        private Node summaryBreak() {
+            javafx.scene.control.Separator left = new javafx.scene.control.Separator();
+            javafx.scene.control.Separator right = new javafx.scene.control.Separator();
+            Label label = new Label("Summarized above: no longer sent to " + name);
+            label.setStyle("-fx-font-size: 0.85em; -fx-opacity: 0.75;");
+            label.setMinWidth(Region.USE_PREF_SIZE);
+            HBox.setHgrow(left, Priority.ALWAYS);
+            HBox.setHgrow(right, Priority.ALWAYS);
+            HBox line = new HBox(8, left, label, right);
+            line.setAlignment(Pos.CENTER);
+            line.setPadding(new Insets(4, 0, 4, 0));
+            line.setStyle("-fx-border-color: transparent;");
+            line.setId("summary-break");
+            return line;
+        }
+
+        /** The pictures of a message, small, each fetched in the background; a click opens it whole. */
+        private void thumbnails(VBox into, List<String> ids) {
+            if (ids == null || ids.isEmpty() || images == null) {
+                return;
+            }
+            HBox row = new HBox(4);
+            into.getChildren().add(row);
+            for (String id : ids) {
+                Thread.ofVirtual().start(() -> {
+                    try {
+                        java.nio.file.Path file = images.image(id);
+                        if (file == null) {
+                            return;
+                        }
+                        String uri = file.toUri().toString();
+                        javafx.application.Platform.runLater(() -> {
+                            javafx.scene.image.ImageView view = new javafx.scene.image.ImageView(new javafx.scene.image.Image(uri, 0, 96, true, true, true));
+                            view.setCursor(javafx.scene.Cursor.HAND);
+                            view.setOnMouseClicked(e -> showWhole(uri));
+                            row.getChildren().add(view);
+                        });
+                    } catch (Exception e) {
+                        System.err.println("An image of the chat was not loaded: " + e.getMessage());
+                    }
+                });
+            }
+        }
+
+        private void showWhole(String uri) {
+            javafx.scene.image.ImageView view = new javafx.scene.image.ImageView(new javafx.scene.image.Image(uri, true));
+            view.setPreserveRatio(true);
+            view.setFitWidth(1000);
+            view.setFitHeight(800);
+            javafx.stage.Stage window = new javafx.stage.Stage();
+            window.setTitle(name);
+            window.setScene(new javafx.scene.Scene(new ScrollPane(view)));
+            if (getScene() != null) {
+                window.initOwner(getScene().getWindow());
+            }
+            window.show();
         }
 
         void herText(String turn, String delta) {
@@ -1851,10 +2018,46 @@ public class JoiNodeApp extends Application {
         }
 
         private Label add(String text) {
-            Label line = new Label(text);
-            line.setWrapText(true);
+            Label line = line(text);
             lines.getChildren().add(line);
             return line;
+        }
+
+        /** A line of the chat; its menu copies it, or the whole conversation, to the clipboard (a label cannot be selected). */
+        private Label line(String text) {
+            Label line = new Label(text);
+            line.setWrapText(true);
+            javafx.scene.control.MenuItem copy = new javafx.scene.control.MenuItem("Copy");
+            copy.setOnAction(e -> toClipboard(line.getText()));
+            javafx.scene.control.MenuItem copyAll = new javafx.scene.control.MenuItem("Copy the conversation");
+            copyAll.setOnAction(e -> toClipboard(transcript()));
+            line.setContextMenu(new javafx.scene.control.ContextMenu(copy, copyAll));
+            return line;
+        }
+
+        /** The words of the chat as shown, one line each. */
+        String transcript() {
+            StringBuilder out = new StringBuilder();
+            collect(lines, out);
+            return out.toString().strip();
+        }
+
+        private static void collect(javafx.scene.Parent parent, StringBuilder out) {
+            for (Node child : parent.getChildrenUnmodifiable()) {
+                if (child instanceof Label label) {
+                    out.append(label.getText()).append('\n');
+                } else if ("summary-break".equals(child.getId())) {
+                    out.append("---\n");
+                } else if (child instanceof VBox box) {
+                    collect(box, out);
+                }
+            }
+        }
+
+        private static void toClipboard(String text) {
+            javafx.scene.input.ClipboardContent content = new javafx.scene.input.ClipboardContent();
+            content.putString(text);
+            javafx.scene.input.Clipboard.getSystemClipboard().setContent(content);
         }
     }
 }

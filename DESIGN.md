@@ -90,9 +90,11 @@ one; the server treats every node the same.
     every 15 s. Both are useful: a simple client takes the whole reply, a voice node the stream. The speech starts once the
     text is whole (speaking while the model still writes is roadmap step 3). The turn is stored as a `ChatMessage`
     with its prompt; turns of one assistant run one at a time.
-  - `GET /api/v1/jois/{id}/chat` (1.3): her history, the latest 50 exchanges (`limit`, up to 200) oldest first,
-    each the user's words or the kind of the event, and her reply; `more` and `before` page back. A node shows it
-    when it starts, so the chat goes on where it was.
+  - `GET /api/v1/jois/{id}/chat` (1.3): her history, the latest 500 exchanges (`limit`, up to 1000; before 1.16 50 and
+    200) oldest first, each the user's words or the kind of the event, and her reply; `more` and `before` slide the window
+    back. Since 1.16 an entry has `summarized` (a summary covers it, so she no longer gets it as a message) and her reply's
+    `toolImages` (the pictures her tools brought in that turn). A node shows it when it starts, so the chat goes on where
+    it was, with a line after the last summarized message.
   - `GET /api/v1/jois/{id}/body` (1.1): the body she is in (`404 no_body` for none): its models, the full one and
     the Looking Glass one, each with its `.joim` to download; the parts of the full model that can be switched, each
     in the state the body is in (the model's state); how she looks; and the animations the body plays (whether all of
@@ -1939,7 +1941,7 @@ user, `tool_progress` restarts the timeout, `tool_cancel` stops it). No change o
   for another. The message stays in that turn only: later prompts do not give the picture again. The pictures shown are kept with
   her message (`ChatMessage.toolImages`, an extended attribute: uuids, linked to the message like the user's images, deleted with
   it) and shown with her reply in the Chats tab; a picture that was never shown (its turn stopped) is swept like any unused upload.
-  Not yet in the API's history (`ChatEntry`), so the nodes and the app do not show them.
+  The API's history has them as `ChatEntry.toolImages` (1.16): the JavaFX node shows them small under her reply, the app counts them.
 - **UI:** the terminal node `/files on|off`, `/shell ask|off`, `/images allow|folders|ask|off`, `/roots`, `/roots add <path>`, `/roots remove <path>`, an asked
   call answered with `/yes`, `/session` or `/no`; the JavaFX node **Joi → Files and shell…** (the two switches, the
   pictures' choice and the folders) and a dialog with the three buttons.
@@ -2304,7 +2306,7 @@ equal to the default is left out of `policy.json`.
 the image upload of the chat (the same limits and scaling), and the `tool_result` gets `images`: the ids it was given. The
 server puts them into the function result for her model when it takes images there, else the multimodal model describes them
 (as *Images in the chat* does). The images are kept with the turn and shown in the Chats tab, with the retention of chat images
-(built: `ChatMessage.toolImages`; not yet in the API's history).
+(built: `ChatMessage.toolImages`, `ChatEntry.toolImages` in the API's history since 1.16).
 In privacy mode they go to local models only.
 
 **Events** (a protocol addition, later). The node tells her "a video started", "the music stopped" as transient events (a

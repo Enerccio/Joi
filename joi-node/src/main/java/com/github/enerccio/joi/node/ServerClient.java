@@ -141,7 +141,62 @@ public class ServerClient {
 
     /** Her latest {@code limit} exchanges, oldest first (since 1.3). */
     public ChatHistory history(String joi, int limit) throws IOException, InterruptedException {
-        return get(JoiProtocol.API + "/jois/" + joi + "/chat?limit=" + limit, ChatHistory.class, true);
+        return history(joi, limit, null);
+    }
+
+    /** {@code limit} exchanges before the message {@code before} (its id), oldest first; null for the latest. The window slides back by the first id. */
+    public ChatHistory history(String joi, int limit, String before) throws IOException, InterruptedException {
+        return get(JoiProtocol.API + "/jois/" + joi + "/chat?limit=" + limit
+                + (before == null ? "" : "&before=" + URLEncoder.encode(before, StandardCharsets.UTF_8)), ChatHistory.class, true);
+    }
+
+    /**
+     * An image of the chat ({@code ChatEntry.images}, {@code toolImages}): from the cache when it holds it (an image never
+     * changes), else downloaded into it, streamed to a temp file first.
+     */
+    public Path image(String id) throws IOException, InterruptedException {
+        if (id == null || !id.matches("[A-Za-z0-9_-]{1,80}")) {
+            // it names the file in the cache: anything else could lead out of it
+            throw new IOException("Not an image id: " + id);
+        }
+        Path dir = settings.cache().resolve("images");
+        Files.createDirectories(dir);
+        Path target = dir.resolve(id + ".jpg");
+        if (Files.exists(target)) {
+            return target;
+        }
+        String path = JoiProtocol.API + "/images/" + id;
+        String authorization = authorization();
+        int status;
+        InputStream content;
+        if (unix != null) {
+            UnixHttp.Stream stream = unix.open("GET", path, authorization == null ? Map.of() : Map.of("Authorization", authorization), null);
+            status = stream.status();
+            content = stream.body();
+        } else {
+            HttpRequest.Builder request = HttpRequest.newBuilder(URI.create(server + path)).timeout(Duration.ofSeconds(60)).GET();
+            if (authorization != null) {
+                request.header("Authorization", authorization);
+            }
+            HttpResponse<InputStream> response = http.send(request.build(), HttpResponse.BodyHandlers.ofInputStream());
+            status = response.statusCode();
+            content = response.body();
+        }
+        if (status != 200) {
+            try (InputStream body = content) {
+                answer(new Answer(status, new String(body.readAllBytes(), StandardCharsets.UTF_8)), Void.class);
+            }
+        }
+        Path temp = Files.createTempFile(dir, "image", ".part");
+        try {
+            try (InputStream in = content) {
+                Files.copy(in, temp, StandardCopyOption.REPLACE_EXISTING);
+            }
+            Files.move(temp, target, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
+            return target;
+        } finally {
+            Files.deleteIfExists(temp);
+        }
     }
 
     /** The body she is in, null for none. */

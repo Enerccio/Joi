@@ -43,6 +43,9 @@ class JoiApiTest extends PlatformTestBase {
     static final String BASE = "https://github.com/Enerccio/joi/protocol/v1/";
 
     @Autowired
+    private com.github.enerccio.joi.domain.service.SummaryService summaryService;
+
+    @Autowired
     private JoiApi api;
     @Autowired
     private ApiConfiguration configuration;
@@ -661,6 +664,46 @@ class JoiApiTest extends PlatformTestBase {
         assertThat(note.get("event").getAsString()).isEqualTo("task.approved");
         assertThat(note.get("text").getAsString()).contains("Approved by the user");
         assertThat(note.get("reply").isJsonNull()).isTrue();
+    }
+
+    @Test
+    void theHistoryMarksWhatASummaryCoversAndCarriesThePicturesOfHerTools() throws Exception {
+        ChatMessage old = new ChatMessage();
+        old.setJoi(joi);
+        old.setType(com.github.enerccio.joi.domain.collections.ChatMessageType.USER);
+        old.setInput("Look at the page");
+        old.setResponse("A recipe.");
+        old.setSentAt(new java.util.Date(1_000_000L));
+        old.setToolImages(ChatMessage.toJson(List.of("pic-1", "pic-2")));
+        chatMessageService.save(old);
+        ChatMessage recent = new ChatMessage();
+        recent.setJoi(joi);
+        recent.setType(com.github.enerccio.joi.domain.collections.ChatMessageType.USER);
+        recent.setInput("And now?");
+        recent.setResponse("Still a recipe.");
+        recent.setSentAt(new java.util.Date(3_000_000L));
+        chatMessageService.save(recent);
+        com.github.enerccio.joi.domain.model.impl.Summary summary = new com.github.enerccio.joi.domain.model.impl.Summary();
+        summary.setJoi(joi);
+        summary.setSummaryType(com.github.enerccio.joi.domain.collections.SummaryType.DAY);
+        summary.setCoverFrom(new java.util.Date(0));
+        summary.setCoverTo(new java.util.Date(2_000_000L));
+        summary.setSummary("A recipe was read.");
+        summaryService.save(summary);
+
+        Answer history = get("/api/v1/jois/" + joi.getUuid() + "/chat");
+        valid("ChatHistory", history.body);
+        JsonArray messages = history.json().getAsJsonArray("messages");
+        assertThat(messages.size()).isEqualTo(2);
+        JsonObject first = messages.get(0).getAsJsonObject();
+        assertThat(first.get("summarized").getAsBoolean()).isTrue();
+        assertThat(first.getAsJsonArray("toolImages").toString()).isEqualTo("[\"pic-1\",\"pic-2\"]");
+        JsonObject second = messages.get(1).getAsJsonObject();
+        assertThat(second.get("summarized") == null || second.get("summarized").isJsonNull()).isTrue();
+        assertThat(second.get("toolImages") == null || second.get("toolImages").isJsonNull()).isTrue();
+        // 1000 is the most one call gives
+        assertThat(get("/api/v1/jois/" + joi.getUuid() + "/chat?limit=1000").status).isEqualTo(200);
+        assertThat(get("/api/v1/jois/" + joi.getUuid() + "/chat?limit=1001").status).isEqualTo(400);
     }
 
     // ----------------------------------------------------------------------------------------------------------------

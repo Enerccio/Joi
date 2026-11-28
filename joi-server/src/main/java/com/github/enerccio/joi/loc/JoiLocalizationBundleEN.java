@@ -451,6 +451,7 @@ public class JoiLocalizationBundleEN extends TextBundleBase<J_L> {
         setValue(J_L.LABEL_SEND_MESSAGE, "Send");
         setValue(J_L.LABEL_CHAT_IMAGE, "An image the user sent");
         setValue(J_L.LABEL_CHAT_TOOL_IMAGE, "A picture her tool brought");
+        setValue(J_L.LABEL_CHAT_SUMMARIZED, "Summarized: a summary stands in its place, and it is no longer given to her as a message");
 
         // --- ENUM ---
         setValue(J_L.ENUM_TEXT_LLM_TYPE_AUXILIARY, "Auxiliary");

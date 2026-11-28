@@ -26,6 +26,7 @@ class ServerClientTasksTest {
 
     private HttpServer server;
     private final List<String> calls = new CopyOnWriteArrayList<>();
+    private final List<String> queries = new CopyOnWriteArrayList<>();
     private volatile int status = 200;
     private volatile String body;
 
@@ -34,6 +35,7 @@ class ServerClientTasksTest {
         server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
         server.createContext("/", exchange -> {
             String body = new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
+            queries.add(String.valueOf(exchange.getRequestURI().getRawQuery()));
             calls.add(exchange.getRequestMethod() + " " + exchange.getRequestURI().getPath() + " " + exchange.getRequestHeaders().getFirst("Authorization")
                     + " [" + body + "]");
             String answer = status == 200 && this.body != null ? this.body : status == 200
@@ -69,6 +71,35 @@ class ServerClientTasksTest {
         assertThat(calls.get(0)).isEqualTo("POST /api/v1/jois/j1/tasks/t1/approve Bearer tok []");
         JsonObject body = JsonParser.parseString(calls.get(1).substring(calls.get(1).indexOf('[') + 1, calls.get(1).length() - 1)).getAsJsonObject();
         assertThat(body.get("always").getAsBoolean()).isTrue();
+    }
+
+    @Test
+    void theHistorySlidesBackByTheFirstIdAndCarriesTheNewFields() throws Exception {
+        body = "{\"messages\":[{\"id\":\"m1\",\"sentAt\":\"2026-11-20T10:00:00Z\",\"type\":\"user\",\"text\":\"Hi\",\"reply\":\"Hello\","
+                + "\"toolImages\":[\"p1\"],\"summarized\":true}],\"more\":true}";
+        com.github.enerccio.joi.protocol.http.ChatHistory page = client().history("j1", 500, "m 9");
+        assertThat(calls.getFirst()).startsWith("GET /api/v1/jois/j1/chat ");
+        assertThat(queries.getFirst()).isEqualTo("limit=500&before=m+9");
+        assertThat(page.more()).isTrue();
+        assertThat(page.messages().getFirst().isSummarized()).isTrue();
+        assertThat(page.messages().getFirst().toolImages()).containsExactly("p1");
+        client().history("j1", 500);
+        assertThat(queries.get(1)).isEqualTo("limit=500");
+    }
+
+    @Test
+    void anImageOfTheChatIsDownloadedOnceAndAStrangeIdIsRefused() throws Exception {
+        body = "jpeg-bytes";
+        Path first = client().image("abc-123");
+        assertThat(java.nio.file.Files.readString(first)).isEqualTo("jpeg-bytes");
+        assertThat(calls.getFirst()).isEqualTo("GET /api/v1/images/abc-123 Bearer tok []");
+        // from the cache the second time
+        assertThat(client().image("abc-123")).isEqualTo(first);
+        assertThat(calls).hasSize(1);
+        assertThatThrownBy(() -> client().image("../secret")).isInstanceOf(java.io.IOException.class);
+        status = 404;
+        assertThatThrownBy(() -> client().image("gone")).isInstanceOf(ServerClient.ServerException.class);
+        assertThat(java.nio.file.Files.exists(dir.resolve("cache/images/gone.jpg"))).isFalse();
     }
 
     @Test

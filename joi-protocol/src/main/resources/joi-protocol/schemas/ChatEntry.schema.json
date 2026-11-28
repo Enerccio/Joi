@@ -60,6 +60,23 @@
         "type": "string"
       },
       "description": "The images the user sent with the words (since 1.11), their ids: `GET /api/v1/images/{id}` gives each."
+    },
+    "toolImages": {
+      "type": [
+        "array",
+        "null"
+      ],
+      "items": {
+        "type": "string"
+      },
+      "description": "The pictures her tools brought in the turn of her reply (since 1.16: a page's screenshot, a picture she looked at on a node), their ids in the order they came: `GET /api/v1/images/{id}` gives each. She saw them in that turn only. Null for none."
+    },
+    "summarized": {
+      "type": [
+        "boolean",
+        "null"
+      ],
+      "description": "True when a summary covers the message (since 1.16): it is no longer given to her model as a message, the summary stands in its place. The summarized messages are the oldest, so a client may draw a line after the last of them. Null or false when it is still given to her."
     }
   },
   "required": [

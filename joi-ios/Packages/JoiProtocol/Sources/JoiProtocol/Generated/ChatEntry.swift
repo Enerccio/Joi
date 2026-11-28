@@ -22,8 +22,12 @@ public struct ChatEntry: Codable, Hashable, Sendable {
     public var reply: String?
     /// The images the user sent with the words (since 1.11), their ids: `GET /api/v1/images/{id}` gives each.
     public var images: [String]?
+    /// The pictures her tools brought in the turn of her reply (since 1.16: a page's screenshot, a picture she looked at on a node), their ids in the order they came: `GET /api/v1/images/{id}` gives each. She saw them in that turn only. Null for none.
+    public var toolImages: [String]?
+    /// True when a summary covers the message (since 1.16): it is no longer given to her model as a message, the summary stands in its place. The summarized messages are the oldest, so a client may draw a line after the last of them. Null or false when it is still given to her.
+    public var summarized: Bool?
 
-    public init(id: String, sentAt: Date, type: String, text: String? = nil, event: String? = nil, node: String? = nil, reply: String? = nil, images: [String]? = nil) {
+    public init(id: String, sentAt: Date, type: String, text: String? = nil, event: String? = nil, node: String? = nil, reply: String? = nil, images: [String]? = nil, toolImages: [String]? = nil, summarized: Bool? = nil) {
         self.id = id
         self.sentAt = sentAt
         self.type = type
@@ -32,5 +36,7 @@ public struct ChatEntry: Codable, Hashable, Sendable {
         self.node = node
         self.reply = reply
         self.images = images
+        self.toolImages = toolImages
+        self.summarized = summarized
     }
 }

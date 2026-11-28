@@ -51,7 +51,7 @@ import Testing
 
     @Test func chatHistory1() throws {
         let json = #"""
-{"messages":[{"id":"m1","sentAt":"2026-11-18T19:00:00Z","type":"event","text":null,"event":"node.first_boot","node":"desk","reply":"I\u0027m awake.","images":null},{"id":"m2","sentAt":"2026-11-18T19:01:00Z","type":"user","text":"Hi","event":null,"node":null,"reply":null,"images":null},{"id":"m4","sentAt":"2026-11-18T19:02:00Z","type":"user","text":"Look","event":null,"node":null,"reply":"Nice.","images":["img1"]}],"more":true}
+{"messages":[{"id":"m0","sentAt":"2026-11-17T19:00:00Z","type":"user","text":"What is on the page?","event":null,"node":"desk","reply":"A recipe.","images":null,"toolImages":["img0"],"summarized":true},{"id":"m1","sentAt":"2026-11-18T19:00:00Z","type":"event","text":null,"event":"node.first_boot","node":"desk","reply":"I\u0027m awake.","images":null,"toolImages":null,"summarized":null},{"id":"m2","sentAt":"2026-11-18T19:01:00Z","type":"user","text":"Hi","event":null,"node":null,"reply":null,"images":null,"toolImages":null,"summarized":null},{"id":"m4","sentAt":"2026-11-18T19:02:00Z","type":"user","text":"Look","event":null,"node":null,"reply":"Nice.","images":["img1"],"toolImages":null,"summarized":null}],"more":true}
 """#
         try roundTrip(ChatHistory.self, json)
     }
@@ -79,7 +79,7 @@ import Testing
 
     @Test func chatHistory2() throws {
         let json = #"""
-{"messages":[{"id":"m3","sentAt":"2026-11-20T10:00:00Z","type":"log","text":"Approved","event":"task.approved","node":null,"reply":null,"images":null}],"more":false}
+{"messages":[{"id":"m3","sentAt":"2026-11-20T10:00:00Z","type":"log","text":"Approved","event":"task.approved","node":null,"reply":null,"images":null,"toolImages":null,"summarized":null}],"more":false}
 """#
         try roundTrip(ChatHistory.self, json)
     }
@@ -282,7 +282,7 @@ import Testing
 
     @Test func hello1() throws {
         let json = #"""
-{"protocol":"1.15","nodeId":"6f1d-4c2a","name":"desk","kind":"desktop","software":"joi-node 0.1.0","joi":"2f0c","parts":["tools","audio-out","approvals"],"token":null,"resumed":null,"resume":null}
+{"protocol":"1.16","nodeId":"6f1d-4c2a","name":"desk","kind":"desktop","software":"joi-node 0.1.0","joi":"2f0c","parts":["tools","audio-out","approvals"],"token":null,"resumed":null,"resume":null}
 """#
         try roundTrip(Hello.self, json)
     }
@@ -569,7 +569,7 @@ import Testing
 
     @Test func frame1() throws {
         let json = #"""
-{"type":"hello","id":null,"ref":null,"data":{"protocol":"1.15","nodeId":"6f1d-4c2a","name":"desk","kind":"desktop","software":"joi-node 0.1.0","joi":"2f0c","parts":["tools","audio-out","approvals"],"token":null,"resumed":null,"resume":null}}
+{"type":"hello","id":null,"ref":null,"data":{"protocol":"1.16","nodeId":"6f1d-4c2a","name":"desk","kind":"desktop","software":"joi-node 0.1.0","joi":"2f0c","parts":["tools","audio-out","approvals"],"token":null,"resumed":null,"resume":null}}
 """#
         try roundTrip(Frame.self, json)
         try typedFrame(json)

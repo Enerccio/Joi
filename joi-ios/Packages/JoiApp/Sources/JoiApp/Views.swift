@@ -497,12 +497,28 @@ struct MessageRow: View {
         case .user:
             bubble(userText, color: .accentColor.opacity(0.25), alignment: .trailing)
         case .joi:
-            bubble(message.text.isEmpty && message.streaming ? "…" : message.text, color: .gray.opacity(0.2), alignment: .leading)
+            bubble(joiText, color: .gray.opacity(0.2), alignment: .leading)
         case .note:
             Text(message.text).font(.footnote).foregroundStyle(.secondary).frame(maxWidth: .infinity)
         case .error:
             Text(message.text).font(.footnote).foregroundStyle(.red).frame(maxWidth: .infinity)
+        case .summaryBreak:
+            HStack(spacing: 8) {
+                VStack { Divider() }
+                Text(message.text).font(.caption2).foregroundStyle(.secondary).fixedSize()
+                VStack { Divider() }
+            }
+            .padding(.vertical, 4)
+            .accessibilityElement(children: .combine)
         }
+    }
+
+    /// Her words, with a line for the pictures her tools brought in that turn.
+    private var joiText: String {
+        let words = message.text.isEmpty && message.streaming ? "…" : message.text
+        guard message.toolImageCount > 0 else { return words }
+        let line = "🖼 " + (message.toolImageCount == 1 ? "1 picture from her tools" : "\(message.toolImageCount) pictures from her tools")
+        return words.isEmpty ? line : words + "\n" + line
     }
 
     /// The words, with a line for the images that went with them.

@@ -56,6 +56,8 @@ public final class JoiCssStyles {
     public static final String CHAT_COMPOSE_UPLOAD = "chat-compose-upload";
     /** An exchange checked for the mass delete. */
     public static final String CHAT_MESSAGE_CHECKED = "chat-message-checked";
+    /** A message a summary covers: no longer given to her, shown faded. */
+    public static final String CHAT_MESSAGE_SUMMARIZED = "chat-message-summarized";
     /** The row above the transcript: the hint and the delete of the checked messages. */
     public static final String CHAT_TOOLBAR = "chat-toolbar";
 

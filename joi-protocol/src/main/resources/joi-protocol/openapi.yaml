@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Joi API
-  version: "1.15"
+  version: "1.16"
   description: |
     The HTTP API of a Joi server for nodes and other clients: the assistants of the user, chat with one of them,
     answered in text and speech, and the body she is in with the files to show it (`.joim`, `.joia`). The message shapes are the JSON Schemas in `schemas/` (the source of truth); the Java
@@ -76,14 +76,15 @@ paths:
       description: |
         Her latest exchanges, oldest first: what the user said (or the kind of the event she reacted to) and her
         reply. A client shows them when it starts, so the chat goes on where it was. `more` says there are earlier
-        ones: ask again with `before`, the id of the first one given.
+        ones: ask again with `before`, the id of the first one given, to slide the window back. A message a summary covers
+        has `summarized` (since 1.16), and her reply carries the pictures her tools brought (`toolImages`, since 1.16).
       parameters:
         - { $ref: "#/components/parameters/JoiId" }
         - name: limit
           in: query
           required: false
-          description: How many, 1 to 200 (default 50)
-          schema: { type: integer, minimum: 1, maximum: 200, default: 50 }
+          description: How many, 1 to 1000 (default 500; before 1.16 at most 200, default 50)
+          schema: { type: integer, minimum: 1, maximum: 1000, default: 500 }
         - name: before
           in: query
           required: false
@@ -192,7 +193,8 @@ paths:
     get:
       summary: An image of the user, as it is kept (since 1.11)
       description: |
-        The JPEG of an image sent with a message (`ChatEntry.images`) or uploaded (`ImageUpload.id`); only the user's own. The
+        The JPEG of an image sent with a message (`ChatEntry.images`), brought by her tools (`ChatEntry.toolImages`, since 1.16)
+        or uploaded (`ImageUpload.id`); only the user's own. The
         file never changes, so the hash is its ETag and a client caches it.
       parameters:
         - name: id

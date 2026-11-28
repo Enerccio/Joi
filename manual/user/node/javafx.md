@@ -42,6 +42,10 @@ ends.
 - **The chat** starts with her history from the server, so a conversation goes on where it was. Type, press **Send**; **Stop**
   interrupts her. Her reply streams in; when she has a voice, the text of a reply waits for its first piece of speech so the
   chat does not run ahead of her. Her voice plays as it arrives. **Talk** listens to you instead of the keyboard: see [Talking to her](voice.md).
+  The chat starts with her last 500 messages; **Show earlier messages** at the top loads the 500 before them. The images you sent and the
+  pictures her tools brought (a page's screenshot) show small; click one to see it whole. A line, *Summarized above*, marks where a summary
+  took the place of the messages: she no longer gets the ones above it, only their summary.
+- **Copying.** Right-click a line of the chat: **Copy** copies it, **Copy the conversation** copies all of the chat as text (the summary line as `---`).
 - **Images.** The **Image…** button next to the field chooses an image file; **Ctrl+V** / **Cmd+V** pastes one from the clipboard (when it
   holds a picture and no text). The images wait as small pictures with a ✕ to take one away; **Send** (or **Talk**) sends them with your words, or alone (at most
   four, 20 MB each). The button is off when she cannot look at images: see [Chats](../jois/chats.md#showing-her-an-image).

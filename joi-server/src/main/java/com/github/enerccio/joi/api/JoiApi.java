@@ -69,10 +69,13 @@ public class JoiApi implements DisposableBean {
     private static final Logger log = LoggerFactory.getLogger(JoiApi.class);
 
     static final int MAX_TEXT = 20_000;
-    static final int DEFAULT_HISTORY = 50;
-    static final int MAX_HISTORY = 200;
+    static final int DEFAULT_HISTORY = 500;
+    static final int MAX_HISTORY = 1000;
     static final long KEEP_ALIVE_SECONDS = 15;
     static final String JSON = "application/json;charset=UTF-8";
+
+    @Autowired
+    private com.github.enerccio.joi.domain.service.SummarizerService summarizerService;
 
     @Autowired
     private ApiConfiguration configuration;
@@ -329,6 +332,8 @@ public class JoiApi implements DisposableBean {
             messages = chatMessageService.findLatest(joi, limit + 1);
         }
         boolean more = messages.size() > limit;
+        // what a summary covers is no longer given to her as messages (her prompt's history starts there)
+        Date covered = summarizerService.coveredUpTo(joi);
         List<ChatEntry> entries = new ArrayList<>();
         for (ChatMessage message : more ? messages.subList(1, messages.size()) : messages) {
             boolean event = message.getType() == ChatMessageType.EVENT;
@@ -336,7 +341,9 @@ public class JoiApi implements DisposableBean {
             entries.add(new ChatEntry(message.getUuid(), iso(message.getSentAt()), note ? "log" : event ? "event" : "user",
                     event ? null : message.getInput(), event || note ? message.getEventKind() : null,
                     StringUtils.defaultIfBlank(message.getNode(), null), StringUtils.defaultIfBlank(message.getResponse(), null),
-                    message.imageUuids().isEmpty() ? null : message.imageUuids()));
+                    message.imageUuids().isEmpty() ? null : message.imageUuids(),
+                    message.toolImageUuids().isEmpty() ? null : message.toolImageUuids(),
+                    message.getSentAt().before(covered) ? Boolean.TRUE : null));
         }
         return new ChatHistory(entries, more);
     }

@@ -36,7 +36,9 @@ public final class ProtocolSamples {
                 "ACTIVE", false, true, true, "ab12"), new ExtensionInfo("old.jar", "old", null, null, "INSTALLED", true, false, null, null))));
         out.add(new UpdateStatus(true, false, false, true, true, "1.0.0", "abc", "master", "origin/master", "def", false,
                 "2026-11-27T10:00:00Z", null, null));
-        out.add(new ChatHistory(List.of(new ChatEntry("m1", "2026-11-18T19:00:00Z", "event", null, "node.first_boot", "desk", "I'm awake."),
+        out.add(new ChatHistory(List.of(new ChatEntry("m0", "2026-11-17T19:00:00Z", "user", "What is on the page?", null, "desk", "A recipe.",
+                        null, List.of("img0"), true),
+                new ChatEntry("m1", "2026-11-18T19:00:00Z", "event", null, "node.first_boot", "desk", "I'm awake."),
                 new ChatEntry("m2", "2026-11-18T19:01:00Z", "user", "Hi", null, null, null),
                 new ChatEntry("m4", "2026-11-18T19:02:00Z", "user", "Look", null, null, "Nice.", List.of("img1"))), true));
         out.add(new TaskList(List.of(new TaskInfo("t1", "Weather in Prague", "web_search", "Search the web", "waiting", "What is the weather in Prague?", null,

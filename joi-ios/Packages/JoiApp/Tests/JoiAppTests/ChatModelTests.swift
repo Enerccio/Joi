@@ -271,6 +271,21 @@ struct FakeHistory: HistorySource {
         #expect(messages.count == 1 && messages[0].imageCount == 2)
     }
 
+    @Test func aLineFollowsTheLastSummarizedMessageAndHerRepliesCountTheirPictures() {
+        let entries = [
+            ChatEntry(id: "e1", sentAt: Date(), type: "user", text: "Look", reply: "A recipe.", toolImages: ["p1", "p2"], summarized: true),
+            ChatEntry(id: "e2", sentAt: Date(), type: "user", text: "More", reply: "Soup.", summarized: true),
+            ChatEntry(id: "e3", sentAt: Date(), type: "user", text: "Now?", reply: "Still soup."),
+        ]
+        let messages = ChatModel.messages(of: entries)
+        #expect(messages.map(\.role) == [.user, .joi, .user, .joi, .summaryBreak, .user, .joi])
+        #expect(messages[1].toolImageCount == 2)
+        #expect(messages[3].toolImageCount == 0)
+        // nothing summarized: no line
+        #expect(!ChatModel.messages(of: [entries[2]]).contains { $0.role == .summaryBreak })
+        #expect(ChatModel.historyWindow == 500)
+    }
+
     @Test func emptyWordsAreNotSent() async {
         let chat = model()
         await chat.start()

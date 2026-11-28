@@ -208,6 +208,15 @@
     background: var(--lumo-primary-color-10pct);
 }
 
+/* a summary covers it: no longer given to her as a message */
+.chat-message-summarized {
+    opacity: 0.55;
+}
+
+.chat-message-summarized:hover {
+    opacity: 0.85;
+}
+
 .memory-editor {
     padding: 0 var(--lumo-space-m) var(--lumo-space-m) var(--lumo-space-xl);
     box-sizing: border-box;

@@ -67,6 +67,9 @@ gone from what she is shown next time: the prompt is built from the stored histo
 Check a message and press **Summarize** to have the messages up to it written down as a summary. All the messages since the last
 summary are checked too, so there is no gap, and you are asked first. See [Summaries](summaries.md).
 
+The messages a summary covers are shown faded (hover one to read it clearly): she no longer gets them as messages, only the summary
+in their place. They stay in the transcript until you delete them. The nodes and the app draw a line under the last of them instead.
+
 ## What she is shown
 
 Each turn she gets her system prompt (with her [summaries](summaries.md) of what is older), the latest messages no summary covers, and, in front of a message after a pause or on a
