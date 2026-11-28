@@ -75,12 +75,15 @@ public class MarginaliaBooksExtension implements JoiExtension {
 
     private FunctionDefinition books(JoiExtensionContext context, Joi joi) {
         ObjectNode schema = new ObjectMapper().createObjectNode().put("type", "object");
-        schema.putObject("properties");
+        schema.putObject("properties").putObject("all").put("type", "boolean").put("description",
+                "Also the books the user keeps out of the list (marked 'Only in the extended API' in Marginalia: drafts, archived books). "
+                        + "Leave it out unless the user asks for those.");
         return FunctionDefinition.dynamic(BOOKS.function(), "Lists the user's books in Marginalia, their writing application: name, folder "
                 + "and id. To read a part of one, use " + ReadPart.TOOL.function() + "; to ask about a whole book, "
-                + ReadBookTask.TOOL.function() + ".", schema, (continuation, _) -> {
+                + ReadBookTask.TOOL.function() + ".", schema, (continuation, args) -> {
             try {
-                List<MarginaliaClient.Book> books = client(context, joi).books();
+                boolean all = Boolean.TRUE.equals(args.get("all")) || "true".equalsIgnoreCase(String.valueOf(args.get("all")));
+                List<MarginaliaClient.Book> books = client(context, joi).books(all);
                 if (books.isEmpty()) {
                     continuation.complete("The user has no books in Marginalia.");
                     return;
@@ -89,6 +92,9 @@ public class MarginaliaBooksExtension implements JoiExtension {
                 for (MarginaliaClient.Book book : books) {
                     out.append("\n- ").append(book.name()).append(" — ").append(StringUtils.defaultIfBlank(book.folder(), "(no folder)"))
                             .append(" — ").append(book.uuid());
+                    if (book.extendedApiOnly()) {
+                        out.append(" (kept out of the list)");
+                    }
                 }
                 continuation.complete(out.toString());
             } catch (Exception e) {

@@ -48,7 +48,7 @@ Until the address and a key are set, she is not offered the functions at all.
 
 | Function | What it does | Permission by default |
 |---|---|---|
-| `marginalia_books` | Lists your books: name, folder and id. It runs at once, in her reply. | Allow |
+| `marginalia_books` | Lists your books: name, folder and id. It runs at once, in her reply. The books you marked **Only in the extended API** in Marginalia (a book's About tab) are left out unless you ask her for all of them; she still reads one when you name it. | Allow |
 | `marginalia_read_part` | Lists the parts of a book, or reads one part, a page at a time. It runs at once, in her reply, so what she reads goes into her conversation. | Allow |
 | `marginalia_read_book` | Reads a book to answer a question. It is a [task](../jois/tasks.md): her stronger model reads the book with Marginalia's commands that only read (the outline, a chapter, a search...) and brings back the answer. | Ask |
 

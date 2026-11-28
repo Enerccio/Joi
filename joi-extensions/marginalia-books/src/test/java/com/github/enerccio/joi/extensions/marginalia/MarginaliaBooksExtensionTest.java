@@ -101,8 +101,11 @@ class MarginaliaBooksExtensionTest {
         List<FunctionDefinition> offered = providers.getFirst().tools(null);
         assertEquals(List.of("marginalia_books", "marginalia_read_part"), offered.stream().map(FunctionDefinition::getName).toList());
         String books = call(offered.getFirst(), "{}");
-        assertTrue(books.contains("The Salt Road — Novels — b-1"), books);
+        assertTrue(books.contains("The Salt Road — Writing/Novels — b-1"), books);
         assertTrue(books.contains("Salt and Ash — (no folder) — b-2"), books);
+        assertFalse(books.contains("Old Draft"), books);
+        String all = call(offered.getFirst(), "{\"all\":true}");
+        assertTrue(all.contains("Old Draft — (no folder) — b-3 (kept out of the list)"), all);
     }
 
     @Test
@@ -142,7 +145,7 @@ class MarginaliaBooksExtensionTest {
         ExtensionTask.Work work = task.prepare(null, Map.of("book", "salt road", "question", "Where does Mara go?"));
         assertEquals(List.of("get-outline", "read-chapter", "search-parts"), work.functions().stream().map(FunctionDefinition::getName).toList());
         assertEquals("[\"query\"]", work.functions().get(2).getParametersSchema().path("required").toString());
-        assertTrue(work.guidance().contains("\"The Salt Road\" (folder Novels)"), work.guidance());
+        assertTrue(work.guidance().contains("\"The Salt Road\" (folder Writing/Novels)"), work.guidance());
         assertTrue(work.guidance().contains("- read-chapter: Read a chapter"), work.guidance());
         assertEquals(ReadBookTask.MAX_CALLS, work.maxCalls());
         FunctionDefinition read = work.functions().get(1);

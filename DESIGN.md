@@ -752,7 +752,9 @@ See `manual/user/administration/updates.md`.
 the two installs share nothing but a key and may be on different servers. The user makes the key in Marginalia with the scope `READ` (the books
 and the commands that only read) and sets Marginalia's address and the key in User Settings → Tools (the administrator may set them for
 everybody; each field of the user's wins). Nothing is offered until both are set.
-  - **`marginalia_books`** (a function of her turn, a declared tool, Allow by default): the books, name, folder and uuid (`GET books`).
+  - **`marginalia_books(all?)`** (a function of her turn, a declared tool, Allow by default): the books, name, folder path and uuid (`GET books`,
+    without `all` by default: the books the user marked *Only in the extended API* in Marginalia stay out; `all` asks `?all=true`, only when
+    the user asks for those). A book she names is looked for in the default list, then among all of them.
   - **`marginalia_read_part(book, part?, offset?, length?)`** (a function of her turn, a declared tool, Allow by default): she reads a part
     herself, with no task: no part runs Marginalia's `list-parts` (the active branch's parts with their handles), a part runs `get-part`, a page of
     at most 6 000 characters (a later page with `offset`: the paged forms with a blank `branch`, the active one). What she reads lands in her

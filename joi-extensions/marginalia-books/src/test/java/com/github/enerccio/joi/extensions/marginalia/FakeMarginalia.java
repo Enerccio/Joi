@@ -24,8 +24,12 @@ final class FakeMarginalia implements AutoCloseable {
     record Request(String method, String path, String body) {
     }
 
+    /** As Marginalia 1.9.2 lists them: the folder's uuid, name and path; b-3 is kept out of the list unless asked with ?all. */
     private static final String BOOKS = """
-            [{"uuid":"b-1","name":"The Salt Road","folder":"Novels"},{"uuid":"b-2","name":"Salt and Ash","folder":null}]""";
+            [{"uuid":"b-1","name":"The Salt Road","folder":"f-2","folderName":"Novels","folderPath":"Writing/Novels","extendedApiOnly":false},
+             {"uuid":"b-2","name":"Salt and Ash","folder":null,"folderName":null,"folderPath":null,"extendedApiOnly":false}""";
+    private static final String HIDDEN = """
+            ,{"uuid":"b-3","name":"Old Draft","folder":null,"folderName":null,"folderPath":null,"extendedApiOnly":true}""";
     private static final String COMMANDS = """
             [{"name":"get-outline","title":"Outline","description":"Gives the chapters of the book","async":false,"readOnly":true,"destructive":false,
               "forms":[{"anyArguments":false,"parameters":[]}]},
@@ -69,13 +73,14 @@ final class FakeMarginalia implements AutoCloseable {
         String path = exchange.getRequestURI().getPath().substring("/api/v1/".length());
         String body = new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
         String method = exchange.getRequestMethod();
-        requests.add(new Request(method, path, body));
+        String query = exchange.getRequestURI().getQuery();
+        requests.add(new Request(method, query == null ? path : path + "?" + query, body));
         if (!("Bearer " + KEY).equals(exchange.getRequestHeaders().getFirst("Authorization"))) {
             answer(exchange, 401, "{\"error\":\"No valid key\"}");
             return;
         }
         switch (method + " " + path) {
-            case "GET books" -> answer(exchange, 200, BOOKS);
+            case "GET books" -> answer(exchange, 200, BOOKS + ("all=true".equals(exchange.getRequestURI().getQuery()) ? HIDDEN : "") + "]");
             case "GET commands" -> answer(exchange, 200, COMMANDS);
             case "GET openapi.json" -> answer(exchange, 200, OPENAPI);
             case "POST books/b-1/commands/get-outline" -> answer(exchange, 200,

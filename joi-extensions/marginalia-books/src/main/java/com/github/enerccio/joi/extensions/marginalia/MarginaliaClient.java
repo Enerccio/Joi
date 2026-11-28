@@ -34,8 +34,13 @@ public final class MarginaliaClient {
     /** The most of a result the model gets, in characters. */
     static final int MAX_RESULT = 40_000;
 
-    /** A book of the user. */
-    public record Book(String uuid, String name, String folder) {
+    /**
+     * A book of the user.
+     *
+     * @param folder          the path of the folder it is directly in (names from the top folder, separated by {@code /}), null for none
+     * @param extendedApiOnly marked <i>Only in the extended API</i> in Marginalia: left out of the list unless all books are asked for
+     */
+    public record Book(String uuid, String name, String folder, boolean extendedApiOnly) {
     }
 
     /**
@@ -82,26 +87,58 @@ public final class MarginaliaClient {
         return address.endsWith("/api/v1") ? address : address + "/api/v1";
     }
 
-    /** The books of the user, as Marginalia lists them. */
+    /** The books of the user, as Marginalia lists them by default: without the ones marked <i>Only in the extended API</i>. */
     public List<Book> books() throws MarginaliaException {
-        JsonElement answer = get("books");
+        return books(false);
+    }
+
+    /**
+     * The books of the user.
+     *
+     * @param all also the books marked <i>Only in the extended API</i> ({@code ?all=true}); without it Marginalia leaves them out
+     */
+    public List<Book> books(boolean all) throws MarginaliaException {
+        JsonElement answer = get(all ? "books?all=true" : "books");
         List<Book> books = new ArrayList<>();
         if (answer.isJsonArray()) {
             for (JsonElement element : answer.getAsJsonArray()) {
                 JsonObject book = element.getAsJsonObject();
-                books.add(new Book(text(book, "uuid"), text(book, "name"), text(book, "folder")));
+                // folderPath and folderName since Marginalia 1.9.2; before, folder was all there was
+                String folder = StringUtils.firstNonBlank(text(book, "folderPath"), text(book, "folderName"), text(book, "folder"));
+                JsonElement hidden = book.get("extendedApiOnly");
+                books.add(new Book(text(book, "uuid"), text(book, "name"), folder,
+                        hidden != null && hidden.isJsonPrimitive() && hidden.getAsBoolean()));
             }
         }
         return books;
     }
 
-    /** The book the words name: its uuid, else its name (case does not matter), else the one name that contains them. */
+    /**
+     * The book the words name: its uuid, else its name (case does not matter), else the one name that contains them. Looked for among
+     * the books of the default list first, then among all of them (a book kept out of the list is still found when she names it).
+     */
     public Book book(String nameOrUuid) throws MarginaliaException {
         String wanted = StringUtils.strip(nameOrUuid);
         if (StringUtils.isBlank(wanted)) {
             throw new MarginaliaException(400, "Name the book");
         }
-        List<Book> books = books();
+        List<Book> listed = books(false);
+        Book found = find(wanted, listed);
+        if (found != null) {
+            return found;
+        }
+        List<Book> all = books(true);
+        if (all.size() > listed.size()) {
+            found = find(wanted, all);
+            if (found != null) {
+                return found;
+            }
+        }
+        throw notFound(wanted, listed);
+    }
+
+    /** The one book of the list the words name, null when none or several do. */
+    private static Book find(String wanted, List<Book> books) {
         for (Book book : books) {
             if (wanted.equals(book.uuid())) {
                 return book;
@@ -112,12 +149,14 @@ public final class MarginaliaClient {
             return named.getFirst();
         }
         List<Book> containing = books.stream().filter(book -> StringUtils.containsIgnoreCase(book.name(), wanted)).toList();
-        if (named.isEmpty() && containing.size() == 1) {
-            return containing.getFirst();
-        }
-        List<Book> candidates = named.isEmpty() ? containing : named;
+        return named.isEmpty() && containing.size() == 1 ? containing.getFirst() : null;
+    }
+
+    private static MarginaliaException notFound(String wanted, List<Book> books) {
+        List<Book> named = books.stream().filter(book -> wanted.equalsIgnoreCase(StringUtils.strip(book.name()))).toList();
+        List<Book> candidates = named.isEmpty() ? books.stream().filter(book -> StringUtils.containsIgnoreCase(book.name(), wanted)).toList() : named;
         String list = (candidates.isEmpty() ? books : candidates).stream().map(Book::name).limit(30).reduce((a, b) -> a + "; " + b).orElse("none");
-        throw new MarginaliaException(404, (candidates.isEmpty() ? "No book \"" + wanted + "\". The books: " : "Several books match \"" + wanted
+        return new MarginaliaException(404, (candidates.isEmpty() ? "No book \"" + wanted + "\". The books: " : "Several books match \"" + wanted
                 + "\" (give its uuid): ") + list);
     }
 

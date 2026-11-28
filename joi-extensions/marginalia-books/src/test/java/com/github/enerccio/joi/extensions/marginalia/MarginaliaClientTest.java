@@ -43,7 +43,15 @@ class MarginaliaClientTest {
     void theBooksAreListedAndFoundByIdNameOrPartOfIt() throws Exception {
         List<MarginaliaClient.Book> books = client.books();
         assertEquals(2, books.size());
-        assertEquals(new MarginaliaClient.Book("b-1", "The Salt Road", "Novels"), books.getFirst());
+        assertEquals(new MarginaliaClient.Book("b-1", "The Salt Road", "Writing/Novels", false), books.getFirst());
+        // the default list is asked without ?all: a book kept out of it is not there
+        assertEquals("books", marginalia.requests().getLast().path());
+        List<MarginaliaClient.Book> all = client.books(true);
+        assertEquals("books?all=true", marginalia.requests().getLast().path());
+        assertEquals(new MarginaliaClient.Book("b-3", "Old Draft", null, true), all.getLast());
+        // she still finds it when she names it
+        assertEquals("b-3", client.book("old draft").uuid());
+        assertEquals("b-3", client.book("b-3").uuid());
         assertEquals("b-1", client.book("b-1").uuid());
         assertEquals("b-1", client.book("the salt road").uuid());
         assertEquals("b-2", client.book("Ash").uuid());

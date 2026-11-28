@@ -122,7 +122,9 @@ one is needed, and are additions to the context.
 - `ReadPart`: `marginalia_read_part(book, part?, offset?, length?)` in her turn: without a part `list-parts`, with one `get-part`; an offset or a
   length takes the paged form, which names the branch too (blank: the active one); the length is clamped to 6 000 (Marginalia's page). 90 s at most.
 - `MarginaliaClient`: Marginalia's API (`<url>/api/v1`, `/api/v1` added when missing, http or https only), the key in the `Authorization` header
-  only. `books()`; `book(nameOrUuid)` (uuid, else the name ignoring case, else the one name that contains it; otherwise an error with the names);
+  only. `books()` (`GET books`, without `all`: Marginalia leaves out the books marked *Only in the extended API*), `books(true)` (`?all=true`);
+  the folder is `folderPath`, else `folderName`, else `folder` (older Marginalia); `book(nameOrUuid)` (uuid, else the name ignoring case, else
+  the one name that contains it, in the default list, then in all of them; otherwise an error with the names);
   `readOnlyCommands()` (`GET commands`, only `readOnly`; the arguments' schema from `openapi.json` with the key, `paths["/books/{book}/commands/<name>"]
   .post.requestBody...properties.arguments`, else made from the forms, a `oneOf` for several); `run(book, command, arguments)` (`wait` 30 s, a `202` run followed every
   second with `GET runs/<id>`, stopped with `DELETE` when cancelled or after 5 minutes; the result cut at 40 000 characters). Errors are
