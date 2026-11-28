@@ -120,8 +120,11 @@ sends an `animation` frame to her nodes.
 looped in place of idle and talking until she ends it or takes another (dancing, sitting). `StanceService` (`StanceServiceImpl`) keeps it
 on her (`Joi.stance`, the uuid, an extended attribute), notes it in the conversation (`stance.taken`, `stance.left`), and tells her nodes
 (`NodeService.stance`, the `stance` frame); when the user ends it (`end(joi, true)`, the End button of `JoiAnimationsPart`) she gets the
-event `stance.ended` (`JoiDefaults.eventStanceEnded`). `BodyServiceImpl.prompt` sets `BodyTemplateData.stance` when the active body plays
-that animation, and the default body prompt says she holds it. Both functions are in `ToolEffects.NO_ANSWER`. On a node,
+event `stance.ended` (`JoiDefaults.eventStanceEnded`). `BodyServiceImpl.prompt` sets `BodyTemplateData.stance` (with `stanceSince` and
+`stanceReason`) when the active body plays that animation, `animated` when it plays any, and `recentStances` from her ledger
+(`StanceLog`: `Joi.stanceLog`, the last five, each the uuid, from, to, `why` and `endedWhy`, said by `describe` with fixed times); the
+default body prompt says what she holds or that she holds none, then the ledger. `set_stance` and `end_stance` take a required `reason`
+(`StanceLog.oneLine`, at most 200 characters); `StanceServiceImpl.save` moves the stance she held into the ledger. Both functions are in `ToolEffects.NO_ANSWER`. On a node,
 `AvatarDirector.stance` (Java and Swift) plays it looped while she is idle or talking: entering talking or idle in a stance keeps it
 playing (`enterHeld`), a gesture is ignored (`gesture` returns early), asleep and waking up win over it. The server refuses
 `play_animation` too while she holds a stance her body plays (`AnimationTools.heldStance`), and tells her to change or end it. The JavaFX node and the iOS app pass null for an

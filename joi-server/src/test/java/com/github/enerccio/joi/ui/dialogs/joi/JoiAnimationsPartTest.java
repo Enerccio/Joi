@@ -111,7 +111,7 @@ class JoiAnimationsPartTest extends PlatformTestBase {
         assertThat(part.getStanceText().getText()).contains("none");
         assertThat(part.getEndStanceButton().isVisible()).isFalse();
 
-        stanceService.take(joi, dance);
+        stanceService.take(joi, dance, "test");
         part.shown();
         assertThat(part.getStanceText().getText()).contains("Dance");
         assertThat(part.getEndStanceButton().isVisible()).isTrue();

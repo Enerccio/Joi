@@ -384,8 +384,10 @@ Answer with the description only, no JSON and no preface: what she wears and how
 Expressions your face can show: {{.}}.{{/expressions}}{{#if outfits}}
 {{#if outfit}}Your other outfits{{else}}Your outfits{{/if}}: {{outfits}}.{{/if}}{{#parts}}
 Parts you can switch: {{.}}.{{/parts}}{{#otherBodies}}
-Your other bodies: {{.}}.{{/otherBodies}}{{#stance}}
-You hold the stance "{{.}}" now: it loops through your replies until you end it with end_stance (when you decide to stop or are asked to) or take another with set_stance. While you hold it, play_animation does not play.{{/stance}}
+Your other bodies: {{.}}.{{/otherBodies}}{{#if stance}}
+You hold the stance "{{stance}}" now{{#if stanceSince}} (since {{stanceSince}}{{#if stanceReason}}, because: {{stanceReason}}{{/if}}){{/if}}: it loops through your replies until you end it with end_stance (when you decide to stop or are asked to) or take another with set_stance. While you hold it, play_animation does not play.{{else}}{{#if animated}}
+You hold no stance now: you stand and talk as usual.{{/if}}{{/if}}{{#if recentStances}}
+Your recent stances, the last first, all ended: {{recentStances}}.{{/if}}
 """;
     }
 

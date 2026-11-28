@@ -40,6 +40,22 @@ public class BodyTemplateData extends JoiTemplateData {
     @JoiTemplateDescription(loc = J_L.DESC_TEMPLATE_STANCE)
     private String stance;
 
+    /** Whether her body plays any animation (so she can hold a stance); false hides the line about her stance. */
+    @JoiTemplateDescription(loc = J_L.DESC_TEMPLATE_ANIMATED)
+    private boolean animated;
+
+    /** Why she took her stance, in her words; empty when not said. */
+    @JoiTemplateDescription(loc = J_L.DESC_TEMPLATE_STANCE_REASON)
+    private String stanceReason;
+
+    /** When she took her stance ("Saturday 11:58 AM"), with {@code stance}. */
+    @JoiTemplateDescription(loc = J_L.DESC_TEMPLATE_STANCE_SINCE)
+    private String stanceSince;
+
+    /** The stances she held lately, the last first, each with when it began and ended; empty when none. */
+    @JoiTemplateDescription(loc = J_L.DESC_TEMPLATE_RECENT_STANCES)
+    private String recentStances;
+
     /** The profile she is in (where: home, work); empty when she has only the default one. */
     @JoiTemplateDescription(loc = J_L.DESC_TEMPLATE_WHERE_SHE_IS)
     private String profile;
@@ -47,6 +63,38 @@ public class BodyTemplateData extends JoiTemplateData {
     /** The profile she was in until this turn, when this turn is in another one; empty otherwise. */
     @JoiTemplateDescription(loc = J_L.DESC_TEMPLATE_WHERE_SHE_WAS)
     private String profileFrom;
+
+    public boolean isAnimated() {
+        return animated;
+    }
+
+    public void setAnimated(boolean animated) {
+        this.animated = animated;
+    }
+
+    public String getStanceReason() {
+        return stanceReason;
+    }
+
+    public void setStanceReason(String stanceReason) {
+        this.stanceReason = stanceReason;
+    }
+
+    public String getStanceSince() {
+        return stanceSince;
+    }
+
+    public void setStanceSince(String stanceSince) {
+        this.stanceSince = stanceSince;
+    }
+
+    public String getRecentStances() {
+        return recentStances;
+    }
+
+    public void setRecentStances(String recentStances) {
+        this.recentStances = recentStances;
+    }
 
     public String getStance() {
         return stance;

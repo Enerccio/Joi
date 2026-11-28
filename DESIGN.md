@@ -1608,10 +1608,18 @@ UI — nothing is deleted):
     section and both functions say so.
     The stance is **hers, on the server** (`Joi.stance`, an extended attribute: the animation's uuid; `StanceService`),
     so it lasts through turns, a node's reconnect and a server restart. Her nodes get the `stance` frame (`StanceState`:
-    the uuid and name, nulls for none) after their manifest and each time it changes. Her body section of the prompt
-    says she holds it (`{{#stance}}` in `BodyTemplateData`, when the active body plays that animation), and a note goes
-    into the conversation when she takes or ends it. The user sees it in the Animations tab of her dialog and can end
-    it there (`JoiAnimationsPart`); then she is told as an event (`stance.ended`).
+    the uuid and name, nulls for none) after their manifest and each time it changes. A note goes into the conversation
+    when she takes or ends it. The user sees it in the Animations tab of her dialog and can end it there
+    (`JoiAnimationsPart`); then she is told as an event (`stance.ended`).
+    **What her prompt says:** her body section always says what she holds (`stance`, since when, and why), or that she
+    holds none when her body plays animations (`animated`): with nothing said, a model that ended a dance in an earlier
+    message is not sure it ended. Below it, a **ledger of her recent stances** (`StanceLog`, `Joi.stanceLog`, the last
+    five, the last first): each with when it began and ended and why, `"Dance" (Saturday 11:58 AM to 12:05 PM; taken
+    because: ...; ended because: ...)`. Both functions take a `reason` (required, in a few words), kept in the ledger;
+    the user's end says "the user ended it in your dialog". The times are fixed moments, not "10 minutes ago", so the
+    section stays the same from turn to turn (the prompt is rendered once per turn, before the history, and a section
+    that changes restarts the model's cache). Her gestures are not in it for the same reason: they change every reply,
+    and her calls are in the history.
     A node (`AvatarDirector.stance`, the JavaFX node, the terminal client and the iOS app) plays it looped while she is
     idle or talking: talking does not interrupt it (her state still goes to talking and back, nothing new plays), her
     mouth (lip sync), her mood's face and her expressions go on over it (they are the renderer's, over any animation),

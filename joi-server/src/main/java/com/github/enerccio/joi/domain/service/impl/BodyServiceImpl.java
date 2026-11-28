@@ -10,6 +10,7 @@ import com.github.enerccio.joi.domain.bodies.Profiles;
 import com.github.enerccio.joi.domain.bodies.ToggleTree;
 import com.github.enerccio.joi.domain.events.JoiEvents;
 import com.github.enerccio.joi.domain.model.impl.AnimationPack;
+import com.github.enerccio.joi.domain.animations.StanceLog;
 import com.github.enerccio.joi.domain.model.impl.Body;
 import com.github.enerccio.joi.domain.model.impl.Joi;
 import com.github.enerccio.joi.domain.model.impl.Model;
@@ -685,10 +686,20 @@ public class BodyServiceImpl extends ExtendableServiceImpl<Body, BodyRepository>
         Joi stored = joiService.find(joi.getId());
         // her stance, when this body plays it (a node shows another body's animation as no stance)
         String stance = stored.getStance();
+        List<AnimationPack> plays = animations(active);
+        data.setAnimated(!plays.isEmpty());
         if (stance != null) {
-            animations(active).stream().filter(pack -> stance.equals(pack.getUuid())).findFirst()
+            plays.stream().filter(pack -> stance.equals(pack.getUuid())).findFirst()
                     .ifPresent(pack -> data.setStance(name(pack)));
         }
+        // the ledger of her recent stances, so she knows what she did and that it ended (fixed times: the prompt stays the same)
+        java.time.ZoneId zone = AppClock.INSTANCE.getZone();
+        if (data.getStance() != null && stored.getStanceSince() != null) {
+            data.setStanceSince(StanceLog.when(stored.getStanceSince().getTime(), zone));
+            data.setStanceReason(stored.getStanceReason());
+        }
+        Map<String, String> stanceNames = new java.util.HashMap<>();
+        data.setRecentStances(stored.stanceLedger().describe(uuid -> stanceNames.computeIfAbsent(uuid, this::packName), zone));
         return personaService.render(stored, JoiPromptField.BODY_PROMPT, data).strip();
     }
 
@@ -700,6 +711,16 @@ public class BodyServiceImpl extends ExtendableServiceImpl<Body, BodyRepository>
 
     private String name(Body body) {
         return StringUtils.defaultIfBlank(body.getName(), "unnamed");
+    }
+
+    /** The name of an animation of the user, null when it is gone. */
+    private String packName(String uuid) {
+        try {
+            AnimationPack pack = packService.findForUser(uuid);
+            return pack == null ? null : name(pack);
+        } catch (Exception e) {
+            return null;
+        }
     }
 
     private static String name(AnimationPack pack) {

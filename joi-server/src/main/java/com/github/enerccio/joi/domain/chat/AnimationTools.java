@@ -155,13 +155,16 @@ public class AnimationTools implements InitializingBean, DisposableBean {
         if (!byName.isEmpty()) {
             byName.keySet().forEach(property.putArray("enum")::add);
         }
-        schema.putArray("required").add("animation");
+        schema.with("properties").putObject("reason").put("type", "string")
+                .put("description", "Why you take it, in a few words (kept in your list of recent stances).");
+        schema.putArray("required").add("animation").add("reason");
         return FunctionDefinition.dynamic(SET_STANCE, "Takes a stance: one of your animations (those of play_animation) "
                 + "loops and stays, in place of how you stand and talk, through your replies, until you take another one "
                 + "or end it with end_stance. Use it for something that lasts: dancing, sitting, a pose you hold, a "
                 + "workout; not play_animation. While you hold it, play_animation does not play: you only change it "
                 + "with set_stance or end it with end_stance. Your words and your face go on over it. End it when you "
-                + "decide to stop or when you are asked to stop.", schema, (continuation, arguments) -> {
+                + "decide to stop or when you are asked to stop. Say why in reason: your body section lists your recent "
+                + "stances with their reasons.", schema, (continuation, arguments) -> {
             Object value = arguments == null ? null : arguments.get("animation");
             AnimationPack pack = value instanceof String name ? byName.get(name) : null;
             if (pack == null) {
@@ -170,7 +173,7 @@ public class AnimationTools implements InitializingBean, DisposableBean {
                 return;
             }
             try {
-                boolean changed = stanceService.take(joi, pack);
+                boolean changed = stanceService.take(joi, pack, arguments.get("reason") instanceof String reason ? reason : null);
                 continuation.complete(!changed ? "You already hold the stance " + pack.getName() + "."
                         : "You hold the stance " + pack.getName() + " now, until you end it with end_stance.");
             } catch (Exception e) {
@@ -183,11 +186,14 @@ public class AnimationTools implements InitializingBean, DisposableBean {
     private FunctionDefinition endStance(Joi joi) {
         ObjectNode schema = jackson.createObjectNode();
         schema.put("type", "object");
-        schema.putObject("properties");
+        schema.putObject("properties").putObject("reason").put("type", "string")
+                .put("description", "Why you end it, in a few words (kept in your list of recent stances).");
+        schema.putArray("required").add("reason");
         return FunctionDefinition.dynamic(END_STANCE, "Ends your stance (set_stance): you stand and talk as usual again. "
-                + "Use it when you decide to stop or when you are asked to stop.", schema, (continuation, arguments) -> {
+                + "Use it when you decide to stop or when you are asked to stop, and say why in reason.", schema, (continuation, arguments) -> {
             try {
-                AnimationPack ended = stanceService.end(joi, false);
+                AnimationPack ended = stanceService.end(joi, false,
+                        arguments != null && arguments.get("reason") instanceof String reason ? reason : null);
                 continuation.complete(ended == null ? "You hold no stance." : "Your stance " + ended.getName() + " ended.");
             } catch (Exception e) {
                 log.warn("She could not end her stance: {}", e.getMessage(), e);

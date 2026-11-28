@@ -726,6 +726,10 @@ public class JoiLocalizationBundleEN extends TextBundleBase<J_L> {
         setValue(J_L.DESC_TEMPLATE_OUTFIT_NAME, "The outfit's name.");
         setValue(J_L.DESC_TEMPLATE_OUTFIT_SHOWN, "The meshes of the model shown in the outfit; empty when not known.");
         setValue(J_L.DESC_TEMPLATE_OTHER_BODIES, "The names of her other bodies; empty when none.");
+        setValue(J_L.DESC_TEMPLATE_ANIMATED, "True when her body plays any animation, so she can hold a stance.");
+        setValue(J_L.DESC_TEMPLATE_STANCE_REASON, "Why she took her stance, in her words (set_stance's reason); empty when not said.");
+        setValue(J_L.DESC_TEMPLATE_STANCE_SINCE, "When she took her stance (\"Saturday 11:58 AM\"), with stance.");
+        setValue(J_L.DESC_TEMPLATE_RECENT_STANCES, "The stances she held lately, the last first, each with when it began and ended; empty when none.");
         setValue(J_L.DESC_TEMPLATE_STANCE, "The animation she holds now, her stance (set_stance), looped until she ends it; empty when none.");
         setValue(J_L.DESC_TEMPLATE_WHERE_SHE_IS, "The profile she is in (where she is: home, work); empty when she has only the default one.");
         setValue(J_L.DESC_TEMPLATE_WHERE_SHE_WAS, "The profile she was in until now, when this turn is in another one; empty otherwise.");

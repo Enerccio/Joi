@@ -1014,12 +1014,12 @@ class NodeServiceTest extends PlatformTestBase {
         dance.setDescription("You dance.");
         dance = packService.save(dance);
         llm.enqueue(MockLLMResponse.text("Hello."),
-                MockLLMResponse.toolCall("set_stance", "{\"animation\":\"Dance\"}"),
+                MockLLMResponse.toolCall("set_stance", "{\"animation\":\"Dance\",\"reason\":\"Peter asked me to dance\"}"),
                 MockLLMResponse.text("Dancing!"),
                 MockLLMResponse.text("Still dancing."),
                 MockLLMResponse.toolCall("play_animation", "{\"animation\":\"Dance\"}"),
                 MockLLMResponse.text("Hm."),
-                MockLLMResponse.toolCall("end_stance", "{}"),
+                MockLLMResponse.toolCall("end_stance", "{\"reason\":\"Peter said I can stop\"}"),
                 MockLLMResponse.text("Done."));
         Node node = connect("Bearer " + token);
         node.hello("n1", "desk", joi.getUuid(), "1.17");
@@ -1047,7 +1047,8 @@ class NodeServiceTest extends PlatformTestBase {
         // the next turn: she still holds it, and her body section says so
         node.frame("say", "t3", "{\"text\": \"Nice moves.\", \"speak\": false}");
         node.next("done");
-        assertThat(llm.getCompletionRequests().get(3).getPromptText()).contains("You hold the stance \"Dance\" now");
+        assertThat(llm.getCompletionRequests().get(3).getPromptText()).contains("You hold the stance \"Dance\" now (since ")
+                .contains("because: Peter asked me to dance");
 
         // the stance wins: a gesture is refused and no animation frame is sent
         node.frame("say", "t3b", "{\"text\": \"Wave at me.\", \"speak\": false}");
@@ -1073,14 +1074,20 @@ class NodeServiceTest extends PlatformTestBase {
         assertThat(joiService.find(joi.getId()).getStance()).isNull();
         assertThat(llm.getCompletionRequests().get(7).getLastMessage().content()).contains("Your stance Dance ended");
         assertThat(queuedEventService.findWaiting(joi)).isEmpty();
+        // the ledger keeps it with its reasons, and her body section says she holds none
+        assertThat(bodyService.prompt(joiService.find(joi.getId()), null, null)).contains("You hold no stance now")
+                .contains("Your recent stances, the last first, all ended: \"Dance\" (")
+                .contains("taken because: Peter asked me to dance; ended because: Peter said I can stop)");
 
         // the user ends it in her dialog: she is told as an event
-        stanceService.take(joi, dance);
+        stanceService.take(joi, dance, null);
         assertThat(node.next("stance").getAsJsonObject("data").get("animation").getAsString()).isEqualTo(dance.getUuid());
-        assertThat(stanceService.end(joi, true).getUuid()).isEqualTo(dance.getUuid());
+        assertThat(stanceService.end(joi, true, null).getUuid()).isEqualTo(dance.getUuid());
         assertThat(noStance(node.next("stance").getAsJsonObject("data"))).isTrue();
         assertThat(queuedEventService.findWaiting(joi)).extracting(QueuedEvent::getKind).containsExactly(JoiEvents.STANCE_ENDED);
-        assertThat(stanceService.end(joi, true)).as("none to end").isNull();
+        assertThat(stanceService.end(joi, true, null)).as("none to end").isNull();
+        assertThat(joiService.find(joi.getId()).stanceLedger().entries()).hasSize(2)
+                .first().extracting(StanceLogEntry -> StanceLogEntry.endedWhy()).isEqualTo("the user ended it in your dialog");
     }
 
     private static boolean noStance(JsonObject stance) {

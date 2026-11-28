@@ -256,6 +256,21 @@ public class Joi extends ExtendableEntity implements PersonaAttributes {
     @Transient
     private String stance;
 
+    /** Why she took her stance, in her words; null for none or not said. */
+    @ExtendedAttribute
+    @Transient
+    private String stanceReason;
+
+    /** When she took her stance, null for none. */
+    @ExtendedAttribute
+    @Transient
+    private Date stanceSince;
+
+    /** The stances she held lately, JSON ({@code StanceLog}); null for none. */
+    @ExtendedAttribute
+    @Transient
+    private String stanceLog;
+
     /** The key of today's mood, null before the first roll. */
     @ExtendedAttribute
     @Transient
@@ -611,6 +626,35 @@ public class Joi extends ExtendableEntity implements PersonaAttributes {
 
     public void setMoodSince(Date moodSince) {
         this.moodSince = moodSince;
+    }
+
+    public String getStanceReason() {
+        return stanceReason;
+    }
+
+    public void setStanceReason(String stanceReason) {
+        this.stanceReason = stanceReason;
+    }
+
+    public Date getStanceSince() {
+        return stanceSince;
+    }
+
+    public void setStanceSince(Date stanceSince) {
+        this.stanceSince = stanceSince;
+    }
+
+    public String getStanceLog() {
+        return stanceLog;
+    }
+
+    public void setStanceLog(String stanceLog) {
+        this.stanceLog = stanceLog;
+    }
+
+    /** The stances she held lately, the last first. */
+    public com.github.enerccio.joi.domain.animations.StanceLog stanceLedger() {
+        return com.github.enerccio.joi.domain.animations.StanceLog.fromJson(stanceLog);
     }
 
     public String getStance() {

@@ -65,6 +65,9 @@ dance is not cut by a nod. It lasts through her replies, a node that reconnects 
 takes another stance or ends it with `end_stance`: when she decides to stop, or when you ask her to ("you can stop dancing now"). While she
 sleeps the sleeping animations win, and she is back in her stance when she wakes up.
 
+She says why she takes or ends a stance, and her prompt keeps a short list of her last five stances with when they began and ended and
+why, so she knows what she did and that it is over.
+
 The Animations tab of her dialog shows her stance, and **End the stance** ends it for her: she is told that you ended it. A body that does not
 have the animation of her stance (she moved into another one) shows her as without one.
 

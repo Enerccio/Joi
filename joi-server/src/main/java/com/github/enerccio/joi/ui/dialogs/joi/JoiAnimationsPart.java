@@ -101,7 +101,7 @@ public class JoiAnimationsPart implements JoiDialogPart {
     /** The user ends her stance: she is told, her nodes go back to idle and talking. */
     private void endStance() {
         try {
-            stanceService.end(dialog.getJoi(), true);
+            stanceService.end(dialog.getJoi(), true, null);
             showStance();
         } catch (Exception e) {
             UIUtils.internalServerError(loc, e);

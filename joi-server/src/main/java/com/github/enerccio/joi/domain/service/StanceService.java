@@ -16,16 +16,20 @@ public interface StanceService {
     AnimationPack current(Joi joi) throws Exception;
 
     /**
-     * She takes a stance: kept, a note in her conversation, and her nodes play it.
+     * She takes a stance: kept, a note in her conversation, and her nodes play it. The one she held goes into her ledger
+     * ({@code StanceLog}) as ended now.
      *
+     * @param reason why, in her words (kept in the ledger); null for not said
      * @return false when she already held it (nothing changed)
      */
-    boolean take(Joi joi, AnimationPack animation) throws Exception;
+    boolean take(Joi joi, AnimationPack animation, String reason) throws Exception;
 
     /**
-     * Her stance ends: back to idle and talking. When the user ended it ({@code byUser}), she is told as an event.
+     * Her stance ends: back to idle and talking, and into her ledger. When the user ended it ({@code byUser}), she is
+     * told as an event.
      *
+     * @param reason why, in her words (kept in the ledger); null for not said (the user's end says so itself)
      * @return the stance that ended, null when she had none
      */
-    AnimationPack end(Joi joi, boolean byUser) throws Exception;
+    AnimationPack end(Joi joi, boolean byUser, String reason) throws Exception;
 }
