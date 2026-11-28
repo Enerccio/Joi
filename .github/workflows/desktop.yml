@@ -63,18 +63,18 @@ jobs:
           - name: macos-x64
             os: macos-15-intel
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           # the platform is the Marginalia submodule
           submodules: recursive
 
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@v6
         with:
           distribution: temurin
           java-version: ${{ env.JAVA_VERSION }}
           cache: maven
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           # the renderer page of the node (joi-node/src/main/renderer) is built with npm, from the network here
           node-version: '22'
@@ -173,7 +173,7 @@ jobs:
           fi
 
       - name: Upload distribution
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: joi-desktop-${{ matrix.name }}
           path: |
@@ -195,12 +195,12 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           pattern: joi-desktop-*
           merge-multiple: true
           path: dist
 
-      - uses: softprops/action-gh-release@v2
+      - uses: softprops/action-gh-release@v3
         with:
           files: dist/*
