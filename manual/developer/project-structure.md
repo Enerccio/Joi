@@ -5,7 +5,7 @@ order: 770
 covers:
   - joi-server/src/main/java/com/github/enerccio/joi/domain
   - joi-server/src/main/resources/META-INF/spring
-verified: 4b3d99c
+verified: 7664595
 ---
 
 # Project structure
@@ -44,7 +44,7 @@ All are owned by the user, and each belongs to an assistant where it makes sense
 
 | Entity | What it is |
 |---|---|
-| `Joi` | an assistant; her settings (`PersonaAttributes`), wake word and today's mood |
+| `Joi` | an assistant; her settings (`PersonaAttributes`), wake word, today's mood and her stance (the animation she holds, `StanceService`) |
 | `ChatMessage` | one exchange: an input of type User, Event or Log, and her response with reasoning, tool calls, model, tokens and timings |
 | `MessagePrompt` | the prompt sent for a message, deflated |
 | `Summary` | a summary of a time: a day, a week, a month or a year, or a part of a day (see [Summaries](summaries.md)) |

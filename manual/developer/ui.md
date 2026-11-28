@@ -5,7 +5,7 @@ order: 700
 covers:
   - joi-server/src/main/java/com/github/enerccio/joi/ui
   - joi-server/src/main/java/com/github/enerccio/joi/loc
-verified: 4b3d99c
+verified: 7664595
 ---
 
 # The UI
@@ -26,7 +26,7 @@ The assistant's dialog is `ui/dialogs/JoiDialog`, with a `JoiDialogPart` for eac
 `JoiAnimationsPart`, `JoiProfilesPart` (her profiles and the nodes assigned to them, see *Profiles* in [Bodies and models](bodies.md)), `JoiTemplatesPart`, `JoiMemoriesPart`, `JoiChatsPart` (with the Summarize button), `JoiSummariesPart`, `JoiTasksPart` and `JoiFilesPart` (her workspace in the platform's `WorkspaceBrowser`). `JoiBodiesPart` shows a Profile choice when she has more than the default profile: the body made active and the
 `BodyDialog` it opens (with the profile) change that profile; `profilesChanged()` follows the Profiles tab. A part stores
 its change with `JoiDialog.save(change)` (or `saveAbout(before, change)`), which applies it to her as stored now: her turns save her
-mood while the dialog is open. The About tab's Mood today box is no part of the persona: it calls `ChatService.changeMood(joi, key, true)`. The settings of the
+mood while the dialog is open. The About tab's Mood today box is no part of the persona: it calls `ChatService.changeMood(joi, key, true)`. The Animations tab shows her stance; its End button calls `StanceService.end(joi, true)` (its test fires the click with `ComponentUtil.fireEvent`, as `Button.click()` did not reach it in the dialog of the test). The settings of the
 summaries are one widget, `ui/widgets/SummaryFields`, shared by the assistant's About tab and the user's settings (the chain assistant → user → default). Other dialogs: `ModelDialog`, `BodyDialog`,
 `OutfitDialog`, `AnimationDialog`, `AnimationPackDialog`, `TtsModelDialog`, `JoiAIDialog`, `PersonalityDialog`, `MoodDialog` (with the mood's face: expression, strength and eyes).
 Panels: `ui/bodies` (`AppearancePanel`, `SpringBonesPanel`, `ToggleGroupsPanel`, `ModelViewer`, `ClipPreview`), `ui/tools`, `ui/access` (its list shows a `LOCAL` token as "This computer" and the administration scopes of a token in *Access*; *Create token* offers the scopes (`AdminScope`) only to an administrator; *Pair a phone* is `PairPhoneDialog`: a QR code (ZXing, a data-URI PNG) of `joi://pair?server=...&offer=...`, the server address editable because a phone cannot reach `localhost`, and a poll of the UI every 1.5 s that approves the device that came with the offer, as the user of the screen: `DeviceAuthorizationService.waitingForOffer` and `approve`).

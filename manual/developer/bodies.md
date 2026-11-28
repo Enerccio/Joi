@@ -9,7 +9,7 @@ covers:
   - joi-server/src/main/java/com/github/enerccio/joi/domain/service/impl/ProfileServiceImpl.java
   - joi-server/src/main/java/com/github/enerccio/joi/domain/service/impl/StanceServiceImpl.java
   - joi-server/src/main/java/com/github/enerccio/joi/domain/service/StanceService.java
-verified: 4b3d99c
+verified: 7664595
 ---
 
 # Bodies and models
