@@ -21,7 +21,7 @@ covers:
   - tools/sign_firefox_extension.sh
   - joi-browser/package.json
   - .github/dependabot.yml
-verified: ad300a4
+verified: 6533970
 ---
 
 # Building
@@ -71,7 +71,7 @@ reactor needs its `COPY joi-<module>/pom.xml` there, or the image fails with *Ch
 the submodule, `joi-protocol` and `joi-server` into the WAR with the production frontend bundle (`-Pproduction -pl joi-server -am`), and a Jetty 12
 stage runs it, started by `docker-entrypoint.sh` (it hands the data folder to the `jetty` user, then drops root). The data folder is `JOI_DATA`
 (`/var/joi/data`, the volume of `docker-compose.yml`), the health check is `/health`. The image has ffmpeg and headless Blender 5.2.1 with the VRM add-on (the official x86-64 build, checked against its sha256, in
-`/opt/blender`, the add-on in `BLENDER_USER_RESOURCES`; on another architecture it is left out with a warning, since blender.org has no ARM Linux build;
+`/opt/blender`, the add-on in `BLENDER_USER_RESOURCES` (the name Blender reads; the build checks, as `jetty`, that Blender uses that folder and loads the add-on); on another architecture it is left out with a warning, since blender.org has no ARM Linux build;
 `--build-arg WITH_FFMPEG=false` / `WITH_BLENDER=false` leave them out). The user's guide is [Server (Docker)](../user/getting-started/docker-server.md).
 
 ```bash
