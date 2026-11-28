@@ -1532,7 +1532,9 @@ public class JoiNodeApp extends Application {
 
         private final VBox lines = new VBox(8);
         private final ScrollPane scroll = new ScrollPane(lines);
-        private final TextField input = new TextField();
+        /** The words to send: Enter sends, Shift+Enter starts a new line; it grows with the lines, up to {@link #MAX_ROWS}. */
+        private final javafx.scene.control.TextArea input = new javafx.scene.control.TextArea();
+        private static final int MAX_ROWS = 6;
         /** Shown while offline: when the next try is, and a link to make it now. */
         private final Label offlineState = new Label();
         private final Hyperlink reconnect = new Hyperlink("Reconnect now");
@@ -1565,14 +1567,31 @@ public class JoiNodeApp extends Application {
         ChatPane(String name) {
             this.name = name;
             lines.setPadding(new Insets(12));
+            // the chat is as wide as the pane, never wider: its lines wrap (a child with a wide minimum made it scroll sideways)
+            lines.setMinWidth(0);
+            pastBox.setMinWidth(0);
+            scroll.setHbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
             scroll.setFitToWidth(true);
             lines.heightProperty().addListener((o, a, b) -> {
                 if (!keepScroll) {
                     scroll.setVvalue(1);
                 }
             });
-            input.setPromptText("Talk to " + name);
-            input.setOnAction(e -> send());
+            input.setPromptText("Talk to " + name + " (Shift+Enter: new line)");
+            input.setWrapText(true);
+            input.setPrefRowCount(1);
+            input.textProperty().addListener((o, a, b) -> input.setPrefRowCount(Math.min(MAX_ROWS, Math.max(1, (int) b.chars().filter(c -> c == '\n').count() + 1))));
+            // Enter sends, Shift+Enter is a line break (a text area would take Enter as one)
+            input.addEventFilter(javafx.scene.input.KeyEvent.KEY_PRESSED, e -> {
+                if (e.getCode() == KeyCode.ENTER) {
+                    e.consume();
+                    if (e.isShiftDown()) {
+                        input.replaceSelection("\n");
+                    } else {
+                        send();
+                    }
+                }
+            });
             send.setOnAction(e -> send());
             stop.setOnAction(e -> onStop.run());
             talk.setOnAction(e -> onTalk.run());
@@ -1597,6 +1616,7 @@ public class JoiNodeApp extends Application {
             }
             HBox typing = new HBox(8, input, send);
             HBox.setHgrow(input, Priority.ALWAYS);
+            typing.setAlignment(Pos.BOTTOM_LEFT);
             VBox bottom = new VBox(6, typing, new HBox(8, talk, attach, stop));
             bottom.setPadding(new Insets(8));
             offline.setPadding(new Insets(6, 8, 0, 8));
@@ -1686,7 +1706,7 @@ public class JoiNodeApp extends Application {
             send.setDisable(!online);
             stop.setDisable(!online);
             talk.setDisable(!online);
-            input.setPromptText(online ? "Talk to " + name : "Not connected…");
+            input.setPromptText(online ? "Talk to " + name + " (Shift+Enter: new line)" : "Not connected…");
         }
 
         /** The next try to connect is in {@code seconds}: counted down, with a link to try now. */
@@ -1829,9 +1849,9 @@ public class JoiNodeApp extends Application {
             pendingImages.clear();
             showPending();
             add("You: " + (text.isEmpty() ? "" : text + " ") + "[" + files.size() + (files.size() == 1 ? " image]" : " images]"));
-            HBox thumbs = new HBox(4);
+            javafx.scene.layout.FlowPane thumbs = thumbRow();
             for (java.nio.file.Path file : files) {
-                thumbs.getChildren().add(new javafx.scene.image.ImageView(new javafx.scene.image.Image(file.toUri().toString(), 0, 96, true, true, true)));
+                thumbs.getChildren().add(thumb(file.toUri().toString()));
             }
             lines.getChildren().add(thumbs);
             onSayImages.accept(text, files);
@@ -1957,7 +1977,12 @@ public class JoiNodeApp extends Application {
             javafx.scene.control.Separator right = new javafx.scene.control.Separator();
             Label label = new Label("Summarized above: no longer sent to " + name);
             label.setStyle("-fx-font-size: 0.85em; -fx-opacity: 0.75;");
-            label.setMinWidth(Region.USE_PREF_SIZE);
+            // it shrinks and wraps with the pane: a line that does not is what makes the chat scroll sideways
+            label.setMinWidth(0);
+            label.setWrapText(true);
+            label.setTextAlignment(javafx.scene.text.TextAlignment.CENTER);
+            left.setMinWidth(8);
+            right.setMinWidth(8);
             HBox.setHgrow(left, Priority.ALWAYS);
             HBox.setHgrow(right, Priority.ALWAYS);
             HBox line = new HBox(8, left, label, right);
@@ -1968,12 +1993,30 @@ public class JoiNodeApp extends Application {
             return line;
         }
 
+        /** A row of small pictures that wraps onto more rows when the pane is narrow (a row that does not makes the chat scroll sideways). */
+        private static javafx.scene.layout.FlowPane thumbRow() {
+            javafx.scene.layout.FlowPane row = new javafx.scene.layout.FlowPane(4, 4);
+            row.setMinWidth(0);
+            return row;
+        }
+
+        /** A small picture: 96 high, at most {@link #THUMB_WIDTH} wide (a wide screenshot is scaled down further). */
+        private static javafx.scene.image.ImageView thumb(String uri) {
+            javafx.scene.image.ImageView view = new javafx.scene.image.ImageView(new javafx.scene.image.Image(uri, 0, 96, true, true, true));
+            view.setPreserveRatio(true);
+            view.setFitHeight(96);
+            view.setFitWidth(THUMB_WIDTH);
+            return view;
+        }
+
+        private static final double THUMB_WIDTH = 220;
+
         /** The pictures of a message, small, each fetched in the background; a click opens it whole. */
         private void thumbnails(VBox into, List<String> ids) {
             if (ids == null || ids.isEmpty() || images == null) {
                 return;
             }
-            HBox row = new HBox(4);
+            javafx.scene.layout.FlowPane row = thumbRow();
             into.getChildren().add(row);
             for (String id : ids) {
                 Thread.ofVirtual().start(() -> {
@@ -1984,7 +2027,7 @@ public class JoiNodeApp extends Application {
                         }
                         String uri = file.toUri().toString();
                         javafx.application.Platform.runLater(() -> {
-                            javafx.scene.image.ImageView view = new javafx.scene.image.ImageView(new javafx.scene.image.Image(uri, 0, 96, true, true, true));
+                            javafx.scene.image.ImageView view = thumb(uri);
                             view.setCursor(javafx.scene.Cursor.HAND);
                             view.setOnMouseClicked(e -> showWhole(uri));
                             row.getChildren().add(view);

@@ -39,7 +39,8 @@ ends.
 
 - **Her body** is drawn by the embedded Chromium. A line shows her state (waiting, talking, asleep...) and the animation that
   plays. **Open in browser** shows the same page in your browser.
-- **The chat** starts with her history from the server, so a conversation goes on where it was. Type, press **Send**; **Stop**
+- **The chat** starts with her history from the server, so a conversation goes on where it was. Type, press **Send** (or Enter;
+  **Shift+Enter** starts a new line, and the field grows with the lines); **Stop**
   interrupts her. Her reply streams in; when she has a voice, the text of a reply waits for its first piece of speech so the
   chat does not run ahead of her. Her voice plays as it arrives. **Talk** listens to you instead of the keyboard: see [Talking to her](voice.md).
   The chat starts with her last 500 messages; **Show earlier messages** at the top loads the 500 before them. The images you sent and the

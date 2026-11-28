@@ -57,7 +57,7 @@ the 401 refresh as every call) and puts the ids in `NodeSocket.say(..., images)`
 button to take one away, and uploads on a virtual thread before it sends; the terminal client has `/image <file> [words]`. Nothing is done to the picture on the node: the server turns it upright
 and scales it.
 
-The JavaFX node's history (`ChatPane.history`, `drawPast`) is the latest 500 messages (`ServerClient.history(joi, limit, before)`); "Show earlier
+The JavaFX node's words field is a `TextArea` (a key filter: Enter sends, Shift+Enter puts a line break; its rows follow the lines, at most six). The chat is never wider than its pane (`lines` and `pastBox` have no minimum width, no horizontal scroll bar): its lines are wrapping labels, the rows of pictures are `FlowPane`s that wrap (`thumbRow`; a picture is 96 high and at most 220 wide, `thumb`), and the summary line's label shrinks and wraps. The JavaFX node's history (`ChatPane.history`, `drawPast`) is the latest 500 messages (`ServerClient.history(joi, limit, before)`); "Show earlier
 messages" loads the page before the first id and keeps the scroll where it was. The images of a message and her `toolImages` come from
 `ServerClient.image` (`GET /api/v1/images/{id}`, streamed into `<home>/cache/images/<id>.jpg` once, an id that is not a plain name refused) and
 show as thumbnails that open whole. A `Separator` line follows the last `summarized` entry. Every line has a context menu: Copy, and Copy the
