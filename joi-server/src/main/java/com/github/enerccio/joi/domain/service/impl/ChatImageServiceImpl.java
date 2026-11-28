@@ -182,7 +182,9 @@ public class ChatImageServiceImpl implements ChatImageService {
     @CommonTx
     public void deleteOf(List<ChatMessage> messages) throws Exception {
         for (ChatMessage message : messages) {
-            for (String id : message.imageUuids()) {
+            List<String> ids = new java.util.ArrayList<>(message.imageUuids());
+            ids.addAll(message.toolImageUuids());
+            for (String id : ids) {
                 Resource resource = own(id);
                 if (resource != null) {
                     resourceService.delete(resource, false);

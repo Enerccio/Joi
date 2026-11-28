@@ -87,6 +87,8 @@ class NodeServiceTest extends PlatformTestBase {
     private WebTaskService webTaskService;
     @Autowired
     private com.github.enerccio.joi.domain.service.JoiWorkspaceService workspaceService;
+    @Autowired
+    private com.github.enerccio.marginalia.domain.service.ResourceService resourceService;
 
     private final JsonSchemaFactory schemas = JsonSchemaFactory.getInstance(SpecVersion.VersionFlag.V202012,
             builder -> builder.schemaMappers(m -> m.mapPrefix(BASE, "classpath:joi-protocol/schemas/")));
@@ -354,11 +356,19 @@ class NodeServiceTest extends PlatformTestBase {
         assertThat(second.getRawBody().split("\"type\":\"image_url\"", -1).length - 1).isEqualTo(1);
         assertThat(second.getRawBody()).contains("The pictures that came with the results of desk__note");
         assertThat(second.getLastMessage().content()).contains("desk__note").doesNotContain("cannot see");
-        // the next round has none left
+        // kept with her message, linked to it (not swept), not as the user's images
+        com.github.enerccio.joi.domain.model.impl.ChatMessage stored = chatMessageService.findLatest(joi, 1).getFirst();
+        assertThat(stored.toolImageUuids()).containsExactly(picture);
+        assertThat(stored.imageUuids()).isEmpty();
+        assertThat(resourceService.findForUser(picture).getObjectId()).isEqualTo(stored.getId());
+        // the next round has none left, and the prompt does not give it again
         llm.enqueue(MockLLMResponse.text("Hi."));
         node.frame("say", "t2", "{\"text\": \"Hi\", \"speak\": false}");
         node.next("done");
-        assertThat(llm.getCompletionRequests().getLast().getRawBody()).doesNotContain("results of desk__note");
+        assertThat(llm.getCompletionRequests().getLast().getRawBody()).doesNotContain("results of desk__note").doesNotContain("\"type\":\"image_url\"");
+        // deleting the message deletes the picture
+        chatMessageService.deleteMessages(joi, List.of(stored.getId()));
+        assertThat(imageService.find(picture)).isNull();
     }
 
     @Test

@@ -1936,8 +1936,10 @@ user, `tool_progress` restarts the timeout, `tool_cancel` stops it). No change o
   (PNG, JPEG, GIF, BMP, WebP, TIFF, HEIC), at most 20 MB, the denied paths refused as for a read. The node uploads it as a chat
   image and sends its id in `ToolResult.images` (at most four). The server (`ToolImages`, `CallToolsStep`) adds one message after
   the round's results, from the template `TOOL_IMAGES`: the pictures for a multimodal chat model, the describing model's notes
-  for another. The message stays in that turn only; the picture is not shown in the Chats tab, and an unused upload is swept
-  like any other.
+  for another. The message stays in that turn only: later prompts do not give the picture again. The pictures shown are kept with
+  her message (`ChatMessage.toolImages`, an extended attribute: uuids, linked to the message like the user's images, deleted with
+  it) and shown with her reply in the Chats tab; a picture that was never shown (its turn stopped) is swept like any unused upload.
+  Not yet in the API's history (`ChatEntry`), so the nodes and the app do not show them.
 - **UI:** the terminal node `/files on|off`, `/shell ask|off`, `/images allow|folders|ask|off`, `/roots`, `/roots add <path>`, `/roots remove <path>`, an asked
   call answered with `/yes`, `/session` or `/no`; the JavaFX node **Joi → Files and shell…** (the two switches, the
   pictures' choice and the folders) and a dialog with the three buttons.
@@ -2301,7 +2303,8 @@ equal to the default is left out of `policy.json`.
 **Images from a node tool** (a protocol addition, shared with `capture_screen`). The node uploads the picture first, through
 the image upload of the chat (the same limits and scaling), and the `tool_result` gets `images`: the ids it was given. The
 server puts them into the function result for her model when it takes images there, else the multimodal model describes them
-(as *Images in the chat* does). The images are kept with the turn and shown in the Chats tab, with the retention of chat images.
+(as *Images in the chat* does). The images are kept with the turn and shown in the Chats tab, with the retention of chat images
+(built: `ChatMessage.toolImages`; not yet in the API's history).
 In privacy mode they go to local models only.
 
 **Events** (a protocol addition, later). The node tells her "a video started", "the music stopped" as transient events (a

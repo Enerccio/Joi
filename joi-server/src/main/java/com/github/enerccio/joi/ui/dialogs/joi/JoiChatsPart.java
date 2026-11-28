@@ -256,6 +256,10 @@ public class JoiChatsPart implements JoiDialogPart {
 
     /** The image of the user as a component, a thumbnail the size of the card's (it is the stored JPEG, scaled by the browser). */
     private Image imageOf(String uuid) {
+        return imageOf(uuid, J_L.LABEL_CHAT_IMAGE);
+    }
+
+    private Image imageOf(String uuid, J_L label) {
         StreamResource resource = new StreamResource("image-" + uuid + ".jpg", () -> {
             try {
                 File file = chatImageService.file(uuid);
@@ -265,17 +269,21 @@ public class JoiChatsPart implements JoiDialogPart {
             }
         });
         resource.setContentType("image/jpeg");
-        Image image = new Image(resource, loc.getValue(J_L.LABEL_CHAT_IMAGE));
+        Image image = new Image(resource, loc.getValue(label));
         image.addClassName(JoiCssStyles.CHAT_IMAGE);
         return image;
     }
 
     /** The images of a message in the transcript: each a link to the whole image. */
     private Component imagesOf(List<String> uuids) {
+        return imagesOf(uuids, J_L.LABEL_CHAT_IMAGE);
+    }
+
+    private Component imagesOf(List<String> uuids, J_L label) {
         Div images = new Div();
         images.addClassName(JoiCssStyles.CHAT_IMAGES);
         for (String uuid : uuids) {
-            Image image = imageOf(uuid);
+            Image image = imageOf(uuid, label);
             Anchor link = new Anchor(image.getSrc(), "");
             link.setTarget("_blank");
             link.add(image);
@@ -779,6 +787,10 @@ public class JoiChatsPart implements JoiDialogPart {
         List<ToolUsage> tools = ToolUsage.fromJson(message.getToolCalls());
         if (!tools.isEmpty()) {
             reply.add(toolsList(tools));
+        }
+        if (!message.toolImageUuids().isEmpty()) {
+            // the pictures her tools brought (a page's screenshot)
+            reply.add(imagesOf(message.toolImageUuids(), J_L.LABEL_CHAT_TOOL_IMAGE));
         }
         if (StringUtils.isNotBlank(message.getResponse())) {
             Markdown response = new Markdown(message.getResponse());

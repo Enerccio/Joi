@@ -124,6 +124,12 @@ public class CallToolsStep extends TurnStepBase {
             }
             tools.add(picture.tool());
             shown++;
+            // kept with her message, shown in the transcript
+            @SuppressWarnings("unchecked")
+            List<String> kept = (List<String>) controller.getProperties().computeIfAbsent(TurnProperties.TOOL_IMAGES, k -> new java.util.ArrayList<String>());
+            if (!kept.contains(picture.image())) {
+                kept.add(picture.image());
+            }
         }
         if (shown == 0) {
             return null;

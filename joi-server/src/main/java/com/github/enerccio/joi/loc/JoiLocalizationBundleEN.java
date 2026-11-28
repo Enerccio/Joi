@@ -450,6 +450,7 @@ public class JoiLocalizationBundleEN extends TextBundleBase<J_L> {
         setValue(J_L.LABEL_ATTACH_IMAGE, "Attach an image (or paste one)");
         setValue(J_L.LABEL_SEND_MESSAGE, "Send");
         setValue(J_L.LABEL_CHAT_IMAGE, "An image the user sent");
+        setValue(J_L.LABEL_CHAT_TOOL_IMAGE, "A picture her tool brought");
 
         // --- ENUM ---
         setValue(J_L.ENUM_TEXT_LLM_TYPE_AUXILIARY, "Auxiliary");

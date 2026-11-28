@@ -68,7 +68,10 @@ null for the node's defaults, 0.8 and 4) goes to her nodes when she calls `set_e
 node tool's result, as the node's `view_image` does. A result is text for the model, so `NodeServiceImpl.result` puts the ids into
 `ToolImages` (per assistant: her turns run one at a time), and `CallToolsStep` takes them after the round's calls and adds one message:
 the pictures as attachments for a multimodal chat model, else the describing model's notes (`ChatImageService.describe`), in the
-template `TOOL_IMAGES` (`ToolImagesTemplateData`: `tools`, `shows`). The message stays in that turn only. An id that is not the
+template `TOOL_IMAGES` (`ToolImagesTemplateData`: `tools`, `shows`). The message stays in that turn only. The ids shown go into the
+turn's `TurnProperties.TOOL_IMAGES`; `StoreStep` writes them into her message (`ChatMessage.toolImages`) and links them to it
+(`ChatImageService.attach`), `ChatImageService.deleteOf` deletes them with it, and `JoiChatsPart` shows them with her reply. They are
+not in `ChatEntry` yet. An id that is not the
 user's image is skipped. A node older than 1.14 sends no `images`.
 
 **Administration (1.13).** Marginalia's `/admin` calls of its `ApiDispatcher`, in Joi's API: `JoiAdminApi`, called by `JoiApi.route` for a path that

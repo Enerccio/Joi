@@ -32,6 +32,8 @@ public final class TurnProperties {
     public static final String IMAGE_NOTES = "joi.imageNotes";
     /** The images she asked to look at with {@code view_image} in this round ({@code ShownImages}), there when her chat model sees images. */
     public static final String SHOWN_IMAGES = "joi.shownImages";
+    /** The pictures of her tools' results shown to her in this turn ({@code List<String>} of image uuids), kept with her message. */
+    public static final String TOOL_IMAGES = "joi.toolImages";
     /** How the turn went ({@link TurnOutcome}), at {@link TurnEvents#AFTER_CLEANUP}. */
     public static final String OUTCOME = "joi.outcome";
 

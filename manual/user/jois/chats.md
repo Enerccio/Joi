@@ -40,7 +40,9 @@ When neither is the case the attach button is off, and a message with an image i
 - **What you said** on the right, with the images you sent, or an **event** in the middle with its kind (a part of her was switched, a task finished;
   see [Events](events.md)).
 - **Her reasoning**, folded, when the model thought.
-- **Her reply** as formatted text, with when it was said, which model answered and which node it came through.
+- **Her reply** as formatted text, with when it was said, which model answered and which node it came through, and the pictures her
+  tools brought in that turn (a screenshot of a page, a picture she looked at on a node), small (click one to open it). She saw them
+  in that turn only; deleting the message deletes them.
 - **Tools used (3): ...**, folded: every tool she used in the reply, in the order it happened, with the arguments she wrote and
   what it answered. A failed call is marked.
 - A **play button** when the reply was spoken: the pieces of speech are joined into one clip kept on the message.

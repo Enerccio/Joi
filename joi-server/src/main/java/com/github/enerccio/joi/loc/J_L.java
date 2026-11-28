@@ -393,6 +393,7 @@ public enum J_L implements LocalizationKey {
     LABEL_ATTACH_IMAGE,
     LABEL_SEND_MESSAGE,
     LABEL_CHAT_IMAGE,
+    LABEL_CHAT_TOOL_IMAGE,
 
     // --- ENUM ---
     ENUM_TEXT_LLM_TYPE_AUXILIARY,

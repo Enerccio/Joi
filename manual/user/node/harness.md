@@ -49,7 +49,7 @@ the picture shows and she gets that text. **Pictures she may look at** in **Joi 
 | **Off** | she has no `view_image` |
 
 **Allow for session** covers the pictures of the same folder. She sees the picture only in the turn she asked for it; later she
-looks again.
+looks again. The picture is kept with her reply and shown in her [Chats tab](../jois/chats.md); deleting the message deletes it.
 
 ## When you are asked
 

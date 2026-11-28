@@ -67,7 +67,8 @@ unless she names another one. For a picture she names another tab only when you 
 the news tab"). A picture of a tab that is not in front, in a turn you did not start, is asked every time, whatever its tier or an
 earlier **Allow for session**, and the question says so. She sees a
 picture after the results of her tools, as with a picture on this machine (see [Files and shell](harness.md)); if her chat model
-cannot see pictures, the describing model writes what it shows. The Joi button shows **pic** for a few seconds when a picture was
+cannot see pictures, the describing model writes what it shows. The picture is kept with her reply and shown in her
+[Chats tab](../jois/chats.md). The Joi button shows **pic** for a few seconds when a picture was
 taken.
 
 Firefox lets an extension take a picture of a tab only with its permission for all sites. So pictures have their own switch in the

@@ -78,6 +78,15 @@ public class ChatMessage extends ExtendableEntity {
     @Transient
     private String imageNotes;
 
+    /**
+     * The pictures her tools brought in this turn (a node's {@code tool_result.images}, such as a page's screenshot), as the uuids of
+     * their resources (JSON array, in the order they came), null for none. Linked to the message and kept and deleted with it like
+     * {@link #images}; shown with her reply, never given to the model again (she saw them in their turn).
+     */
+    @ExtendedAttribute
+    @Transient
+    private String toolImages;
+
     @ExtendedAttribute
     @Fulltextable
     @Transient
@@ -229,6 +238,19 @@ public class ChatMessage extends ExtendableEntity {
 
     public void setImageNotes(String imageNotes) {
         this.imageNotes = imageNotes;
+    }
+
+    public String getToolImages() {
+        return toolImages;
+    }
+
+    public void setToolImages(String toolImages) {
+        this.toolImages = toolImages;
+    }
+
+    /** The uuids of the pictures her tools brought in the turn, in the order they came; empty for none. */
+    public java.util.List<String> toolImageUuids() {
+        return jsonStrings(toolImages);
     }
 
     /** The uuids of the images of the message, in the order sent; empty for none. */

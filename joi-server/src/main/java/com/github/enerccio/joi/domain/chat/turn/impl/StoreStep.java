@@ -57,6 +57,9 @@ public class StoreStep extends TurnStepBase {
             @SuppressWarnings("unchecked")
             List<String> imageNotes = (List<String>) controller.getProperties().get(TurnProperties.IMAGE_NOTES);
             message.setImageNotes(ChatMessage.toJson(imageNotes));
+            @SuppressWarnings("unchecked")
+            List<String> toolImages = (List<String>) controller.getProperties().get(TurnProperties.TOOL_IMAGES);
+            message.setToolImages(toolImages == null || toolImages.isEmpty() ? null : ChatMessage.toJson(toolImages));
             message.setMood(controller.getMood().key());
             message.setModelUsed(controller.getAi().getName());
             message.setPromptTokens(controller.getPromptTokens());
@@ -72,6 +75,13 @@ public class StoreStep extends TurnStepBase {
                     chatImageService.attach(message, controller.getInput().images());
                 } catch (Exception e) {
                     log.warn("The images of a message could not be linked to it", e);
+                }
+            }
+            if (!message.toolImageUuids().isEmpty()) {
+                try {
+                    chatImageService.attach(message, message.toolImageUuids());
+                } catch (Exception e) {
+                    log.warn("The pictures of her tools could not be linked to her message", e);
                 }
             }
             messagePromptService.store(message, promptText(controller.getPayload()));

@@ -136,6 +136,25 @@ class JoiChatsPartTest extends PlatformTestBase {
     }
 
     @Test
+    void thePicturesOfHerToolsAreShownWithHerReply() throws Exception {
+        Joi joi = joiService.create("Mira");
+        ChatMessage message = new ChatMessage();
+        message.setJoi(joi);
+        message.setType(com.github.enerccio.joi.domain.collections.ChatMessageType.USER);
+        message.setInput("Look at my screen");
+        message.setResponse("A page about cats.");
+        message.setSentAt(new java.util.Date());
+        message.setToolImages(ChatMessage.toJson(java.util.List.of("a-picture")));
+        message = chatMessageService.save(message);
+        com.vaadin.flow.dom.Element card = chats(joi).card(message).getElement();
+        // in her reply, not with the user's words
+        com.vaadin.flow.dom.Element reply = card.getChildren().filter(child -> String.valueOf(child.getAttribute("class")).contains("chat-reply"))
+                .findFirst().orElseThrow();
+        assertThat(reply.getOuterHTML()).contains("chat-image").contains("A picture her tool brought").contains("chat-markdown");
+        assertThat(card.getOuterHTML().indexOf("chat-image")).isGreaterThan(card.getOuterHTML().indexOf("Look at my screen"));
+    }
+
+    @Test
     void shiftClickChecksARangeAndTheCheckedAreDeleted() throws Exception {
         Joi joi = joiService.create("Mira");
         Joi other = joiService.create("Kairo");
