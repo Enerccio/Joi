@@ -4,7 +4,7 @@
 
 import Foundation
 
-/// The types of frames: node to server (hello, manifest, say, stop, display, part, tool_progress, tool_result, approval) and server to node (welcome, turn, animation, mood, expression, part_kept, part_refused, reasoning, text, tool, reply, audio, done, tool_call, tool_cancel, event, error); ping and pong both ways.
+/// The types of frames: node to server (hello, manifest, say, stop, display, part, tool_progress, tool_result, approval) and server to node (welcome, turn, animation, mood, stance, expression, part_kept, part_refused, reasoning, text, tool, reply, audio, done, tool_call, tool_cancel, event, error); ping and pong both ways.
 public enum NodeMessage: Hashable, Sendable, RawRepresentable, Codable {
     case hello
     case welcome
@@ -18,6 +18,7 @@ public enum NodeMessage: Hashable, Sendable, RawRepresentable, Codable {
     case partRefused
     case animation
     case mood
+    case stance
     case expression
     case log
     case task
@@ -54,6 +55,7 @@ public enum NodeMessage: Hashable, Sendable, RawRepresentable, Codable {
         case "part_refused": self = .partRefused
         case "animation": self = .animation
         case "mood": self = .mood
+        case "stance": self = .stance
         case "expression": self = .expression
         case "log": self = .log
         case "task": self = .task
@@ -91,6 +93,7 @@ public enum NodeMessage: Hashable, Sendable, RawRepresentable, Codable {
         case .partRefused: return "part_refused"
         case .animation: return "animation"
         case .mood: return "mood"
+        case .stance: return "stance"
         case .expression: return "expression"
         case .log: return "log"
         case .task: return "task"
@@ -115,7 +118,7 @@ public enum NodeMessage: Hashable, Sendable, RawRepresentable, Codable {
     }
 
     /// The values of this version.
-    public static let known: [NodeMessage] = [.hello, .welcome, .manifest, .say, .stop, .display, .part, .outfit, .partKept, .partRefused, .animation, .mood, .expression, .log, .task, .turn, .reasoning, .text, .tool, .reply, .audio, .done, .toolCall, .toolProgress, .toolResult, .toolCancel, .approval, .event, .ping, .pong, .error]
+    public static let known: [NodeMessage] = [.hello, .welcome, .manifest, .say, .stop, .display, .part, .outfit, .partKept, .partRefused, .animation, .mood, .stance, .expression, .log, .task, .turn, .reasoning, .text, .tool, .reply, .audio, .done, .toolCall, .toolProgress, .toolResult, .toolCancel, .approval, .event, .ping, .pong, .error]
 
     public init(from decoder: Decoder) throws {
         self.init(rawValue: try decoder.singleValueContainer().decode(String.self))

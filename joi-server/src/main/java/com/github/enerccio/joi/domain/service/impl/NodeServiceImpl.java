@@ -136,6 +136,9 @@ public class NodeServiceImpl implements NodeService, InitializingBean, Disposabl
     @Autowired
     private PersonaService personaService;
 
+    @Autowired
+    private AnimationPackService packService;
+
     /** Lazy: the summarizer tells her through this service. */
     @Autowired
     @Lazy
@@ -429,6 +432,41 @@ public class NodeServiceImpl implements NodeService, InitializingBean, Disposabl
     }
 
     @Override
+    public void stance(Joi joi) {
+        List<NodeSession> nodes = sessions(joi);
+        if (nodes.isEmpty()) {
+            return;
+        }
+        try {
+            StanceState state = stanceState(joi);
+            for (NodeSession session : nodes) {
+                session.send(NodeMessage.STANCE, null, null, state);
+            }
+        } catch (Exception e) {
+            log.warn("The stance of {} was not sent to her nodes", joi.getUuid(), e);
+        }
+    }
+
+    /** The animation she holds now, as the user in scope has it; nulls for none (or one deleted since). */
+    private StanceState stanceState(Joi joi) throws Exception {
+        String uuid = joiService.find(joi.getId()).getStance();
+        var pack = uuid == null ? null : packService.findForUser(uuid);
+        return pack == null ? new StanceState(null, null) : new StanceState(pack.getUuid(), pack.getName());
+    }
+
+    /** A node that sent its manifest is told her stance. */
+    private void sendStance(NodeSession session) {
+        try (InRequestScope _ = new InRequestScope(session.attributes())) {
+            Joi joi = joiService.find(session.joiId());
+            if (joi != null) {
+                session.send(NodeMessage.STANCE, null, null, stanceState(joi));
+            }
+        } catch (Exception e) {
+            log.warn("Node {}: the stance was not sent", session.name(), e);
+        }
+    }
+
+    @Override
     public int animate(Joi joi, String animation, String name, boolean loop) {
         List<NodeSession> nodes = sessions(joi);
         for (NodeSession session : nodes) {
@@ -663,6 +701,7 @@ public class NodeServiceImpl implements NodeService, InitializingBean, Disposabl
         }
         sendWaitingTasks(session);
         sendMood(session);
+        sendStance(session);
     }
 
     /**

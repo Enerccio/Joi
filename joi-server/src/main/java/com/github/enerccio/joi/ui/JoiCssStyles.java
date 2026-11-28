@@ -105,6 +105,8 @@ public final class JoiCssStyles {
     /** The strip of an animation's steps under its preview, the one playing marked. */
     public static final String ANIMATION_STRIP = "animation-strip";
     public static final String JOI_ANIMATIONS = "joi-animations";
+    /** Her stance and its End button in the Animations tab of her dialog. */
+    public static final String JOI_STANCE = "joi-stance";
     public static final String JOI_PROFILES = "joi-profiles";
     public static final String STEP_ROTATION_TITLE = "step-rotation-title";
     public static final String STEP_ROTATION_FIELD = "step-rotation-field";

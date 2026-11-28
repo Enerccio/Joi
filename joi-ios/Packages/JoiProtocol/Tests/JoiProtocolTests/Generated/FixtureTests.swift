@@ -282,7 +282,7 @@ import Testing
 
     @Test func hello1() throws {
         let json = #"""
-{"protocol":"1.16","nodeId":"6f1d-4c2a","name":"desk","kind":"desktop","software":"joi-node 0.1.0","joi":"2f0c","parts":["tools","audio-out","approvals"],"token":null,"resumed":null,"resume":null}
+{"protocol":"1.17","nodeId":"6f1d-4c2a","name":"desk","kind":"desktop","software":"joi-node 0.1.0","joi":"2f0c","parts":["tools","audio-out","approvals"],"token":null,"resumed":null,"resume":null}
 """#
         try roundTrip(Hello.self, json)
     }
@@ -455,6 +455,20 @@ import Testing
         try roundTrip(MoodState.self, json)
     }
 
+    @Test func stanceState1() throws {
+        let json = #"""
+{"animation":"7f1c2e9a-0b1d-4c5e-9f00-3a2b1c0d4e5f","name":"Dance"}
+"""#
+        try roundTrip(StanceState.self, json)
+    }
+
+    @Test func stanceState2() throws {
+        let json = #"""
+{"animation":null,"name":null}
+"""#
+        try roundTrip(StanceState.self, json)
+    }
+
     @Test func showExpression1() throws {
         let json = #"""
 {"expression":"happy","weight":0.9,"seconds":3.0}
@@ -569,7 +583,7 @@ import Testing
 
     @Test func frame1() throws {
         let json = #"""
-{"type":"hello","id":null,"ref":null,"data":{"protocol":"1.16","nodeId":"6f1d-4c2a","name":"desk","kind":"desktop","software":"joi-node 0.1.0","joi":"2f0c","parts":["tools","audio-out","approvals"],"token":null,"resumed":null,"resume":null}}
+{"type":"hello","id":null,"ref":null,"data":{"protocol":"1.17","nodeId":"6f1d-4c2a","name":"desk","kind":"desktop","software":"joi-node 0.1.0","joi":"2f0c","parts":["tools","audio-out","approvals"],"token":null,"resumed":null,"resume":null}}
 """#
         try roundTrip(Frame.self, json)
         try typedFrame(json)

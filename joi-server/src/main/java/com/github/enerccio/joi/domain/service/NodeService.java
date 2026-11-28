@@ -97,4 +97,10 @@ public interface NodeService {
      * Called by the user's own thread (the mood is looked up for the user in scope). A node that connects is told by itself.
      */
     void mood(Joi joi);
+
+    /**
+     * Tells her nodes the animation she holds now, her stance (a {@code stance} frame; none ends it): after it changed.
+     * Called by the user's own thread. A node that connects is told by itself, after its manifest.
+     */
+    void stance(Joi joi);
 }

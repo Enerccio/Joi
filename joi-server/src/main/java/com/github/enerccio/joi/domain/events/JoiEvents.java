@@ -57,6 +57,12 @@ public final class JoiEvents {
      */
     public static final String MOOD_CHANGED = "mood.changed";
 
+    /**
+     * The user ended her stance in her dialog (payload: {@code from}, the uuid of the animation). She may react; what she
+     * took or ended herself with {@code set_stance} and {@code end_stance} is not an event.
+     */
+    public static final String STANCE_ENDED = "stance.ended";
+
     private JoiEvents() {
     }
 }

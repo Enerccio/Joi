@@ -339,7 +339,8 @@
     <bean class="com.github.enerccio.joi.domain.service.impl.NodeServiceImpl" />
     <!-- the functions of her body: she changes a part of it herself -->
     <bean class="com.github.enerccio.joi.domain.chat.BodyTools" />
-    <!-- she plays an animation of her body herself -->
+    <!-- she plays an animation of her body herself, and holds one as her stance -->
+    <bean class="com.github.enerccio.joi.domain.service.impl.StanceServiceImpl" />
     <bean class="com.github.enerccio.joi.domain.chat.AnimationTools" />
     <bean class="com.github.enerccio.joi.domain.chat.MoodTools" />
     <bean class="com.github.enerccio.joi.domain.chat.ExpressionTools" />

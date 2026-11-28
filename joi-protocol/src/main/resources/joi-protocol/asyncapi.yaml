@@ -1,7 +1,7 @@
 asyncapi: 3.0.0
 info:
   title: Joi node WebSocket
-  version: "1.16"
+  version: "1.17"
   description: |
     The live connection between a node and a Joi server: who the node is, the tools it offers and their calls, the
     user talking to her through it and her answer in text and speech, approvals, and what changes on the server. The
@@ -66,6 +66,14 @@ info:
          node's manifest, and each time her mood changes: the daily roll, the user switching it in her dialog, she
          choosing it with her `set_mood` function, the user editing the mood. The node shows it as a soft expression on
          her body; an animation's own face and her state (shut eyes while she sleeps) win over it. It may ignore it.
+       - **Her stance** (since 1.17). The server sends `stance` (a `StanceState`: the animation's uuid and name, both null
+         for none) after the node's manifest and each time it changes: she takes one with her `set_stance` function
+         (dancing, sitting, a pose she holds), changes it, or ends it with `end_stance` or the user ends it in her dialog.
+         It is kept on the server, so it outlives turns, reconnects and restarts. While she has one, the node plays it
+         looped in place of her idle and talking animations: talking does not interrupt it, her mouth, mood and
+         expressions go on over it, and an `animation` (a gesture) plays once and returns to it. Asleep, falling asleep
+         and waking up win over it, and she is back in it when she is awake. A node that does not have the animation in
+         the body's `.joia` (another body) plays as with none.
        - **Her expressions** (since 1.15). The server sends `expression` (a `ShowExpression`: the name of an expression of
          her model, its `weight` 0 to 1, how many `seconds` it is held, at most 60) when she chooses one with her
          `set_expression` function, outside any turn's frames. The node fades it in over her mood's face, holds it and
@@ -180,6 +188,7 @@ channels:
       part_refused: { $ref: "#/components/messages/part_refused" }
       animation: { $ref: "#/components/messages/animation" }
       mood: { $ref: "#/components/messages/mood" }
+      stance: { $ref: "#/components/messages/stance" }
       expression: { $ref: "#/components/messages/expression" }
       log: { $ref: "#/components/messages/log" }
       task: { $ref: "#/components/messages/task" }
@@ -227,6 +236,7 @@ operations:
       - { $ref: "#/channels/node/messages/part_refused" }
       - { $ref: "#/channels/node/messages/animation" }
       - { $ref: "#/channels/node/messages/mood" }
+      - { $ref: "#/channels/node/messages/stance" }
       - { $ref: "#/channels/node/messages/expression" }
       - { $ref: "#/channels/node/messages/log" }
       - { $ref: "#/channels/node/messages/task" }
@@ -297,6 +307,10 @@ components:
       name: mood
       summary: Her mood now and how it shows on her face (since 1.10)
       payload: { $ref: "#/components/schemas/moodFrame" }
+    stance:
+      name: stance
+      summary: The animation she holds now, looped in place of idle and talking, or none (since 1.17)
+      payload: { $ref: "#/components/schemas/stanceFrame" }
     expression:
       name: expression
       summary: She shows an expression on her face for a few seconds, her own choice (since 1.15)
@@ -434,6 +448,11 @@ components:
       allOf:
         - $ref: "schemas/Frame.schema.json"
         - properties: { type: { const: mood }, data: { $ref: "schemas/MoodState.schema.json" } }
+          required: [ data ]
+    stanceFrame:
+      allOf:
+        - $ref: "schemas/Frame.schema.json"
+        - properties: { type: { const: stance }, data: { $ref: "schemas/StanceState.schema.json" } }
           required: [ data ]
     expressionFrame:
       allOf:

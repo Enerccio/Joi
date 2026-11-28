@@ -41,6 +41,11 @@ class AvatarPane extends BorderPane {
     private Consumer<Boolean> onLookingGlass = on -> {
     };
 
+    /** Whether the body she is in now has the animation. */
+    boolean has(String id) {
+        return id != null && names.containsKey(id);
+    }
+
     /** Her animations' names, of the body she is in now. */
     void names(Map<String, String> names) {
         this.names = names;

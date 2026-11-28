@@ -36,6 +36,10 @@ public class BodyTemplateData extends JoiTemplateData {
     @JoiTemplateDescription(loc = J_L.DESC_TEMPLATE_OTHER_BODIES)
     private String otherBodies;
 
+    /** The animation she holds now, her stance; empty when none (or her body does not play it). */
+    @JoiTemplateDescription(loc = J_L.DESC_TEMPLATE_STANCE)
+    private String stance;
+
     /** The profile she is in (where: home, work); empty when she has only the default one. */
     @JoiTemplateDescription(loc = J_L.DESC_TEMPLATE_WHERE_SHE_IS)
     private String profile;
@@ -43,6 +47,14 @@ public class BodyTemplateData extends JoiTemplateData {
     /** The profile she was in until this turn, when this turn is in another one; empty otherwise. */
     @JoiTemplateDescription(loc = J_L.DESC_TEMPLATE_WHERE_SHE_WAS)
     private String profileFrom;
+
+    public String getStance() {
+        return stance;
+    }
+
+    public void setStance(String stance) {
+        this.stance = stance;
+    }
 
     public String getProfile() {
         return profile;

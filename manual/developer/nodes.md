@@ -99,7 +99,7 @@ then, not only the parts', as an outfit sets toggles that are in no part. The re
 |---|---|
 | `ServerClient` | the HTTP API: login, the device grant, her, her history (a window that slides back), her body, the downloads cached by hash, the chat's images cached by id |
 | `NodeSocket` | the node WebSocket, with reconnecting |
-| `AvatarDirector` | what her body plays: idle, talking, asleep through her first turn, waking up, a gesture on top |
+| `AvatarDirector` | what her body plays: idle, talking, asleep through her first turn, waking up, a gesture on top, her stance (looped in place of idle and talking) |
 | `NodeSettings` | the node's home (`~/.joi-client`, moved by `--joi-home-dir`, `JOI_HOME_DIR` or `JOI_CLIENT`: `NodeSettings.resolve`), `node.json` and `credentials.json`; every path of the node is under it |
 | `NodeTools`, `NodeTool` | the tools the user switches on: the manifest with the ones that are on (a new, higher version when a choice changes), the routing of a call by its name, the `approval` frames of a call that asks |
 | `Notifications` | the tool `notify`: off, ask or allow |

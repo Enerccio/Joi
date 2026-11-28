@@ -195,4 +195,48 @@ class AvatarDirectorTest {
         director.gesture("wave", false);
         assertThat(log).hasSize(before);
     }
+
+    @Test
+    void herStanceLoopsThroughHerTurnsInPlaceOfIdleAndTalkingUntilItEnds() {
+        AvatarDirector director = new AvatarDirector(avatar, ALL, new Random(1));
+        director.start();
+        director.stance("dance");
+        assertThat(log).containsExactly("play idle loop", "play dance loop");
+        assertThat(director.stance()).isEqualTo("dance");
+
+        // she talks: her words and voice as always, the dance plays on (not started again, no talking animation)
+        director.turnStarted("t1", "say", true);
+        director.reply("t1", reply("Wheee."));
+        director.audio("t1", new AudioChunk(0, "Wheee.", "audio/wav", ""));
+        assertThat(director.state()).isEqualTo(AvatarDirector.State.TALKING);
+        director.speechEnded();
+        director.done("t1");
+        assertThat(director.state()).isEqualTo(AvatarDirector.State.IDLE);
+        assertThat(log.subList(2, log.size())).containsExactly("reply Wheee.", "speak 0");
+
+        // a gesture plays once and returns to the dance
+        director.gesture("wave", false);
+        director.animationEnded();
+        assertThat(log.subList(4, log.size())).containsExactly("play wave", "play dance loop");
+
+        // asleep wins over it, and she is back in it awake
+        director.fallAsleep();
+        assertThat(log.getLast()).isEqualTo("play sleep loop");
+        director.turnStarted("s1", AvatarDirector.FIRST_BOOT, false);
+        director.done("s1");
+        director.animationEnded();
+        assertThat(log.subList(6, log.size())).containsExactly("play sleep loop", "play sleep loop", "play wake", "play dance loop");
+
+        // another stance while she talks plays at once; ending it goes back to talking, then idle
+        director.turnStarted("t2", "say", false);
+        director.reply("t2", reply("Now sit."));
+        director.stance("sit");
+        director.stance(null);
+        director.done("t2");
+        assertThat(log.subList(10, log.size())).containsExactly("reply Now sit.", "play sit loop", "play talk loop", "play idle loop");
+        assertThat(director.stance()).isNull();
+        // the same again changes nothing
+        director.stance(null);
+        assertThat(log).hasSize(14);
+    }
 }

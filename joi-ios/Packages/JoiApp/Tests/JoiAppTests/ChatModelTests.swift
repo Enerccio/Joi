@@ -73,6 +73,9 @@ struct FakeHistory: HistorySource {
     var eyes: [String] = []
     var moods: [MoodState?] = []
     var onEnded: (@MainActor () -> Void)?
+    /// The animations of the body shown; nil for any.
+    var animations: Set<String>?
+    func has(_ animation: String) -> Bool { animations?.contains(animation) ?? true }
     func setEyes(_ eyes: String, seconds: Double) { self.eyes.append("\(eyes) \(seconds)") }
     func setMood(_ mood: MoodState?) { moods.append(mood) }
     func play(_ animation: String?, loop: Bool) { played.append("\(animation ?? "rest")\(loop ? " loop" : "")") }
@@ -366,6 +369,17 @@ struct FakeHistory: HistorySource {
         // a gesture she chose
         chat.apply(frame(nil, .animation(PlayAnimation(animation: "wave"))))
         #expect(player.played.last == "wave")
+        player.onEnded?()
+        // her stance, when her body has it: it loops in place of idle; none ends it
+        player.animations = ["idle", "dance"]
+        chat.apply(frame(nil, .stance(StanceState(animation: "sit", name: "Sit"))))
+        #expect(player.played.last == "idle loop")
+        #expect(chat.heldStance == "sit")
+        chat.apply(frame(nil, .stance(StanceState(animation: "dance", name: "Dance"))))
+        #expect(player.played.last == "dance loop")
+        chat.apply(frame(nil, .stance(StanceState())))
+        #expect(player.played.last == "idle loop")
+        player.animations = nil
         // the server is gone: she is frozen
         chat.apply(.disconnected(code: 1006, reason: "lost"))
         chat.apply(.retrying(seconds: 1))

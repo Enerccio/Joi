@@ -177,6 +177,13 @@ public final class JoiNodeCli {
             }
 
             @Override
+            public void stance(com.github.enerccio.joi.protocol.node.StanceState stance) {
+                synchronized (lock) {
+                    director.stance(stance.animation());
+                }
+            }
+
+            @Override
             public void toolUsed(String turn, ToolUse use) {
                 out.println("  (" + use.name() + (use.ok() ? "" : " failed") + ")");
             }

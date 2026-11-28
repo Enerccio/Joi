@@ -18,6 +18,7 @@ public enum NodeFrameData: Hashable, Sendable {
     case partRefused(PartRefused)
     case animation(PlayAnimation)
     case mood(MoodState)
+    case stance(StanceState)
     case expression(ShowExpression)
     case log(ChatLog)
     case task(TaskInfo)
@@ -59,6 +60,7 @@ extension Frame {
         case "part_refused": return .partRefused(try decodeData(PartRefused.self))
         case "animation": return .animation(try decodeData(PlayAnimation.self))
         case "mood": return .mood(try decodeData(MoodState.self))
+        case "stance": return .stance(try decodeData(StanceState.self))
         case "expression": return .expression(try decodeData(ShowExpression.self))
         case "log": return .log(try decodeData(ChatLog.self))
         case "task": return .task(try decodeData(TaskInfo.self))
@@ -140,6 +142,11 @@ extension Frame {
     /// A `mood` frame.
     public static func mood(_ data: MoodState, id: String? = nil, ref: String? = nil) throws -> Frame {
         Frame(type: "mood", id: id, ref: ref, data: try encodeData(data))
+    }
+
+    /// A `stance` frame.
+    public static func stance(_ data: StanceState, id: String? = nil, ref: String? = nil) throws -> Frame {
+        Frame(type: "stance", id: id, ref: ref, data: try encodeData(data))
     }
 
     /// A `expression` frame.

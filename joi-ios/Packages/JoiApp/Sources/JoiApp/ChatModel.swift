@@ -60,6 +60,8 @@ public final class ChatModel: AvatarOutput {
     private let link: NodeLink
     private let speech: SpeechPlaying?
     @ObservationIgnored private let player: AnimationPlayer?
+    /// The animation she holds as the server last said (`stance` frame, since 1.17), nil for none.
+    @ObservationIgnored public private(set) var heldStance: String?
     @ObservationIgnored private var director: AvatarDirector!
     /// What she is doing now (her body's state).
     public private(set) var avatarState: AvatarDirector.State = .idle
@@ -227,6 +229,15 @@ public final class ChatModel: AvatarOutput {
     /// The animations chosen in her dialog changed.
     public func setRoles(_ roles: JoiAnimations?) {
         director.roles(roles)
+    }
+
+    /// A body is shown (or her stance changed): she holds her stance when this body has its animation, else none.
+    public func bodyShown() {
+        if let stance = heldStance, player?.has(stance) ?? true {
+            director.stance(stance)
+        } else {
+            director.stance(nil)
+        }
     }
 
     /// Loads her history, starts listening to the connection and connects it. Call again to try again after `offline`.
@@ -416,6 +427,9 @@ public final class ChatModel: AvatarOutput {
             }
         case .animation(let play):
             director.gesture(play.animation, loop: play.loop ?? false)
+        case .stance(let stance):
+            heldStance = stance.animation
+            bodyShown()
         case .mood(let mood):
             player?.setMood(mood)
         case .expression(let shown):

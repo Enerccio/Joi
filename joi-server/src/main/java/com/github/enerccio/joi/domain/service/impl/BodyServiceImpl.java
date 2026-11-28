@@ -682,7 +682,14 @@ public class BodyServiceImpl extends ExtendableServiceImpl<Body, BodyRepository>
         data.setExpressions(expressions.isEmpty() ? null : String.join(", ", expressions));
         data.setParts(parts.isEmpty() ? null : String.join(", ", parts));
         data.setOtherBodies(others.isEmpty() ? null : String.join(", ", others));
-        return personaService.render(joiService.find(joi.getId()), JoiPromptField.BODY_PROMPT, data).strip();
+        Joi stored = joiService.find(joi.getId());
+        // her stance, when this body plays it (a node shows another body's animation as no stance)
+        String stance = stored.getStance();
+        if (stance != null) {
+            animations(active).stream().filter(pack -> stance.equals(pack.getUuid())).findFirst()
+                    .ifPresent(pack -> data.setStance(name(pack)));
+        }
+        return personaService.render(stored, JoiPromptField.BODY_PROMPT, data).strip();
     }
 
     private static JsonArray names(List<String> names) {
@@ -693,6 +700,10 @@ public class BodyServiceImpl extends ExtendableServiceImpl<Body, BodyRepository>
 
     private String name(Body body) {
         return StringUtils.defaultIfBlank(body.getName(), "unnamed");
+    }
+
+    private static String name(AnimationPack pack) {
+        return StringUtils.defaultIfBlank(pack.getName(), "unnamed");
     }
 
     // ----------------------------------------------------------------------------------------------------------------

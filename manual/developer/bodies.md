@@ -7,6 +7,8 @@ covers:
   - joi-server/src/main/java/com/github/enerccio/joi/domain/animations
   - joi-server/src/main/java/com/github/enerccio/joi/domain/service/impl/BodyServiceImpl.java
   - joi-server/src/main/java/com/github/enerccio/joi/domain/service/impl/ProfileServiceImpl.java
+  - joi-server/src/main/java/com/github/enerccio/joi/domain/service/impl/StanceServiceImpl.java
+  - joi-server/src/main/java/com/github/enerccio/joi/domain/service/StanceService.java
 verified: 4b3d99c
 ---
 
@@ -113,6 +115,17 @@ choices.
 FBX and BVH are converted by `AnimationConversionService` with `convert_animation.py` in the same Blender process queue. `AnimationRoles` is
 the JSON on an assistant that says what plays asleep, falling asleep, waking up, idle and talking. `AnimationTools` offers `play_animation` and
 sends an `animation` frame to her nodes.
+
+**Stances.** `AnimationTools` also offers `set_stance` (an animation by name, the same list) and `end_stance`: an animation she holds,
+looped in place of idle and talking until she ends it or takes another (dancing, sitting). `StanceService` (`StanceServiceImpl`) keeps it
+on her (`Joi.stance`, the uuid, an extended attribute), notes it in the conversation (`stance.taken`, `stance.left`), and tells her nodes
+(`NodeService.stance`, the `stance` frame); when the user ends it (`end(joi, true)`, the End button of `JoiAnimationsPart`) she gets the
+event `stance.ended` (`JoiDefaults.eventStanceEnded`). `BodyServiceImpl.prompt` sets `BodyTemplateData.stance` when the active body plays
+that animation, and the default body prompt says she holds it. Both functions are in `ToolEffects.NO_ANSWER`. On a node,
+`AvatarDirector.stance` (Java and Swift) plays it looped while she is idle or talking: entering talking or idle in a stance keeps it
+playing (`enterHeld`), a gesture returns to it, asleep and waking up win over it. The JavaFX node and the iOS app pass null for an
+animation the body shown lacks (`AvatarPane.has`, `AnimationPlayer.has`) and check again when a body is shown (`RendererBridge.onShown`,
+`ChatModel.bodyShown`).
 
 ## The viewer
 

@@ -16,9 +16,12 @@ import JoiClient
     func showExpression(_ shown: ShowExpression)
     /// Called once an animation played with `play` that does not loop is over.
     var onEnded: (@MainActor () -> Void)? { get set }
+    /// Whether the body shown now has the animation (her stance plays only then).
+    func has(_ animation: String) -> Bool
 }
 
 extension AnimationPlayer {
+    public func has(_ animation: String) -> Bool { true }
     public func setEyes(_ eyes: String, seconds: Double) {}
     public func setMood(_ mood: MoodState?) {}
     public func showExpression(_ shown: ShowExpression) {}
@@ -38,6 +41,8 @@ extension AnimationPlayer {
     static let unknownSeconds = 10.0
 
     public var onEnded: (@MainActor () -> Void)?
+    /// Called when a body is shown (`show`): her stance is checked against its animations again.
+    public var onShown: (@MainActor () -> Void)?
     /// Called when the page has her model (each time one is shown); `false` when a new one is on its way.
     public var onDrawn: (@MainActor (Bool) -> Void)?
     /// Sends a message to the page (nil while none is open).
@@ -82,6 +87,11 @@ extension AnimationPlayer {
         model = message
         broadcast(message)
         if let wanted { play(wanted, loop: true) }
+        onShown?()
+    }
+
+    public func has(_ animation: String) -> Bool {
+        body.animations[animation] != nil
     }
 
     /// Which parts of her model are shown, every toggle of it: a page applies it once her model is there.

@@ -135,6 +135,8 @@ public final class ProtocolSamples {
         out.add(new MoodState("happy", "Happy", "happy", 0.7, null));
         out.add(new MoodState("sleepy", "Sleepy", "relaxed", 0.3, "half"));
         out.add(new MoodState(null, null, null, null, null));
+        out.add(new StanceState("7f1c2e9a-0b1d-4c5e-9f00-3a2b1c0d4e5f", "Dance"));
+        out.add(new StanceState(null, null));
         out.add(new ShowExpression("happy", 0.9, 3.0));
         out.add(new ShowExpression("blush", null, null));
         out.add(new ShowExpression(null, null, null));

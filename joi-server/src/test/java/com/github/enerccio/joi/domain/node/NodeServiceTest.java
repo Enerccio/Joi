@@ -74,6 +74,8 @@ class NodeServiceTest extends PlatformTestBase {
     @Autowired
     private AnimationPackService packService;
     @Autowired
+    private com.github.enerccio.joi.domain.service.StanceService stanceService;
+    @Autowired
     private MemoryService memoryService;
     @Autowired
     private ModelService modelService;
@@ -1002,6 +1004,76 @@ class NodeServiceTest extends PlatformTestBase {
         node.frame("say", "t3", "{\"text\": \"Moonwalk!\", \"speak\": false}");
         node.next("done");
         assertThat(llm.getCompletionRequests().get(4).getLastMessage().content()).contains("no such animation").contains("Wave");
+    }
+
+    @Test
+    void sheTakesAStanceThatLastsThroughHerTurnsUntilSheEndsIt() throws Exception {
+        haloBody();
+        AnimationPack dance = new AnimationPack();
+        dance.setName("Dance");
+        dance.setDescription("You dance.");
+        dance = packService.save(dance);
+        llm.enqueue(MockLLMResponse.text("Hello."),
+                MockLLMResponse.toolCall("set_stance", "{\"animation\":\"Dance\"}"),
+                MockLLMResponse.text("Dancing!"),
+                MockLLMResponse.text("Still dancing."),
+                MockLLMResponse.toolCall("end_stance", "{}"),
+                MockLLMResponse.text("Done."));
+        Node node = connect("Bearer " + token);
+        node.hello("n1", "desk", joi.getUuid(), "1.17");
+        node.next("welcome");
+        node.manifest(1);
+        // after the manifest the node is told she holds none
+        JsonObject none = node.next("stance").getAsJsonObject("data");
+        assertThat(noStance(none)).isTrue();
+        node.frame("say", "t1", "{\"text\": \"Hi\", \"speak\": false}");
+        node.next("done");
+        // her prompt and her functions tell her a stance is for what lasts, and not play_animation
+        assertThat(llm.getCompletionRequests().getFirst().getPromptText()).contains("take a stance with set_stance");
+        assertThat(llm.getCompletionRequests().getFirst().getRawBody()).contains("set_stance").contains("end_stance")
+                .contains("Not for something that lasts");
+
+        node.frame("say", "t2", "{\"text\": \"Dance for me!\", \"speak\": false}");
+        JsonObject taken = node.next("stance").getAsJsonObject("data");
+        assertThat(taken.get("animation").getAsString()).isEqualTo(dance.getUuid());
+        assertThat(taken.get("name").getAsString()).isEqualTo("Dance");
+        node.next("done");
+        assertThat(joiService.find(joi.getId()).getStance()).isEqualTo(dance.getUuid());
+        assertThat(llm.getCompletionRequests().get(2).getLastMessage().content()).contains("You hold the stance Dance now");
+
+        // the next turn: she still holds it, and her body section says so
+        node.frame("say", "t3", "{\"text\": \"Nice moves.\", \"speak\": false}");
+        node.next("done");
+        assertThat(llm.getCompletionRequests().get(3).getPromptText()).contains("You hold the stance \"Dance\" now");
+
+        // a node that connects now is told the stance after its manifest
+        Node other = connect("Bearer " + token);
+        other.hello("n2", "phone", joi.getUuid(), "1.17");
+        other.next("welcome");
+        other.manifest(1);
+        assertThat(other.next("stance").getAsJsonObject("data").get("animation").getAsString()).isEqualTo(dance.getUuid());
+
+        // she ends it: both nodes go back to idle and talking; her own choice is no event
+        node.frame("say", "t4", "{\"text\": \"You can stop now.\", \"speak\": false}");
+        JsonObject ended = node.next("stance").getAsJsonObject("data");
+        assertThat(noStance(ended)).isTrue();
+        node.next("done");
+        assertThat(noStance(other.next("stance").getAsJsonObject("data"))).isTrue();
+        assertThat(joiService.find(joi.getId()).getStance()).isNull();
+        assertThat(llm.getCompletionRequests().get(5).getLastMessage().content()).contains("Your stance Dance ended");
+        assertThat(queuedEventService.findWaiting(joi)).isEmpty();
+
+        // the user ends it in her dialog: she is told as an event
+        stanceService.take(joi, dance);
+        assertThat(node.next("stance").getAsJsonObject("data").get("animation").getAsString()).isEqualTo(dance.getUuid());
+        assertThat(stanceService.end(joi, true).getUuid()).isEqualTo(dance.getUuid());
+        assertThat(noStance(node.next("stance").getAsJsonObject("data"))).isTrue();
+        assertThat(queuedEventService.findWaiting(joi)).extracting(QueuedEvent::getKind).containsExactly(JoiEvents.STANCE_ENDED);
+        assertThat(stanceService.end(joi, true)).as("none to end").isNull();
+    }
+
+    private static boolean noStance(JsonObject stance) {
+        return !stance.has("animation") || stance.get("animation").isJsonNull();
     }
 
     @Test

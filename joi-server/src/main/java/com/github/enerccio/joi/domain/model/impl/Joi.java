@@ -248,6 +248,14 @@ public class Joi extends ExtendableEntity implements PersonaAttributes {
     @Transient
     private String animationRoles;
 
+    /**
+     * The uuid of the animation she holds now, her stance ({@code set_stance}): looped by her nodes in place of idle and
+     * talking until she ends it; null for none. Kept across turns, reconnects and restarts.
+     */
+    @ExtendedAttribute
+    @Transient
+    private String stance;
+
     /** The key of today's mood, null before the first roll. */
     @ExtendedAttribute
     @Transient
@@ -603,6 +611,14 @@ public class Joi extends ExtendableEntity implements PersonaAttributes {
 
     public void setMoodSince(Date moodSince) {
         this.moodSince = moodSince;
+    }
+
+    public String getStance() {
+        return stance;
+    }
+
+    public void setStance(String stance) {
+        this.stance = stance;
     }
 
     public String getAnimationRoles() {

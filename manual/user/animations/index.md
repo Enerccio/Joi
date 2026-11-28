@@ -56,4 +56,15 @@ face has its own function, `set_expression`: she shows one of her model's expres
 Her prompt asks her to do it often and not to repeat the last one. The node plays it once on top of her state. If she starts
 talking while it plays, her talking animation waits for its end.
 
+### Stances: what lasts
+
+For something that lasts, as dancing, sitting or a pose she holds, she takes a **stance** with her function `set_stance`. The
+animation then loops in place of her idle and talking ones: she talks while she dances, her mouth, her mood and her expressions go on over it,
+and a gesture she plays returns to the dance. It lasts through her replies, a node that reconnects and a restart of the server, until she
+takes another stance or ends it with `end_stance`: when she decides to stop, or when you ask her to ("you can stop dancing now"). While she
+sleeps the sleeping animations win, and she is back in her stance when she wakes up.
+
+The Animations tab of her dialog shows her stance, and **End the stance** ends it for her: she is told that you ended it. A body that does not
+have the animation of her stance (she moved into another one) shows her as without one.
+
 The body decides which animations she has: see [Bodies of an assistant](../bodies/bodies.md) (**Her animations**).

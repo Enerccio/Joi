@@ -180,4 +180,39 @@ import JoiProtocol
         #expect(d.state == .sleeping)
         #expect(out.actions == ["play sleep loop"])
     }
+
+    @Test func herStanceLoopsThroughHerTurnsInPlaceOfIdleAndTalkingUntilItEnds() {
+        let d = director()
+        d.start()
+        d.stance("dance")
+        #expect(out.actions == ["play idle1 loop", "play dance loop"])
+        #expect(d.stance == "dance")
+        // she talks: her words and voice as always, the dance plays on
+        d.expectSpeech(true)
+        d.reply("t1", reply("Wheee"))
+        d.audio("t1", chunk(0))
+        #expect(d.state == .talking)
+        d.speechEnded()
+        d.done("t1")
+        #expect(d.state == .idle)
+        #expect(Array(out.actions.dropFirst(2)) == ["reply Wheee", "speak 0", "done"])
+        // a gesture plays once and returns to the dance
+        d.gesture("wave", loop: false)
+        d.animationEnded()
+        #expect(Array(out.actions.suffix(2)) == ["play wave", "play dance loop"])
+        // asleep wins over it; awake she is back in it
+        d.fallAsleep()
+        d.animationEnded()
+        #expect(out.actions.last == "play sleep loop")
+        d.turnStarted("s1", cause: AvatarDirector.firstBoot, speak: false)
+        d.done("s1")
+        d.animationEnded()
+        #expect(Array(out.actions.filter { $0 != "done" }.suffix(2)) == ["play wake", "play dance loop"])
+        // ending it goes back to idle; the same again changes nothing
+        d.stance(nil)
+        #expect(out.actions.last == "play idle1 loop")
+        let count = out.actions.count
+        d.stance(nil)
+        #expect(out.actions.count == count)
+    }
 }

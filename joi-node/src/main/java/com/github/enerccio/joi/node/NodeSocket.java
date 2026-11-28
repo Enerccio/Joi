@@ -86,6 +86,13 @@ public class NodeSocket {
         default void expression(com.github.enerccio.joi.protocol.node.ShowExpression expression) {
         }
 
+        /**
+         * The animation she holds now, her stance (since 1.17), a null animation for none: sent after the manifest and each
+         * time it changes. See {@link AvatarDirector#stance}.
+         */
+        default void stance(com.github.enerccio.joi.protocol.node.StanceState stance) {
+        }
+
         /** She plays an animation of her own choice (her {@code play_animation}): see {@link AvatarDirector#gesture}. */
         default void animation(PlayAnimation animation) {
         }
@@ -623,6 +630,7 @@ public class NodeSocket {
             case EVENT -> listener.event(data(frame, ServerEvent.class));
             case ANIMATION -> listener.animation(data(frame, PlayAnimation.class));
             case MOOD -> listener.mood(data(frame, com.github.enerccio.joi.protocol.node.MoodState.class));
+            case STANCE -> listener.stance(data(frame, com.github.enerccio.joi.protocol.node.StanceState.class));
             case EXPRESSION -> listener.expression(data(frame, com.github.enerccio.joi.protocol.node.ShowExpression.class));
             case LOG -> listener.log(data(frame, com.github.enerccio.joi.protocol.http.ChatLog.class));
             case TASK -> listener.task(data(frame, com.github.enerccio.joi.protocol.http.TaskInfo.class));

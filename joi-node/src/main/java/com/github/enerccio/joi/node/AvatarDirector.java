@@ -18,6 +18,11 @@ import java.util.random.RandomGenerator;
  * speech (or when the turn ends without one), so the chat doesn't run ahead of her. The renderer and the speech are the
  * {@link Avatar}'s; it tells back when they end.
  * <p>
+ * Her stance ({@link #stance}, the {@code stance} frame) is an animation she holds: while she has one, it loops in place
+ * of the idle and talking ones (her state still goes from idle to talking and back, so her words and voice are as
+ * always; her mouth and face are the renderer's, over any animation). A gesture plays once and returns to it. Asleep,
+ * falling asleep and waking up win over it, and she is back in it when she is awake.
+ * <p>
  * Not thread safe: call it from one thread (the UI's, or the socket's in the terminal client).
  */
 public class AvatarDirector {
@@ -62,6 +67,8 @@ public class AvatarDirector {
     private State state = State.IDLE;
     private String lastIdle;
     private String lastTalking;
+    /** The animation she holds, her stance; null for none. */
+    private String stance;
 
     /** The first-boot turn held back while she sleeps, null for none. */
     private String held;
@@ -90,6 +97,31 @@ public class AvatarDirector {
     /** The animations chosen in her dialog changed. */
     public void roles(JoiAnimations roles) {
         this.roles = roles;
+    }
+
+    /** The animation she holds now, her stance; null for none. */
+    public String stance() {
+        return stance;
+    }
+
+    /**
+     * Her stance changed ({@code stance} frame): from now on it loops in place of the idle and talking animations, at
+     * once when she waits or talks; null ends it, back to them. A node passes null for an animation her body does not
+     * have. While she sleeps, wakes up or falls asleep it waits for her to be awake.
+     */
+    public void stance(String animation) {
+        if (java.util.Objects.equals(animation, stance)) {
+            return;
+        }
+        stance = animation;
+        if (state == State.IDLE) {
+            idle();
+        } else if (state == State.TALKING) {
+            enter(State.TALKING, stance != null ? stance : pick(roles.talking(), lastTalking), true);
+            if (stance == null) {
+                lastTalking = current;
+            }
+        }
     }
 
     /** She is shown: idle. */
@@ -189,7 +221,8 @@ public class AvatarDirector {
 
     /**
      * She plays an animation of her own choice (her {@code play_animation}) on top of what she is doing: once, and then
-     * what she was doing goes on (if she started talking meanwhile, that); or until something else, when it loops.
+     * what she was doing goes on (if she started talking meanwhile, that; her stance, when she holds one); or until
+     * something else, when it loops.
      * Not while she sleeps, wakes up or falls asleep: those animations are not interrupted.
      */
     public void gesture(String animation, boolean loop) {
@@ -293,14 +326,34 @@ public class AvatarDirector {
     private void talk(String turn) {
         speakingTurn = turn;
         if (state != State.TALKING) {
+            if (stance != null) {
+                // she holds her stance while she talks: nothing new plays
+                enterHeld(State.TALKING);
+                return;
+            }
             enter(State.TALKING, pick(roles.talking(), lastTalking), true);
             lastTalking = current;
         }
     }
 
     private void idle() {
+        if (stance != null) {
+            enterHeld(State.IDLE);
+            return;
+        }
         enter(State.IDLE, pick(roles.idle(), lastIdle), true);
         lastIdle = current;
+    }
+
+    /** Idle or talking in her stance: it plays on (it is not started again when it already plays). */
+    private void enterHeld(State next) {
+        boolean playing = stance.equals(current) && (state == State.IDLE || state == State.TALKING);
+        if (playing) {
+            state = next;
+            avatar.state(next);
+        } else {
+            enter(next, stance, true);
+        }
     }
 
     private String current;

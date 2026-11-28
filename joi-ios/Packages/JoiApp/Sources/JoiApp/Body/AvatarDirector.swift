@@ -30,6 +30,11 @@ extension AvatarOutput {
 /// animation is over. A missing animation is skipped (her rest pose). When she speaks, her words wait for her voice: the text of a turn is
 /// shown with its first piece of speech (or when the turn ends without one), so the chat doesn't run ahead of her.
 ///
+/// Her stance (`stance(_:)`, the server's `stance` frame) is an animation she holds: while she has one, it loops in place of the idle and
+/// talking ones (her state still goes from idle to talking and back, so her words and voice are as always; her mouth and face are the
+/// renderer's, over any animation). A gesture plays once and returns to it. Asleep, falling asleep and waking up win over it, and she is
+/// back in it when she is awake.
+///
 /// The same logic as the reference node's `AvatarDirector` (Java).
 @MainActor public final class AvatarDirector {
     public enum State: Equatable, Sendable {
@@ -45,6 +50,8 @@ extension AvatarOutput {
     public private(set) var state: State = .idle
     private var lastIdle: String?
     private var lastTalking: String?
+    /// The animation she holds, her stance; nil for none.
+    public private(set) var stance: String?
     private var current: String?
     /// A gesture of her own plays: the animation of her state waits for its end.
     private var gesturing = false
@@ -72,6 +79,20 @@ extension AvatarOutput {
     /// The animations chosen in her dialog changed.
     public func roles(_ roles: JoiAnimations?) {
         self.roles = roles ?? JoiAnimations(idle: [], talking: [])
+    }
+
+    /// Her stance changed (`stance` frame): from now on it loops in place of the idle and talking animations, at once when she waits or
+    /// talks; nil ends it, back to them. The app passes nil for an animation her body does not have. While she sleeps, wakes up or falls
+    /// asleep it waits for her to be awake.
+    public func stance(_ animation: String?) {
+        guard animation != stance else { return }
+        stance = animation
+        if state == .idle {
+            idle()
+        } else if state == .talking {
+            enter(.talking, stance ?? pick(roles.talking, lastTalking), loop: true)
+            if stance == nil { lastTalking = current }
+        }
     }
 
     /// She is shown: idle.
@@ -169,7 +190,7 @@ extension AvatarOutput {
     }
 
     /// She plays an animation of her own choice (her `play_animation`) on top of what she is doing: once, and then what she was doing
-    /// goes on (if she started talking meanwhile, that); or until something else, when it loops. Not while she sleeps, wakes up or falls
+    /// goes on (if she started talking meanwhile, that; her stance, when she holds one); or until something else, when it loops. Not while she sleeps, wakes up or falls
     /// asleep: those animations are not interrupted.
     public func gesture(_ animation: String?, loop: Bool) {
         guard let animation, state != .sleeping, state != .wakingUp, state != .fallingAsleep else { return }
@@ -266,14 +287,33 @@ extension AvatarOutput {
     private func talk(_ turn: String) {
         speakingTurn = turn
         if state != .talking {
+            if stance != nil {
+                // she holds her stance while she talks: nothing new plays
+                enterHeld(.talking)
+                return
+            }
             enter(.talking, pick(roles.talking, lastTalking), loop: true)
             lastTalking = current
         }
     }
 
     private func idle() {
+        if stance != nil {
+            enterHeld(.idle)
+            return
+        }
         enter(.idle, pick(roles.idle, lastIdle), loop: true)
         lastIdle = current
+    }
+
+    /// Idle or talking in her stance: it plays on (it is not started again when it already plays).
+    private func enterHeld(_ next: State) {
+        if let stance, stance == current, state == .idle || state == .talking {
+            state = next
+            output.state(next)
+        } else {
+            enter(next, stance, loop: true)
+        }
     }
 
     private func enter(_ next: State, _ animation: String?, loop: Bool) {

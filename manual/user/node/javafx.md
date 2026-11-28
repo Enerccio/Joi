@@ -68,7 +68,8 @@ one of the expressions her model has and holds it for a few seconds (4 unless sh
 face and over an animation's expression; then her face goes back to her mood's. It does not change her eyes.
 
 When she waits she plays one of her idle animations, another each time; while she speaks, one of her talking ones. She plays
-the animation she picks herself once on top.
+the animation she picks herself once on top. When she holds a stance (she dances, she sits), it loops in place of both until
+she ends it (see [Animations](../animations/index.md#stances-what-lasts)).
 
 ### Her parts
 

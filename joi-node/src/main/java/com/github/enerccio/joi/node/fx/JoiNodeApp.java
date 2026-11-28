@@ -891,6 +891,8 @@ public class JoiNodeApp extends Application {
             }
         });
         // her body changed on the server (she changed a part herself): read it again, and show what is not shown yet
+        // the animation she holds, as the server last said; the director plays it when her body has it
+        java.util.concurrent.atomic.AtomicReference<String> stance = new java.util.concurrent.atomic.AtomicReference<>();
         java.util.concurrent.atomic.AtomicReference<Runnable> resync = new java.util.concurrent.atomic.AtomicReference<>(() -> {
         });
         java.util.concurrent.atomic.AtomicBoolean resyncLater = new java.util.concurrent.atomic.AtomicBoolean();
@@ -977,6 +979,8 @@ public class JoiNodeApp extends Application {
                             shownBody.set(key);
                             renderer.show(files);
                             avatarPane.names(names);
+                            // her stance, when this body has it
+                            director.stance(avatarPane.has(stance.get()) ? stance.get() : null);
                             parts.clear();
                             kept.clear();
                             for (BodyPart part : info.parts()) {
@@ -1091,6 +1095,14 @@ public class JoiNodeApp extends Application {
             @Override
             public void animation(com.github.enerccio.joi.protocol.node.PlayAnimation play) {
                 Platform.runLater(() -> director.gesture(play.animation(), play.loops()));
+            }
+
+            @Override
+            public void stance(com.github.enerccio.joi.protocol.node.StanceState held) {
+                Platform.runLater(() -> {
+                    stance.set(held.animation());
+                    director.stance(avatarPane.has(held.animation()) ? held.animation() : null);
+                });
             }
 
             @Override

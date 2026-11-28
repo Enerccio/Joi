@@ -22,6 +22,11 @@ class ToolEffectsTest {
         assertThat(ToolEffects.changesState(BodyTools.SET_OUTFIT)).isTrue();
         assertThat(ToolEffects.changesState(BodyTools.SWITCH_BODY)).isTrue();
         assertThat(ToolEffects.changesState(MemoryTools.REMEMBER)).isTrue();
+        // her stance is kept, but its result gives the model nothing to answer
+        assertThat(ToolEffects.changesState(AnimationTools.SET_STANCE)).isTrue();
+        assertThat(ToolEffects.changesState(AnimationTools.END_STANCE)).isTrue();
+        assertThat(ToolEffects.needsNoAnswer(AnimationTools.SET_STANCE)).isTrue();
+        assertThat(ToolEffects.needsNoAnswer(AnimationTools.END_STANCE)).isTrue();
         // a node's tool, and one nobody listed
         assertThat(ToolEffects.changesState("peters-macbook-air__notify")).isTrue();
         assertThat(ToolEffects.changesState("something_new")).isTrue();

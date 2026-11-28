@@ -318,6 +318,15 @@
     max-width: 40em;
 }
 
+.joi-stance {
+    align-items: center;
+    width: 100%;
+}
+
+.joi-stance > span {
+    flex-grow: 1;
+}
+
 .step-rotation-title {
     font-weight: 600;
     font-size: var(--lumo-font-size-s);

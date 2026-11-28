@@ -652,6 +652,9 @@ public class JoiLocalizationBundleEN extends TextBundleBase<J_L> {
         setValue(J_L.MSG_JOI_ANIMATIONS_HINT, "The animations of your library she plays in her states, on a node. They play from her body's animations: a body that plays only some of them needs these among them.");
         setValue(J_L.MSG_ANIMATION_IDLE_HINT, "While she waits; the node plays one of them at a time.");
         setValue(J_L.MSG_ANIMATION_TALKING_HINT, "While she speaks; the node plays one of them at a time.");
+        setValue(J_L.MSG_JOI_STANCE, "Her stance: %s. She holds it, looped in place of idle and talking, until she ends it.");
+        setValue(J_L.MSG_JOI_NO_STANCE, "Her stance: none. She takes one herself (dancing, sitting) and ends it herself, or when you ask her to.");
+        setValue(J_L.LABEL_END_STANCE, "End the stance");
         setValue(J_L.MSG_NO_ANIMATIONS_YET, "There are no animations yet: make them in the Animations tab of the workspace.");
         setValue(J_L.MSG_ANIMATION_REVERSE_HINT, "Plays the clip backwards: sitting down played back is standing up.");
         setValue(J_L.MSG_ANIMATION_IN_PLACE_HINT, "Her hips keep their spot on the floor: a walk or a dance that moves about stays put.");
@@ -713,6 +716,7 @@ public class JoiLocalizationBundleEN extends TextBundleBase<J_L> {
         setValue(J_L.DESC_TEMPLATE_OUTFIT_NAME, "The outfit's name.");
         setValue(J_L.DESC_TEMPLATE_OUTFIT_SHOWN, "The meshes of the model shown in the outfit; empty when not known.");
         setValue(J_L.DESC_TEMPLATE_OTHER_BODIES, "The names of her other bodies; empty when none.");
+        setValue(J_L.DESC_TEMPLATE_STANCE, "The animation she holds now, her stance (set_stance), looped until she ends it; empty when none.");
         setValue(J_L.DESC_TEMPLATE_WHERE_SHE_IS, "The profile she is in (where she is: home, work); empty when she has only the default one.");
         setValue(J_L.DESC_TEMPLATE_WHERE_SHE_WAS, "The profile she was in until now, when this turn is in another one; empty otherwise.");
         setValue(J_L.DESC_TEMPLATE_SNAPSHOTS, "The snapshots, in the order of the images; empty when there are none.");

@@ -31,7 +31,7 @@ Every event that went in a merge is marked handled with the one that is told.
 
 ## The kinds
 
-`persona.renamed`, `persona.user_renamed`, `persona.personality`, `persona.voice` (only after she has chatted: before that it is the initial setup); `mood.changed` (the user chose her mood in the Joi dialog, `ChatService.changeMood(joi, key, true)`; a chain in `QueuedEventPlan` like the others, from → to, nothing if it came back; her own `set_mood` queues none);
+`persona.renamed`, `persona.user_renamed`, `persona.personality`, `persona.voice` (only after she has chatted: before that it is the initial setup); `mood.changed` (the user chose her mood in the Joi dialog, `ChatService.changeMood(joi, key, true)`; a chain in `QueuedEventPlan` like the others, from → to, nothing if it came back; her own `set_mood` queues none); `stance.ended` (the user ended her stance in the Joi dialog, `StanceService.end(joi, true)`; told as it came; her own `end_stance` queues none);
 `body.switched`, `body.part_switched`, `body.outfit_changed`, `body.added`, `body.described`; `task.finished`, `task.failed`, `task.denied`; `summary.created`
 (a summary was made, see [Summaries](summaries.md)); and the
 events a node starts: `node.first_boot`, `node.connected`, `node.looking_glass_entered`, `node.looking_glass_exited`, `node.server_restarted`,

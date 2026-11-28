@@ -7,6 +7,10 @@ import com.github.enerccio.joi.domain.animations.AnimationRoles;
 import com.github.enerccio.joi.domain.model.impl.AnimationPack;
 import com.github.enerccio.joi.domain.model.impl.Joi;
 import com.github.enerccio.joi.domain.service.AnimationPackService;
+import com.github.enerccio.joi.domain.service.StanceService;
+import com.flowingcode.vaadin.addons.fontawesome.FontAwesome.Solid;
+import com.vaadin.flow.component.button.Button;
+import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.github.enerccio.joi.loc.J_L;
 import com.github.enerccio.joi.ui.JoiCssStyles;
 import com.github.enerccio.joi.ui.dialogs.JoiDialog;
@@ -32,7 +36,8 @@ import java.util.function.BiFunction;
  * The Animations tab of the Joi dialog: the animations of the user's library she plays in her states: asleep, falling
  * asleep, waking up, the idle ones while she waits and the talking ones while she speaks (a node picks one of a list
  * at a time). Stored on her ({@link AnimationRoles}) as they are chosen. A node plays them from her body's
- * {@code .joia}, so a body that plays only some animations needs these among them.
+ * {@code .joia}, so a body that plays only some animations needs these among them. Above them her stance, the
+ * animation she holds now ({@link StanceService}), with a button that ends it.
  */
 @Configurable
 public class JoiAnimationsPart implements JoiDialogPart {
@@ -46,6 +51,9 @@ public class JoiAnimationsPart implements JoiDialogPart {
     @Autowired
     private AnimationFolderService folderService;
 
+    @Autowired
+    private StanceService stanceService;
+
     private final JoiDialog dialog;
     private final Map<String, AnimationPack> library = new LinkedHashMap<>();
     /** The label of each animation: the path of its folder before its name. */
@@ -56,6 +64,8 @@ public class JoiAnimationsPart implements JoiDialogPart {
     private MultiSelectComboBox<String> idle;
     private MultiSelectComboBox<String> talking;
     private Span empty;
+    private Span stance;
+    private Button endStance;
     /** Set while the fields are filled, so nothing is stored. */
     private boolean filling;
 
@@ -79,9 +89,30 @@ public class JoiAnimationsPart implements JoiDialogPart {
         wakingUp = single(J_L.LABEL_ANIMATION_WAKING_UP, AnimationRoles::withWakingUp);
         idle = several(J_L.LABEL_ANIMATION_IDLE, J_L.MSG_ANIMATION_IDLE_HINT, AnimationRoles::withIdle);
         talking = several(J_L.LABEL_ANIMATION_TALKING, J_L.MSG_ANIMATION_TALKING_HINT, AnimationRoles::withTalking);
-        VerticalLayout layout = new VerticalLayout(hint, empty, sleeping, fallingAsleep, wakingUp, idle, talking);
+        stance = new Span();
+        endStance = new Button(loc.getValue(J_L.LABEL_END_STANCE), Solid.STOP.create(), e -> endStance());
+        HorizontalLayout stanceRow = new HorizontalLayout(stance, endStance);
+        stanceRow.addClassName(JoiCssStyles.JOI_STANCE);
+        VerticalLayout layout = new VerticalLayout(hint, stanceRow, empty, sleeping, fallingAsleep, wakingUp, idle, talking);
         layout.addClassName(JoiCssStyles.JOI_ANIMATIONS);
         return layout;
+    }
+
+    /** The user ends her stance: she is told, her nodes go back to idle and talking. */
+    private void endStance() {
+        try {
+            stanceService.end(dialog.getJoi(), true);
+            showStance();
+        } catch (Exception e) {
+            UIUtils.internalServerError(loc, e);
+        }
+    }
+
+    private void showStance() throws Exception {
+        AnimationPack current = stanceService.current(dialog.getJoi());
+        stance.setText(current == null ? loc.getValue(J_L.MSG_JOI_NO_STANCE)
+                : String.format(loc.getValue(J_L.MSG_JOI_STANCE), name(current.getUuid()).isEmpty() ? current.getName() : name(current.getUuid())));
+        endStance.setVisible(current != null);
     }
 
     private ComboBox<String> single(J_L label, BiFunction<AnimationRoles, String, AnimationRoles> set) {
@@ -148,6 +179,7 @@ public class JoiAnimationsPart implements JoiDialogPart {
             idle.setValue(Set.copyOf(roles.idle()));
             talking.setValue(Set.copyOf(roles.talking()));
             empty.setVisible(uuids.isEmpty());
+            showStance();
         } finally {
             filling = false;
         }
@@ -162,6 +194,15 @@ public class JoiAnimationsPart implements JoiDialogPart {
     /** The fields, for tests: asleep, falling asleep, waking up. */
     public List<ComboBox<String>> getSingleFields() {
         return List.of(sleeping, fallingAsleep, wakingUp);
+    }
+
+    /** Her stance as shown and its End button, for tests. */
+    public Span getStanceText() {
+        return stance;
+    }
+
+    public Button getEndStanceButton() {
+        return endStance;
     }
 
     /** The idle and talking fields, for tests. */

@@ -25,6 +25,8 @@ class JoiAnimationsPartTest extends PlatformTestBase {
     private JoiService joiService;
     @Autowired
     private AnimationPackService packService;
+    @Autowired
+    private com.github.enerccio.joi.domain.service.StanceService stanceService;
 
     private UI ui;
 
@@ -97,5 +99,27 @@ class JoiAnimationsPartTest extends PlatformTestBase {
         assertThat(AnimationRoles.toJson(AnimationRoles.NONE)).isNull();
         assertThat(AnimationRoles.fromJson("{nope")).isEqualTo(AnimationRoles.NONE);
         assertThat(roles.all()).containsExactly("a", "b");
+    }
+
+    @Test
+    void herStanceIsShownAndTheUserEndsIt() throws Exception {
+        Joi joi = joiService.create("Mira");
+        AnimationPack dance = pack("Dance");
+        JoiDialog dialog = new JoiDialog(joiService.find(joi.getId()));
+        dialog.create();
+        JoiAnimationsPart part = dialog.getAnimationsPart();
+        assertThat(part.getStanceText().getText()).contains("none");
+        assertThat(part.getEndStanceButton().isVisible()).isFalse();
+
+        stanceService.take(joi, dance);
+        part.shown();
+        assertThat(part.getStanceText().getText()).contains("Dance");
+        assertThat(part.getEndStanceButton().isVisible()).isTrue();
+
+        com.vaadin.flow.component.ComponentUtil.fireEvent(part.getEndStanceButton(),
+                new com.vaadin.flow.component.ClickEvent<>(part.getEndStanceButton()));
+        assertThat(joiService.find(joi.getId()).getStance()).isNull();
+        assertThat(part.getStanceText().getText()).contains("none");
+        assertThat(part.getEndStanceButton().isVisible()).isFalse();
     }
 }

@@ -128,6 +128,10 @@ one; the server treats every node the same.
     and the `eyes`, as the user has them set) is sent after the manifest and on every change of her mood (`ChatService.watchMoods`,
     `NodeService.mood`): the day's roll, the user's switch in the Joi dialog, her own `set_mood`, a change of the mood's face in User Settings. The
     node follows it at once; the reply's and the info's `mood` stay as the name for the UI only.
+  - **Her stance as a frame (1.17, built).** The node frame `stance` (`StanceState`: the uuid and `name` of the animation she holds, nulls
+    for none) is sent after the manifest and on every change (`NodeService.stance`: her `set_stance` and `end_stance`, the user ending it
+    in the Joi dialog). The node loops it in place of idle and talking until it changes; one whose body lacks the animation plays as with
+    none. See Bodies → Stances.
   - **Pairing a phone by its camera (1.9, built).** User Settings → Access has *Pair a phone*: a dialog with a QR code of
     `joi://pair?server=<address>&offer=<secret>` (the address is editable: a phone cannot reach `localhost`). The phone's camera opens
     it in the app, which asks `POST /oauth/device_authorization` with the extra field `pairing_offer`. The offer
@@ -1587,6 +1591,25 @@ UI — nothing is deleted):
     state** (`AvatarDirector.gesture`): if she starts talking while it plays, her talking animation waits for its end,
     and then plays; a loop of her state goes on after it; not while she sleeps, falls asleep or wakes up. This is the
     "immediate" mode; the staggered one (the animation, then her voice) stays open.
+  - **Stances (built, protocol 1.17):** for what lasts (dancing, sitting, a pose she holds, a workout) she takes a
+    **stance**: one of her animations that loops and stays, in place of her idle and talking ones, until she takes another
+    or ends it. "Dance for me" makes her dance until she decides to stop or is asked to. Her functions `set_stance` (an
+    animation by name, from the same list as `play_animation`) and `end_stance` (`AnimationTools`); `play_animation`
+    stays for one-shot gestures, and its description, `set_stance`'s and her master template tell her to use the stance
+    for what lasts, not `play_animation`, and to end it when she decides to stop or is asked. Both need no answer
+    round (`ToolEffects.needsNoAnswer`) but change state.
+    The stance is **hers, on the server** (`Joi.stance`, an extended attribute: the animation's uuid; `StanceService`),
+    so it lasts through turns, a node's reconnect and a server restart. Her nodes get the `stance` frame (`StanceState`:
+    the uuid and name, nulls for none) after their manifest and each time it changes. Her body section of the prompt
+    says she holds it (`{{#stance}}` in `BodyTemplateData`, when the active body plays that animation), and a note goes
+    into the conversation when she takes or ends it. The user sees it in the Animations tab of her dialog and can end
+    it there (`JoiAnimationsPart`); then she is told as an event (`stance.ended`).
+    A node (`AvatarDirector.stance`, the JavaFX node, the terminal client and the iOS app) plays it looped while she is
+    idle or talking: talking does not interrupt it (her state still goes to talking and back, nothing new plays), her
+    mouth (lip sync), her mood's face and her expressions go on over it (they are the renderer's, over any animation),
+    and a gesture plays once and returns to it. Asleep, falling asleep and waking up win over it, and she is back in it
+    when she is awake. A body that does not have the animation (she moved into another one) plays as with no stance;
+    the node checks again when a body is shown.
   - Clips that leave the frame (a jump, a full-body dance) ask for a wider shot, so the camera follows.
   - **Animation viewer and editor:** a dialog like the model's, with the clip played on a chosen body in the three.js
     preview (play, pause, scrub, loop, speed, the camera presets). Its edits are kept on the clip, never in the file:
