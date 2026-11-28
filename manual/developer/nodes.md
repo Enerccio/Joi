@@ -8,7 +8,7 @@ covers:
   - joi-server/src/main/java/com/github/enerccio/joi/domain/node
   - joi-server/src/main/java/com/github/enerccio/joi/api/NodeEndpoint.java
   - joi-server/src/main/frontend/joi-lipsync.js
-verified: ad300a4
+verified: 1bc7a07
 ---
 
 # Writing a node
@@ -57,6 +57,12 @@ the 401 refresh as every call) and puts the ids in `NodeSocket.say(..., images)`
 button to take one away, and uploads on a virtual thread before it sends; the terminal client has `/image <file> [words]`. Nothing is done to the picture on the node: the server turns it upright
 and scales it.
 
+The JavaFX node's history (`ChatPane.history`, `drawPast`) is the latest 500 messages (`ServerClient.history(joi, limit, before)`); "Show earlier
+messages" loads the page before the first id and keeps the scroll where it was. The images of a message and her `toolImages` come from
+`ServerClient.image` (`GET /api/v1/images/{id}`, streamed into `<home>/cache/images/<id>.jpg` once, an id that is not a plain name refused) and
+show as thumbnails that open whole. A `Separator` line follows the last `summarized` entry. Every line has a context menu: Copy, and Copy the
+conversation (`transcript()`: the labels in order, the summary line as `---`).
+
 ## Reconnecting
 
 Connect again after 1 s, 2 s, 4 s... up to 30 s, with `hello.resumed` and the latest manifest, so she does not greet the user again. After the server was
@@ -91,7 +97,7 @@ then, not only the parts', as an outfit sets toggles that are in no part. The re
 
 | Class | What |
 |---|---|
-| `ServerClient` | the HTTP API: login, the device grant, her, her body, the downloads cached by hash |
+| `ServerClient` | the HTTP API: login, the device grant, her, her history (a window that slides back), her body, the downloads cached by hash, the chat's images cached by id |
 | `NodeSocket` | the node WebSocket, with reconnecting |
 | `AvatarDirector` | what her body plays: idle, talking, asleep through her first turn, waking up, a gesture on top |
 | `NodeSettings` | the node's home (`~/.joi-client`, moved by `--joi-home-dir`, `JOI_HOME_DIR` or `JOI_CLIENT`: `NodeSettings.resolve`), `node.json` and `credentials.json`; every path of the node is under it |

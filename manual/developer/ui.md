@@ -5,7 +5,7 @@ order: 700
 covers:
   - joi-server/src/main/java/com/github/enerccio/joi/ui
   - joi-server/src/main/java/com/github/enerccio/joi/loc
-verified: 895a003
+verified: 1bc7a07
 ---
 
 # The UI
@@ -61,7 +61,9 @@ viewer's face layer (`setFace`) and mouth (`setMouth`) are off until a page call
 (`ChatService.checkImages`: a `no_vision` is the notification `MSG_CHAT_NO_VISION`, nothing is lost), then runs the turn in a virtual thread with `ApiRequestAttributes` and `InRequestScope`, as
 the API's chat does; the tab shows the waiting message when the turn starts and the exchange when it is stored. Attach is disabled when `ChatImageService.canSee` is false. The cards show the
 images as `Anchor` + `Image` on a `StreamResource` of the stored file (`ChatImageService.file`); her reply shows the pictures her tools brought (`ChatMessage.toolImageUuids`, alt text
-`LABEL_CHAT_TOOL_IMAGE`) the same way, after the tools list; the styles are `.chat-images`, `.chat-image`, `.chat-compose*`.
+`LABEL_CHAT_TOOL_IMAGE`) the same way, after the tools list; the styles are `.chat-images`, `.chat-image`, `.chat-compose*`. A card sent before
+`SummarizerService.coveredUpTo` (read at each load, and again when a turn or note comes in: `fadeSummarized`) has `.chat-message-summarized`
+(faded, clearer on hover) and the title `LABEL_CHAT_SUMMARIZED`.
 
 ## Prompts
 

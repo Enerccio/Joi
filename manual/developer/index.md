@@ -5,7 +5,7 @@ order: 800
 expanded: true
 covers:
   - DESIGN.md
-verified: 895a003
+verified: 1bc7a07
 ---
 
 # Developer guide
