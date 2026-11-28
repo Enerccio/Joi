@@ -102,7 +102,7 @@ enum Files {
     }
 
     @Test func aLoopingAnimationIsSentAsMade() {
-        let wave = JoiaAnimation(uuid: "wave", name: "Wave", steps: [JoiaStep(clip: "c1", loop: true, speed: 2, inPlace: true, rotation: [0, 1, 0, 0], blend: 0.5)])
+        let wave = JoiaAnimation(uuid: "wave", name: "Wave", steps: [JoiaStep(clip: "c1", loop: true, speed: 2, inPlace: true, rotation: [0, 1, 0, 0], translation: [0, 0.5, 0], blend: 0.5)])
         let (bridge, sent) = bridge([wave])
         bridge.play("wave", loop: true)
         let message = object(sent.messages[0])
@@ -114,6 +114,7 @@ enum Files {
         let step = object(steps[0])
         #expect(step["src"] == .int(0) && step["loop"] == .bool(true) && step["speed"] == .double(2) && step["inPlace"] == .bool(true))
         #expect(step["rotation"] == .array([.double(0), .double(1), .double(0), .double(0)]) && step["blend"] == .double(0.5))
+        #expect(step["translation"] == .array([.double(0), .double(0.5), .double(0)]))
     }
 
     @Test func herVoiceIsSentForHerMouthAndNotKept() {

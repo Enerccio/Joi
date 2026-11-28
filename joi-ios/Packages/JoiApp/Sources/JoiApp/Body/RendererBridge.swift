@@ -154,6 +154,7 @@ extension AnimationPlayer {
                                                 "speed": .double(step.speed ?? 1), "inPlace": .bool(step.inPlace ?? false),
                                                 "reverse": .bool(step.reverse ?? false)]
             if let rotation = step.rotation { members["rotation"] = .array(rotation.map { .double($0) }) }
+            if let translation = step.translation { members["translation"] = .array(translation.map { .double($0) }) }
             if let blend = step.blend { members["blend"] = .double(blend) }
             json.append(.object(members))
             let speed = (step.speed ?? 1) > 0 ? step.speed ?? 1 : 1

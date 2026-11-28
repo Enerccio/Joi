@@ -99,13 +99,28 @@ formats are in `joi-protocol` (see [The protocol](protocol.md)).
 ## Animations
 
 `Animation` is a clip (a VRMA resource with its name, description, tags and what `VrmaFiles` read from the JSON chunk). `AnimationPack` is an
-animation: steps (`AnimationStep`: clip, loop, speed, in place, reverse, rotation as `StepRotation`, blend in), a loop flag and the preview body.
+animation: steps (`AnimationStep`: clip, loop, speed, in place, reverse, rotation as `StepRotation`, translation as `StepTranslation`, blend in), a
+loop flag and the preview body. The translation is an offset `[x, y, z]` in metres in the model's space, held within ±10 m per axis and null
+below a tenth of a millimetre; the viewer adds it to the hips after the rotation.
+
+Clips and animations are in folders (`AnimationFolder`, of the kind `CLIPS` or `ANIMATIONS`), as Marginalia's book folders: nested, the
+names of one parent unique case insensitive, without a slash. They are a list in the user setting (`JoiUserSetting.animationFolders`, an
+extended attribute, no table) and an item names its folder by uuid (`Animation.folder`, `AnimationPack.folder`, extended attributes); an
+unknown uuid is the top level. `AnimationFolders` is the tree (children, ancestors, paths, the label `Idle / Standing / Breathe` and the
+order by it); `AnimationFolderService` changes it: create, rename, move (not into itself or below), delete with the content moved up
+(refused when a folder in it has the name of one above) or with all of it, move items, `clipsByPath` / `animationsByPath` for the
+choices.
 FBX and BVH are converted by `AnimationConversionService` with `convert_animation.py` in the same Blender process queue. `AnimationRoles` is
 the JSON on an assistant that says what plays asleep, falling asleep, waking up, idle and talking. `AnimationTools` offers `play_animation` and
 sends an `animation` frame to her nodes.
 
 ## The viewer
 
-`joi-model-viewer.js` plays clips with `@pixiv/three-vrm-animation` (retargeting to the body's rig) and `playSequence` plays steps. The node's
+`joi-model-viewer.js` plays clips with `@pixiv/three-vrm-animation` (retargeting to the body's rig) and `playSequence` plays steps. A
+step's clip is prepared from a copy of the clip as made: reversed, turned (`_rotateClip`: the hips' rotation and their path around
+where they start), moved (`_translateClip`: the offset added to the hips' path; a clip with no hips track gets one key at the rest
+place, `normalizedRestPose`), held in place. `setRotationTool` and `setTranslationTool` put `TransformControls` (rings or arrows) on a
+handle at the hips; the step is made again as it is dragged (`_remakeStep`) and `step-rotated` / `step-translated` tell the dialog
+when the mouse lets go. The node's
 renderer page (`joi-node/src/main/renderer`) wraps the same file. An animation can force her face while it plays (`AnimationPack.eyes` and
 `expression`, in the `.joia` as `eyes` and `expression`, set in `AnimationPackDialog`): see *Her face* in [Writing a node](nodes.md).

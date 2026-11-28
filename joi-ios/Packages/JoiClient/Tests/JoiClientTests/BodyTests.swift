@@ -76,7 +76,7 @@ import JoiProtocol
         defer { try? FileManager.default.removeItem(at: folder) }
         let animation: [(String, Any)] = [
             ("uuid", "wave"), ("name", "Wave"), ("loop", true),
-            ("steps", [[("clip", "c1"), ("loop", false), ("speed", 1.5), ("inPlace", true), ("rotation", [0.0, 0.5, 0.0, 0.5] as [Any]), ("blend", 0.25)] as [(String, Any)]] as [Any]),
+            ("steps", [[("clip", "c1"), ("loop", false), ("speed", 1.5), ("inPlace", true), ("rotation", [0.0, 0.5, 0.0, 0.5] as [Any]), ("translation", [0.0, 0.0, -0.35] as [Any]), ("blend", 0.25)] as [(String, Any)]] as [Any]),
         ]
         let file = folder.appendingPathComponent("body.joia")
         try BodyFixtures.joia(clips: [("c1", [1, 2, 3]), ("c2", [4, 5])], animations: [animation], extra: true).write(to: file)
@@ -85,7 +85,7 @@ import JoiProtocol
         #expect(contents.clips[0].duration == 1.5)
         #expect(contents.animations.count == 1)
         #expect(contents.animations[0].name == "Wave")
-        #expect(contents.animations[0].steps == [JoiaStep(clip: "c1", loop: false, speed: 1.5, inPlace: true, rotation: [0, 0.5, 0, 0.5], blend: 0.25)])
+        #expect(contents.animations[0].steps == [JoiaStep(clip: "c1", loop: false, speed: 1.5, inPlace: true, rotation: [0, 0.5, 0, 0.5], translation: [0, 0, -0.35], blend: 0.25)])
         #expect(try Data(contentsOf: folder.appendingPathComponent("0.vrma")) == Data([1, 2, 3]))
         #expect(try Data(contentsOf: folder.appendingPathComponent("1.vrma")) == Data([4, 5]))
     }

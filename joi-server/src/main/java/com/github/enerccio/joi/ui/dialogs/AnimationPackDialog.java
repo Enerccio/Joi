@@ -1,9 +1,13 @@
 package com.github.enerccio.joi.ui.dialogs;
 
+import com.github.enerccio.joi.domain.animations.AnimationFolder.Kind;
+import com.github.enerccio.joi.domain.animations.AnimationFolders;
+import com.github.enerccio.joi.domain.service.AnimationFolderService;
 import com.flowingcode.vaadin.addons.fontawesome.FontAwesome.Solid;
 import com.github.enerccio.joi.domain.animations.AnimationFace;
 import com.github.enerccio.joi.domain.animations.AnimationStep;
 import com.github.enerccio.joi.domain.animations.StepRotation;
+import com.github.enerccio.joi.domain.animations.StepTranslation;
 import com.github.enerccio.joi.domain.model.impl.Animation;
 import com.github.enerccio.joi.domain.model.impl.AnimationPack;
 import com.github.enerccio.joi.domain.service.AnimationPackService;
@@ -46,7 +50,8 @@ import java.util.function.UnaryOperator;
  * One animation ({@link AnimationPack}), full screen: on the left its name, its description, whether it starts again
  * after its last step, and its steps (clips chosen from the user's library, the Clips tab), each with whether it loops,
  * its speed, in place, reversed and blend in, edited in the table; under it the rotation of the step chosen, in
- * degrees or with rings in the preview, moved up and down, opened and removed. On the right the
+ * degrees or with rings in the preview, and its translation, in metres or with arrows in the preview; steps are moved
+ * up and down, opened and removed. On the right the
  * {@link ClipPreview} of the body it is previewed on (remembered): the whole animation plays when the dialog opens and
  * on Play, Finish ends a looping step and plays the rest, and a step chosen in the table or the strip plays alone, in a
  * loop. A clip added appends its description to the animation's. Changes are stored at once; a new animation is stored
@@ -63,6 +68,12 @@ public class AnimationPackDialog extends Dialog {
 
     @Autowired
     private AnimationService animationService;
+
+    @Autowired
+    private AnimationFolderService folderService;
+
+    /** The folders of the clips, for the labels of the choice: the path of the folder before the name. */
+    private AnimationFolders clipFolders = new AnimationFolders(List.of());
 
     private AnimationPack pack;
     private Runnable onClose = () -> {
@@ -83,6 +94,10 @@ public class AnimationPackDialog extends Dialog {
     private Button rotateButton;
     /** Whether the rings to turn the step chosen are shown in the preview. */
     private boolean rotating;
+    private final NumberField[] translationFields = new NumberField[3];
+    private Button moveButton;
+    /** Whether the arrows to move the step chosen are shown in the preview (in place of the rings). */
+    private boolean moving;
     /** Set while the table is filled, so its selection plays nothing. */
     private boolean filling;
 
@@ -149,7 +164,7 @@ public class AnimationPackDialog extends Dialog {
         Span hint = new Span(loc.getValue(J_L.MSG_ANIMATION_PACK_HINT));
         hint.addClassName(CssStyles.HINT_TEXT);
         choice = new MultiSelectComboBox<>(loc.getValue(J_L.LABEL_CHOOSE_CLIPS));
-        choice.setItemLabelGenerator(clip -> StringUtils.defaultString(clip.getName()));
+        choice.setItemLabelGenerator(this::clipLabel);
         choice.setWidthFull();
         addButton = new Button(loc.getValue(J_L.LABEL_ADD_CLIPS), Solid.PLUS.create(), e -> addChosen());
         HorizontalLayout adding = new HorizontalLayout(choice, addButton);
@@ -165,7 +180,7 @@ public class AnimationPackDialog extends Dialog {
         steps.addThemeVariants(GridVariant.LUMO_COMPACT);
         steps.addColumn(step -> step.index() + 1).setHeader("#").setFlexGrow(0).setWidth("44px");
         steps.addColumn(step -> step.clip().getName()).setHeader(loc.getValue(J_L.LABEL_CLIP))
-                .setFlexGrow(1).setWidth("140px").setTooltipGenerator(step -> step.clip().getName());
+                .setFlexGrow(1).setWidth("140px").setTooltipGenerator(step -> clipLabel(step.clip()));
         steps.addColumn(step -> AnimationDialog.length(step.clip().getDuration()))
                 .setHeader(loc.getValue(J_L.LABEL_ANIMATION_LENGTH)).setFlexGrow(0).setWidth("72px");
         steps.addComponentColumn(this::loopCell).setHeader(loc.getValue(J_L.LABEL_ANIMATION_LOOP)).setFlexGrow(0).setWidth("64px");
@@ -193,6 +208,7 @@ public class AnimationPackDialog extends Dialog {
         preview.setOnBodyChosen(id -> storePack(false));
         preview.setOnPlay(this::playAll);
         preview.setOnStepRotated(this::storeRotation);
+        preview.setOnStepTranslated(this::storeTranslation);
         preview.setOnStepChosen(position -> {
             if (position >= 0 && position < shown.size()) {
                 steps.select(shown.get(position));
@@ -294,7 +310,39 @@ public class AnimationPackDialog extends Dialog {
         fields.setWrap(true);
         Span hint = new Span(loc.getValue(J_L.MSG_STEP_ROTATION_HINT));
         hint.addClassName(CssStyles.HINT_TEXT);
-        rotationPanel = new VerticalLayout(title, fields, hint);
+
+        Span translationTitle = new Span(loc.getValue(J_L.LABEL_STEP_TRANSLATION));
+        translationTitle.addClassName(JoiCssStyles.STEP_ROTATION_TITLE);
+        String[] directions = {"X m", "Y m", "Z m"};
+        for (int i = 0; i < 3; i++) {
+            NumberField field = new NumberField(directions[i]);
+            field.setMin(-StepTranslation.MAX);
+            field.setMax(StepTranslation.MAX);
+            // the arrows move by any distance: shown to a millimetre
+            field.setStep(0.001);
+            field.addClassName(JoiCssStyles.STEP_ROTATION_FIELD);
+            field.addValueChangeListener(e -> {
+                if (e.isFromClient()) {
+                    double[] metres = new double[3];
+                    for (int axis = 0; axis < 3; axis++) {
+                        Double value = translationFields[axis].getValue();
+                        metres[axis] = value == null ? 0 : value;
+                    }
+                    translateTo(metres[0], metres[1], metres[2]);
+                }
+            });
+            translationFields[i] = field;
+        }
+        moveButton = new Button(loc.getValue(J_L.LABEL_MOVE_IN_PREVIEW), Solid.ARROWS_UP_DOWN_LEFT_RIGHT.create(), e -> setMoving(!moving));
+        Button resetTranslation = new Button(loc.getValue(J_L.LABEL_RESET_TRANSLATION), Solid.ARROW_ROTATE_LEFT.create(),
+                e -> selected().ifPresent(step -> updateStep(step, s -> s.withTranslation(null))));
+        HorizontalLayout translation = new HorizontalLayout(translationFields[0], translationFields[1], translationFields[2], moveButton,
+                resetTranslation);
+        translation.setAlignItems(FlexComponent.Alignment.BASELINE);
+        translation.setWrap(true);
+        Span translationHint = new Span(loc.getValue(J_L.MSG_STEP_TRANSLATION_HINT));
+        translationHint.addClassName(CssStyles.HINT_TEXT);
+        rotationPanel = new VerticalLayout(title, fields, hint, translationTitle, translation, translationHint);
         rotationPanel.setPadding(false);
         rotationPanel.setSpacing(false);
         rotationPanel.setVisible(false);
@@ -305,24 +353,65 @@ public class AnimationPackDialog extends Dialog {
         selected().ifPresent(step -> updateStep(step, s -> s.withRotation(StepRotation.fromDegrees(x, y, z))));
     }
 
-    /** Shows the rotation of the step chosen (none chosen: hides it and the rings). */
+    /** Moves the step chosen by the offset (metres along X, Y, Z) and plays it so. */
+    private void translateTo(double x, double y, double z) {
+        selected().ifPresent(step -> updateStep(step, s -> s.withTranslation(StepTranslation.of(x, y, z))));
+    }
+
+    /** Shows the rotation and the translation of the step chosen (none chosen: hides them, the rings and the arrows). */
     private void showRotation() {
         java.util.Optional<Step> step = selected();
         rotationPanel.setVisible(step.isPresent());
         if (step.isEmpty()) {
             setRotating(false);
+            setMoving(false);
             return;
         }
         double[] degrees = StepRotation.toDegrees(step.get().step().rotation());
+        double[] metres = StepTranslation.toArray(step.get().step().translation());
         for (int i = 0; i < 3; i++) {
             rotationFields[i].setValue(Math.round(degrees[i] * 10) / 10.0);
+            translationFields[i].setValue(Math.round(metres[i] * 1000) / 1000.0);
         }
     }
 
+    /** The rings on or off; on takes the arrows away (the preview shows one tool at a time). */
     private void setRotating(boolean on) {
         rotating = on && selected().isPresent();
+        if (rotating) {
+            moving = false;
+            moveButton.setThemeName("");
+        }
         rotateButton.setThemeName(rotating ? "primary" : "");
-        preview.setRotationTool(rotating);
+        if (rotating || !moving) {
+            preview.setRotationTool(rotating);
+        }
+    }
+
+    /** The arrows on or off; on takes the rings away. */
+    private void setMoving(boolean on) {
+        moving = on && selected().isPresent();
+        if (moving) {
+            rotating = false;
+            rotateButton.setThemeName("");
+        }
+        moveButton.setThemeName(moving ? "primary" : "");
+        if (moving || !rotating) {
+            preview.setTranslationTool(moving);
+        }
+    }
+
+    /** The step chosen was moved with the arrows: stored, without playing it again (it plays on, moved). */
+    private void storeTranslation(List<Double> translation) {
+        selected().ifPresent(step -> {
+            try {
+                pack = packService.updateStep(pack, step.index(), step.step().withTranslation(translation));
+                refreshSteps(step.index());
+                showRotation();
+            } catch (Exception e) {
+                UIUtils.internalServerError(loc, e);
+            }
+        });
     }
 
     /** The step chosen was turned with the rings: stored, without playing it again (it plays on, turned). */
@@ -442,7 +531,7 @@ public class AnimationPackDialog extends Dialog {
             if (chosen.isEmpty()) {
                 return;
             }
-            chosen.sort((a, b) -> StringUtils.compareIgnoreCase(a.getName(), b.getName()));
+            chosen.sort((a, b) -> StringUtils.compareIgnoreCase(clipLabel(a), clipLabel(b)));
             if (pack.getId() == null) {
                 storePack(true);
             }
@@ -514,7 +603,8 @@ public class AnimationPackDialog extends Dialog {
                 filling = false;
             }
             preview.setSteps(shown);
-            List<Animation> library = animationService.findAllByName();
+            clipFolders = folderService.tree(Kind.CLIPS);
+            List<Animation> library = folderService.clipsByPath();
             choice.setItems(library);
             emptyLibrary.setVisible(library.isEmpty());
             choice.setEnabled(!library.isEmpty());
@@ -522,6 +612,11 @@ public class AnimationPackDialog extends Dialog {
         } catch (Exception e) {
             UIUtils.internalServerError(loc, e);
         }
+    }
+
+    /** A clip as the choice shows it: the path of its folder before its name ({@code Idle / Standing / Breathe}). */
+    private String clipLabel(Animation clip) {
+        return clipFolders.label(clip.getFolder(), clip.getName());
     }
 
     private void updateTitle() {
@@ -596,6 +691,21 @@ public class AnimationPackDialog extends Dialog {
     /** Types the angles of the step chosen, for tests. */
     public void rotateForTest(double x, double y, double z) {
         rotateTo(x, y, z);
+    }
+
+    /** The metres along X, Y and Z of the step chosen, for tests. */
+    public NumberField[] getTranslationFields() {
+        return translationFields;
+    }
+
+    /** Types the offset of the step chosen, for tests. */
+    public void translateForTest(double x, double y, double z) {
+        translateTo(x, y, z);
+    }
+
+    /** Moves the step chosen as the arrows in the preview do, for tests. */
+    public void moveWithArrowsForTest(List<Double> translation) {
+        storeTranslation(translation);
     }
 
     /** Turns the step chosen as the rings in the preview do, for tests. */

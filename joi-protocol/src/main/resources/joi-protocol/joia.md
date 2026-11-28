@@ -48,7 +48,7 @@ A reader streams the sections, checks each hash, and skips a kind it doesn't kno
       "steps": [
         {"clip": "<clip uuid>", "loop": false, "speed": 1, "inPlace": true, "reverse": false},
         {"clip": "<clip uuid>", "loop": true, "speed": 1.2, "inPlace": true, "reverse": true,
-         "rotation": [0, 0.7071, 0, 0.7071], "blend": 0.5}
+         "rotation": [0, 0.7071, 0, 0.7071], "translation": [0, 0, -0.35], "blend": 0.5}
       ]
     }
   ],
@@ -77,7 +77,9 @@ A reader streams the sections, checks each hash, and skips a kind it doesn't kno
 
 Every key may be missing, except a clip's `uuid`: no two clips have the same one. A step names its clip by its uuid;
 a clip is in the file once, however many steps play it. A step with `reverse` plays its clip backwards; `rotation` (a unit quaternion `[x, y, z, w]`, missing for none)
-turns the whole clip around her hips where the step starts; `blend` is the seconds of crossfade from the step before
+turns the whole clip around her hips where the step starts; `translation` (`[x, y, z]` in metres, missing for none) moves
+the whole clip by that offset, added to her hips at every key after the rotation, in the model's space (X to her left,
+Y up, Z to her front; a clip that does not move her hips is held at her hips' rest place moved so); `blend` is the seconds of crossfade from the step before
 (missing or 0: a cut). These belong to the step, not the clip. An animation may also say how her face is while it plays: `eyes` (`closed`, `half` or `wide`) and
 `expression` (`happy`, `sad`, `angry`, `relaxed` or `surprised`); missing for her own (her eyes follow what she does and her mood shows as a soft
 expression). A value a reader does not know is ignored. These belong to the whole animation (older files have none). A clip's `loop`, `inPlace` and `speed` are only what a new step

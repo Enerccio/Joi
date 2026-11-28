@@ -146,5 +146,5 @@ The iOS app (planned, see `DESIGN.md` → *The iOS app*) does not copy the proto
 
 `.joim` and `.joia` start with a magic number (`0x1DEA1A10` and `0x1DEA1AC7`), a header with the format version (a reader refuses a newer major version),
 and sections, each with its kind, length and SHA-256: the metadata as CBOR (RFC 8949) and the payload (the VRM, one VRMA per clip) as raw bytes.
-Sections are read and written as streams. A reader skips kinds it does not know. An animation of a `.joia` may carry `eyes` and `expression` (the face it forces, see `joia.md`). The containers are in `protocol/joim/JoimFile` and
+Sections are read and written as streams. A reader skips kinds it does not know. An animation of a `.joia` may carry `eyes` and `expression` (the face it forces, see `joia.md`). A step may carry `rotation` and `translation` (an offset `[x, y, z]` in metres, after the rotation); a file without them reads as none. The containers are in `protocol/joim/JoimFile` and
 `protocol/joia/JoiaFile`, so a node reads them with the same code; the mapping to a model stays in the server.

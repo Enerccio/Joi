@@ -33,7 +33,11 @@ from (the FBX or BVH and the take).
 
 ![A clip, previewed on a body](../../images/clip-dialog.png)
 
-The tab lists the clips with checkboxes and **Delete selected**. Open one to see it in the clip dialog: it plays in a loop on the
+The tab lists the folders and the clips of the folder open (see [Folders](index.md#folders)), with checkboxes, **Delete selected**
+and **Move to a folder**.
+
+**Upload clips** puts the new clips into the folder you have open (the top level when none is). An FBX or a BVH is converted in
+the background: its clips go into the folder that was open when you uploaded it, even if you have opened another one since. Open one to see it in the clip dialog: it plays in a loop on the
 body you pick under **Preview on** (in that body's state of parts). Edit its name, description, tags and loop. **New animation of
 this clip** makes an animation out of it, named after it.
 

@@ -77,7 +77,7 @@ class AnimationsTest extends PlatformTestBase {
     }
 
     private List<Animation> rows() {
-        return part.getGrid().getDataProvider().fetch(new Query<>()).toList();
+        return part.getGrid().getDataProvider().fetch(new Query<>()).filter(row -> !row.isFolder()).map(row -> row.item()).toList();
     }
 
     private static List<String> names(AnimationPackDialog dialog) {
@@ -217,6 +217,41 @@ class AnimationsTest extends PlatformTestBase {
         dialog.updateStepForTest(1, step -> step.withRotation(null));
         assertThat(packService.find(dialog.getPack().getId()).steps().get(1).rotation()).isNull();
         assertThat(dialog.getRotationFields()[1].getValue()).isZero();
+    }
+
+    @Test
+    void aStepIsMovedInTheAnimationNotTheClip() throws Exception {
+        Animation wave = upload("wave.vrma");
+        Animation bow = upload("bow.vrma");
+        AnimationPackDialog dialog = new AnimationPackDialog(new AnimationPack());
+        dialog.create();
+        dialog.getChoice().setValue(Set.of(bow, wave));
+        dialog.addChosenForTest();
+
+        // a step chosen shows its translation: typed in metres, or moved with the arrows
+        dialog.getSteps().select(dialog.getSteps().getListDataView().getItems().toList().get(1));
+        assertThat(dialog.getTranslationFields()[0].getValue()).isZero();
+        dialog.rotateForTest(0, 90, 0);
+        dialog.translateForTest(0.3, 0, -0.45);
+        AnimationStep moved = packService.find(dialog.getPack().getId()).steps().get(1);
+        assertThat(moved.translation()).containsExactly(0.3, 0.0, -0.45);
+        // the rotation stays as it was
+        assertThat(StepRotation.toDegrees(moved.rotation())[1]).isCloseTo(90, within(1e-6));
+        assertThat(dialog.getTranslationFields()[2].getValue()).isEqualTo(-0.45);
+
+        // the arrows give any distance: the fields show it to a millimetre, the step keeps it
+        dialog.moveWithArrowsForTest(List.of(-0.12345, 1.0, 0.0));
+        assertThat(packService.find(dialog.getPack().getId()).steps().get(1).translation()).containsExactly(-0.12345, 1.0, 0.0);
+        assertThat(dialog.getTranslationFields()[0].getValue()).isEqualTo(-0.123);
+        assertThat(dialog.getTranslationFields()[1].getValue()).isEqualTo(1);
+        assertThat(packService.find(dialog.getPack().getId()).steps().getFirst().translation()).isNull();
+
+        // Reset: no translation, the rotation stays
+        dialog.updateStepForTest(1, step -> step.withTranslation(null));
+        AnimationStep reset = packService.find(dialog.getPack().getId()).steps().get(1);
+        assertThat(reset.translation()).isNull();
+        assertThat(reset.rotation()).isNotNull();
+        assertThat(dialog.getTranslationFields()[1].getValue()).isZero();
     }
 
     @Test

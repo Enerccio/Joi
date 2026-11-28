@@ -1,5 +1,8 @@
 package com.github.enerccio.joi.ui.dialogs.joi;
 
+import com.github.enerccio.joi.domain.animations.AnimationFolder.Kind;
+import com.github.enerccio.joi.domain.animations.AnimationFolders;
+import com.github.enerccio.joi.domain.service.AnimationFolderService;
 import com.github.enerccio.joi.domain.animations.AnimationRoles;
 import com.github.enerccio.joi.domain.model.impl.AnimationPack;
 import com.github.enerccio.joi.domain.model.impl.Joi;
@@ -19,7 +22,6 @@ import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Configurable;
 
-import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -41,8 +43,13 @@ public class JoiAnimationsPart implements JoiDialogPart {
     @Autowired
     private AnimationPackService packService;
 
+    @Autowired
+    private AnimationFolderService folderService;
+
     private final JoiDialog dialog;
     private final Map<String, AnimationPack> library = new LinkedHashMap<>();
+    /** The label of each animation: the path of its folder before its name. */
+    private final Map<String, String> labels = new LinkedHashMap<>();
     private ComboBox<String> sleeping;
     private ComboBox<String> fallingAsleep;
     private ComboBox<String> wakingUp;
@@ -96,14 +103,14 @@ public class JoiAnimationsPart implements JoiDialogPart {
         return field;
     }
 
-    /** The chosen ones in the order of the library (by name). */
+    /** The chosen ones in the order of the library (by folder and name). */
     private List<String> ordered(Set<String> chosen) {
         return library.keySet().stream().filter(chosen::contains).toList();
     }
 
     private String name(String uuid) {
-        AnimationPack pack = uuid == null ? null : library.get(uuid);
-        return pack == null ? "" : StringUtils.defaultIfBlank(pack.getName(), "?");
+        String label = uuid == null ? null : labels.get(uuid);
+        return label == null ? "" : label;
     }
 
     private void store(java.util.function.UnaryOperator<AnimationRoles> change) {
@@ -117,9 +124,12 @@ public class JoiAnimationsPart implements JoiDialogPart {
     @Override
     public void load(Joi joi) throws Exception {
         library.clear();
-        packService.findAllByName().stream()
-                .sorted(Comparator.comparing(pack -> StringUtils.defaultString(pack.getName()), String.CASE_INSENSITIVE_ORDER))
-                .forEach(pack -> library.put(pack.getUuid(), pack));
+        labels.clear();
+        AnimationFolders folders = folderService.tree(Kind.ANIMATIONS);
+        for (AnimationPack pack : folderService.animationsByPath()) {
+            library.put(pack.getUuid(), pack);
+            labels.put(pack.getUuid(), folders.label(pack.getFolder(), StringUtils.defaultIfBlank(pack.getName(), "?")));
+        }
         AnimationRoles roles = joi.animationRoleSet().existing(library.keySet());
         filling = true;
         try {

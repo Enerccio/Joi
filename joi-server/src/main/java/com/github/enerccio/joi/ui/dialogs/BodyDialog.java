@@ -1,5 +1,8 @@
 package com.github.enerccio.joi.ui.dialogs;
 
+import com.github.enerccio.joi.domain.animations.AnimationFolder.Kind;
+import com.github.enerccio.joi.domain.animations.AnimationFolders;
+import com.github.enerccio.joi.domain.service.AnimationFolderService;
 import com.github.enerccio.joi.domain.bodies.Appearance;
 import com.github.enerccio.joi.domain.bodies.BodyState;
 import com.github.enerccio.joi.domain.bodies.DescribedPart;
@@ -82,6 +85,9 @@ public class BodyDialog extends Dialog {
 
     @Autowired
     private AnimationPackService packService;
+
+    @Autowired
+    private AnimationFolderService folderService;
 
     @Autowired
     private JoiaService joiaService;
@@ -215,7 +221,8 @@ public class BodyDialog extends Dialog {
         H4 animationsTitle = new H4(loc.getValue(J_L.LABEL_BODY_ANIMATIONS));
         Span animationsHint = new Span(loc.getValue(J_L.MSG_BODY_ANIMATIONS_HINT));
         animationsHint.addClassName(CssStyles.HINT_TEXT);
-        for (AnimationPack pack : packService.findAllByName()) {
+        AnimationFolders animationFolders = folderService.tree(Kind.ANIMATIONS);
+        for (AnimationPack pack : folderService.animationsByPath()) {
             packs.put(pack.getUuid(), pack);
         }
         List<String> chosen = body == null ? null : body.animationUuids();
@@ -223,7 +230,9 @@ public class BodyDialog extends Dialog {
         animationSelect = new MultiSelectComboBox<>(loc.getValue(J_L.LABEL_BODY_CHOSEN_ANIMATIONS));
         animationSelect.setWidthFull();
         animationSelect.setItems(packs.keySet());
-        animationSelect.setItemLabelGenerator(uuid -> StringUtils.defaultIfBlank(packs.get(uuid).getName(), uuid));
+        // the path of its folder before its name, sorted so
+        animationSelect.setItemLabelGenerator(uuid -> animationFolders.label(packs.get(uuid).getFolder(),
+                StringUtils.defaultIfBlank(packs.get(uuid).getName(), uuid)));
         animationSelect.setValue(chosen == null ? packs.keySet() : chosen.stream().filter(packs::containsKey).toList());
         animationSelect.setEnabled(chosen != null);
         allAnimations.addValueChangeListener(e -> {

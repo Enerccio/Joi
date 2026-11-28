@@ -31,6 +31,11 @@ public class Animation extends ExtendableEntity {
     @Transient
     private String name;
 
+    /** The uuid of the folder of clips it is in ({@code AnimationFolder}), null for the top level. */
+    @ExtendedAttribute
+    @Transient
+    private String folder;
+
     /** What the clip shows and when it fits, written for her: she picks a clip by what it says. */
     @ExtendedAttribute
     @Transient
@@ -102,6 +107,15 @@ public class Animation extends ExtendableEntity {
 
     public String getName() {
         return name;
+    }
+
+    /** The uuid of its folder, null for the top level (a folder that is gone is the top level too). */
+    public String getFolder() {
+        return folder;
+    }
+
+    public void setFolder(String folder) {
+        this.folder = folder;
     }
 
     public void setName(String name) {

@@ -15,7 +15,9 @@ The UI is Vaadin Flow in Java, calling services directly: there is no REST API b
 ## The workspace
 
 After the login `ui/workspace/JoiWorkspace` shows tabs of `WorkspacePart`s, with their state kept by `WorkspaceAutosave`. The parts are in
-`ui/workspace/parts`: `JoisPart`, `BodiesPart`, `AnimationsPart` (Clips), `AnimationPacksPart` (Animations), `AIPart` (Models),
+`ui/workspace/parts`: `JoisPart`, `BodiesPart`, `AnimationsPart` (Clips), `AnimationPacksPart` (Animations; both list a folder at a time
+through `ui/animations/LibraryFolders`, Marginalia's folder row and actions for the library: the path above the table, the folders as
+the first `FolderRow`s, New folder, rename, move, delete with the choice of the content, Move to a folder), `AIPart` (Models),
 `TrashPart`, `UserSettingsPart` and `AdminPart` (tabs: users, GPUs, app settings (`ui/settings/AppSettingsPanel`: `JoiAppSettings` in the platform's `AppSettings` under `joi_app`, through `JoiAppSettingsService`; local servers and the workspace limits), API access, tools, extensions (`ui/extensions/ExtensionsPanel`), update (the platform's `UpdatePanel` and `UpdateService`: the application asks by writing `data/update/request`, the watcher `tools/update-watcher/watch.sh` runs `rebuild.sh` and writes `status.properties`; the commit of the build is `git.properties` from the git-commit-id plugin of `joi-server/pom.xml`), jobs (the platform's
 `JobsPanel`), database backups, cleanup, resource files). The tabs the loaded extensions add come after the settings (`ExtensionTab`, see
 [Extensions](extensions.md)). `/jobs` is `ui/main/JoiJobsView` with `ui/jobs/AssistantsRunsGrid` (see [Jobs](jobs.md)).

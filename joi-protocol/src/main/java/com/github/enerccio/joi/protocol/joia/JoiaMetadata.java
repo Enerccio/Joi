@@ -56,10 +56,12 @@ public record JoiaMetadata(List<Animation> animations, List<Clip> clips, String 
      * @param reverse  whether it plays backwards (missing in files from before: false)
      * @param rotation the whole clip turned by this quaternion {@code [x, y, z, w]} around her hips where it starts,
      *                 null for none
+     * @param translation the whole clip moved by this offset {@code [x, y, z]} in metres, in the model's space, after the
+     *                 rotation; null for none (missing in files from before)
      * @param blend    seconds of crossfade from the step before into this one, 0 to cut
      */
     public record Step(String clip, boolean loop, double speed, boolean inPlace, boolean reverse, List<Double> rotation,
-                       double blend) {
+                       List<Double> translation, double blend) {
     }
 
     /**

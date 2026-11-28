@@ -39,9 +39,9 @@ class JoiaFileTest {
 
     private JoiaMetadata meta() {
         JoiaMetadata.Animation jacks = new JoiaMetadata.Animation("a1", "Jacks", "Jumping jacks", true, List.of(
-                new JoiaMetadata.Step("c1", false, 1, true, false, null, 0),
-                new JoiaMetadata.Step("c2", true, 1.25, true, true, List.of(0.0, 0.7071, 0.0, 0.7071), 0.5),
-                new JoiaMetadata.Step("c1", false, 1, false, false, null, 0)), "closed", "happy");
+                new JoiaMetadata.Step("c1", false, 1, true, false, null, null, 0),
+                new JoiaMetadata.Step("c2", true, 1.25, true, true, List.of(0.0, 0.7071, 0.0, 0.7071), List.of(0.1, 0.0, -0.35), 0.5),
+                new JoiaMetadata.Step("c1", false, 1, false, false, null, null, 0)), "closed", "happy");
         return new JoiaMetadata(List.of(jacks), List.of(clip("c1", "start"), clip("c2", "jump")), "2026-11-19T12:00:00Z");
     }
 
@@ -86,10 +86,26 @@ class JoiaFileTest {
         assertTrue(meta.animations().getFirst().steps().get(1).reverse());
         assertEquals(List.of(0.0, 0.7071, 0.0, 0.7071), meta.animations().getFirst().steps().get(1).rotation());
         assertEquals(0.5, meta.animations().getFirst().steps().get(1).blend());
+        assertEquals(List.of(0.1, 0.0, -0.35), meta.animations().getFirst().steps().get(1).translation());
         assertEquals(null, meta.animations().getFirst().steps().getFirst().rotation());
+        assertEquals(null, meta.animations().getFirst().steps().getFirst().translation());
         assertEquals("start", meta.clip("c1").name());
         assertArrayEquals(Files.readAllBytes(start.toPath()), Files.readAllBytes(out.get(0).toPath()));
         assertArrayEquals(Files.readAllBytes(jump.toPath()), Files.readAllBytes(out.get(1).toPath()));
+    }
+
+    @Test
+    void aStepOfAnOlderFileHasNoTranslation() throws IOException {
+        // written before steps were moved: no "translation", and no "reverse" or "rotation" either
+        JoiaMetadata meta = JoiaMetadata.fromJson(com.google.gson.JsonParser.parseString("""
+                {"animations": [{"uuid": "a1", "steps": [{"clip": "c1", "loop": true, "speed": 1, "inPlace": true}]}],
+                 "clips": [{"uuid": "c1"}]}
+                """).getAsJsonObject());
+        JoiaMetadata.Step step = meta.animations().getFirst().steps().getFirst();
+        assertEquals(null, step.translation());
+        assertEquals(null, step.rotation());
+        assertFalse(step.reverse());
+        assertTrue(step.inPlace());
     }
 
     @Test

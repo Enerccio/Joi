@@ -42,8 +42,8 @@ class RendererServerTest {
         Path clip = Files.writeString(temp.resolve("wave.vrma"), "clip bytes");
         JoiaMetadata meta = new JoiaMetadata(
                 List.of(new JoiaMetadata.Animation(WAVE, "Wave", null, false, List.of(
-                        new JoiaMetadata.Step(CLIP, true, 1, false, false, null, 0),
-                        new JoiaMetadata.Step(CLIP, false, 2, true, true, List.of(0d, 0d, 0d, 1d), 0.5)), "closed", "sad")),
+                        new JoiaMetadata.Step(CLIP, true, 1, false, false, null, null, 0),
+                        new JoiaMetadata.Step(CLIP, false, 2, true, true, List.of(0d, 0d, 0d, 1d), List.of(0d, 0.5d, 0d), 0.5)), "closed", "sad")),
                 List.of(new JoiaMetadata.Clip(CLIP, "wave", null, List.of(), false, false, 1d, "wave.vrma", null, null, 1d,
                         List.of(), false, null, null)), null);
         Path joia = temp.resolve("anims.joia");
@@ -72,6 +72,7 @@ class RendererServerTest {
         JsonObject second = sequence.getAsJsonArray("steps").get(1).getAsJsonObject();
         assertThat(second.get("src").getAsInt()).isZero();
         assertThat(second.get("reverse").getAsBoolean()).isTrue();
+        assertThat(second.get("translation").getAsJsonArray()).hasSize(3);
         assertThat(second.get("blend").getAsDouble()).isEqualTo(0.5);
         // played once: the looping step does not loop
         assertThat(sequence.getAsJsonArray("steps").get(0).getAsJsonObject().get("loop").getAsBoolean()).isFalse();

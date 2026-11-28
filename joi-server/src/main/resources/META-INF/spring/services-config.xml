@@ -285,6 +285,8 @@
     <bean class="com.github.enerccio.joi.domain.service.impl.AnimationServiceImpl">
         <property name="repository" ref="animationRepository" />
     </bean>
+    <!-- the folders of the animation library (clips, animations): in the user setting, as Marginalia's book folders -->
+    <bean class="com.github.enerccio.joi.domain.service.impl.AnimationFolderServiceImpl" />
     <!-- the .joia of animations: exported with their clips, imported linking the clips the user has -->
     <bean class="com.github.enerccio.joi.domain.service.impl.JoiaServiceImpl" />
     <!-- converting an FBX or a BVH into clips with Blender (joi.blender, as for models); one Blender at a time -->

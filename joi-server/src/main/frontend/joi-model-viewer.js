@@ -11,9 +11,10 @@
 // playSequence(json) plays an animation, steps of VRMA clips at the "animation-src-N" URLs, on the model (now, or once it
 // is shown: a new model plays it again): each step loops or plays once, at its speed, in place or not (the hips keep
 // their spot on the floor, they only go up and down), forwards or backwards, turned by a quaternion around the hips
-// where it starts, and blended in from the step before over some seconds; the animation can start again after its
-// last step. setRotationTool(index) shows rings to turn a step (-1 hides them); "step-rotated" ({index, x, y, z, w})
-// fires when the mouse lets go of them.
+// where it starts, moved by an offset [x, y, z] in metres (in the model's space, after the turn), and blended in from
+// the step before over some seconds; the animation can start again after its last step. setRotationTool(index) shows
+// rings to turn a step (-1 hides them); "step-rotated" ({index, x, y, z, w}) fires when the mouse lets go of them.
+// setTranslationTool(index) shows arrows to move a step instead; "step-translated" ({index, x, y, z}) fires so too.
 // setMouth({aa, ih, ou, ee, oh}) sets the weights of the five visemes (her mouth while she speaks, from her voice: joi-lipsync.js);
 // they are applied each frame after the animation, so a clip does not take them over; null gives the mouth back.
 // setFace({eyes, ease, mood}) turns on her face layer (off until it is called: the dialogs that try expressions need none) and says
@@ -547,7 +548,7 @@ class JoiModelViewer extends HTMLElement {
   }
 
   /**
-   * Plays an animation, now or once a model is shown: {steps: [{src, loop, speed, inPlace, reverse, rotation, blend}], loop}, src the index of
+   * Plays an animation, now or once a model is shown: {steps: [{src, loop, speed, inPlace, reverse, rotation, translation, blend}], loop}, src the index of
    * its file in the "animation-src-N" attributes. The steps play in order; a looping step repeats until
    * finishAnimation(), then the steps after it play; a looping animation starts again after its last step, until
    * finished. It holds the last frame at the end.
@@ -561,6 +562,8 @@ class JoiModelViewer extends HTMLElement {
       inPlace: !!step.inPlace,
       reverse: !!step.reverse,
       rotation: Array.isArray(step.rotation) && step.rotation.length === 4 ? step.rotation.map(Number) : null,
+      translation: Array.isArray(step.translation) && step.translation.length === 3 && step.translation.every(v => Number.isFinite(Number(v)))
+        ? step.translation.map(Number) : null,
       blend: step.blend > 0 ? step.blend : 0
     })).filter(step => step.url);
     if (!steps.length) {
@@ -656,7 +659,7 @@ class JoiModelViewer extends HTMLElement {
         this._stepEvent();
       });
       this._playStep(0);
-      this._attachRotationTool();
+      this._attachStepTool();
       const duration = clips.reduce((sum, clip, i) => sum + clip.duration / animation.steps[i].speed, 0);
       this.dispatchEvent(new CustomEvent('animation-started', {detail: {duration: Number(duration.toFixed(3))}}));
     } catch (e) {
@@ -714,13 +717,16 @@ class JoiModelViewer extends HTMLElement {
     this.dispatchEvent(new CustomEvent('animation-step', {detail: {index: this._stepIndex, repeats: this._repeats}}));
   }
 
-  /** The clip of a step, from a copy of the clip as made: reversed, turned, held in place, as the step says. */
+  /** The clip of a step, from a copy of the clip as made: reversed, turned, moved, held in place, as the step says. */
   _prepareClip(clip, step, vrm) {
     if (step.reverse) {
       this._reverseClip(clip);
     }
     if (step.rotation) {
       this._rotateClip(clip, step.rotation, vrm);
+    }
+    if (step.translation) {
+      this._translateClip(clip, step.translation, vrm);
     }
     if (step.inPlace) {
       this._keepInPlace(clip, vrm);
@@ -755,22 +761,59 @@ class JoiModelViewer extends HTMLElement {
     }
   }
 
-  /** Shows the rings to turn the step at the index (of the animation playing), or hides them (-1). */
-  setRotationTool(index) {
-    this._rotationIndex = index >= 0 ? index : -1;
-    this._attachRotationTool();
+  /**
+   * Moves the whole clip by the offset [x, y, z] in metres: the hips' path at every key, in the space of the hips'
+   * parent (the model's, after the turn). A clip that does not move the hips gets a key of its own: the hips at rest,
+   * moved.
+   */
+  _translateClip(clip, translation, vrm) {
+    const hips = vrm.humanoid && vrm.humanoid.getNormalizedBoneNode('hips');
+    if (!hips) {
+      return;
+    }
+    const offset = new THREE.Vector3().fromArray(translation);
+    const moved = clip.tracks.find(t => t.name === hips.name + '.position');
+    if (moved && moved.values.length >= 3) {
+      const p = new THREE.Vector3();
+      for (let i = 0; i < moved.values.length; i += 3) {
+        p.fromArray(moved.values, i).add(offset).toArray(moved.values, i);
+      }
+      return;
+    }
+    const rest = this._restHipsPosition(vrm, hips);
+    clip.tracks.push(new THREE.VectorKeyframeTrack(hips.name + '.position', [0], rest.add(offset).toArray()));
   }
 
-  _attachRotationTool() {
+  /** Where the hips are at rest, in their parent. */
+  _restHipsPosition(vrm, hips) {
+    const pose = vrm.humanoid.normalizedRestPose;
+    const position = pose && pose.hips && pose.hips.position;
+    return position ? new THREE.Vector3().fromArray(position) : hips.position.clone();
+  }
+
+  /** Shows the rings to turn the step at the index (of the animation playing), or hides them (-1). */
+  setRotationTool(index) {
+    this._stepTool = index >= 0 ? {index, mode: 'rotate'} : null;
+    this._attachStepTool();
+  }
+
+  /** Shows the arrows to move the step at the index (of the animation playing), or hides them (-1). */
+  setTranslationTool(index) {
+    this._stepTool = index >= 0 ? {index, mode: 'translate'} : null;
+    this._attachStepTool();
+  }
+
+  _attachStepTool() {
     this._detachRotationTool();
-    const index = this._rotationIndex;
+    const chosen = this._stepTool;
+    const index = chosen ? chosen.index : -1;
     const vrm = this._vrm;
     const hips = vrm && vrm.humanoid && vrm.humanoid.getNormalizedBoneNode('hips');
     if (!(index >= 0) || !hips || !hips.parent || !this._clips || !this._animation || index >= this._clips.length) {
       return;
     }
     const step = this._animation.steps[index];
-    // a handle where the hips are as the step starts, in the hips' parent: its rotation is the step's
+    // a handle where the hips are as the step starts, in the hips' parent: its rotation (or its place) is the step's
     const handle = new THREE.Object3D();
     const moved = this._clips[index].tracks.find(t => t.name === hips.name + '.position');
     if (moved && moved.values.length >= 3) {
@@ -778,23 +821,36 @@ class JoiModelViewer extends HTMLElement {
     } else {
       handle.position.copy(hips.position);
     }
-    if (step.rotation) {
+    // where the hips start without the step's offset: the arrows move the handle from there
+    const base = handle.position.clone();
+    if (step.translation) {
+      base.sub(new THREE.Vector3().fromArray(step.translation));
+    }
+    if (step.rotation && chosen.mode === 'rotate') {
       handle.quaternion.fromArray(step.rotation).normalize();
     }
     hips.parent.add(handle);
     const tool = new TransformControls(this._camera, this._renderer.domElement);
-    tool.setMode('rotate');
-    // around the scene's axes: the Y ring always turns her around, whichever way she already faces
+    tool.setMode(chosen.mode);
+    // around (along) the scene's axes: the Y ring always turns her around, whichever way she already faces
     tool.setSpace('world');
     tool.attach(handle);
     tool.addEventListener('dragging-changed', e => {
       this._controls.enabled = !e.value;
     });
-    tool.addEventListener('objectChange', () => this._turnStep(index, handle.quaternion));
-    tool.addEventListener('mouseUp', () => {
-      const q = handle.quaternion;
-      this.dispatchEvent(new CustomEvent('step-rotated', {detail: {index, x: q.x, y: q.y, z: q.z, w: q.w}}));
-    });
+    if (chosen.mode === 'translate') {
+      tool.addEventListener('objectChange', () => this._moveStep(index, handle.position.clone().sub(base)));
+      tool.addEventListener('mouseUp', () => {
+        const t = handle.position.clone().sub(base);
+        this.dispatchEvent(new CustomEvent('step-translated', {detail: {index, x: t.x, y: t.y, z: t.z}}));
+      });
+    } else {
+      tool.addEventListener('objectChange', () => this._turnStep(index, handle.quaternion));
+      tool.addEventListener('mouseUp', () => {
+        const q = handle.quaternion;
+        this.dispatchEvent(new CustomEvent('step-rotated', {detail: {index, x: q.x, y: q.y, z: q.z, w: q.w}}));
+      });
+    }
     this._scene.add(tool.getHelper());
     this._rotationTool = {tool, handle};
   }
@@ -814,13 +870,32 @@ class JoiModelViewer extends HTMLElement {
     this._rotationTool = null;
   }
 
+  /** Makes the step's clip again with the new offset and plays it on from where it was. */
+  _moveStep(index, offset) {
+    const step = this._animation && this._animation.steps[index];
+    if (!step) {
+      return;
+    }
+    step.translation = offset.toArray();
+    this._remakeStep(index);
+  }
+
   /** Makes the step's clip again with the new rotation and plays it on from where it was. */
   _turnStep(index, quaternion) {
+    const step = this._animation && this._animation.steps[index];
+    if (!step) {
+      return;
+    }
+    step.rotation = quaternion.toArray();
+    this._remakeStep(index);
+  }
+
+  /** Makes the step's clip again as the step now is and plays it on from where it was. */
+  _remakeStep(index) {
     const step = this._animation && this._animation.steps[index];
     if (!step || !this._sources || !this._mixer || !this._vrm) {
       return;
     }
-    step.rotation = quaternion.toArray();
     const old = this._clips[index];
     const clip = this._prepareClip(this._sources[index].clone(), step, this._vrm);
     this._clips[index] = clip;

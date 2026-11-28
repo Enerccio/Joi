@@ -1,5 +1,6 @@
 package com.github.enerccio.joi.domain.model.impl.settings;
 
+import com.github.enerccio.joi.domain.animations.AnimationFolder;
 import com.github.enerccio.joi.domain.persona.MoodSetting;
 import com.github.enerccio.joi.domain.persona.PersonaAttributes;
 import com.github.enerccio.joi.domain.persona.PersonalitySetting;
@@ -146,6 +147,11 @@ public class JoiUserSetting extends BaseUserSetting implements PersonaAttributes
     @ExtendedAttribute
     @Transient
     private String personality;
+
+    /** The folders of the user's animation library: of clips and of animations ({@code AnimationFolderService}). */
+    @ExtendedAttribute(inject = true, injectPrefix = "animationFolders")
+    @Transient
+    private List<AnimationFolder> animationFolders = new ArrayList<>();
 
     /** The user's changes of the built-in personalities and their own ones, by key. */
     @ExtendedAttribute(inject = true, injectPrefix = "personalities")
@@ -340,6 +346,17 @@ public class JoiUserSetting extends BaseUserSetting implements PersonaAttributes
 
     public void setPersonality(String personality) {
         this.personality = personality;
+    }
+
+    public List<AnimationFolder> getAnimationFolders() {
+        if (animationFolders == null) {
+            animationFolders = new ArrayList<>();
+        }
+        return animationFolders;
+    }
+
+    public void setAnimationFolders(List<AnimationFolder> animationFolders) {
+        this.animationFolders = animationFolders == null ? new ArrayList<>() : new ArrayList<>(animationFolders);
     }
 
     public List<PersonalitySetting> getPersonalities() {

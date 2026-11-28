@@ -1,11 +1,14 @@
 package com.github.enerccio.joi.ui.workspace.parts;
 
 import com.github.enerccio.joi.domain.animations.AnimationStep;
+import com.github.enerccio.joi.domain.animations.AnimationFolder;
 import com.github.enerccio.joi.domain.animations.StepRotation;
+import com.github.enerccio.joi.domain.animations.StepTranslation;
 import com.github.enerccio.joi.domain.animations.VrmaTestFiles;
 import com.github.enerccio.joi.domain.bodies.ModelFiles;
 import com.github.enerccio.joi.domain.model.impl.Animation;
 import com.github.enerccio.joi.domain.model.impl.AnimationPack;
+import com.github.enerccio.joi.domain.service.AnimationFolderService;
 import com.github.enerccio.joi.domain.service.AnimationPackService;
 import com.github.enerccio.joi.domain.service.AnimationService;
 import com.github.enerccio.joi.domain.service.JoiaService;
@@ -38,6 +41,8 @@ class JoiaTest extends PlatformTestBase {
     @Autowired
     private AnimationPackService packService;
     @Autowired
+    private AnimationFolderService folderService;
+    @Autowired
     private AnimationService animationService;
     @Autowired
     private ModelService modelService;
@@ -66,7 +71,8 @@ class JoiaTest extends PlatformTestBase {
         jacks.setEyes("closed");
         jacks.setExpression("happy");
         jacks.setStepList(List.of(new AnimationStep(wave.getUuid(), false, 1, true, false),
-                new AnimationStep(bow.getUuid(), true, 1.5, false, true, StepRotation.fromDegrees(0, 90, 0), 0.5),
+                new AnimationStep(bow.getUuid(), true, 1.5, false, true, StepRotation.fromDegrees(0, 90, 0),
+                        StepTranslation.of(0.25, 0, -0.5), 0.5),
                 new AnimationStep(wave.getUuid(), false, 1, false, false)));
         jacks = packService.save(jacks);
         AnimationPack bowing = new AnimationPack();
@@ -126,6 +132,8 @@ class JoiaTest extends PlatformTestBase {
         assertThat(greeting.steps().get(1).speed()).isEqualTo(1.5);
         assertThat(greeting.steps()).extracting(JoiaMetadata.Step::reverse).containsExactly(false, true, false);
         assertThat(greeting.steps().get(1).rotation()).isEqualTo(StepRotation.fromDegrees(0, 90, 0));
+        assertThat(greeting.steps().get(1).translation()).containsExactly(0.25, 0.0, -0.5);
+        assertThat(greeting.steps().getFirst().translation()).isNull();
         assertThat(greeting.steps().get(1).blend()).isEqualTo(0.5);
     }
 
@@ -146,6 +154,8 @@ class JoiaTest extends PlatformTestBase {
         assertThat(greeting.steps().get(1).rotation()).isEqualTo(StepRotation.fromDegrees(0, 90, 0));
         assertThat(greeting.steps().get(1).blend()).isEqualTo(0.5);
         assertThat(greeting.steps().getFirst().rotation()).isNull();
+        assertThat(greeting.steps().get(1).translation()).containsExactly(0.25, 0.0, -0.5);
+        assertThat(greeting.steps().getFirst().translation()).isNull();
         assertThat(packService.findAllByName()).hasSize(4);
 
         // a deleted clip is added again, with a new uuid (the old one stays its deleted clip's)
@@ -166,6 +176,19 @@ class JoiaTest extends PlatformTestBase {
         JoiaService.Imported afterHardDelete = joiaService.importFile(copy());
         assertThat(afterHardDelete.clipsAdded()).isEqualTo(2);
         assertThat(animationService.findForUser(bow.getUuid())).isNotNull();
+    }
+
+    @Test
+    void anImportGoesIntoTheFolderOpen() throws Exception {
+        AnimationFolder imports = folderService.create(AnimationFolder.Kind.ANIMATIONS, "Imports", null);
+        AnimationPacksPart part = new AnimationPacksPart();
+        part.create();
+        part.getFolders().open(imports.getUuid());
+        part.importedForTest(copy(), "import.joia");
+        assertThat(folderService.animationsIn(imports.getUuid())).extracting(AnimationPack::getName)
+                .containsExactlyInAnyOrder("Greeting", "Bowing");
+        // the animations exported stay where they were
+        assertThat(folderService.animationsIn(null)).extracting(AnimationPack::getName).containsExactlyInAnyOrder("Greeting", "Bowing");
     }
 
     @Test

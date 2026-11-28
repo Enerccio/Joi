@@ -16,7 +16,7 @@ it is previewed on.
 ![An animation of two steps](../../images/animation-dialog.png)
 
 **Add animation** (or **New animation of this clip** from a clip) opens the dialog. Under **Steps**, **Add** clips from the
-library. Each step is a clip with how it plays there:
+library: the choice shows each clip with the path of its folder before its name. Each step is a clip with how it plays there:
 
 | Setting | Meaning |
 |---|---|
@@ -26,6 +26,7 @@ library. Each step is a clip with how it plays there:
 | **Reverse** | the clip plays backwards: sitting down played back is standing up, so one clip serves both |
 | **Blend in** | seconds of crossfade from the last frame of the step before, so two clips whose poses do not meet flow into each other |
 | **Rotation of the step** | the whole clip turned around her hips where the step starts, for a clip made facing or lying another way. Set it in degrees around X, Y and Z, or turn it in the preview with the rings on her hips (**Rotate in the preview**); **No rotation** resets it |
+| **Translation of the step** | the whole clip moved by an offset, after its rotation: for a clip made off the spot, or a step that has to start somewhere else (a sit on a chair beside her). Set it in metres along X (her left), Y (up) and Z (her front), or drag the arrows on her hips in the preview (**Move in the preview**, in place of the rings); **No translation** resets it |
 
 These settings belong to the step; the clip is never changed. A clip can be in several animations and steps, and the clip's own
 loop, speed and in-place are only what a new step starts from. Steps are moved up and down in the table, and removed with **Remove
@@ -55,8 +56,11 @@ deleted is no longer chosen.
 
 ## Export and import
 
+The Animations tab keeps the animations in folders, as the Clips tab does (see [Folders](index.md#folders)); a new animation goes
+into the folder you have open (the top level when none is), and so do the animations of an imported `.joia`.
+
 **Export selected** (on the Animations tab) downloads the checked animations with the clips they play, each clip once, as one
-**`.joia`** file. **Import .joia** adds the file's animations as new ones.
+**`.joia`** file. **Import .joia** adds the file's animations as new ones, into the folder open. The file keeps no folders.
 
 Clips are linked by their id: a clip you already have is linked and its copy skipped; any other is added to the library, so
 importing the same file again links it. A file that refers to a clip of another user is refused before anything is written.

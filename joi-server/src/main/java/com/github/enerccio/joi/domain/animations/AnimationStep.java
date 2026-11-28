@@ -22,10 +22,12 @@ import java.util.List;
  * @param reverse  whether it plays backwards (sitting down played back is standing up)
  * @param rotation the whole clip turned by this quaternion {@code [x, y, z, w]} around her hips where it starts (a
  *                 clip recorded facing another way, or lying the other way round), null for none
+ * @param translation the whole clip moved by this offset {@code [x, y, z]} in metres, in the model's space, after the
+ *                 rotation ({@link StepTranslation}), null for none
  * @param blend    seconds of crossfade from where the step before left her into this clip, 0 to cut
  */
 public record AnimationStep(String clip, boolean loop, double speed, boolean inPlace, boolean reverse,
-                            List<Double> rotation, double blend) {
+                            List<Double> rotation, List<Double> translation, double blend) {
 
     /** The longest blend, in seconds. */
     public static final double MAX_BLEND = 10;
@@ -34,12 +36,13 @@ public record AnimationStep(String clip, boolean loop, double speed, boolean inP
 
     public AnimationStep {
         rotation = StepRotation.normalized(rotation);
+        translation = StepTranslation.normalized(translation);
         blend = Double.isFinite(blend) ? Math.clamp(blend, 0, MAX_BLEND) : 0;
     }
 
-    /** A step not turned and not blended. */
+    /** A step not turned, not moved and not blended. */
     public AnimationStep(String clip, boolean loop, double speed, boolean inPlace, boolean reverse) {
-        this(clip, loop, speed, inPlace, reverse, null, 0);
+        this(clip, loop, speed, inPlace, reverse, null, null, 0);
     }
 
     /** A step of the clip, as the clip was set before steps had their own settings (else once, at speed 1). */
@@ -53,28 +56,33 @@ public record AnimationStep(String clip, boolean loop, double speed, boolean inP
     }
 
     public AnimationStep withLoop(boolean loop) {
-        return new AnimationStep(clip, loop, speed, inPlace, reverse, rotation, blend);
+        return new AnimationStep(clip, loop, speed, inPlace, reverse, rotation, translation, blend);
     }
 
     public AnimationStep withSpeed(double speed) {
-        return new AnimationStep(clip, loop, speed > 0 ? speed : 1, inPlace, reverse, rotation, blend);
+        return new AnimationStep(clip, loop, speed > 0 ? speed : 1, inPlace, reverse, rotation, translation, blend);
     }
 
     public AnimationStep withInPlace(boolean inPlace) {
-        return new AnimationStep(clip, loop, speed, inPlace, reverse, rotation, blend);
+        return new AnimationStep(clip, loop, speed, inPlace, reverse, rotation, translation, blend);
     }
 
     public AnimationStep withReverse(boolean reverse) {
-        return new AnimationStep(clip, loop, speed, inPlace, reverse, rotation, blend);
+        return new AnimationStep(clip, loop, speed, inPlace, reverse, rotation, translation, blend);
     }
 
     /** Turned by the quaternion {@code [x, y, z, w]}, null for none. */
     public AnimationStep withRotation(List<Double> rotation) {
-        return new AnimationStep(clip, loop, speed, inPlace, reverse, rotation, blend);
+        return new AnimationStep(clip, loop, speed, inPlace, reverse, rotation, translation, blend);
+    }
+
+    /** Moved by the offset {@code [x, y, z]} in metres, null for none. */
+    public AnimationStep withTranslation(List<Double> translation) {
+        return new AnimationStep(clip, loop, speed, inPlace, reverse, rotation, translation, blend);
     }
 
     public AnimationStep withBlend(double blend) {
-        return new AnimationStep(clip, loop, speed, inPlace, reverse, rotation, blend);
+        return new AnimationStep(clip, loop, speed, inPlace, reverse, rotation, translation, blend);
     }
 
     /** The steps in the JSON; empty for none or for JSON that can't be read. */
@@ -89,7 +97,7 @@ public record AnimationStep(String clip, boolean loop, double speed, boolean inP
             for (AnimationStep step : read == null ? List.<AnimationStep>of() : read) {
                 if (step != null && step.clip() != null) {
                     steps.add(new AnimationStep(step.clip(), step.loop(), step.speedOrDefault(), step.inPlace(), step.reverse(),
-                            step.rotation(), step.blend()));
+                            step.rotation(), step.translation(), step.blend()));
                 }
             }
             return steps;

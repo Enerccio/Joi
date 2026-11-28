@@ -29,6 +29,11 @@ public class AnimationPack extends ExtendableEntity {
     @Transient
     private String name;
 
+    /** The uuid of the folder of animations it is in ({@code AnimationFolder}), null for the top level. */
+    @ExtendedAttribute
+    @Transient
+    private String folder;
+
     /** What the pack is for, in the user's words. */
     @ExtendedAttribute
     @Transient
@@ -62,6 +67,15 @@ public class AnimationPack extends ExtendableEntity {
 
     public String getName() {
         return name;
+    }
+
+    /** The uuid of its folder, null for the top level (a folder that is gone is the top level too). */
+    public String getFolder() {
+        return folder;
+    }
+
+    public void setFolder(String folder) {
+        this.folder = folder;
     }
 
     public void setName(String name) {

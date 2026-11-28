@@ -148,16 +148,20 @@ public struct JoiaStep: Codable, Hashable, Sendable {
     public var reverse: Bool?
     /// A unit quaternion `[x, y, z, w]`.
     public var rotation: [Double]?
+    /// An offset `[x, y, z]` in metres, in the model's space, after the rotation.
+    public var translation: [Double]?
     /// Seconds of crossfade from the step before.
     public var blend: Double?
 
-    public init(clip: String, loop: Bool? = nil, speed: Double? = nil, inPlace: Bool? = nil, reverse: Bool? = nil, rotation: [Double]? = nil, blend: Double? = nil) {
+    public init(clip: String, loop: Bool? = nil, speed: Double? = nil, inPlace: Bool? = nil, reverse: Bool? = nil, rotation: [Double]? = nil,
+                translation: [Double]? = nil, blend: Double? = nil) {
         self.clip = clip
         self.loop = loop
         self.speed = speed
         self.inPlace = inPlace
         self.reverse = reverse
         self.rotation = rotation
+        self.translation = translation
         self.blend = blend
     }
 }

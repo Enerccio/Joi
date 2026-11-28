@@ -1503,7 +1503,10 @@ UI — nothing is deleted):
     sitting down played back is standing up, so one clip serves both), its **rotation** (a quaternion: the whole clip
     turned around her hips where the step starts, for a clip made facing or lying another way; set in degrees around
     X, Y, Z, in three.js's YXZ order, `StepRotation`, or with rotate rings on the hips in the preview,
-    TransformControls) and its **blend in** (seconds of crossfade from the last frame of the step before: two clips
+    TransformControls), its **translation** (an offset `[x, y, z]` in metres in the model's space, added to her hips at
+    every key after the rotation, for a clip made off the spot or a step that must start somewhere else; set in metres,
+    `StepTranslation`, or with the arrows of the same TransformControls in place of the rings; a clip that does not
+    move her hips gets a key at their rest place, moved) and its **blend in** (seconds of crossfade from the last frame of the step before: two clips
     whose poses don't meet, lying flat and then getting up half-sitting, flow into each other). These belong to the
     step, stored on the animation; the clip is never changed. A looping step repeats until the animation is **finished** (her state changes, she or
     the user stops it), then the steps after it play once: "jumping jacks" is the start once, the jumps looping, the
@@ -1511,14 +1514,25 @@ UI — nothing is deleted):
     their own, a wave and a nod, again and again. The clip's old loop, speed and in-place are only what a new step
     of it starts from. Two tabs: **Clips** uploads clips and lists the library (`AnimationsPart`; `AnimationDialog`
     edits a clip and plays it in a loop; a clip's **New animation** button makes an animation of it, named after it);
-    **Animations** (`AnimationPacksPart`, `AnimationPackDialog`) edits the steps in a table (loop, speed, in place, reverse, blend in; the rotation of the step chosen under it,
-    moved up and down) and plays the animation on open and on Play, Finish ending a looping step; a step chosen in the
+    **Animations** (`AnimationPacksPart`, `AnimationPackDialog`) edits the steps in a table (loop, speed, in place, reverse, blend in; the rotation and the translation of the step
+    chosen under it, moved up and down) and plays the animation on open and on Play, Finish ending a looping step; a step chosen in the
     table or in the strip of steps under the preview (`ClipPreview`, the step playing marked, with its rounds) plays
     alone. Both tables have checkboxes and Delete selected. A clip added to an animation appends its description to
     the animation's, on a line of its own. A clip can be in several animations and steps; deleting an animation keeps
     its clips, deleting a clip takes it out of its animations. Clips play in the three.js preview on any body of her
     assistants, in the state of its parts (`@pixiv/three-vrm-animation` retargets them; `joi-model-viewer.js`
     `playSequence` plays the steps, cut from one to the next with no blending yet).
+  - **Folders.** The lists are long, so clips and animations are kept in folders, as Marginalia's books: each tab has
+    folders of its own kind (`AnimationFolder`, `CLIPS` or `ANIMATIONS`), nested, the names of one parent unique (case
+    insensitive, no slash). The path of the folder open is above the table (the tab's name, the folders above to click
+    on, the folder in bold), its folders are the first rows (opened from their name; rename, move, delete), New folder
+    makes one in it, Move to a folder moves a row or the rows checked. A folder deleted moves what is in it to the
+    folder above (refused when a folder in it has the name of one there) or, chosen and confirmed with the numbers,
+    deletes all of it. An upload, a new animation and an imported `.joia` go into the folder open. Every choice of a
+    clip or an animation (a step's clip, her roles, a body's animations) shows the path before the name (`Idle /
+    Standing / Breathe`), sorted by it. Unlike Marginalia's table of folders, they are a list in the user setting and
+    an item names its folder by uuid (extended attributes): the database is frozen and nothing queries them in SQL
+    (`AnimationFolders`, `AnimationFolderService`, `ui/animations/LibraryFolders`). A `.joia` keeps no folders.
   - **Export and import (`.joia`, "Joi animations"):** Export selected in the Animations tab downloads the checked
     animations with the clips they play, each clip once, as one file (`JoiaService`; the container
     `protocol/joia/JoiaFile` and its metadata `JoiaMetadata` are in `joi-protocol`, documented in `joia.md`). Import

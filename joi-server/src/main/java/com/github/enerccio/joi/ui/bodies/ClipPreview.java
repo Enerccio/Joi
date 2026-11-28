@@ -140,6 +140,11 @@ public class ClipPreview extends VerticalLayout {
                 onStepRotated.accept(e.getRotation());
             }
         });
+        viewer.addStepTranslatedListener(e -> {
+            if (soloStep >= 0 && e.getIndex() == 0) {
+                onStepTranslated.accept(e.getTranslation());
+            }
+        });
         strip.addClassName(JoiCssStyles.ANIMATION_STRIP);
         strip.setWidthFull();
         strip.setVisible(false);
@@ -289,7 +294,7 @@ public class ClipPreview extends VerticalLayout {
 
     private static ModelViewer.PlayStep playStep(File file, AnimationStep step) {
         return new ModelViewer.PlayStep(file, step.loop(), step.speedOrDefault(), step.inPlace(), step.reverse(), step.rotation(),
-                step.blend());
+                step.translation(), step.blend());
     }
 
     /**
@@ -307,6 +312,23 @@ public class ClipPreview extends VerticalLayout {
     }
 
     private Consumer<List<Double>> onStepRotated = rotation -> {
+    };
+
+    /**
+     * Shows the arrows to move the step played alone (on, in place of the rings) or hides them; a move dragged there
+     * goes to {@link #setOnStepTranslated}.
+     */
+    public void setTranslationTool(boolean on) {
+        viewer.setTranslationTool(on ? 0 : -1);
+    }
+
+    /** What runs when the step played alone was moved in the viewer (its new offset in metres). */
+    public void setOnStepTranslated(Consumer<List<Double>> onStepTranslated) {
+        this.onStepTranslated = onStepTranslated == null ? translation -> {
+        } : onStepTranslated;
+    }
+
+    private Consumer<List<Double>> onStepTranslated = translation -> {
     };
 
     /** Lets a looping step end its round and the rest play once. */

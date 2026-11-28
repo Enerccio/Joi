@@ -1,13 +1,17 @@
 package com.github.enerccio.joi.ui.workspace.parts;
 
 import com.flowingcode.vaadin.addons.fontawesome.FontAwesome.Solid;
+import com.github.enerccio.joi.domain.animations.AnimationFolder.Kind;
 import com.github.enerccio.joi.domain.model.impl.AnimationPack;
 import com.github.enerccio.joi.domain.bodies.ModelFiles;
+import com.github.enerccio.joi.domain.service.AnimationFolderService;
 import com.github.enerccio.joi.domain.service.AnimationPackService;
 import com.github.enerccio.joi.domain.service.JoiaService;
 import com.github.enerccio.joi.domain.service.ModelService;
 import com.github.enerccio.joi.protocol.joia.JoiaFile;
 import com.github.enerccio.joi.loc.J_L;
+import com.github.enerccio.joi.ui.animations.FolderRow;
+import com.github.enerccio.joi.ui.animations.LibraryFolders;
 import com.github.enerccio.joi.ui.dialogs.AnimationPackDialog;
 import com.github.enerccio.joi.ui.workspace.WorkspacePart;
 import com.github.enerccio.marginalia.UIConstants;
@@ -23,6 +27,8 @@ import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.grid.Grid;
 import com.vaadin.flow.component.html.Anchor;
 import com.vaadin.flow.component.html.H4;
+import com.vaadin.flow.component.html.Span;
+import com.vaadin.flow.component.icon.VaadinIcon;
 import com.vaadin.flow.component.orderedlayout.FlexComponent;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
@@ -47,7 +53,9 @@ import java.util.Map;
  * checkboxes (Delete selected), the name, the description, how many steps and when it was added, Open and Delete (its
  * clips stay in the library); <i>Add animation</i> and Open show the {@link AnimationPackDialog} (steps of clips of the
  * library, previewed on a body). <i>Export selected</i> downloads the checked animations with their clips as a
- * {@code .joia}; <i>Import .joia</i> adds the animations of one, and its clips the library doesn't have yet.
+ * {@code .joia}; <i>Import .joia</i> adds the animations of one, and its clips the library doesn't have yet. The
+ * animations are in folders, as Marginalia's books ({@link LibraryFolders}); a new or imported one goes into the folder
+ * open.
  */
 @Configurable
 public class AnimationPacksPart implements WorkspacePart {
@@ -64,9 +72,14 @@ public class AnimationPacksPart implements WorkspacePart {
     @Autowired
     private ModelService modelService;
 
-    private Grid<AnimationPack> grid;
+    @Autowired
+    private AnimationFolderService folderService;
+
+    private Grid<FolderRow<AnimationPack>> grid;
+    private LibraryFolders folders;
     private Button addButton;
     private Button deleteSelectedButton;
+    private Button moveSelectedButton;
     private Button exportButton;
     private Anchor exportAnchor;
     private Upload importUpload;
@@ -76,11 +89,14 @@ public class AnimationPacksPart implements WorkspacePart {
     @Override
     public Component create() throws Exception {
         H4 title = new H4(loc.getValue(J_L.LABEL_ANIMATION_PACKS));
-        addButton = new Button(loc.getValue(J_L.LABEL_ADD_ANIMATION_PACK), Solid.PLUS.create(), e -> open(new AnimationPack()));
+        folders = new LibraryFolders(Kind.ANIMATIONS, loc.getValue(J_L.LABEL_ANIMATION_PACKS), this::refreshQuietly);
+        addButton = new Button(loc.getValue(J_L.LABEL_ADD_ANIMATION_PACK), Solid.PLUS.create(), e -> open(newPack()));
         addButton.setThemeName("primary");
         deleteSelectedButton = new Button(loc.getValue(L.LABEL_DELETE_SELECTED), Solid.TRASH.create(), e -> deleteSelected());
         deleteSelectedButton.setThemeName("error");
         deleteSelectedButton.setEnabled(false);
+        moveSelectedButton = new Button(loc.getValue(J_L.LABEL_MOVE_TO_FOLDER), Solid.FOLDER_OPEN.create(), e -> moveSelected());
+        moveSelectedButton.setEnabled(false);
         exportButton = new Button(loc.getValue(J_L.LABEL_EXPORT_JOIA), Solid.FILE_EXPORT.create());
         exportAnchor = new Anchor(exportHandler(), "");
         exportAnchor.getElement().setAttribute("download", true);
@@ -93,54 +109,88 @@ public class AnimationPacksPart implements WorkspacePart {
                 metadata -> ModelFiles.uploadFile(folder, metadata.fileName())));
         importUpload.setAcceptedFileTypes("." + JoiaFile.EXTENSION);
         importUpload.setUploadButton(new Button(loc.getValue(J_L.LABEL_IMPORT_JOIA), Solid.FILE_IMPORT.create()));
-        HorizontalLayout buttons = new HorizontalLayout(deleteSelectedButton, exportAnchor, importUpload, addButton);
+        HorizontalLayout buttons = new HorizontalLayout(deleteSelectedButton, moveSelectedButton, exportAnchor, importUpload,
+                folders.newFolderButton(), addButton);
         buttons.setAlignItems(FlexComponent.Alignment.CENTER);
+        // the buttons wrap under each other rather than run off a narrow window
+        buttons.setWrap(true);
+        buttons.setJustifyContentMode(FlexComponent.JustifyContentMode.END);
         HorizontalLayout header = new HorizontalLayout(title, buttons);
         header.setWidthFull();
         header.setAlignItems(FlexComponent.Alignment.CENTER);
         header.setJustifyContentMode(FlexComponent.JustifyContentMode.BETWEEN);
 
         DateFormat format = DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT);
-        grid = new Grid<>(AnimationPack.class, false);
+        grid = new Grid<>();
         grid.setSelectionMode(Grid.SelectionMode.MULTI);
+        // folders are opened, not checked
+        grid.setItemSelectableProvider(row -> !row.isFolder());
         grid.addSelectionListener(e -> {
             boolean any = !e.getAllSelectedItems().isEmpty();
-            checked = List.copyOf(e.getAllSelectedItems());
+            checked = e.getAllSelectedItems().stream().filter(row -> !row.isFolder()).map(FolderRow::item).toList();
             deleteSelectedButton.setEnabled(any);
+            moveSelectedButton.setEnabled(any);
             exportButton.setEnabled(any);
             exportAnchor.setEnabled(any);
         });
         grid.setSizeFull();
-        grid.addColumn(pack -> StringUtils.defaultIfBlank(pack.getName(), loc.getValue(J_L.LABEL_NEW_ANIMATION_PACK)))
+        grid.addComponentColumn(this::nameCell)
                 .setHeader(loc.getValue(L.LABEL_NAME))
                 .setFlexGrow(1);
-        grid.addColumn(pack -> StringUtils.abbreviate(StringUtils.defaultString(pack.getDescription()), 120))
+        grid.addColumn(row -> row.isFolder() ? "" : StringUtils.abbreviate(StringUtils.defaultString(row.item().getDescription()), 120))
                 .setHeader(loc.getValue(L.LABEL_DESCRIPTION))
                 .setFlexGrow(2);
-        grid.addColumn(pack -> pack.steps().size())
+        grid.addColumn(row -> row.isFolder() ? "" : String.valueOf(row.item().steps().size()))
                 .setHeader(loc.getValue(J_L.LABEL_ANIMATION_STEPS))
                 .setFlexGrow(0)
                 .setWidth("90px");
-        grid.addColumn(pack -> pack.getCreation() == null ? "" : format.format(pack.getCreation()))
+        grid.addColumn(row -> row.isFolder() || row.item().getCreation() == null ? "" : format.format(row.item().getCreation()))
                 .setHeader(loc.getValue(L.LABEL_CREATED))
                 .setFlexGrow(0)
                 .setWidth(UIConstants.DATE_COLUMN_SIZE);
-        grid.addComponentColumn(this::actions)
+        grid.addComponentColumn(row -> row.isFolder() ? folders.folderTools(row.folder()) : actions(row.item()))
                 .setHeader("")
                 .setFlexGrow(0)
-                .setWidth(UIConstants.TOOL_COLUMN_SIZE_TRIPLE);
-        grid.addItemDoubleClickListener(e -> open(e.getItem()));
+                .setWidth(UIConstants.TOOL_COLUMN_SIZE_GIANT);
+        grid.addItemDoubleClickListener(e -> {
+            if (e.getItem().isFolder()) {
+                folders.open(e.getItem().folder().getUuid());
+            } else {
+                open(e.getItem().item());
+            }
+        });
 
-        VerticalLayout layout = new VerticalLayout(header, grid);
+        VerticalLayout layout = new VerticalLayout(header, folders.getBreadcrumb(), grid);
         layout.setSizeFull();
         layout.setPadding(false);
         layout.setFlexGrow(1, grid);
         return layout;
     }
 
+    private Component nameCell(FolderRow<AnimationPack> row) {
+        if (row.isFolder()) {
+            return folders.folderName(row.folder());
+        }
+        HorizontalLayout name = new HorizontalLayout(VaadinIcon.FILM.create(),
+                new Span(StringUtils.defaultIfBlank(row.item().getName(), loc.getValue(J_L.LABEL_NEW_ANIMATION_PACK))));
+        name.setSpacing(true);
+        name.setPadding(false);
+        name.setAlignItems(FlexComponent.Alignment.CENTER);
+        return name;
+    }
+
+    /** A new animation, in the folder open (stored once it has a name or a clip). */
+    private AnimationPack newPack() {
+        AnimationPack pack = new AnimationPack();
+        pack.setFolder(folders.getCurrent());
+        return pack;
+    }
+
     private Component actions(AnimationPack pack) {
         Button openButton = new Button(Solid.FOLDER_OPEN.create(), e -> open(pack));
         openButton.setTooltipText(loc.getValue(L.LABEL_OPEN));
+        Button moveButton = new Button(Solid.FOLDER_TREE.create(), e -> folders.moveItems(target -> moveAnimations(List.of(pack), target)));
+        moveButton.setTooltipText(loc.getValue(J_L.LABEL_MOVE_TO_FOLDER));
 
         Button deleteButton = new Button(Solid.TRASH.create(), e ->
                 ConfirmDialog.show(loc.getValue(L.MSG_CONFIRM_DELETE), () -> {
@@ -154,14 +204,31 @@ public class AnimationPacksPart implements WorkspacePart {
         deleteButton.setThemeName("error tertiary");
         deleteButton.setTooltipText(loc.getValue(L.LABEL_DELETE));
 
-        HorizontalLayout actions = new HorizontalLayout(openButton, deleteButton);
+        HorizontalLayout actions = new HorizontalLayout(openButton, moveButton, deleteButton);
         actions.setSpacing(true);
         return actions;
     }
 
+    /** Moves the animations checked into the folder chosen. */
+    private void moveSelected() {
+        List<AnimationPack> selected = checked;
+        if (!selected.isEmpty()) {
+            folders.moveItems(target -> moveAnimations(selected, target));
+        }
+    }
+
+    private void moveAnimations(List<AnimationPack> animations, String folder) {
+        try {
+            folderService.moveAnimations(animations, folder);
+            grid.deselectAll();
+        } catch (Exception e) {
+            UIUtils.internalServerError(loc, e);
+        }
+    }
+
     /** Deletes the animations checked in the table, once confirmed (their clips stay). */
     private void deleteSelected() {
-        List<AnimationPack> selected = new ArrayList<>(grid.getSelectedItems());
+        List<AnimationPack> selected = new ArrayList<>(checked);
         if (selected.isEmpty()) {
             return;
         }
@@ -204,6 +271,7 @@ public class AnimationPacksPart implements WorkspacePart {
         }
         try {
             JoiaService.Imported imported = joiaService.importFile(file);
+            folderService.moveAnimations(imported.animations(), folders.getCurrent());
             refresh();
             Notification.success(String.format(loc.getValue(J_L.MSG_JOIA_IMPORTED), imported.animations().size(),
                     imported.clipsAdded(), imported.clipsLinked()));
@@ -226,7 +294,9 @@ public class AnimationPacksPart implements WorkspacePart {
 
     /** Checks animations in the table, for tests; the export then has them in the order given (a set's order is the hashes', and changes from run to run). */
     void checkForTest(List<AnimationPack> animations) {
-        grid.asMultiSelect().setValue(new java.util.LinkedHashSet<>(animations));
+        java.util.Set<FolderRow<AnimationPack>> rows = new java.util.LinkedHashSet<>();
+        animations.forEach(pack -> rows.add(FolderRow.ofItem(pack)));
+        grid.asMultiSelect().setValue(rows);
         checked = List.copyOf(animations);
     }
 
@@ -250,7 +320,7 @@ public class AnimationPacksPart implements WorkspacePart {
     @Override
     public void refresh() throws Exception {
         if (grid != null) {
-            grid.setItems(packService.findAllByName());
+            grid.setItems(folders.rows(folderService.animationsIn(folders.getCurrent())));
         }
     }
 
@@ -262,9 +332,19 @@ public class AnimationPacksPart implements WorkspacePart {
         }
     }
 
-    /** The grid of the packs, for tests. */
-    Grid<AnimationPack> getGrid() {
+    /** The grid of the folders and packs, for tests. */
+    Grid<FolderRow<AnimationPack>> getGrid() {
         return grid;
+    }
+
+    /** The folders of the tab, for tests. */
+    LibraryFolders getFolders() {
+        return folders;
+    }
+
+    /** A new animation as Add animation makes it (in the folder open), for tests. */
+    AnimationPack newPackForTest() {
+        return newPack();
     }
 
     @Override
