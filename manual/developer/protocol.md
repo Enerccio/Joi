@@ -8,7 +8,7 @@ covers:
   - joi-protocol/src/test/java/com/github/enerccio/joi/protocol/swift
   - joi-ios/Packages/JoiProtocol
   - joi-server/src/main/java/com/github/enerccio/joi/api/JoiAdminApi.java
-verified: 7664595
+verified: 8fac0c2
 ---
 
 # The protocol

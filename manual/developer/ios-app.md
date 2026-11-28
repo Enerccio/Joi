@@ -4,7 +4,7 @@ icon: device-mobile
 order: 765
 covers:
   - joi-ios
-verified: 7664595
+verified: 8fac0c2
 ---
 
 # The iOS app
@@ -111,7 +111,7 @@ The app's own code, so that it builds and is tested on the Mac: SwiftUI and the 
   The `expression` frame (`ShowExpression`, 1.15) goes to the open page only (`showExpression`).
 - **Her stance.** The `stance` frame (`StanceState`, 1.17) is kept as `ChatModel.heldStance`; `bodyShown` hands it to `AvatarDirector.stance` when the body
   shown has the animation (`AnimationPlayer.has`), else nil, and `RendererBridge.onShown` (set by `AppModel`) calls it again for each body shown. The director
-  loops it in place of idle and talking, as the Java one.
+  loops it in place of idle and talking and ignores a gesture meanwhile (`gesture` returns early), as the Java one.
 - **Her body.** `AvatarModel` loads it: `GET .../body`, her `.joim` and `.joia` downloaded into the caches folder (`joi-body`, by hash; what she wore before is
   cleaned away), unpacked in `BodyFiles` (a folder `<hash>-joim` with `model.vrm`, a folder `<hash>-joia` with `<index>.vrma`, each with the marker `.unpacked`) off the main
   thread, and shown. The server's `event` named `body` loads it again, `joi` reads her animation roles again (`ChatModel.onServerEvent`, wired in `AppModel`). The page is the
