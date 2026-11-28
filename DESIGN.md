@@ -1615,6 +1615,23 @@ UI — nothing is deleted):
     when she is awake. A body that does not have the animation (she moved into another one) plays as with no stance;
     the node checks again when a body is shown.
   - Clips that leave the frame (a jump, a full-body dance) ask for a wider shot, so the camera follows.
+  - **Generated clips (idea, 2026-11-28, not built).** Text-to-motion models can make new clips ("a slow sway, arms
+    loose"), but not in real time on one GPU: the voice lock already holds her chat model and the TTS model. So it is a
+    **library job**, like a conversion: queued, run under its own GPU lock (taking it releases the voice lock, as a
+    delegated task does; her voice comes back with the next reply), and the result becomes an ordinary clip in the
+    open folder (or a "Generated" one), named after the prompt. She plays it like any other clip; nothing is generated
+    while she talks. The way in: generate the motion, write it as BVH, and hand it to the conversion that exists (BVH →
+    VRMA through Blender and the VRM add-on), so the retargeting to her humanoid is the add-on's.
+    - **Candidates.** NVIDIA's **Kimodo**: about 17 GB on the GPU, but its text encoder (LLM2Vec) can run on the CPU
+      (`TEXT_ENCODER_DEVICE=cpu`, under 3 GB on the GPU) or as a server of its own; it takes constraints besides the text
+      (full-body keyframes, hand and foot targets, a root path on the ground), so a dance can stay in place and a loop can
+      end in its first pose; its output is NPZ on the SOMA skeleton (77 joints). Tencent's **HY-Motion 1.0** (1B, or 0.46B
+      Lite) asks 26 GB (24 GB Lite), nearly all of it its Qwen3-8B text encoder kept loaded next to the motion model,
+      and takes only text and a length; encoding first and freeing the encoder would bring it far down, but that is a
+      fork of its code.
+    - **Open:** the licenses of the weights (Kimodo's are NVIDIA Open Model / R&D Model licenses, not read yet); how well
+      SOMA → BVH → VRM retargets (to try with one clip by hand before anything is built); whether she may ask for a clip
+      herself (a task the user approves) or only the user in the Clips tab.
   - **Animation viewer and editor:** a dialog like the model's, with the clip played on a chosen body in the three.js
     preview (play, pause, scrub, loop, speed, the camera presets). Its edits are kept on the clip, never in the file:
     the name, the description, the tags, a trim (start, end, loop points), the speed, and which layer it plays on
@@ -2596,6 +2613,9 @@ extension JARs and the image; `desktop.yml`: the app per platform). Built; the W
 **The iOS app** (planned 2026-11-22, see *Mobile companion node*): a native Swift node, its protocol types generated from the JSON Schemas; stage 1 is the generator, pairing, chat, speech and her body in a WebView. Not part of the first production version.
 
 ## Open decisions
+
+- **Generated clips:** which text-to-motion model (Kimodo or HY-Motion), its license, and whether the SOMA → BVH → VRM
+  retarget is good enough (see Bodies → Generated clips).
 
 - **iOS:** whether the Vocal Shortcut is reliable enough for "Hey Joi" (else our own always-listening mode); how a self-hosted
   server reaches APNs (a relay, or the user's own key); whether `Resume` covers a tool result after a reconnect.
