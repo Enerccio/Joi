@@ -166,6 +166,25 @@ ARM host, build it for x86-64 (`platform: linux/amd64` in `docker-compose.yml`, 
 Leave Blender (about 1 GB) or ffmpeg out with `--build-arg WITH_BLENDER=false` or `--build-arg WITH_FFMPEG=false` (in the compose
 file: `build: args:`). `BLENDER_VERSION` is the version of Blender, 5.2.1 now.
 
+### When a conversion says the VRM add-on could not be loaded
+
+The add-on lives in Blender's user folder in the image (`BLENDER_USER_RESOURCES`, `/opt/blender-user`), owned by the `jetty` user the
+server runs as. The error says the Blender version, the folder it looked in and why. To see it for yourself, run the same check as the
+server, as its user:
+
+```bash
+docker exec -u jetty joi-server blender -b --factory-startup --python-expr "import bpy, addon_utils; bpy.ops.wm.read_factory_settings(use_empty=True); m = addon_utils.enable('bl_ext.blender_org.vrm', default_set=True); print('VRM CHECK', bpy.app.version_string, bpy.utils.resource_path('USER'), m is not None, hasattr(bpy.types.Armature, 'vrm_addon_extension'))"
+```
+
+The line `VRM CHECK ... True True` means the add-on loads; the lines before it show the error when it does not. What is installed and who owns it:
+
+```bash
+docker exec -u jetty joi-server sh -c 'echo "$BLENDER_USER_RESOURCES"; ls -la "$BLENDER_USER_RESOURCES/extensions/blender_org"'
+```
+
+Blender's last lines of a failed conversion are in the server's log too: `docker logs joi-server 2>&1 | grep -A 60 "Blender's output"`.
+Rebuilding the image (`docker compose build --no-cache`) installs the add-on again.
+
 ## Backups
 
 Everything is in the data folder, and the key in it (`secret.key`) is what decrypts your stored secrets, so a database without

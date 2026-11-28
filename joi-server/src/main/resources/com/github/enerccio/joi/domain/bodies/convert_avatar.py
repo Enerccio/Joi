@@ -76,18 +76,45 @@ def load_config():
         return json.load(f)
 
 
+
+def enable_vrm_addon():
+    """Enables the VRM add-on, or fails saying why. addon_utils.enable does not raise when the add-on can't be loaded (it
+    returns None and prints the error), and bpy.ops answers any name, so neither tells by itself: what the add-on registers
+    on an armature does."""
+    errors = []
+    try:
+        module = addon_utils.enable(ADDON, default_set=True, handle_error=errors.append)
+    except Exception as e:
+        module = None
+        errors.append(e)
+    if module is None or not hasattr(bpy.types.Armature, "vrm_addon_extension"):
+        if errors:
+            why = "%s: %s" % (type(errors[-1]).__name__, errors[-1])
+        elif module is None:
+            why = "it is not installed for this Blender and user folder"
+        else:
+            why = "it was loaded but did not register its properties"
+        raise RuntimeError("the VRM add-on (VRM format, extensions.blender.org) could not be loaded in Blender %s "
+                           "(user folder %s): %s" % (bpy.app.version_string, bpy.utils.resource_path("USER"), why))
+
+
+def has_operator(group, name):
+    """Whether the operator exists: bpy.ops.<group>.<name> is there for any name, its RNA type only for a real one."""
+    try:
+        getattr(getattr(bpy.ops, group), name).get_rna_type()
+        return True
+    except (KeyError, AttributeError):
+        return False
+
 def triangles(obj):
     return sum(len(p.vertices) - 2 for p in obj.data.polygons)
 
 
 def import_fbx(path):
     bpy.ops.wm.read_factory_settings(use_empty=True)
-    try:
-        addon_utils.enable(ADDON, default_set=True)
-    except Exception as e:
-        raise RuntimeError("the VRM add-on (VRM format, extensions.blender.org) is not installed in this Blender") from e
-    if not hasattr(bpy.ops.export_scene, "vrm"):
-        raise RuntimeError("the VRM add-on (VRM format, extensions.blender.org) is not installed in this Blender")
+    enable_vrm_addon()
+    if not has_operator("export_scene", "vrm"):
+        raise RuntimeError("the VRM add-on in this Blender can't export VRM: update it")
     bpy.ops.import_scene.fbx(filepath=path)
     armatures = [o for o in bpy.data.objects if o.type == "ARMATURE"]
     if not armatures:

@@ -75,11 +75,12 @@ RUN if [ "$WITH_FFMPEG" = "true" ]; then \
 # built for x86_64 only: on another architecture (an Apple silicon host) the image is made without it and says so;
 # build for x86_64 there with --platform linux/amd64 (emulated, slow). Without it the conversions fail and an upload of
 # finished models (.joim) still works. The add-on is installed from extensions.blender.org into the user folder of
-# Blender (BLENDER_USER_RESOURCE), which the jetty user owns. Build without Blender (about 1 GB smaller) with
+# Blender (BLENDER_USER_RESOURCES, the name Blender reads: with any other name it uses the home folder of whoever runs it, and the
+# server, which runs as jetty, would not find what root installed), which the jetty user owns; the check runs as jetty, as the server does. Build without Blender (about 1 GB smaller) with
 # --build-arg WITH_BLENDER=false
 ARG WITH_BLENDER=true
 ARG BLENDER_VERSION=5.2.1
-ENV BLENDER_USER_RESOURCE=/opt/blender-user
+ENV BLENDER_USER_RESOURCES=/opt/blender-user
 RUN if [ "$WITH_BLENDER" != "true" ]; then \
         echo "Blender is left out (WITH_BLENDER=$WITH_BLENDER)"; \
     elif [ "$(uname -m)" != "x86_64" ]; then \
@@ -100,10 +101,10 @@ RUN if [ "$WITH_BLENDER" != "true" ]; then \
         mkdir /opt/blender && tar -xJf "/tmp/${archive}" -C /opt/blender --strip-components=1 && rm "/tmp/${archive}"; \
         ln -s /opt/blender/blender /usr/local/bin/blender; \
         if ldd /opt/blender/blender | grep "not found"; then echo "Blender misses libraries"; exit 1; fi; \
-        mkdir -p "$BLENDER_USER_RESOURCE"; \
+        mkdir -p "$BLENDER_USER_RESOURCES"; \
         blender --online-mode -b --factory-startup --command extension install --sync --enable vrm; \
-        blender -b --factory-startup --python-expr "import addon_utils; m = addon_utils.enable('bl_ext.blender_org.vrm', default_set=False); assert m is not None; print('VRM add-on ok')" | grep "VRM add-on ok"; \
-        chown -R jetty:jetty "$BLENDER_USER_RESOURCE"; \
+        chown -R jetty:jetty "$BLENDER_USER_RESOURCES"; \
+        setpriv --reuid=jetty --regid=jetty --init-groups blender -b --factory-startup --python-expr "import os, bpy, addon_utils; bpy.ops.wm.read_factory_settings(use_empty=True); m = addon_utils.enable('bl_ext.blender_org.vrm', default_set=True); assert os.path.realpath(bpy.utils.resource_path('USER')).startswith(os.path.realpath(os.environ['BLENDER_USER_RESOURCES'])), bpy.utils.resource_path('USER'); assert m is not None and hasattr(bpy.types.Armature, 'vrm_addon_extension'); print('VRM add-on ok')" | grep "VRM add-on ok"; \
     fi
 
 USER jetty
