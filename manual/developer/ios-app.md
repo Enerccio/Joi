@@ -46,7 +46,7 @@ The client of a server, on `JoiProtocol`. It has no UI and uses only Foundation 
   address the app knows. A hash that is not 64 hex digits is refused (it names a file of the cache).
 - **`Body/`**: the containers. `CBOR` is a small reader (RFC 8949) for the metadata, into `JSONValue`. `SectionStream` reads the sections of a `.joim` / `.joia` as
   a stream (kind, length, SHA-256, data); a section's data is copied to a file in blocks while it is hashed, and a section that does not match leaves no file.
-  `JoimFile.read` gives the model's VRM, `JoiaFile.read` the animations (`JoiaAnimation`, `JoiaStep`: loop, speed, in place, reverse, rotation, blend) and the clips,
+  `JoimFile.read` gives the model's VRM, `JoiaFile.read` the animations (`JoiaAnimation`, `JoiaStep`: loop, speed, in place, reverse, rotation, translation, blend) and the clips,
   one file each. The format is `joim.md` / `joia.md` in joi-protocol; a newer major version is refused, a kind it does not know is skipped.
 
 ## `JoiApp`
