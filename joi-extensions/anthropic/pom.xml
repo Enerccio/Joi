@@ -20,7 +20,7 @@
         <maven.compiler.source>25</maven.compiler.source>
         <maven.compiler.target>25</maven.compiler.target>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <vaadin.version>25.2.3</vaadin.version>
+        <vaadin.version>25.3.6</vaadin.version>
         <anthropic-java.version>3.3.0</anthropic-java.version>
     </properties>
 
