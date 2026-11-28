@@ -45,8 +45,15 @@ context). When a day ends, `DAY_ROLL` summarizes what is left of it and then:
 - `QUIET`: no message for the pause time, the unsummarized messages hold something other than the answers to summaries
   (`node.summary_created`), and no task of hers is `QUEUED`, `RUNNING` or `WAITING`.
 - `AUTO`: on, and the tokens of the unsummarized messages pass the limit; the oldest are summarized until about half of the limit is left,
-  never the newest message. The limit is at most the context of her chat model.
-  A message counts its words (characters / 4) and the user's images (`SummarizerServiceImpl.tokens`). An image counts by its pixels with
+  never the newest message. When her chat model says how long its context is, the limit is at most `historyContext` (60 % of it,
+  `JoiDefaults.HISTORY_SUMMARY_PERCENT`), and `AUTO` is on at that limit even when the user did not turn it on: the history has no count
+  of messages, so the context bounds it (`SummarizerServiceImpl.config`).
+- `CONTEXT`: never planned. A turn that would overfill the context asks for it (`SummarizerService.makeRoom`, see Chat turn). It is not put in
+  the queue, because the queue's jobs first wait for her turn to end (`awaitIdle`) and that would never happen. It runs on the summarizer's
+  executor as an administrator's job, under the lock per assistant that the queue's jobs take after their wait (`SummarizerServiceImpl.lock`),
+  so the two never write side by side, and a queued job that wakes up after it finds itself not due. It summarizes like `AUTO` (origin
+  `auto`) but does not tell her: the future completes with the texts of `SUMMARY_EVENT`, which the turn gives her with its words.
+- A message counts its words (characters / 4) and the user's images (`MessageTokens.of`, also used by the turn's check). An image counts by its pixels with
   Marginalia's `EstimatedImageTokenizer` (750 pixels a token, as sent). The estimate is worked out once when the message is stored
   (`StoreStep`, `ChatImageService.tokens`) and kept on it (`ChatMessage.imageTokens`, an extended attribute), so the trigger reads no file.
   When notes were written for a model that cannot see, the notes' characters count instead. An older message without the estimate counts

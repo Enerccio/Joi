@@ -34,6 +34,13 @@ public final class TurnProperties {
     public static final String SHOWN_IMAGES = "joi.shownImages";
     /** The pictures of her tools' results shown to her in this turn ({@code List<String>} of image uuids), kept with her message. */
     public static final String TOOL_IMAGES = "joi.toolImages";
+    /**
+     * What she is told of the summaries the turn made because her history would not fit her chat model's context ({@code List<String>},
+     * from {@code SummarizerService.makeRoom}): given to her before the words of the turn and stored with them.
+     */
+    public static final String SUMMARY_EVENTS = "joi.summaryEvents";
+    /** Set ({@code Boolean.TRUE}) once the turn asked for room in her context: it asks once. */
+    public static final String ROOM_ASKED = "joi.roomAsked";
     /** How the turn went ({@link TurnOutcome}), at {@link TurnEvents#AFTER_CLEANUP}. */
     public static final String OUTCOME = "joi.outcome";
 

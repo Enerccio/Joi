@@ -38,6 +38,16 @@ public class JoiDefaults {
 
     /** The tokens of unsummarized messages after which she summarizes the oldest of them, when she does so on her own. */
     public static final int AUTO_SUMMARY_TOKENS = 16000;
+    /**
+     * The share of her chat model's context (percent) her history may take before its oldest messages are summarized, whether she
+     * summarizes on her own when the conversation grows or not; the rest is her system prompt and her reply.
+     */
+    public static final int HISTORY_SUMMARY_PERCENT = 60;
+    /**
+     * The share of her chat model's context (percent) past which a prompt leaves out the oldest messages of her history: only until
+     * the summary of them is written (it starts at {@link #HISTORY_SUMMARY_PERCENT}).
+     */
+    public static final int HISTORY_PROMPT_PERCENT = 80;
 
     private static final JoiDefaults ENGLISH = new JoiDefaults();
 

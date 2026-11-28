@@ -60,6 +60,14 @@ public interface SummarizerService {
      */
     CompletableFuture<Void> settle(Joi joi);
 
+    /**
+     * Summarizes the oldest messages of her history now, from inside her turn, because her history would not fit her chat model's
+     * context: the messages that leave about half of what she may keep, never the newest. It does not wait for her to be idle (the
+     * jobs of the queue do) and does not tell her: it completes with what she is told of each summary made, which the turn gives her
+     * with its words. Completes with none when there is nothing to summarize, and exceptionally when it failed.
+     */
+    CompletableFuture<List<String>> makeRoom(Joi joi);
+
     /** Calls the watcher whenever the summaries or the jobs of the assistant change. Remove it when its owner goes away. */
     Registration watch(Joi joi, Runnable onChange) throws Exception;
 }

@@ -1,6 +1,8 @@
 package com.github.enerccio.joi.domain.chat.turn.impl;
 
-import com.github.enerccio.joi.domain.chat.ChatService;
+import com.github.enerccio.joi.defaults.JoiDefaults;
+import com.github.enerccio.joi.domain.summary.MessageTokens;
+import com.github.enerccio.marginalia.domain.model.impl.AI;
 import com.github.enerccio.joi.domain.chat.MessageStamps;
 import com.github.enerccio.joi.domain.model.impl.Joi;
 import com.github.enerccio.joi.domain.persona.JoiPromptField;
@@ -27,8 +29,14 @@ import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 
-/** Her system prompt, the latest messages no summary covers ({@link ChatService#HISTORY}) and what the user said. */
+/**
+ * Her system prompt, every message no summary covers and what the user said. Her history has no count: when the prompt would pass
+ * {@link JoiDefaults#HISTORY_PROMPT_PERCENT} of her chat model's context, the turn has the oldest messages summarized first
+ * ({@code SummarizerService.makeRoom}), waits for it and builds the prompt again, and she is told of the summaries with the words.
+ */
 public class PayloadStep extends TurnStepBase {
+
+    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(PayloadStep.class);
 
     @Autowired
     private PersonaService personaService;
@@ -55,14 +63,23 @@ public class PayloadStep extends TurnStepBase {
                 controller.getTemplateData());
         List<LLMChatMessage> payload = new ArrayList<>();
         payload.add(LLMChatMessage.of(LLMRole.SYSTEM, system));
-        // one more than the prompt holds: the message before the first one decides whether that one gets a time line
-        // what a summary covers is in her system prompt instead, so the history starts where the summaries end
-        List<ChatMessage> window = chatMessageService.findLatestExchangesSince(joi, summarizerService.coveredUpTo(joi), ChatService.HISTORY + 1);
-        Date previous = null;
-        if (window.size() > ChatService.HISTORY) {
-            previous = window.getFirst().getSentAt();
-            window = window.subList(1, window.size());
+        // what a summary covers is in her system prompt instead, so the history starts where the summaries end; it has no count, so it
+        // stays the same from turn to turn (the cache of the prompt keeps it) until a summary is made
+        List<ChatMessage> window = chatMessageService.findLatestExchangesSince(joi, summarizerService.coveredUpTo(joi), Integer.MAX_VALUE);
+        if (!Boolean.TRUE.equals(controller.getProperties().get(TurnProperties.ROOM_ASKED)) && overfills(controller, system, window)) {
+            // it would not fit her chat model's context: the oldest are summarized now, then the prompt is made again (once)
+            controller.getProperties().put(TurnProperties.ROOM_ASKED, Boolean.TRUE);
+            summarizerService.makeRoom(joi).whenComplete((events, error) -> controller.wrapCallback(() -> {
+                if (error != null) {
+                    log.warn("Her history could not be summarized to fit the context: {}", error.getMessage(), error);
+                } else if (!events.isEmpty()) {
+                    controller.getProperties().put(TurnProperties.SUMMARY_EVENTS, List.copyOf(events));
+                }
+                controller.jumpTo(TurnStepType.PAYLOAD);
+            }).run());
+            return;
         }
+        Date previous = null;
         // the first message of the prompt always has its time line, so she knows the day; the others when a pause was
         // before them, see MessageStamps
         boolean first = true;
@@ -82,7 +99,7 @@ public class PayloadStep extends TurnStepBase {
         }
         // what was said now: its time line, and the memories that fit it after it (they are not stored, so they are in
         // this prompt only; the always recalled ones are in the system prompt)
-        String said = controller.getInput().text();
+        String said = inputText(controller);
         StringBuilder text = new StringBuilder(MessageStamps.stamped(personaService, joi, said, controller.getSent(), previous, first));
         List<String> images = controller.getInput().images();
         List<String> notes = List.of();
@@ -110,6 +127,37 @@ public class PayloadStep extends TurnStepBase {
         payload.add(withImages(LLMChatMessage.of(LLMRole.USER, text.toString()), joi, images, notes, sees));
         controller.setPayload(payload);
         controller.emitEvent(TurnEvents.AFTER_PREPARE_PAYLOAD, controller::next);
+    }
+
+    /**
+     * The words of the turn as she gets them and as they are stored: what she is told of the summaries the turn made first, if any,
+     * then the input.
+     */
+    public static String inputText(TurnController controller) {
+        @SuppressWarnings("unchecked")
+        List<String> events = (List<String>) controller.getProperties().get(TurnProperties.SUMMARY_EVENTS);
+        String input = controller.getInput().text();
+        if (events == null || events.isEmpty()) {
+            return input;
+        }
+        String told = String.join("\n\n", events);
+        return StringUtils.isBlank(input) ? told : told + "\n\n" + input;
+    }
+
+    /**
+     * Whether the prompt (her system prompt, the history, the words and images of the turn; about, see {@link MessageTokens}) would pass
+     * {@link JoiDefaults#HISTORY_PROMPT_PERCENT} of her chat model's context; never when the model does not say how long it is, or
+     * with no history to summarize.
+     */
+    private boolean overfills(TurnController controller, String system, List<ChatMessage> window) throws Exception {
+        AI ai = controller.getAi();
+        if (ai == null || ai.getMaxContext() == null || ai.getMaxContext() <= 0 || window.size() < 2) {
+            return false;
+        }
+        long budget = (long) ai.getMaxContext() * JoiDefaults.HISTORY_PROMPT_PERCENT / 100;
+        long tokens = (StringUtils.length(system) + StringUtils.length(controller.getInput().text()) + MessageTokens.CHARS_PER_TOKEN - 1)
+                / MessageTokens.CHARS_PER_TOKEN + MessageTokens.of(window) + chatImageService.tokens(controller.getInput().images());
+        return tokens > budget;
     }
 
     /**

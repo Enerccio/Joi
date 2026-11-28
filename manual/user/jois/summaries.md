@@ -21,7 +21,8 @@ summary covers the shorter ones inside it, so a week shows as one week, not as s
 | When | What is summarized |
 |---|---|
 | **After a pause**: nobody wrote for the *Summarize after a pause* time (45 minutes by default) and no task of hers is open | the conversation since the last summary. A day can have several of these, the parts of the day. |
-| **When the conversation grows**, if you turn on *Summarize on her own when the conversation grows* | when the messages no summary covers pass the tokens you set, the oldest of them are summarized, so about half of the limit is left. The limit is at most the context of her chat model. Your pictures count too, by their size: a full-size picture is about 2,500 to 3,300 tokens. |
+| **When the conversation grows**, if you turn on *Summarize on her own when the conversation grows* | when the messages no summary covers pass the tokens you set, the oldest of them are summarized, so about half of the limit is left. The limit is at most 60 % of the context of her chat model. Your pictures count too, by their size: a full-size picture is about 2,500 to 3,300 tokens. |
+| **Before her context fills up**, always, when her chat model's settings say how long its context is | the same, at 60 % of the context, even with the setting above off. If a message would make her prompt pass 80 % of it, her answer waits: the oldest messages are summarized first, and she is told about the summary together with your message. |
 | **A day ends** (at the time the day changes, 04:00 by default) | what is left of the day is summarized, and all the parts of the day become **one** day summary. A day with one part only takes that part for the whole day. |
 | **A week, a month or a year ends** | the summaries of its time become one, at the time of day you set (*Week summary at*, *Month summary at*, *Year summary at*; 05:00 by default). |
 | **You ask for it** | the messages you checked, see below. |

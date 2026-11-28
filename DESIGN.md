@@ -566,9 +566,33 @@ run by `ChatServiceImpl`). Marginalia's agent runner is not used.
     are added to the current message from the template `RECALLED_MEMORIES`, in that prompt only: they change with
     every message, so they are not in the system prompt.
   - **The history starts where the summaries end (built).** Her summaries are in the system prompt (`{{#summaries}}`,
-    `SummarizerService.prompt`) and the history is the latest `ChatService.HISTORY` messages **no summary covers**
-    (`findLatestExchangesSince`). A summary comes in steps: after a pause, or when the unsummarized messages pass the limit
-    and then only the oldest half of them, never one a turn, so the prefix the cache keeps moves rarely.
+    `SummarizerService.prompt`) and the history is **every message no summary covers** (`findLatestExchangesSince`), with no
+    count. A count made the history a sliding window: past it, every turn dropped the oldest message, so everything after the
+    system prompt changed and a model server with a prompt cache (llama.cpp, the more so with SWA or hybrid models, which can only
+    go back to a checkpoint) processed the whole history again on every turn. Now the history changes only when a summary is made.
+    A summary comes in steps: after a pause, or when the unsummarized messages pass the limit and then only the oldest half of
+    them, never one a turn, so the prefix the cache keeps moves rarely.
+  - **The context bounds the history (built).** When her chat model says how long its context is, the oldest messages are
+    summarized once the history passes 60 % of it (`HISTORY_SUMMARY_PERCENT`), even when she does not summarize on her own when
+    the conversation grows (the user's limit is used when it is lower). The summaries are made between turns. **A turn that would
+    overfill the context** (the prompt past 80 %, `HISTORY_PROMPT_PERCENT`; the rest is the functions and her reply) has the oldest
+    summarized first, from inside the turn (`SummarizerService.makeRoom`, the job `CONTEXT`: not through the queue, whose jobs wait
+    for her turn to end, but under the same lock per assistant), waits for it and makes the prompt again; she is told of the
+    summaries **with the words of that turn** (before them, and stored with them), not in a turn after. A model whose context is
+    not known has no bound but her summaries' settings.
+  - **Her tool results in the history: per tool (decided 2026-11-28, not built).** Today the history replays only the words of each
+    exchange (and the user's images); the tool calls and their results are stored (`ChatMessage.toolCalls`) but given to the model
+    only in their turn. Some results matter later (a part of a book she read with `marginalia_read_part`, a file she read), most do
+    not (`play_animation`, `set_outfit`, `notify`). So **each tool says whether its result stays**: a value declared with the tool,
+    off by default, on for the tools that read something. Not an annotation: Joi's own functions are `FunctionDefinition.dynamic`
+    lambdas (no method to annotate), an extension's are `ExtensionTool` records, a node's come in the manifest; so it is a field of
+    each (`ServerTool` / its metadata and the definitions of Joi's tools, `ExtensionTool`, an optional field of a node's tool in the
+    manifest). The user can change it per tool where its permission is set. **The choice is stored with the call** (`ToolUsage`), so
+    changing it applies to new calls only and never rewrites the history the cache holds. An exchange with kept results is replayed as it
+    happened: the user's message, her call (only the kept ones), the results, her reply. It is built from what was stored, with call ids
+    made from the message and the call's place, so it reads the same in every prompt and the cache keeps it. A result that was not
+    kept leaves no trace (neither the call nor the result). Kept results count in the summaries' budget and the summarizer reads them,
+    so a summary carries what she read; the context bounds the rest (a summary is made before her history fills it).
   - **The tools are the same every turn (built).** A model renders the functions into the prompt before the history, so a
     function that comes and goes (the part-request answer while a request is open, the outfit and body tools with a
     second body, the animation of a body, a file in her workspace, a node that connects) made the cache start over:
@@ -652,13 +676,13 @@ she looks at it like a person would: with the words, in the same turn.
   form of the old images (and loses the cache once); that is the user's doing.
 - **Pictures of her tools in the history (decided 2026-11-28, not built).** The pictures her tools brought into a turn (a node's
   `tool_result.images`: a page's screenshot, a picture she looked at; `ChatMessage.toolImages`) stay in her later prompts, like the
-  user's images, for as long as the exchange is in the history window: she can still talk about what she saw. They go with the
+  user's images, for as long as the exchange is in her history (until a summary covers it): she can still talk about what she saw. They go with the
   **user's message of that exchange**, after its own images, under a line from a template ("the pictures your tools brought in your
   reply"), so the history keeps its order of roles (her reply is the assistant's, and not every provider takes images there, nor two
   user messages in a row). The form never changes, for the cache: the stored JPEG for a model that sees, else the describing model's
   notes, written once in the turn (`CallToolsStep` already writes them; they are to be kept on the message, as `imageNotes` are for the
   user's) and read from the message after. A summary covers them as it covers the user's: the summarizer reads the notes.
-- **Costs.** An image is some 1,000 to 1,600 input tokens at this size, in every prompt it is in. The history window (the last messages) bounds that;
+- **Costs.** An image is some 1,000 to 1,600 input tokens at this size, in every prompt it is in. Her history (the messages no summary covers, bounded by her chat model's context) bounds that;
   a client may send at most 4 with a message. The web UI and the nodes show the image small.
 - **Not yet:** her tools' pictures in later prompts (decided, above), the user's retention setting, an image in an event, a *describe it again* for a
   changed model, and the node's screen capture (see *Seeing the screen*), which will use the same upload.
@@ -1278,8 +1302,9 @@ UI — nothing is deleted):
   grew, or by hand. When a day ends its parts become **one** day summary through the day prompt (one part alone only takes the whole day, no
   model is asked) and the parts are soft-deleted.
 - **When (`SummaryPlan`, pure).** After a pause (`pauseMinutes`, the chain assistant → user → 45; 0 is off) when no task of hers is open;
-  when the unsummarized messages pass `autoSummaryTokens` (the setting `autoSummary`, at most the context of the chat model; tokens are
-  characters / 4): the oldest are summarized until about half is left; a day that ended; a week, a month and a year that ended, at the time
+  when the unsummarized messages pass `autoSummaryTokens` (the setting `autoSummary`, at most 60 % of the context of the chat model, and
+  at that 60 % when the setting is off; tokens are characters / 4, and the user's images by their pixels): the oldest are summarized until
+  about half is left; a turn that would overfill the context (`CONTEXT`, from inside the turn, see A chat turn); a day that ended; a week, a month and a year that ended, at the time
   of day the user set for each (`weeklySummaryTime`, `monthlySummaryTime`, `yearlySummaryTime`, 05:00 by default), **never the one that is going on, and only
   when a day summary of the time after it exists**: at any time there is at least one day summary. A month waits for its weeks, a year for its months.
 - **A reaction to a summary makes no summary.** The messages of the turn that tells her about one (`node.summary_created`) do not count as
@@ -2669,6 +2694,10 @@ extension JARs and the image; `desktop.yml`: the app per platform). Built; the W
 **The iOS app** (planned 2026-11-22, see *Mobile companion node*): a native Swift node, its protocol types generated from the JSON Schemas; stage 1 is the generator, pairing, chat, speech and her body in a WebView. Not part of the first production version.
 
 ## Open decisions
+
+- **Kept tool results** (see A chat turn → Her tool results in the history): the form of a kept call whose tool is not offered in this
+  prompt (a node that is not connected; some providers refuse a call to an unknown function), whether as plain text instead; and
+  whether a long result is cut to a limit when it is kept.
 
 - **Generated clips:** which text-to-motion model (Kimodo or HY-Motion), its license, and whether the SOMA → BVH → VRM
   retarget is good enough (see Bodies → Generated clips).

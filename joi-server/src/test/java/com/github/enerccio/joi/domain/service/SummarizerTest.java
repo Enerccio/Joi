@@ -316,6 +316,67 @@ class SummarizerTest extends PlatformTestBase {
         assertThat(summarizer.coveredUpTo(joi)).isAfter(Date.from(ago(Duration.ofMinutes(29)).minusSeconds(1)));
     }
 
+    /** Her chat model reads 4000 tokens; the summaries have a model of their own (32000), so a summary is one request. */
+    private void smallContext() throws Exception {
+        model.setMaxContext(4000);
+        model = aiService.save(model);
+        AI summarizing = createAI();
+        joi.setSummaryModel(summarizing.getId());
+        joi = joiService.save(joi);
+    }
+
+    @Test
+    void withoutAutoSummaryTheHistoryIsStillSummarizedBeforeItFillsTheContext() throws Exception {
+        smallContext();
+        // 1000 tokens each: 3000 pass 60 % of the 4000 she reads (2400), though she does not summarize on her own when it grows
+        String text = "x".repeat(4000);
+        message(ago(Duration.ofMinutes(30)), text, "ok");
+        message(ago(Duration.ofMinutes(29)), text, "ok");
+        message(ago(Duration.ofMinutes(28)), text, "ok");
+        answers("Long talk, summarized.");
+
+        summarizer.check(joi);
+        await(() -> all().isEmpty() ? null : Boolean.TRUE, "the summary");
+        awaitNoJobs();
+        assertThat(all()).allSatisfy(s -> assertThat(s.getOrigin()).isEqualTo("auto"));
+        assertThat(all().stream().mapToInt(Summary::getMessageCount).sum()).isEqualTo(2);
+    }
+
+    @Test
+    void aTurnThatWouldOverfillTheContextIsSummarizedFirstAndSheIsToldWithTheWords() throws Exception {
+        smallContext();
+        String text = "x".repeat(4000);
+        message(ago(Duration.ofMinutes(30)), text, "first answer");
+        message(ago(Duration.ofMinutes(29)), text, "second answer");
+        message(ago(Duration.ofMinutes(28)), text, "third answer");
+        // the summary first (the turn waits for it), then her reply
+        answers("Long talk, summarized.", "Hello again.");
+
+        chatService.chat(joi, new TurnInput("Hi", null, false, false), null).get(60, TimeUnit.SECONDS);
+
+        assertThat(all()).isNotEmpty();
+        String body = llm.getCompletionRequests().getLast().getRawBody();
+        // the summary stands in her system prompt, the messages it covers are not in the history, the newest one is
+        assertThat(body).contains("Long talk, summarized.").doesNotContain("first answer").contains("third answer");
+        // she is told of it with the words of the turn, and the message keeps it; not again in a turn after
+        ChatMessage stored = chatMessages.findLatest(joi, 1).getFirst();
+        assertThat(stored.getInput()).contains("[Memory]").contains("Long talk, summarized.").endsWith("Hi");
+        assertThat(stored.getResponse()).isEqualTo("Hello again.");
+        assertThat(told()).isEmpty();
+    }
+
+    @Test
+    void aTurnThatFitsIsNotHeldUp() throws Exception {
+        String text = "x".repeat(4000);
+        message(ago(Duration.ofMinutes(30)), text, "first answer");
+        message(ago(Duration.ofMinutes(29)), text, "second answer");
+        answers("Hello.");
+        chatService.chat(joi, new TurnInput("Hi", null, false, false), null).get(30, TimeUnit.SECONDS);
+        assertThat(all()).isEmpty();
+        assertThat(llm.getCompletionRequests()).hasSize(1);
+        assertThat(chatMessages.findLatest(joi, 1).getFirst().getInput()).isEqualTo("Hi");
+    }
+
     @Test
     void autoSummaryIsOffUnlessAsked() throws Exception {
         String text = "x".repeat(2400);

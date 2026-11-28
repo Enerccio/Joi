@@ -33,9 +33,6 @@ import java.util.concurrent.CompletableFuture;
  */
 public interface ChatService {
 
-    /** How many of the latest messages no summary covers go into the prompt (the summaries are in the system prompt, see DESIGN.md → Memory). */
-    int HISTORY = 40;
-
     /** A turn that waits for the one before it or runs now; {@code step} is null while it waits. */
     record RunningTurn(Joi joi, com.github.enerccio.joi.domain.chat.turn.TurnStepType step, Date since) {
     }

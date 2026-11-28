@@ -28,6 +28,7 @@ import com.github.enerccio.joi.domain.service.QueuedEventService;
 import com.github.enerccio.joi.domain.service.SummarizerService;
 import com.github.enerccio.joi.domain.service.SummaryService;
 import com.github.enerccio.joi.domain.service.SummaryService.Lane;
+import com.github.enerccio.joi.domain.summary.MessageTokens;
 import com.github.enerccio.joi.domain.summary.ModelRound;
 import com.github.enerccio.joi.domain.summary.SummaryDays;
 import com.github.enerccio.joi.domain.summary.SummaryDays.Span;
@@ -60,7 +61,6 @@ import org.springframework.beans.factory.DisposableBean;
 import org.springframework.beans.factory.InitializingBean;
 import org.springframework.beans.factory.annotation.Autowired;
 
-import com.github.enerccio.marginalia.domain.service.impl.inference.tokenizer.EstimatedImageTokenizer;
 import java.time.Instant;
 import java.time.LocalTime;
 import java.time.format.DateTimeParseException;
@@ -75,6 +75,7 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -96,8 +97,6 @@ public class SummarizerServiceImpl implements SummarizerService, InitializingBea
 
     private static final Date EPOCH = new Date(0);
     private static final Date FAR = new Date(Long.MAX_VALUE / 4);
-    /** Characters to the token, for the size of a conversation (no tokenizer is at hand: it is a guess, and a good enough one). */
-    private static final int CHARS_PER_TOKEN = 4;
     /** What a model that does not say how long its context is is given of a conversation at once, in tokens. */
     private static final int DEFAULT_CHUNK_TOKENS = 24000;
 
@@ -129,6 +128,8 @@ public class SummarizerServiceImpl implements SummarizerService, InitializingBea
     private final ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor();
     private final SummaryQueue queue = new SummaryQueue(executor);
     private final Map<Long, List<Runnable>> watchers = new ConcurrentHashMap<>();
+    /** Per assistant: a job of the queue and a summary her turn makes never write side by side. */
+    private final Map<Long, ReentrantLock> locks = new ConcurrentHashMap<>();
     private ScheduledExecutorService ticks;
     private Registration observer;
 
@@ -427,10 +428,12 @@ public class SummarizerServiceImpl implements SummarizerService, InitializingBea
         int quiet = first(joi.getPauseMinutes(), setting.getPauseMinutes(), JoiDefaults.PAUSE_MINUTES);
         boolean auto = first(joi.getAutoSummary(), setting.getAutoSummary(), false);
         int tokens = first(joi.getAutoSummaryTokens(), setting.getAutoSummaryTokens(), JoiDefaults.AUTO_SUMMARY_TOKENS);
-        // what she keeps unsummarized never passes what her chat model reads at all
-        AI chat = chatService.chatModel(joi);
-        if (chat != null && chat.getMaxContext() != null && chat.getMaxContext() > 0) {
-            tokens = Math.min(tokens, chat.getMaxContext());
+        // her history is every message no summary covers, with no count: when it would run out of her chat model's context, the
+        // oldest are summarized, whether she summarizes on her own when it grows or not (then only at the context)
+        int context = historyContext(chatService.chatModel(joi));
+        if (context > 0) {
+            tokens = auto ? Math.min(tokens, context) : context;
+            auto = true;
         }
         Settings settings = new Settings(quiet, auto, tokens,
                 time(StringUtils.defaultIfBlank(joi.getWeeklySummaryTime(), setting.getWeeklySummaryTime()), JoiDefaults.SUMMARY_TIME),
@@ -438,6 +441,17 @@ public class SummarizerServiceImpl implements SummarizerService, InitializingBea
                 time(StringUtils.defaultIfBlank(joi.getYearlySummaryTime(), setting.getYearlySummaryTime()), JoiDefaults.SUMMARY_TIME));
         SummaryDays days = days(joi, setting);
         return new Config(settings, days, new SummaryText(days));
+    }
+
+    /**
+     * The tokens of the context of her chat model her history may take before its oldest messages are summarized (the rest is her
+     * system prompt and her reply), 0 when the model does not say how long its context is.
+     */
+    public static int historyContext(AI chat) {
+        if (chat == null || chat.getMaxContext() == null || chat.getMaxContext() <= 0) {
+            return 0;
+        }
+        return (int) ((long) chat.getMaxContext() * JoiDefaults.HISTORY_SUMMARY_PERCENT / 100);
     }
 
     /** Her day: it begins at her day boundary (hers, the user's, the default) in the server's zone. */
@@ -476,25 +490,9 @@ public class SummarizerServiceImpl implements SummarizerService, InitializingBea
         return summaries.stream().map(s -> new Cover(s.getSummaryType(), s.getCoverFrom().toInstant(), s.getCoverTo().toInstant(), s.isPartial())).toList();
     }
 
-    /**
-     * About how many tokens the exchange takes in a prompt: its words, and the user's images (the notes written about them when a
-     * model that cannot see got those instead, else their estimate by pixels kept on the message; an image of a message stored before
-     * the estimate counts as one of unknown size). Her tools' pictures are not counted: they are given to the model only in their turn.
-     */
+    /** About how many tokens the exchange takes in a prompt ({@link MessageTokens}). */
     static int tokens(ChatMessage message) {
-        long chars = StringUtils.length(message.getInput()) + StringUtils.length(message.getResponse());
-        long images = 0;
-        List<String> notes = message.imageNoteTexts();
-        if (!notes.isEmpty()) {
-            for (String note : notes) {
-                chars += StringUtils.length(note);
-            }
-        } else if (message.getImageTokens() != null) {
-            images = message.getImageTokens();
-        } else {
-            images = message.imageUuids().size() * EstimatedImageTokenizer.UNKNOWN_TOKENS;
-        }
-        return (int) Math.min(Integer.MAX_VALUE, (chars + CHARS_PER_TOKEN - 1) / CHARS_PER_TOKEN + images);
+        return MessageTokens.of(message);
     }
 
     private boolean waiting(Joi joi) throws Exception {
@@ -525,15 +523,46 @@ public class SummarizerServiceImpl implements SummarizerService, InitializingBea
             return;
         }
         awaitIdle(joi);
+        // one at a time with a summary her turn makes (makeRoom): the jobs of the queue wait for her turn, that one runs in it
+        ReentrantLock lock = lock(joiId);
+        lock.lock();
+        try {
+            Made made = make(joi, job);
+            if (made == null) {
+                return;
+            }
+            for (Summary summary : made.summaries()) {
+                tell(joi, made.config(), summary);
+            }
+        } finally {
+            lock.unlock();
+        }
+        changed(joiId);
+    }
+
+    /** What a job wrote, with the settings it was written with. */
+    private record Made(Config config, List<Summary> summaries) {
+    }
+
+    private ReentrantLock lock(Long joiId) {
+        return locks.computeIfAbsent(joiId, id -> new ReentrantLock());
+    }
+
+    /** Writes the summaries of the job; null when it is not due any more. */
+    private Made make(Joi joi, SummaryPlan.Job job) throws Exception {
         Config config = config(joi);
         State state = state(joi, config);
-        if (job.kind() != Kind.MANUAL) {
+        if (job.kind() != Kind.MANUAL && job.kind() != Kind.CONTEXT) {
             // what was due when it was queued may not be now: the user wrote again, a task was started, it was summarized already
             boolean due = SummaryPlan.plan(AppClock.now().toInstant(), config.settings(), config.days(), state.covers(), state.units(),
                     waiting(joi)).stream().anyMatch(j -> j.key().equals(job.key()));
             if (!due) {
-                return;
+                return null;
             }
+        }
+        if (job.kind() == Kind.CONTEXT && state.messages().size() < 2) {
+            // the newest message is never summarized: with one, there is nothing to make room with
+            return new Made(config, List.of());
         }
         AI ai = summaryModel(joi);
         if (ai == null) {
@@ -547,15 +576,61 @@ public class SummarizerServiceImpl implements SummarizerService, InitializingBea
             told = switch (job.kind()) {
                 case DAY_ROLL -> work.rollDay(config.days().spanOf(SummaryType.DAY, job.from()));
                 case QUIET -> work.summarizeOpen(null, false, "quiet");
-                case AUTO -> work.summarizeOpen(null, true, "auto");
+                case AUTO, CONTEXT -> work.summarizeOpen(null, true, "auto");
                 case MANUAL -> work.summarizeOpen(job.to(), false, "manual");
                 case WEEK, MONTH, YEAR -> work.rollPeriod(job.kind(), new Span(job.kind().periodType(), job.from(), job.to()));
             };
         }
-        for (Summary summary : told) {
-            tell(joi, config, summary);
+        return new Made(config, told);
+    }
+
+    @Override
+    public CompletableFuture<List<String>> makeRoom(Joi joi) {
+        CompletableFuture<List<String>> made = new CompletableFuture<>();
+        Long joiId = joi == null ? null : joi.getId();
+        User owner;
+        try {
+            owner = joiId == null ? null : userService.find(currentUser.getId());
+        } catch (Exception e) {
+            owner = null;
         }
-        changed(joiId);
+        if (owner == null) {
+            made.complete(List.of());
+            return made;
+        }
+        User user = owner;
+        SummaryPlan.Job job = new SummaryPlan.Job(Kind.CONTEXT, null, null);
+        executor.execute(() -> {
+            try (ApiRequestAttributes attributes = new ApiRequestAttributes(user, new SessionPoint());
+                 InRequestScope _ = new InRequestScope(attributes)) {
+                JoiJobs.run(JoiJobs.SUMMARY, label(joiId, job), JobCallType.LLM, () -> {
+                    Joi stored = joiService.find(joiId);
+                    if (stored == null || stored.isDeleted()) {
+                        made.complete(List.of());
+                        return;
+                    }
+                    // not through the queue: its jobs wait for her turn to end, and this one is in her turn
+                    ReentrantLock lock = lock(joiId);
+                    lock.lock();
+                    try {
+                        Made written = make(stored, job);
+                        List<String> events = new ArrayList<>();
+                        for (Summary summary : written == null ? List.<Summary>of() : written.summaries()) {
+                            events.add(eventText(stored, written.config(), summary));
+                        }
+                        made.complete(events);
+                    } finally {
+                        lock.unlock();
+                    }
+                });
+            } catch (Throwable t) {
+                made.completeExceptionally(t);
+            } finally {
+                made.complete(List.of());
+                changed(joiId);
+            }
+        });
+        return made;
     }
 
     /** Waits for the reply that is going on (and what is queued behind it): a summary is made between her turns, not in one. */
@@ -802,14 +877,19 @@ public class SummarizerServiceImpl implements SummarizerService, InitializingBea
     // telling her
     // ----------------------------------------------------------------------------------------------------------------
 
+    /** What she is told of the summary, from her template {@code SUMMARY_EVENT}. */
+    private String eventText(Joi joi, Config config, Summary summary) throws Exception {
+        SummaryEventTemplateData data = new SummaryEventTemplateData();
+        data.setKind(SummaryText.name(summary.getSummaryType(), summary.isPartial()));
+        data.setSpan(config.text().period(summary.getSummaryType(), summary.isPartial(), summary.getCoverFrom().toInstant(), summary.getCoverTo().toInstant()));
+        data.setDigest(summary.getSummary());
+        return personaService.render(joi, JoiPromptField.SUMMARY_EVENT, data).strip();
+    }
+
     /** She is told what was summarized, in one event: through a node that is connected, else when one connects. */
     private void tell(Joi joi, Config config, Summary summary) {
         try {
-            SummaryEventTemplateData data = new SummaryEventTemplateData();
-            data.setKind(SummaryText.name(summary.getSummaryType(), summary.isPartial()));
-            data.setSpan(config.text().period(summary.getSummaryType(), summary.isPartial(), summary.getCoverFrom().toInstant(), summary.getCoverTo().toInstant()));
-            data.setDigest(summary.getSummary());
-            String text = personaService.render(joi, JoiPromptField.SUMMARY_EVENT, data).strip();
+            String text = eventText(joi, config, summary);
             if (!nodeService.tell(joi, text, NodeServiceImpl.SUMMARY_CREATED)) {
                 JsonObject payload = new JsonObject();
                 payload.addProperty("summary", summary.getUuid());

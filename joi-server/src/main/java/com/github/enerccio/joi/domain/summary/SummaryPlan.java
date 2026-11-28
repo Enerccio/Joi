@@ -44,6 +44,11 @@ public final class SummaryPlan {
         QUIET(0, 1),
         /** The unsummarized messages grew too long. */
         AUTO(0, 1),
+        /**
+         * Her turn found that her history would not fit her chat model's context: the oldest are summarized now, from inside the
+         * turn (it waits for them, then tells them to her with the words of the turn). Never planned, the turn asks for it.
+         */
+        CONTEXT(0, 0),
         /** The user asked for it, up to a message. */
         MANUAL(0, 1),
         WEEK(1, 0),
@@ -88,7 +93,7 @@ public final class SummaryPlan {
         /** Two jobs with the same key are the same job: asked again, it is queued once. */
         public String key() {
             return switch (kind) {
-                case QUIET, AUTO -> kind.name();
+                case QUIET, AUTO, CONTEXT -> kind.name();
                 case MANUAL -> kind.name() + ":" + to;
                 default -> kind.name() + ":" + from + ":" + to;
             };

@@ -104,7 +104,14 @@ seldom as it can:
 
 - The **system prompt** is the same from turn to turn: no clock, and of her memories only the important ones, oldest first. Her
   summaries (`SummarizerService.prompt`, the section `{{#summaries}}`) are in it too and change only when a summary is made; the history
-  of the prompt is the latest messages **no summary covers** (`ChatMessageService.findLatestExchangesSince` the end of the last summary).
+  of the prompt is **every message no summary covers** (`ChatMessageService.findLatestExchangesSince` the end of the last summary), with no
+  count: a count would slide by one message a turn and the model server would process the whole history again every turn.
+- **A turn that would overfill the context.** `PayloadStep.overfills` estimates the prompt (the system prompt and the words by characters / 4,
+  the history by `MessageTokens`, the turn's images by their pixels). Past `JoiDefaults.HISTORY_PROMPT_PERCENT` (80) of the chat model's
+  `maxContext`, it calls `SummarizerService.makeRoom` once (`TurnProperties.ROOM_ASKED`) and returns; when the future completes, the turn goes
+  on with `jumpTo(PAYLOAD)`, so the system prompt with the new summaries and the shorter history are made again. What she is told of the
+  summaries is `TurnProperties.SUMMARY_EVENTS`: `PayloadStep.inputText` puts it before the words, and `StoreStep` stores the message with it.
+  A failed summary is logged and the turn goes on with the whole history. A model with no `maxContext` is never checked.
 - When a message was said is **in the message**: a line from the template `MESSAGE_STAMP` (made by `MessageStamps`, put only in the prompt, never
   stored) comes before a message of the user or an event for the first message of the prompt, after a pause of 10 minutes or more, and when
   the day changes.

@@ -178,7 +178,7 @@ public class JoiSummariesPart implements JoiDialogPart {
         String text = loc.getValue(name);
         if (job.kind() == Kind.QUIET) {
             text += " (" + loc.getValue(J_L.LABEL_SUMMARY_ORIGIN_QUIET) + ")";
-        } else if (job.kind() == Kind.AUTO) {
+        } else if (job.kind() == Kind.AUTO || job.kind() == Kind.CONTEXT) {
             text += " (" + loc.getValue(J_L.LABEL_SUMMARY_ORIGIN_AUTO) + ")";
         } else if (job.kind() == Kind.MANUAL) {
             text += " (" + loc.getValue(J_L.LABEL_SUMMARY_ORIGIN_MANUAL) + ")";
