@@ -5,7 +5,7 @@ order: 690
 covers:
   - joi-server/src/test
   - joi-node/src/test
-verified: dce9fc6
+verified: 0fc31b4
 ---
 
 # Testing
@@ -53,7 +53,7 @@ registered on the turn must be unregistered after the test: the chat service is 
 | `ui/jobs` | `AssistantsRunsTest`: what the assistants do now (the second list of `/jobs`); the job log is checked in `ChatTurnTest` and `SummarizerTest` with `Jobs.addSink` (never `Jobs.reset()`) |
 | `domain/workspace` | `AssistantWorkspaceTest`: a workspace per assistant, the file functions, the administrator's limits, ownership, the admin panel; the task writing a file is in `WebTasksTest`, the clipboard offer through a fake node in `NodeServiceTest` |
 | `domain/extensions` | `JoiExtensionsTest`: an extension of Joi (a proxy) through the loader; `ExtensionPointsTest`: its settings, its tools under the chain, a function that runs as a task; no OSGi framework in tests (profile `test`) |
-| `domain/summary` | the pure logic of the summaries (`SummaryDaysTest`, `SummaryPlanTest`, `SummaryQueueTest`): no database, no clock. `SummarizerTest` in `domain/service` runs the whole thing with the fake model (also: a summary is a job); the minute tick is off in tests (`joi.summary.tick-seconds` 0), so a test calls `check(joi)` |
+| `domain/summary` | the pure logic of the summaries (`SummaryDaysTest`, `SummaryPlanTest`, `SummaryQueueTest`): no database, no clock. `SummarizerTest` in `domain/service` runs the whole thing with the fake model (also: a summary is a job; the context bounds the history with auto summaries off; a turn that would overfill the context summarizes first and tells her with its words, one that fits is not held up); the minute tick is off in tests (`joi.summary.tick-seconds` 0), so a test calls `check(joi)` |
 | `ui` | dialogs and parts, driven without a browser |
 | images | `ChatImagesTest` (pure: formats, EXIF, scaling, limits), `ChatImageApiTest` (the upload, a multimodal model gets the same data URLs in later prompts, the describer's note once, `no_vision`, limits, deleting), the say with an image in `NodeServiceTest`, the compose row, the pictures of her tools with her reply and the summarized messages faded in `JoiChatsPartTest`; the node's `NodeSocketTest`, `ServerClientTasksTest` (also the chat's images cached and the history's window) and `UnixSocketTest`; the app's `ImagePreparerTests` and `ChatModelTests` |
 

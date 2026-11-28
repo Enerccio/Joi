@@ -5,7 +5,7 @@ order: 770
 covers:
   - joi-server/src/main/java/com/github/enerccio/joi/domain
   - joi-server/src/main/resources/META-INF/spring
-verified: dce9fc6
+verified: 0fc31b4
 ---
 
 # Project structure
@@ -32,7 +32,7 @@ See the [Developer guide](index.md). The server's Java is under `com.github.ener
 | `extensions`, `domain.extensions` | the API of Joi's extensions, what they registered, their settings and their tasks (see [Extensions](extensions.md)) |
 | `domain.workspace` | tests only for now; the assistant's workspace is `JoiWorkspaceService` in `domain.service` (see [Server tools](tools.md)) |
 | `domain.jobs` | the names of the work logged as jobs (see [Jobs](jobs.md)) |
-| `domain.summary` | the pure logic of the summaries: her days, what is due, the queue (see [Summaries](summaries.md)) |
+| `domain.summary` | the pure logic of the summaries: her days, what is due, the queue, the tokens of a message (`MessageTokens`; see [Summaries](summaries.md)) |
 | `tts` | speech backends (Chatterbox, Higgs in ComfyUI), TTS models, voice actors, audio |
 | `ui` | the Vaadin UI (see [The UI](ui.md)) |
 | `loc` | the texts: `J_L` and `JoiLocalizationBundleEN` |
