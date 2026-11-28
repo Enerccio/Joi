@@ -650,9 +650,17 @@ she looks at it like a person would: with the words, in the same turn.
   same place in every prompt, whatever the window or the turn; a model that cannot see gets the same stored note. Whether the model sees is a
   property of the chat model, not of the turn. `ChatImageApiTest` compares the data URLs of two prompts. Switching her chat model changes the
   form of the old images (and loses the cache once); that is the user's doing.
+- **Pictures of her tools in the history (decided 2026-11-28, not built).** The pictures her tools brought into a turn (a node's
+  `tool_result.images`: a page's screenshot, a picture she looked at; `ChatMessage.toolImages`) stay in her later prompts, like the
+  user's images, for as long as the exchange is in the history window: she can still talk about what she saw. They go with the
+  **user's message of that exchange**, after its own images, under a line from a template ("the pictures your tools brought in your
+  reply"), so the history keeps its order of roles (her reply is the assistant's, and not every provider takes images there, nor two
+  user messages in a row). The form never changes, for the cache: the stored JPEG for a model that sees, else the describing model's
+  notes, written once in the turn (`CallToolsStep` already writes them; they are to be kept on the message, as `imageNotes` are for the
+  user's) and read from the message after. A summary covers them as it covers the user's: the summarizer reads the notes.
 - **Costs.** An image is some 1,000 to 1,600 input tokens at this size, in every prompt it is in. The history window (the last messages) bounds that;
   a client may send at most 4 with a message. The web UI and the nodes show the image small.
-- **Not yet:** images from her (tools that return an image), the user's retention setting, an image in an event, a *describe it again* for a
+- **Not yet:** her tools' pictures in later prompts (decided, above), the user's retention setting, an image in an event, a *describe it again* for a
   changed model, and the node's screen capture (see *Seeing the screen*), which will use the same upload.
 
 ### Persona
@@ -2049,7 +2057,9 @@ user, `tool_progress` restarts the timeout, `tool_cancel` stops it). No change o
   (PNG, JPEG, GIF, BMP, WebP, TIFF, HEIC), at most 20 MB, the denied paths refused as for a read. The node uploads it as a chat
   image and sends its id in `ToolResult.images` (at most four). The server (`ToolImages`, `CallToolsStep`) adds one message after
   the round's results, from the template `TOOL_IMAGES`: the pictures for a multimodal chat model, the describing model's notes
-  for another. The message stays in that turn only: later prompts do not give the picture again. The pictures shown are kept with
+  for another. Built so far: the message stays in that turn only, later prompts do not give the picture again. **Decided
+  (2026-11-28, not built): later prompts give them too**, as the user's images (see Images in the chat → Pictures of her tools in the
+  history); the reason to drop them was huge results, and those are tasks now (web search, reading pages). The pictures shown are kept with
   her message (`ChatMessage.toolImages`, an extended attribute: uuids, linked to the message like the user's images, deleted with
   it) and shown with her reply in the Chats tab; a picture that was never shown (its turn stopped) is swept like any unused upload.
   The API's history has them as `ChatEntry.toolImages` (1.16): the JavaFX node shows them small under her reply, the app counts them.
@@ -2417,7 +2427,8 @@ equal to the default is left out of `policy.json`.
 the image upload of the chat (the same limits and scaling), and the `tool_result` gets `images`: the ids it was given. The
 server puts them into the function result for her model when it takes images there, else the multimodal model describes them
 (as *Images in the chat* does). The images are kept with the turn and shown in the Chats tab, with the retention of chat images
-(built: `ChatMessage.toolImages`, `ChatEntry.toolImages` in the API's history since 1.16).
+(built: `ChatMessage.toolImages`, `ChatEntry.toolImages` in the API's history since 1.16), and are to stay in her later prompts as the
+user's images do (decided 2026-11-28, not built: see Images in the chat).
 In privacy mode they go to local models only.
 
 **Events** (a protocol addition, later). The node tells her "a video started", "the music stopped" as transient events (a

@@ -21,9 +21,9 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.networknt.schema.InputFormat;
-import com.networknt.schema.JsonSchemaFactory;
+import com.networknt.schema.SchemaRegistry;
 import com.networknt.schema.SchemaLocation;
-import com.networknt.schema.SpecVersion;
+import com.networknt.schema.SpecificationVersion;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -75,8 +75,8 @@ class JoiApiTest extends PlatformTestBase {
     @Autowired
     private com.github.enerccio.joi.domain.chat.ChatService chatService;
 
-    private final JsonSchemaFactory schemas = JsonSchemaFactory.getInstance(SpecVersion.VersionFlag.V202012,
-            builder -> builder.schemaMappers(m -> m.mapPrefix(BASE, "classpath:joi-protocol/schemas/")));
+    private final SchemaRegistry schemas = SchemaRegistry.withDefaultDialect(SpecificationVersion.DRAFT_2020_12,
+            builder -> builder.schemaIdResolvers(m -> m.mapPrefix(BASE, "classpath:joi-protocol/schemas/")));
 
     private User user;
     private Joi joi;

@@ -60,6 +60,7 @@ import org.springframework.beans.factory.DisposableBean;
 import org.springframework.beans.factory.InitializingBean;
 import org.springframework.beans.factory.annotation.Autowired;
 
+import com.github.enerccio.marginalia.domain.service.impl.inference.tokenizer.EstimatedImageTokenizer;
 import java.time.Instant;
 import java.time.LocalTime;
 import java.time.format.DateTimeParseException;
@@ -475,10 +476,25 @@ public class SummarizerServiceImpl implements SummarizerService, InitializingBea
         return summaries.stream().map(s -> new Cover(s.getSummaryType(), s.getCoverFrom().toInstant(), s.getCoverTo().toInstant(), s.isPartial())).toList();
     }
 
-    /** About how many tokens the exchange takes in a prompt. */
+    /**
+     * About how many tokens the exchange takes in a prompt: its words, and the user's images (the notes written about them when a
+     * model that cannot see got those instead, else their estimate by pixels kept on the message; an image of a message stored before
+     * the estimate counts as one of unknown size). Her tools' pictures are not counted: they are given to the model only in their turn.
+     */
     static int tokens(ChatMessage message) {
-        int chars = StringUtils.length(message.getInput()) + StringUtils.length(message.getResponse());
-        return (chars + CHARS_PER_TOKEN - 1) / CHARS_PER_TOKEN;
+        long chars = StringUtils.length(message.getInput()) + StringUtils.length(message.getResponse());
+        long images = 0;
+        List<String> notes = message.imageNoteTexts();
+        if (!notes.isEmpty()) {
+            for (String note : notes) {
+                chars += StringUtils.length(note);
+            }
+        } else if (message.getImageTokens() != null) {
+            images = message.getImageTokens();
+        } else {
+            images = message.imageUuids().size() * EstimatedImageTokenizer.UNKNOWN_TOKENS;
+        }
+        return (int) Math.min(Integer.MAX_VALUE, (chars + CHARS_PER_TOKEN - 1) / CHARS_PER_TOKEN + images);
     }
 
     private boolean waiting(Joi joi) throws Exception {

@@ -7,6 +7,7 @@ covers:
   - joi-server/src/main/java/com/github/enerccio/joi/domain/service/SummarizerService.java
   - joi-server/src/main/java/com/github/enerccio/joi/domain/service/impl/SummarizerServiceImpl.java
   - joi-server/src/main/java/com/github/enerccio/joi/domain/service/impl/SummaryServiceImpl.java
+  - joi-server/src/test/java/com/github/enerccio/joi/domain/service/impl/SummaryTokensTest.java
 verified: a48bf19
 ---
 
@@ -43,8 +44,13 @@ context). When a day ends, `DAY_ROLL` summarizes what is left of it and then:
 
 - `QUIET`: no message for the pause time, the unsummarized messages hold something other than the answers to summaries
   (`node.summary_created`), and no task of hers is `QUEUED`, `RUNNING` or `WAITING`.
-- `AUTO`: on, and the tokens of the unsummarized messages (characters / 4) pass the limit; the oldest are summarized until about half of the limit is left,
+- `AUTO`: on, and the tokens of the unsummarized messages pass the limit; the oldest are summarized until about half of the limit is left,
   never the newest message. The limit is at most the context of her chat model.
+  A message counts its words (characters / 4) and the user's images (`SummarizerServiceImpl.tokens`). An image counts by its pixels with
+  Marginalia's `EstimatedImageTokenizer` (750 pixels a token, as sent). The estimate is worked out once when the message is stored
+  (`StoreStep`, `ChatImageService.tokens`) and kept on it (`ChatMessage.imageTokens`, an extended attribute), so the trigger reads no file.
+  When notes were written for a model that cannot see, the notes' characters count instead. An older message without the estimate counts
+  each image as one of unknown size (1600). Her tools' pictures do not count: the model gets them only in their turn.
 - `DAY_ROLL`: a day that ended (now is past its end) that has a part or unsummarized messages.
 - `WEEK`, `MONTH`, `YEAR`: a period that ended, past its time of day (`SummaryDays.runAt`), without a summary of its kind or a longer one, with
   summaries of lower rank inside it, and **with a day summary that begins after it ended**: so there is always one day summary, and the week going on is

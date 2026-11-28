@@ -52,6 +52,12 @@ public interface ChatImageService {
     /** The image of the user, null when there is none (or it is gone). */
     Image find(String uuid) throws Exception;
 
+    /**
+     * About how many tokens the images take in a prompt, by their pixels (Marginalia's {@code EstimatedImageTokenizer}); an image
+     * that is gone or whose size can't be read counts as one of unknown size.
+     */
+    long tokens(List<String> uuids) throws Exception;
+
     /** The JPEG of the image, null when there is none. */
     File file(String uuid) throws Exception;
 

@@ -115,6 +115,10 @@ seldom as it can:
 A message may carry images (`TurnInput.images`, the uuids of uploads: see *Images* in [The protocol](protocol.md)). `ChatServiceImpl.chat` checks them first (`checkImages`: the user's own, at most 4, and
 `ChatImageService.canSee`, else `NoVisionException`) and lets the words be empty when there is an image; an event never has images. `StoreStep` writes their uuids into the message's
 extended attribute `images` and `ChatImageService.attach` ties the uploads to it (they are no longer swept); its prompt record keeps the attachments' name, type and size, never the bytes.
+`ChatImageService.store` keeps the size of the scaled image in pixels in its resource's attributes (key `joi.chatImage`, `width`, `height`;
+`Resource` is an `ExtendableEntity` since Marginalia's V33, Joi's `V2__resource_extended.sql`), so `find` reads no file; an image stored before
+reads its size from the file's header on its first `find`, which then keeps it on the resource. `StoreStep` also keeps the images' estimate of tokens on the message (`imageTokens`, `ChatImageService.tokens`)
+for the summaries' count (see Summaries).
 
 `PayloadStep.withImages` gives every message of the history and the current one the same form **in every turn**, because the form is part of the cached prompt: a multimodal chat model
 (`AI.isMultimodal`) gets each image as an `LLMAttachment` (the stored JPEG, so the same data URL every time) after the words; any other model gets the template `IMAGE_NOTE` once for each image,

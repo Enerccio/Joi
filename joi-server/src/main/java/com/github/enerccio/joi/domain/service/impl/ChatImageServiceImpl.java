@@ -31,6 +31,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 
+import com.github.enerccio.marginalia.domain.service.impl.inference.tokenizer.EstimatedImageTokenizer;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -47,6 +50,11 @@ public class ChatImageServiceImpl implements ChatImageService {
 
     /** The name of an upload's resource, and what tells it from the other resources of the user. */
     static final String NAME = "chat-image.jpg";
+
+    /** The key of Joi's data about a chat image in its resource's attributes: its size in pixels, written when it is stored. */
+    static final String ATTRIBUTES = "joi.chatImage";
+    private static final String WIDTH = "width";
+    private static final String HEIGHT = "height";
 
     static final long DESCRIBE_TIMEOUT_MINUTES = 5;
 
@@ -96,8 +104,33 @@ public class ChatImageServiceImpl implements ChatImageService {
             Files.deleteIfExists(upload.toPath());
         }
         Resource resource = resourceService.saveFile(normalized, NAME, "image/jpeg");
+        if (storedSize(resource) == null) {
+            resource = keepSize(resource, info.width(), info.height());
+        }
         sweep();
         return new Image(resource.getUuid(), "image/jpeg", resource.getSize(), info.width(), info.height());
+    }
+
+    /** Keeps the size of the image in pixels in its resource's attributes. */
+    private Resource keepSize(Resource resource, int width, int height) throws Exception {
+        JsonObject size = new JsonObject();
+        size.addProperty(WIDTH, width);
+        size.addProperty(HEIGHT, height);
+        resource.getAttributes().add(ATTRIBUTES, size);
+        return resourceService.save(resource);
+    }
+
+    /** The size of the image as kept on its resource, null when it is not (an image from before V2). */
+    static int[] storedSize(Resource resource) {
+        JsonElement size = resource.getAttributes().get(ATTRIBUTES);
+        if (size == null || !size.isJsonObject()) {
+            return null;
+        }
+        JsonObject object = size.getAsJsonObject();
+        if (!object.has(WIDTH) || !object.has(HEIGHT)) {
+            return null;
+        }
+        return new int[]{object.get(WIDTH).getAsInt(), object.get(HEIGHT).getAsInt()};
     }
 
     /** Deletes the user's uploads that nothing used for a while (at most once in {@value #PENDING_MINUTES} / 4 minutes). */
@@ -150,15 +183,37 @@ public class ChatImageServiceImpl implements ChatImageService {
     }
 
     @Override
-    @CommonTxReadOnly
+    @CommonTx
     public Image find(String uuid) throws Exception {
         Resource resource = own(uuid);
         File file = resource == null ? null : resourceService.getResourceFile(resource);
         if (file == null || !file.isFile()) {
             return null;
         }
-        int[] size = ChatImages.size(file);
+        int[] size = storedSize(resource);
+        if (size == null) {
+            // an image stored before its size was kept on the resource: read from the header once, then kept
+            size = ChatImages.size(file);
+            if (size != null) {
+                try {
+                    keepSize(resource, size[0], size[1]);
+                } catch (Exception e) {
+                    log.debug("The size of the image {} could not be kept", uuid, e);
+                }
+            }
+        }
         return new Image(resource.getUuid(), resource.getMimeType(), file.length(), size == null ? 0 : size[0], size == null ? 0 : size[1]);
+    }
+
+    @Override
+    @CommonTx
+    public long tokens(List<String> uuids) throws Exception {
+        long tokens = 0;
+        for (String uuid : uuids == null ? List.<String>of() : uuids) {
+            Image image = find(uuid);
+            tokens += image == null ? EstimatedImageTokenizer.UNKNOWN_TOKENS : EstimatedImageTokenizer.estimate(image.width(), image.height());
+        }
+        return tokens;
     }
 
     @Override

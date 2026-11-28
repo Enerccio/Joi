@@ -87,6 +87,15 @@ public class ChatMessage extends ExtendableEntity {
     @Transient
     private String toolImages;
 
+    /**
+     * About how many tokens the {@link #images} take in a prompt, estimated by their pixels when the message is stored (Marginalia's
+     * {@code EstimatedImageTokenizer}), null for none or for a message stored before the estimate: the summaries' count of her history
+     * reads it instead of the images' files.
+     */
+    @ExtendedAttribute
+    @Transient
+    private Long imageTokens;
+
     @ExtendedAttribute
     @Fulltextable
     @Transient
@@ -238,6 +247,14 @@ public class ChatMessage extends ExtendableEntity {
 
     public void setImageNotes(String imageNotes) {
         this.imageNotes = imageNotes;
+    }
+
+    public Long getImageTokens() {
+        return imageTokens;
+    }
+
+    public void setImageTokens(Long imageTokens) {
+        this.imageTokens = imageTokens;
     }
 
     public String getToolImages() {

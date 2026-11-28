@@ -54,6 +54,13 @@ public class StoreStep extends TurnStepBase {
             message.setResponseReasoning(StringUtils.defaultIfBlank(controller.getReasoning(), null));
             message.setToolCalls(ToolUsage.toJson(controller.getToolUsages()));
             message.setImages(ChatMessage.toJson(controller.getInput().images()));
+            if (!controller.getInput().images().isEmpty()) {
+                try {
+                    message.setImageTokens(chatImageService.tokens(controller.getInput().images()));
+                } catch (Exception e) {
+                    log.debug("The images of a message could not be measured", e);
+                }
+            }
             @SuppressWarnings("unchecked")
             List<String> imageNotes = (List<String>) controller.getProperties().get(TurnProperties.IMAGE_NOTES);
             message.setImageNotes(ChatMessage.toJson(imageNotes));

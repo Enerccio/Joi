@@ -19,9 +19,9 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.networknt.schema.InputFormat;
-import com.networknt.schema.JsonSchemaFactory;
+import com.networknt.schema.SchemaRegistry;
 import com.networknt.schema.SchemaLocation;
-import com.networknt.schema.SpecVersion;
+import com.networknt.schema.SpecificationVersion;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -60,6 +60,8 @@ class ChatImageApiTest extends PlatformTestBase {
     @Autowired
     private ChatImageService chatImageService;
     @Autowired
+    private com.github.enerccio.marginalia.domain.service.ResourceService resourceService;
+    @Autowired
     private com.github.enerccio.joi.domain.service.MessagePromptService messagePromptService;
     @Autowired
     private AIService aiService;
@@ -68,8 +70,8 @@ class ChatImageApiTest extends PlatformTestBase {
     @Autowired
     private SettingService settingService;
 
-    private final JsonSchemaFactory schemas = JsonSchemaFactory.getInstance(SpecVersion.VersionFlag.V202012,
-            builder -> builder.schemaMappers(m -> m.mapPrefix(BASE, "classpath:joi-protocol/schemas/")));
+    private final SchemaRegistry schemas = SchemaRegistry.withDefaultDialect(SpecificationVersion.DRAFT_2020_12,
+            builder -> builder.schemaIdResolvers(m -> m.mapPrefix(BASE, "classpath:joi-protocol/schemas/")));
 
     private Joi joi;
     private String token;
@@ -219,6 +221,11 @@ class ChatImageApiTest extends PlatformTestBase {
         assertThat(kept.get("mimeType").getAsString()).isEqualTo("image/jpeg");
         assertThat(kept.get("width").getAsInt()).isEqualTo(1568);
         assertThat(kept.get("height").getAsInt()).isEqualTo(1176);
+        // the size is kept on the resource, so it is not read from the file again
+        JsonObject size = resourceService.findForUser(kept.get("id").getAsString()).getAttributes().getAsJsonObject("joi.chatImage");
+        assertThat(size.get("width").getAsInt()).isEqualTo(1568);
+        assertThat(size.get("height").getAsInt()).isEqualTo(1176);
+        assertThat(chatImageService.find(kept.get("id").getAsString()).width()).isEqualTo(1568);
 
         Answer got = call("GET", "/api/v1/images/" + kept.get("id").getAsString(), null);
         assertThat(got.status).isEqualTo(200);
@@ -228,6 +235,22 @@ class ChatImageApiTest extends PlatformTestBase {
         String etag = got.headers.get("ETag");
         assertThat(call("GET", "/api/v1/images/" + kept.get("id").getAsString(), null, "If-None-Match", etag).status).isEqualTo(304);
         assertThat(call("GET", "/api/v1/images/nope", null).status).isEqualTo(404);
+    }
+
+    @Test
+    void anImageFromBeforeItsSizeWasKeptGetsItWhenFirstRead() throws Exception {
+        String id = upload(png(300, 200, Color.RED));
+        com.github.enerccio.marginalia.domain.model.impl.Resource resource = resourceService.findForUser(id);
+        resource.getAttributes().remove("joi.chatImage");
+        resourceService.save(resource);
+        assertThat(resourceService.findForUser(id).getAttributes().has("joi.chatImage")).isFalse();
+
+        ChatImageService.Image image = chatImageService.find(id);
+        assertThat(image.width()).isEqualTo(300);
+        assertThat(image.height()).isEqualTo(200);
+        JsonObject size = resourceService.findForUser(id).getAttributes().getAsJsonObject("joi.chatImage");
+        assertThat(size.get("width").getAsInt()).isEqualTo(300);
+        assertThat(size.get("height").getAsInt()).isEqualTo(200);
     }
 
     @Test
@@ -263,6 +286,8 @@ class ChatImageApiTest extends PlatformTestBase {
         // stored with the message, shown by the history, and the stored prompt names the attachment but holds no bytes
         List<ChatMessage> messages = chatMessageService.findLatest(joi, 10);
         assertThat(messages.getFirst().imageUuids()).containsExactly(id);
+        // 300 x 200 pixels, about 80 tokens, kept on the message for the summaries' count
+        assertThat(messages.getFirst().getImageTokens()).isEqualTo((300L * 200 + 749) / 750);
         assertThat(messages.getFirst().getImageNotes()).isNull();
         Answer history = call("GET", "/api/v1/jois/" + joi.getUuid() + "/chat", null);
         valid("ChatHistory", history.body);

@@ -14,9 +14,9 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.networknt.schema.InputFormat;
-import com.networknt.schema.JsonSchemaFactory;
+import com.networknt.schema.SchemaRegistry;
 import com.networknt.schema.SchemaLocation;
-import com.networknt.schema.SpecVersion;
+import com.networknt.schema.SpecificationVersion;
 import com.vaadin.flow.component.AbstractField;
 import com.vaadin.flow.component.ComponentUtil;
 import com.vaadin.flow.component.UI;
@@ -67,8 +67,8 @@ class BodyApiTest extends PlatformTestBase {
     @Autowired
     private AnimationPackService packService;
 
-    private final JsonSchemaFactory schemas = JsonSchemaFactory.getInstance(SpecVersion.VersionFlag.V202012,
-            builder -> builder.schemaMappers(m -> m.mapPrefix(BASE, "classpath:joi-protocol/schemas/")));
+    private final SchemaRegistry schemas = SchemaRegistry.withDefaultDialect(SpecificationVersion.DRAFT_2020_12,
+            builder -> builder.schemaIdResolvers(m -> m.mapPrefix(BASE, "classpath:joi-protocol/schemas/")));
 
     /** Held here: the current UI is only weakly referenced. */
     private UI ui;
