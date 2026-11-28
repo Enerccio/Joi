@@ -685,7 +685,11 @@ dislikes, continuity through her memory.
   `{{#body}}`, `{{#node}}`; `{{char}}` is her name and `{{user}}` the user's. An empty section is left out. The memory's
   prompts are templates too: the conversation summary, the day summary and the facts to remember; so are the body
   section that fills `{{#body}}` and the request for a body's self-image. **Every prompt sent to a model is such a template**, resolved along the same chain (hers,
-  the user's, the default), so the user can change any of them.
+  the user's, the default), so the user can change any of them. A template that sets a text different from the one it
+  inherits (the user's from the default; hers from the user's, else the default) has its (i) in red; the (i)'s
+  **Compare** opens the two side by side with the words that change, and Save there writes the edited text into the
+  field (`TemplateOverride`, `PromptAreas`, `TemplateCompareDialog` on the platform's `WordDiffView`). It is the same for
+  every template area, the personalities' and moods' texts too.
 
 ### Jobs (built)
 

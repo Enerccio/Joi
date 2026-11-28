@@ -139,4 +139,10 @@ public final class JoiCssStyles {
     public static final String TASK_STEP_HEAD = "task-step-head";
     /** The QR code of Pair a phone: on white, so a camera reads it in the dark theme too. */
     public static final String PAIR_QR = "pair-qr";
+    /** On the (i) of a template whose text differs from the one it inherits (red). */
+    public static final String TEMPLATE_OVERRIDDEN = "template-overridden";
+    /** The line in the popover of such a template that says so. */
+    public static final String TEMPLATE_OVERRIDDEN_NOTE = "template-overridden-note";
+    /** The two texts of the compare dialog of a template, side by side. */
+    public static final String TEMPLATE_COMPARE = "template-compare";
 }

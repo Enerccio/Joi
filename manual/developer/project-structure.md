@@ -24,7 +24,7 @@ See the [Developer guide](index.md). The server's Java is under `com.github.ener
 | `domain.repository`, `.impl` | repository interfaces and their `Jpa*Repository` classes |
 | `domain.service`, `.impl` | service interfaces and `*ServiceImpl` |
 | `domain.chat`, `.turn` | the chat service, `ChatImages` (an image of the user made ready; `ChatImageService` keeps them), the steps and events of a turn, her functions (`MemoryTools`, `BodyTools`, `AnimationTools`, `ExpressionTools`, `MoodTools`, `WebTools`, `WorkspaceTools`), `JoiInference` (the cache key `X-Session-ID` of a model call: user, model, assistant, action) |
-| `domain.persona` | `JoiPromptField`, personalities, moods (`Mood` with its `MoodFace`, the user's `MoodSetting`) and the attributes of an assistant |
+| `domain.persona` | `JoiPromptField` (and `TemplateOverride`: a template against its parent in the chain), personalities, moods (`Mood` with its `MoodFace`, the user's `MoodSetting`) and the attributes of an assistant |
 | `domain.templates` | the data of every prompt template (`*TemplateData`) |
 | `domain.bodies`, `.animations` | models, capabilities, appearance, outfits, profiles (`Profiles`, kept by `ProfileService`), spring bones, animation steps (`StepRotation`, `StepTranslation`), the folders of the library (`AnimationFolder`, `AnimationFolders`) |
 | `domain.tools`, `domain.web` | server tools and their permissions; web search and page reading |

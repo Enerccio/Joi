@@ -27,7 +27,8 @@ A field she leaves empty uses these; her dialog shows them greyed out.
 
 Every prompt sent to a model is a template: the master system template, the conversation, day, week, month and year summary prompts, the memory prompt, the
 appearance, outfit and part prompts, the web task and task event prompts, and the texts of the events she is told. An empty
-field uses the built-in text. See [Persona and personality](jois/persona.md).
+field uses the built-in text. A field whose text differs from the built-in one has its (i) in red, and the (i)'s **Compare
+with the inherited text** shows the two side by side to edit; see [Persona and personality](jois/persona.md).
 
 ![The Prompts tab](../images/settings-prompts.png)
 

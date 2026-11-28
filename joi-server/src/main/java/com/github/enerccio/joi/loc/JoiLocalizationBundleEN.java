@@ -110,6 +110,13 @@ public class JoiLocalizationBundleEN extends TextBundleBase<J_L> {
         setValue(J_L.LABEL_LOOKING_GLASS_EXITED_EVENT, "Off the Looking Glass (the event when the user moves her back into the window)");
         setValue(J_L.LABEL_BODY_PROMPT, "Body section (the body she is in, put into {{#body}})");
         setValue(J_L.LABEL_PREVIEW_SYSTEM_PROMPT, "Preview the system prompt");
+        setValue(J_L.LABEL_COMPARE_TEMPLATE, "Compare with the inherited text");
+        setValue(J_L.LABEL_COMPARE_TEMPLATE_TITLE, "Compare: %s");
+        setValue(J_L.LABEL_INHERITED_TEXT, "Inherited");
+        setValue(J_L.LABEL_OWN_TEXT, "This one");
+        setValue(J_L.LABEL_USE_INHERITED_TEXT, "Use the inherited text");
+        setValue(J_L.LABEL_UNDO_TEMPLATE_EDITS, "Undo the changes");
+        setValue(J_L.LABEL_TEMPLATE_DIFFERENCES, "From the inherited text to this one");
         setValue(J_L.LABEL_KEY, "Key");
         setValue(J_L.LABEL_STATE, "State");
         setValue(J_L.LABEL_BUILT_IN, "Built-in");
@@ -527,6 +534,8 @@ public class JoiLocalizationBundleEN extends TextBundleBase<J_L> {
         setValue(J_L.HELP_CHAT_MODEL, "Only the text models marked for this use are listed.");
         setValue(J_L.HELP_USER_NAME, "What the assistant calls you; empty for the name of your account. Her prompt uses it as {{user}}.");
         setValue(J_L.HELP_JOI_INHERITED, "Empty fields use your User Settings, shown greyed out.");
+        setValue(J_L.HELP_TEMPLATE_OVERRIDDEN, "This text differs from the inherited one.");
+        setValue(J_L.HELP_COMPARE_TEMPLATE, "The inherited text is on the left, this one on the right. Edit this one; Save puts it into the field.");
         setValue(J_L.HELP_JOI_PERSONA_EVENTS, "Once you have talked, she is told when her name, your name or her personality changes.");
         setValue(J_L.HELP_ACTOR_DESCRIPTION, "How the voice sounds, in words (\"low and warm, a little husky\"). The assistant reads it: she is told when it becomes her voice, and it is in her system prompt.");
         setValue(J_L.HELP_APP_SETTINGS, "What you decide for everybody on this installation.");
@@ -558,6 +567,7 @@ public class JoiLocalizationBundleEN extends TextBundleBase<J_L> {
         setValue(J_L.MSG_INVALID_KEY, "Use letters, digits and dashes only");
         setValue(J_L.MSG_KEY_TAKEN, "This key is already used");
         setValue(J_L.MSG_TEMPLATE_INVALID, "The template is not valid: %s");
+        setValue(J_L.MSG_TEMPLATE_SAME_AS_INHERITED, "The two texts are the same.");
         setValue(J_L.MSG_UNSAVED_SETTINGS, "Unsaved changes");
         setValue(J_L.MSG_TOKEN_CREATED, "Copy the token now: it is not shown again.");
         setValue(J_L.MSG_DEVICE_WANTS, "%s wants to use Joi as you.");

@@ -74,3 +74,13 @@ Every prompt sent to a model is a template, so the user can change it: a `JoiPro
 shown in both Templates tabs and rendered with `PersonaService.render(joi, field, data)`. Never build a prompt from hard-coded strings in a
 service. Template data extends `JoiTemplateData` (`{{char}}`, `{{user}}`); do not name a variable after a SillyTavern macro (`personality`,
 `persona`, `description`, `scenario`...): the platform swallows it.
+
+`PromptAreas.showDefault(loc, area, dataClass, parent)` is given what an empty area stands for (the parent in the chain: for
+User Settings `TemplateOverride.parentOfUser`, the default; for her Templates tab `PersonaService.resolve(field)`, the
+user's else the default, `TemplateOverride.parentOfAssistant`; for a personality or mood its built-in text). Beside the
+placeholder and the platform's `TemplateHints`, it keeps the parent on the area (`ComponentUtil` data) with a value
+listener that puts `JoiCssStyles.TEMPLATE_OVERRIDDEN` on the (i) while `TemplateOverride.differs` (both set, different
+once line ends and the outer white space are ignored), and adds to the popover a red note and **Compare**. That opens
+`ui/dialogs/TemplateCompareDialog`, the pattern of Marginalia's merge dialog: the parent read only, this text to edit,
+the platform's `WordDiffView` under them following the edit; Save calls `setValue` on the area, so the form stores it
+as its own listener or Save does. Tests: `TemplateOverrideTest`, `TemplateCompareTest`.

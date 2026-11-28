@@ -68,6 +68,11 @@ the next one in the chain.
 
 - Templates are Handlebars. Sections such as `{{ '{{#memories}}' }}...{{ '{{/memories}}' }}` are left out when there is nothing to put in
   them. The variables of each template are described next to it.
+- A template whose text differs from the one it inherits (yours from the built-in text; hers from yours, else the built-in
+  text) has its **(i)** in red. The (i) then has **Compare with the inherited text**: the inherited text on the left, this
+  one on the right to edit, and the words that change under them. **Use the inherited text** and **Undo the changes** fill
+  the right side; **Save** (or Ctrl+Enter) puts it into the field, which is then stored as if you had typed it (her tab at
+  once, User Settings with its Save). The same works for the texts of a personality or a mood.
 - **Preview the system prompt** shows what her system prompt is now.
 - An invalid template is reported and not stored.
 - The server adds what she needs around your text (tools, approvals, her body state), so editing the persona cannot break them.
