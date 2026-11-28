@@ -7,7 +7,7 @@ import java.util.Locale;
  * assistant each say whether it runs, waits for the user, or never runs (see {@code DESIGN.md} → Tool permissions).
  * Tools that only touch her own things (memory, body) are not here: they always run.
  */
-public enum ServerTool {
+public enum ServerTool implements ApprovableTool {
 
     /** She searches the web and reads the pages it finds: a task of the stronger model. */
     WEB_SEARCH("web_search", ToolPermission.ASK, "Search the web and read the pages found, with the stronger model"),
@@ -24,17 +24,17 @@ public enum ServerTool {
         this.description = description;
     }
 
-    /** What the tool does, in a line: sent with a task, so a client can keep a standing approval as {name, description}. */
+    @Override
     public String description() {
         return description;
     }
 
-    /** The name of the function she calls. */
+    @Override
     public String function() {
         return function;
     }
 
-    /** What the tool is when no link of the chain says. */
+    @Override
     public ToolPermission fallback() {
         return fallback;
     }

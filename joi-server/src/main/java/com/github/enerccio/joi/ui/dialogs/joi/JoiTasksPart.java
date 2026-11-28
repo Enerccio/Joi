@@ -9,7 +9,7 @@ import com.github.enerccio.joi.domain.model.impl.JoiTask;
 import com.github.enerccio.joi.domain.model.impl.JoiTaskMessage;
 import com.github.enerccio.joi.domain.service.JoiTaskMessageService;
 import com.github.enerccio.joi.domain.service.WebTaskService;
-import com.github.enerccio.joi.domain.tools.ServerTool;
+import com.github.enerccio.joi.domain.tools.ApprovableTool;
 import com.github.enerccio.joi.domain.tools.ToolScope;
 import com.github.enerccio.joi.loc.J_L;
 import com.github.enerccio.joi.ui.JoiCssStyles;
@@ -209,7 +209,7 @@ public class JoiTasksPart implements JoiDialogPart {
         JoiTaskStatus status = task == null ? null : task.getStatus();
         boolean waiting = status == JoiTaskStatus.WAITING;
         approveButton.setEnabled(waiting);
-        approveAllButton.setEnabled(waiting && ServerTool.of(task.getTool()) != null);
+        approveAllButton.setEnabled(waiting && tasks.tool(task.getTool()) != null);
         denyButton.setEnabled(waiting);
         cancelButton.setEnabled(status != null && !status.isFinished());
         details.removeAll();
@@ -384,7 +384,7 @@ public class JoiTasksPart implements JoiDialogPart {
 
     private void approveAll() {
         JoiTask task = selection();
-        ServerTool tool = task == null ? null : ServerTool.of(task.getTool());
+        ApprovableTool tool = task == null ? null : tasks.tool(task.getTool());
         if (tool != null) {
             ConfirmDialog.show(String.format(loc.getValue(J_L.MSG_CONFIRM_APPROVE_ALL), tool.function()),
                     () -> run(() -> tasks.autoApprove(joi, tool, true)));

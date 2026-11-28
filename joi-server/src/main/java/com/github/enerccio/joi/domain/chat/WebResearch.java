@@ -2,7 +2,6 @@ package com.github.enerccio.joi.domain.chat;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import com.github.enerccio.joi.domain.collections.TaskMessageRole;
 import com.github.enerccio.joi.domain.service.WebToolSettingsService.Pages;
 import com.github.enerccio.joi.domain.service.WebToolSettingsService.Search;
 import com.github.enerccio.joi.domain.web.PageFetcher;
@@ -13,14 +12,9 @@ import com.github.enerccio.joi.domain.web.WebException;
 import com.github.enerccio.joi.domain.web.WebSearchClient;
 import com.github.enerccio.marginalia.domain.model.impl.AI;
 import com.github.enerccio.marginalia.domain.service.InferenceService;
-import com.github.enerccio.marginalia.domain.service.InferenceService.ChunkType;
-import com.github.enerccio.marginalia.domain.service.InferenceService.InferenceRoundCallback;
-import com.github.enerccio.marginalia.domain.service.InferenceService.RoundUsage;
 import com.github.enerccio.marginalia.domain.service.function.FunctionDefinition;
 import com.github.enerccio.marginalia.domain.service.function.FunctionSet;
 import com.github.enerccio.marginalia.domain.service.impl.generation.dto.LLMChatMessage;
-import com.github.enerccio.marginalia.domain.service.impl.generation.dto.LLMRole;
-import com.github.enerccio.marginalia.domain.service.impl.generation.dto.LLMToolCall;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -29,12 +23,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Callable;
-import java.util.concurrent.CancellationException;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BooleanSupplier;
 import java.util.stream.Collectors;
@@ -58,16 +47,11 @@ public final class WebResearch {
     static final int MAX_FILE_CALLS = 8;
     /** How many times a task may ask to look at an image of the workspace (the rounds of the loop grow by that). */
     static final int MAX_IMAGE_CALLS = 4;
-    /** How long the model may take for one round. */
-    static final long ROUND_MINUTES = 15;
-    /** How long a function may take: the longest page timeout of the options is 300 s. */
-    static final long CALL_SECONDS = 330;
     /** The most of what a search gives back that goes to the model, in characters. */
     static final int SEARCH_TEXT = 6000;
 
     /** What the task writes in its transcript, in the order it happens. */
-    public interface Transcript {
-        void add(TaskMessageRole role, String content, String reasoning, List<LLMToolCall> calls, String toolCallId, RoundUsage usage);
+    public interface Transcript extends TaskLoop.Transcript {
     }
 
     private final ObjectMapper jackson = new ObjectMapper();
@@ -77,7 +61,7 @@ public final class WebResearch {
     private final boolean withSearch;
     private final Executor executor;
     private final BooleanSupplier cancelled;
-    private final Transcript transcript;
+    private final TaskLoop.Transcript transcript;
     private final AtomicInteger searches = new AtomicInteger();
     private final AtomicInteger read = new AtomicInteger();
     private FunctionSet fileTools;
@@ -89,7 +73,7 @@ public final class WebResearch {
      * @param cancelled  asked between the steps: true stops the task
      */
     public WebResearch(InferenceService service, Search search, Pages pages, boolean withSearch, Executor executor,
-                       BooleanSupplier cancelled, Transcript transcript) {
+                       BooleanSupplier cancelled, TaskLoop.Transcript transcript) {
         this.service = service;
         this.search = search;
         this.pages = pages;
@@ -126,111 +110,9 @@ public final class WebResearch {
 
     /** Runs the task with its instruction; the answer of the model, which is the result. */
     public String run(AI ai, String instruction) throws Exception {
-        FunctionSet functions = functions();
-        List<LLMChatMessage> payload = new ArrayList<>();
-        payload.add(LLMChatMessage.of(LLMRole.USER, instruction));
-        transcript.add(TaskMessageRole.USER, instruction, null, null, null, null);
         int rounds = Math.min(search.config().maxSearches() + search.config().maxPages() + 2 + (fileTools == null ? 0 : MAX_FILE_CALLS)
                 + (imageTools == null ? 0 : MAX_IMAGE_CALLS), 30);
-        for (int round = 1; round <= rounds; round++) {
-            checkCancelled();
-            boolean last = round == rounds;
-            Round answer = ask(payload, last ? FunctionSet.empty() : functions, last);
-            List<LLMToolCall> calls = answer.calls() == null ? List.of() : answer.calls();
-            if (calls.isEmpty() || last) {
-                String text = StringUtils.strip(StringUtils.defaultString(answer.text()));
-                transcript.add(TaskMessageRole.ASSISTANT, text, answer.reasoning(), null, null, answer.usage());
-                if (text.isEmpty()) {
-                    throw new IllegalStateException("The model gave no answer");
-                }
-                return text;
-            }
-            transcript.add(TaskMessageRole.ASSISTANT, answer.text(), answer.reasoning(), calls, null, answer.usage());
-            LLMChatMessage calling = LLMChatMessage.ofToolCalls(StringUtils.defaultString(answer.text()), calls);
-            if (StringUtils.isNotBlank(answer.reasoning())) {
-                calling = calling.withReasoning(answer.reasoning().strip(), true);
-            }
-            payload.add(calling);
-            for (LLMToolCall call : calls) {
-                checkCancelled();
-                String result = call(functions, call);
-                transcript.add(TaskMessageRole.TOOL, result, null, null, call.getId(), null);
-                payload.add(LLMChatMessage.ofToolResult(call.getId(), result));
-            }
-            if (shownImages != null) {
-                // the pictures asked for with view_image: a tool result is text only, so they come in a message of their own
-                LLMChatMessage looked = shownImages.call();
-                if (looked != null) {
-                    transcript.add(TaskMessageRole.USER, looked.getContent(), null, null, null, null);
-                    payload.add(looked);
-                }
-            }
-        }
-        throw new IllegalStateException("The model did not finish");
-    }
-
-    private void checkCancelled() {
-        if (cancelled.getAsBoolean()) {
-            throw new CancellationException("The task was cancelled");
-        }
-    }
-
-    private record Round(String text, String reasoning, List<LLMToolCall> calls, RoundUsage usage) {
-    }
-
-    private Round ask(List<LLMChatMessage> payload, FunctionSet functions, boolean noCalls) throws Exception {
-        CompletableFuture<Round> done = new CompletableFuture<>();
-        service.round(payload, null, functions, noCalls, new InferenceRoundCallback() {
-            @Override
-            public void onChunk(ChunkType chunkType, String chunk) {
-            }
-
-            @Override
-            public void onRound(String text, List<LLMToolCall> calls, RoundUsage usage) {
-                done.complete(new Round(text, null, calls, usage));
-            }
-
-            @Override
-            public void onRound(String text, String reasoning, List<LLMToolCall> calls, RoundUsage usage) {
-                done.complete(new Round(text, reasoning, calls, usage));
-            }
-
-            @Override
-            public void onCancel() {
-                done.completeExceptionally(new CancellationException("The model stopped"));
-            }
-
-            @Override
-            public void onError(Throwable exception) {
-                done.completeExceptionally(exception);
-            }
-
-            @Override
-            public boolean isDead() {
-                return cancelled.getAsBoolean();
-            }
-        });
-        try {
-            return done.get(ROUND_MINUTES, TimeUnit.MINUTES);
-        } catch (ExecutionException e) {
-            throw e.getCause() instanceof Exception cause ? cause : e;
-        } catch (TimeoutException e) {
-            throw new IllegalStateException("The model did not answer in " + ROUND_MINUTES + " minutes");
-        }
-    }
-
-    /** A call of the model: what the function answers, or the reason it failed (the model reads either). */
-    private String call(FunctionSet functions, LLMToolCall call) throws InterruptedException {
-        try {
-            return functions.call(call.getName(), StringUtils.defaultIfBlank(call.getArguments(), "{}"), executor, cancelled)
-                    .get(CALL_SECONDS, TimeUnit.SECONDS);
-        } catch (ExecutionException e) {
-            Throwable cause = e.getCause() == null ? e : e.getCause();
-            // the function set already says which function failed and why
-            return StringUtils.defaultIfBlank(cause.getMessage(), "Failed: " + cause.getClass().getSimpleName());
-        } catch (TimeoutException e) {
-            return "Failed: it took too long";
-        }
+        return new TaskLoop(service, executor, cancelled, transcript).run(instruction, functions(), rounds, shownImages);
     }
 
     // ----------------------------------------------------------------------------------------------------------------

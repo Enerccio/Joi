@@ -117,6 +117,8 @@ public final class JoiCssStyles {
 
     /** Administration and User Settings → Tools: the column of the permissions and the web options (scrolls). */
     public static final String TOOLS_PANEL = "tools-panel";
+    /** The settings of the extensions on the Tools pages. */
+    public static final String EXTENSION_SETTINGS = "extension-settings";
     /** The rows of the permissions of the tools. */
     public static final String TOOL_PERMISSIONS = "tool-permissions";
     /** The grid of the search sources. */

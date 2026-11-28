@@ -715,10 +715,41 @@ remote, how the last update ended), which the tab shows beside the running versi
 of `joi-server`; the Docker build copies `.git` for it). Without the watcher (the desktop app, the prebuilt image) the tab only says so.
 See `manual/user/administration/updates.md`.
 
-**Joi's own extension points** (`JoiExtension`, `JoiExtensionContext`): functions offered to her turns (`ToolProvider`), tabs of the workspace
-(`ExtensionPart`) and listeners of the turn events; all removed with the extension. **Not built, added when one is needed:** tabs of the
-assistant's dialog, settings of an extension, prompt sections, an API JAR (today a bundle sees the server's classes by boot delegation, so an
-extension is built against the server of one version, as Marginalia's are). See `manual/developer/extensions.md`.
+**Marginalia's books (built): a plugin.** She reads the user's books in Marginalia through an extension of Joi
+(`joi-extensions/marginalia-books`, a bundle like the model providers), not through code of the server: it talks to Marginalia's HTTP API, so
+the two installs share nothing but a key and may be on different servers. The user makes the key in Marginalia with the scope `READ` (the books
+and the commands that only read) and sets Marginalia's address and the key in User Settings → Tools (the administrator may set them for
+everybody; each field of the user's wins). Nothing is offered until both are set.
+  - **`marginalia_books`** (a function of her turn, a declared tool, Allow by default): the books, name, folder and uuid (`GET books`).
+  - **`marginalia_read_part(book, part?, offset?, length?)`** (a function of her turn, a declared tool, Allow by default): she reads a part
+    herself, with no task: no part runs Marginalia's `list-parts` (the active branch's parts with their handles), a part runs `get-part`, a page of
+    at most 6 000 characters (a later page with `offset`: the paged forms with a blank `branch`, the active one). What she reads lands in her
+    prompt, so the whole book is the task's.
+  - **`marginalia_read_book(book, question)`** (a task, Ask by default): the stronger model gets every command of Marginalia that only reads
+    (`GET commands` with `readOnly`, their arguments from `GET openapi.json`), each a function bound to the book she named, so a new command of
+    Marginalia reaches it without a new plugin; a command that answers with a run is followed (`GET runs/<id>`); a result is cut at 40 000
+    characters. Its answer is told to her once, and a chapter never enters her prompt.
+  - **Not built:** writing into a book (`WRITE`). It would be asked every time, with the change shown. Until then the plugin never runs a
+    command that is not `readOnly`, whatever the key may do.
+
+**Joi's own extension points** (`JoiExtension`, `JoiExtensionContext`), all removed with the extension:
+  - functions offered to her turns (`ToolProvider`), tabs of the workspace (`ExtensionPart`), listeners of the turn events;
+  - **tools under the chain of permissions** (`declareTool(ExtensionTool)`): an `ApprovableTool` like the server's `web_search`, with its own
+    built-in default, a row on the Tools pages and in her Tasks tab, its settings kept in `ToolMetadata` under its function name. A function of
+    her turn of that name is offered only when the chain says Allow: Ask has nobody to ask in the middle of a turn, so it leaves it out as Deny does;
+  - **functions that run as tasks** (`offerTask(ExtensionTask)`): her call makes a `JoiTask` (its arguments kept as JSON), approved or not along
+    the chain as a web task, run after her reply by the stronger model with the functions the extension gives it (`ExtensionTask.prepare`) and the
+    template `EXTENSION_TASK_PROMPT`; she is told once, as for `fetch_page` (`WebTaskService`, `ExtensionTasks`, `ExtensionTaskRunner`, the
+    loop `TaskLoop` shared with the web tasks). A queued task whose extension is gone fails with that reason;
+  - **settings** (`declareSettings(ExtensionSettings)`, read with `settings(joi)`): texts and secrets, kept as a `ToolMetadata` under the key
+    `ext:<symbolic name>` (no table of their own; secrets protected as a server tool's), each field from the first place that sets it: the
+    assistant's (no page yet), the user's, the administrator's. They stay when the extension is unloaded. Shown on both Tools pages
+    (`ExtensionSettingsPanel`).
+
+**Not built, added when one is needed:** tabs of the assistant's dialog, the assistant's own settings of an extension (the chain reads them, no
+page writes them), prompt sections, an API JAR (a bundle sees the server's classes by boot delegation; Joi's own extensions compile against
+`joi-server`'s `-classes` JAR, so an extension is built against the server of one version, as Marginalia's are). See
+`manual/developer/extensions.md`.
 
 ### Several assistants
 

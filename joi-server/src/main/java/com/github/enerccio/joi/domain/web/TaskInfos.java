@@ -20,7 +20,7 @@ public final class TaskInfos {
     public static TaskInfo of(JoiTask task, List<TaskStep> steps) {
         ServerTool tool = ServerTool.of(task.getTool());
         return new TaskInfo(task.getUuid(), StringUtils.defaultString(task.getTitle()), task.getTool(),
-                tool == null ? null : tool.description(), task.getStatus().name().toLowerCase(Locale.ROOT), task.getInstructions(),
+                tool == null ? task.getToolDescription() : tool.description(), task.getStatus().name().toLowerCase(Locale.ROOT), task.getInstructions(),
                 task.getUrl(), task.getResult(), task.getError(), iso(task.getCreation()), iso(task.getStartedAt()),
                 iso(task.getFinishedAt()), steps);
     }

@@ -32,6 +32,8 @@ holds."
 
 The permission is read when she calls the tool, not when the turn starts, so a change counts at once.
 
+The tools of [extensions](../extensions/index.md) follow the same chain; their built-in default is the extension's (Allow or Ask).
+
 ## Standing approval
 
 When a task asks, you can answer **Approve all of this tool**: this task and every later one of that tool for that assistant run

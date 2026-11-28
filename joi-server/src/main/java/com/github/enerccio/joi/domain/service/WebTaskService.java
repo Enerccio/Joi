@@ -2,6 +2,7 @@ package com.github.enerccio.joi.domain.service;
 
 import com.github.enerccio.joi.domain.model.impl.Joi;
 import com.github.enerccio.joi.domain.model.impl.JoiTask;
+import com.github.enerccio.joi.domain.tools.ApprovableTool;
 import com.github.enerccio.joi.domain.tools.ServerTool;
 
 import com.github.enerccio.joi.domain.chat.turn.TurnControllerEvent.Registration;
@@ -9,7 +10,8 @@ import com.github.enerccio.joi.domain.chat.turn.TurnControllerEvent.Registration
 import java.util.List;
 
 /**
- * The tasks of the web tools ({@code web_search}, {@code fetch_page}): what she asks for becomes a {@link JoiTask} that
+ * The tasks of the web tools ({@code web_search}, {@code fetch_page}) and of the extensions ({@code ExtensionTask}): what she asks for
+ * becomes a {@link JoiTask} that
  * the stronger model does after the reply that asked for it (see {@code DESIGN.md} → Tasks after the reply). Whether it
  * runs at once or waits for the user is the tool's permission along the chain ({@link ToolPermissionService}). When it
  * ends, she is told in one event with the result, through a connected node, else when a node connects.
@@ -32,7 +34,22 @@ public interface WebTaskService {
      * @param toolCallId the id of her call, to say which it answered
      * @throws NotAllowedException when the tool is denied
      */
-    JoiTask submit(Joi joi, ServerTool tool, String question, String url, String toolCallId) throws Exception, NotAllowedException;
+    default JoiTask submit(Joi joi, ServerTool tool, String question, String url, String toolCallId) throws Exception, NotAllowedException {
+        return submit(joi, tool, question, url, null, null, toolCallId);
+    }
+
+    /**
+     * Makes the task of a call of hers, of a tool of the server or of an extension ({@code ExtensionTask}).
+     *
+     * @param title     the name of the task in the lists, null for the question (or the page)
+     * @param arguments the arguments of her call as JSON, for a task of an extension (given back to it when it runs); null for none
+     * @throws NotAllowedException when the tool is denied
+     */
+    JoiTask submit(Joi joi, ApprovableTool tool, String question, String url, String title, String arguments, String toolCallId)
+            throws Exception, NotAllowedException;
+
+    /** The tool of a function name: one of the server, or one an extension that is loaded declared; null for none. */
+    ApprovableTool tool(String function);
 
     /** The user allows a task that waits: it runs when her turns are done. */
     JoiTask approve(JoiTask task) throws Exception;
@@ -50,17 +67,17 @@ public interface WebTaskService {
     JoiTask cancel(JoiTask task) throws Exception;
 
     /** Whether the user approved every use of the tool for the assistant ahead of time. */
-    boolean autoApproves(Joi joi, ServerTool tool) throws Exception;
+    boolean autoApproves(Joi joi, ApprovableTool tool) throws Exception;
 
     /**
      * Approves the tool for the assistant ahead of time, or takes that back. A task of it that asks is then made, put through
      * the approval as the user's answer would, and approved at once; she is told so when it ends, which is also how it is
      * logged in the chat. A tool that is denied stays denied. Turning it on approves the tasks of the tool that wait now.
      */
-    void autoApprove(Joi joi, ServerTool tool, boolean on) throws Exception;
+    void autoApprove(Joi joi, ApprovableTool tool, boolean on) throws Exception;
 
-    /** The tools the user approved ahead of time for the assistant. */
-    List<ServerTool> autoApproved(Joi joi) throws Exception;
+    /** The tools the user approved ahead of time for the assistant (the server's, then those of the extensions that are loaded). */
+    List<ApprovableTool> autoApproved(Joi joi) throws Exception;
 
     /** The tasks of the assistant, the newest first. */
     List<JoiTask> tasks(Joi joi) throws Exception;

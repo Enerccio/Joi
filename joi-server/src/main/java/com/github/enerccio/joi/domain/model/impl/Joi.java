@@ -144,6 +144,11 @@ public class Joi extends ExtendableEntity implements PersonaAttributes {
     @Transient
     private String webTaskPrompt;
 
+    /** What the stronger model is told when it does a task of an extension for her ({@code ExtensionTaskTemplateData}). */
+    @ExtendedAttribute
+    @Transient
+    private String extensionTaskPrompt;
+
     /** What she is told when a task of hers ends ({@code TaskEventTemplateData}). */
     @ExtendedAttribute
     @Transient
@@ -778,6 +783,16 @@ public class Joi extends ExtendableEntity implements PersonaAttributes {
     @Override
     public void setPartRequestEvent(String partRequestEvent) {
         this.partRequestEvent = partRequestEvent;
+    }
+
+    @Override
+    public String getExtensionTaskPrompt() {
+        return extensionTaskPrompt;
+    }
+
+    @Override
+    public void setExtensionTaskPrompt(String extensionTaskPrompt) {
+        this.extensionTaskPrompt = extensionTaskPrompt;
     }
 
     @Override

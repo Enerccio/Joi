@@ -5,7 +5,8 @@
   <modelVersion>4.0.0</modelVersion>
 
   <!-- The extensions that come with Joi: OSGi bundles (JARs) the server loads at runtime (Administration -> Extensions, or the
-       extensions folder of the data folder). The model providers are Marginalia's plugins, built against its platform only. -->
+       extensions folder of the data folder). The model providers are Marginalia's plugins, built against its platform only;
+       marginalia-books is an extension of Joi (JoiExtension), built against the server's classes (joi-server's -classes JAR). -->
   <parent>
     <groupId>io.github.enerccio</groupId>
     <artifactId>joi-parent</artifactId>
@@ -21,5 +22,6 @@
     <module>anthropic</module>
     <module>google-genai</module>
     <module>grok</module>
+    <module>marginalia-books</module>
   </modules>
 </project>

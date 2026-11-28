@@ -154,6 +154,10 @@
     <!-- what Joi's extensions add (functions for her turns, tabs, turn listeners) and the loader that gives them the context -->
     <bean class="com.github.enerccio.joi.domain.extensions.JoiExtensions" />
     <bean class="com.github.enerccio.joi.domain.extensions.JoiExtensionLoader" />
+    <!-- the settings the extensions ask for (kept as tool settings), their functions that run as tasks, and the work of those tasks -->
+    <bean class="com.github.enerccio.joi.domain.extensions.ExtensionSettingsServiceImpl" />
+    <bean class="com.github.enerccio.joi.domain.extensions.ExtensionTasks" />
+    <bean class="com.github.enerccio.joi.domain.extensions.ExtensionTaskRunner" />
 
     <bean class="com.github.enerccio.marginalia.domain.service.impl.DatabaseBackupServiceImpl" />
 

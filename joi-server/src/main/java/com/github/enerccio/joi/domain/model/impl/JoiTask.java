@@ -59,7 +59,7 @@ public class JoiTask extends ExtendableEntity {
     @Transient
     private String instructions;
 
-    /** The function of the server tool that started it ({@code web_search}, {@code fetch_page}). */
+    /** The function that started it: a server tool's ({@code web_search}, {@code fetch_page}) or an extension's task. */
     @ExtendedAttribute
     @Transient
     private String tool;
@@ -68,6 +68,16 @@ public class JoiTask extends ExtendableEntity {
     @ExtendedAttribute
     @Transient
     private String url;
+
+    /** The arguments of her call, as JSON, for a task of an extension (it reads them back when the task runs). */
+    @ExtendedAttribute
+    @Transient
+    private String arguments;
+
+    /** What the tool does, in a line, as it was when the task was made: an extension's tool may be gone when the task is shown. */
+    @ExtendedAttribute
+    @Transient
+    private String toolDescription;
 
     /** Whether the user's standing approval of the tool approved it (it still went through approval, as the API does it). */
     @ExtendedAttribute
@@ -158,6 +168,22 @@ public class JoiTask extends ExtendableEntity {
 
     public void setTool(String tool) {
         this.tool = tool;
+    }
+
+    public String getArguments() {
+        return arguments;
+    }
+
+    public void setArguments(String arguments) {
+        this.arguments = arguments;
+    }
+
+    public String getToolDescription() {
+        return toolDescription;
+    }
+
+    public void setToolDescription(String toolDescription) {
+        this.toolDescription = toolDescription;
     }
 
     public String getUrl() {

@@ -3,7 +3,7 @@ package com.github.enerccio.joi.domain.service;
 import com.github.enerccio.joi.domain.model.impl.Joi;
 import com.github.enerccio.joi.domain.model.impl.ToolMetadata;
 import com.github.enerccio.joi.domain.repository.ToolMetadataRepository;
-import com.github.enerccio.joi.domain.tools.ServerTool;
+import com.github.enerccio.joi.domain.tools.ApprovableTool;
 import com.github.enerccio.joi.domain.tools.ToolScope;
 import com.github.enerccio.marginalia.domain.service.ExtendableService;
 
@@ -17,10 +17,19 @@ import java.util.List;
 public interface ToolMetadataService extends ExtendableService<ToolMetadata, ToolMetadataRepository> {
 
     /** The settings of the tool in the place ({@code joi} only for {@link ToolScope#JOI}), null when there are none. */
-    ToolMetadata find(ToolScope scope, Joi joi, ServerTool tool) throws Exception;
+    ToolMetadata find(ToolScope scope, Joi joi, ApprovableTool tool) throws Exception;
 
     /** What {@link #find} gives, else a new one for the place, not saved. */
-    ToolMetadata edit(ToolScope scope, Joi joi, ServerTool tool) throws Exception;
+    ToolMetadata edit(ToolScope scope, Joi joi, ApprovableTool tool) throws Exception;
+
+    /**
+     * The settings kept under a key in the place, null when there are none: a tool's function name, or the key of the settings of an
+     * extension ({@code ExtensionSettingsService}).
+     */
+    ToolMetadata find(ToolScope scope, Joi joi, String toolKey) throws Exception;
+
+    /** What {@link #find(ToolScope, Joi, String)} gives, else a new one for the place, not saved. */
+    ToolMetadata edit(ToolScope scope, Joi joi, String toolKey) throws Exception;
 
     /** All the settings in the place. */
     List<ToolMetadata> findAll(ToolScope scope, Joi joi) throws Exception;

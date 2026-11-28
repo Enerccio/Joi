@@ -4,6 +4,7 @@ import com.github.enerccio.joi.defaults.JoiDefaults;
 import com.github.enerccio.joi.domain.model.impl.settings.JoiUserSetting;
 import com.github.enerccio.joi.domain.templates.BodyTemplateData;
 import com.github.enerccio.joi.domain.templates.ChatTemplateData;
+import com.github.enerccio.joi.domain.templates.ExtensionTaskTemplateData;
 import com.github.enerccio.joi.domain.templates.MessageStampTemplateData;
 import com.github.enerccio.joi.domain.templates.ImageDescriptionTemplateData;
 import com.github.enerccio.joi.domain.templates.ImageNoteTemplateData;
@@ -81,6 +82,8 @@ public enum JoiPromptField {
             PersonaAttributes::setPartRequestEvent, JoiDefaults::partRequestEvent),
     WEB_TASK_PROMPT("webTaskPrompt", WebTaskTemplateData.class, PersonaAttributes::getWebTaskPrompt,
             PersonaAttributes::setWebTaskPrompt, JoiDefaults::webTaskPrompt),
+    EXTENSION_TASK_PROMPT("extensionTaskPrompt", ExtensionTaskTemplateData.class, PersonaAttributes::getExtensionTaskPrompt,
+            PersonaAttributes::setExtensionTaskPrompt, JoiDefaults::extensionTaskPrompt),
     TASK_EVENT("taskEvent", TaskEventTemplateData.class, PersonaAttributes::getTaskEvent,
             PersonaAttributes::setTaskEvent, JoiDefaults::taskEvent);
 

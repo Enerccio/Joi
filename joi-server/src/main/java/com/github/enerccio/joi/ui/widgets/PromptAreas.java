@@ -75,6 +75,7 @@ public final class PromptAreas {
             case IMAGE_DESCRIPTION_PROMPT -> J_L.LABEL_IMAGE_DESCRIPTION_PROMPT;
             case PART_REQUEST_EVENT -> J_L.LABEL_PART_REQUEST_EVENT;
             case WEB_TASK_PROMPT -> J_L.LABEL_WEB_TASK_PROMPT;
+            case EXTENSION_TASK_PROMPT -> J_L.LABEL_EXTENSION_TASK_PROMPT;
             case TASK_EVENT -> J_L.LABEL_TASK_EVENT;
         };
     }

@@ -7,7 +7,7 @@ order: 920
 # Extensions
 
 Extensions add to Joi without changing the server: model providers, and features that bring their own tools for her or tabs of their own.
-They are JARs that an administrator loads, stops and unloads at runtime, see [Managing extensions](../administration/extensions.md). Three
+They are JARs that an administrator loads, stops and unloads at runtime, see [Managing extensions](../administration/extensions.md). Four
 come with Joi:
 
 | Extension | What it adds |
@@ -15,6 +15,7 @@ come with Joi:
 | [Anthropic Claude](#anthropic-claude) | Anthropic's Claude models as a provider, over Anthropic's own API. |
 | [Google Gemini](#google-gemini) | Google's Gemini models as a provider, over Google's own API. |
 | [xAI Grok](#xai-grok) | xAI's Grok models as a provider, over xAI's own API. |
+| [Marginalia's books](marginalia-books.md) | She reads your books in Marginalia, the writing application, through its API. |
 
 !!!warning What she says goes to the provider
 Every request of a model that uses one of these providers (her prompt with what she remembers, the summaries, what you say and what she
@@ -67,5 +68,6 @@ token counts of xAI and a model list and test made for the service.
 
 ## Other extensions
 
-An extension can also bring tools for her, tabs of the workspace and listeners of what she does in a turn; how to write one is in the
+An extension can also bring tools for her (under the same [permissions](../tools/permissions.md) as the server's, or as [tasks](../jois/tasks.md)),
+its own settings (in the Tools tabs), tabs of the workspace and listeners of what she does in a turn; how to write one is in the
 [developer guide](../../developer/extensions.md).

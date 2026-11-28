@@ -20,6 +20,7 @@ COPY joi-extensions/pom.xml ./joi-extensions/pom.xml
 COPY joi-extensions/anthropic/pom.xml ./joi-extensions/anthropic/pom.xml
 COPY joi-extensions/google-genai/pom.xml ./joi-extensions/google-genai/pom.xml
 COPY joi-extensions/grok/pom.xml ./joi-extensions/grok/pom.xml
+COPY joi-extensions/marginalia-books/pom.xml ./joi-extensions/marginalia-books/pom.xml
 RUN mvn install -N -B -f pom.xml \
     && mvn install -N -B -f marginalia/pom.xml \
     && mvn dependency:go-offline -B -f marginalia/marginalia/platform/pom.xml
@@ -38,16 +39,17 @@ RUN mvn install -B -DskipTests -Pproduction -pl joi-server -am \
     && find "$HOME/.m2/repository/io/github/enerccio/joi-server" -name '*.war' -delete \
     && rm -rf joi-server/node_modules "$HOME/.vaadin" "$HOME/.npm" "$HOME/.cache"
 
-# The extensions that come with Joi (the model providers Anthropic Claude, Google Gemini and xAI Grok), built against the
-# platform the builder installed. Not part of the server's image: they are loaded from the extensions folder of the data
+# The extensions that come with Joi (the model providers Anthropic Claude, Google Gemini and xAI Grok, and Marginalia's books), built
+# against the platform the builder installed (Marginalia's books against the server's classes JAR, which install also put there). Not part of the server's image: they are loaded from the extensions folder of the data
 # folder, which is a volume (see joi-extensions/docker-compose.yml). BuildKit skips these stages for the runtime image.
 FROM builder AS extensions-build
 
 COPY joi-extensions/anthropic/src ./joi-extensions/anthropic/src
 COPY joi-extensions/google-genai/src ./joi-extensions/google-genai/src
 COPY joi-extensions/grok/src ./joi-extensions/grok/src
+COPY joi-extensions/marginalia-books/src ./joi-extensions/marginalia-books/src
 RUN mkdir /jars \
-    && mvn package -B -DskipTests -pl joi-extensions/anthropic,joi-extensions/google-genai,joi-extensions/grok \
+    && mvn package -B -DskipTests -pl joi-extensions/anthropic,joi-extensions/google-genai,joi-extensions/grok,joi-extensions/marginalia-books \
     && cp joi-extensions/*/target/*.jar /jars/
 
 # The extension JARs; the command copies them into the mounted folder /output, replacing the ones from an earlier build

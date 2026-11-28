@@ -27,4 +27,9 @@ The same panel appears in three places:
 Each tool is a row with its permission (Inherit, Allow, Ask, Deny) and the one in force, with where it comes from ("Ask (from the
 administrator)"). A change is stored at once. The web search panel below the permissions has its own **Save**.
 
+A loaded [extension](../extensions/index.md) can add rows of its own tools under the server's (for example *Marginalia: read a book*), which
+follow the same chain, and a section of its settings at the bottom of the Administration and User Settings tabs, with its own **Save**
+(for example [Marginalia's books](../extensions/marginalia-books.md)). An extension's tool that runs during her reply, not as a task, has
+nobody to ask: *Ask* leaves it out of her reply as *Deny* does.
+
 ![The Tools tab of the User Settings](../../images/settings-tools.png)

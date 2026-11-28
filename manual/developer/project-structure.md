@@ -23,13 +23,13 @@ See the [Developer guide](index.md). The server's Java is under `com.github.ener
 | `domain.model.impl` | the entities (below) |
 | `domain.repository`, `.impl` | repository interfaces and their `Jpa*Repository` classes |
 | `domain.service`, `.impl` | service interfaces and `*ServiceImpl` |
-| `domain.chat`, `.turn` | the chat service, `ChatImages` (an image of the user made ready; `ChatImageService` keeps them), the steps and events of a turn, her functions (`MemoryTools`, `BodyTools`, `AnimationTools`, `ExpressionTools`, `MoodTools`, `WebTools`, `WorkspaceTools`), `JoiInference` (the cache key `X-Session-ID` of a model call: user, model, assistant, action) |
+| `domain.chat`, `.turn` | the chat service, `ChatImages` (an image of the user made ready; `ChatImageService` keeps them), the steps and events of a turn, her functions (`MemoryTools`, `BodyTools`, `AnimationTools`, `ExpressionTools`, `MoodTools`, `WebTools`, `WorkspaceTools`), the loop of a task of the stronger model (`TaskLoop`, `WebResearch`), `JoiInference` (the cache key `X-Session-ID` of a model call: user, model, assistant, action) |
 | `domain.persona` | `JoiPromptField` (and `TemplateOverride`: a template against its parent in the chain), personalities, moods (`Mood` with its `MoodFace`, the user's `MoodSetting`) and the attributes of an assistant |
 | `domain.templates` | the data of every prompt template (`*TemplateData`) |
 | `domain.bodies`, `.animations` | models, capabilities, appearance, outfits, profiles (`Profiles`, kept by `ProfileService`), spring bones, animation steps (`StepRotation`, `StepTranslation`), the folders of the library (`AnimationFolder`, `AnimationFolders`), the ledger of her recent stances (`StanceLog`) |
-| `domain.tools`, `domain.web` | server tools and their permissions; web search and page reading |
+| `domain.tools`, `domain.web` | server tools and their permissions (`ApprovableTool`: a server's or an extension's); web search and page reading |
 | `domain.events`, `domain.node` | queued events and their merge; a node's session |
-| `extensions`, `domain.extensions` | the API of Joi's extensions and what they registered (see [Extensions](extensions.md)) |
+| `extensions`, `domain.extensions` | the API of Joi's extensions, what they registered, their settings and their tasks (see [Extensions](extensions.md)) |
 | `domain.workspace` | tests only for now; the assistant's workspace is `JoiWorkspaceService` in `domain.service` (see [Server tools](tools.md)) |
 | `domain.jobs` | the names of the work logged as jobs (see [Jobs](jobs.md)) |
 | `domain.summary` | the pure logic of the summaries: her days, what is due, the queue (see [Summaries](summaries.md)) |

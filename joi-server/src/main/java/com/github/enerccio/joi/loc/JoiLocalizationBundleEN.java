@@ -104,6 +104,11 @@ public class JoiLocalizationBundleEN extends TextBundleBase<J_L> {
         setValue(J_L.LABEL_IMAGE_DESCRIPTION_PROMPT, "Describing an image of the user (the request to a model that can see, for a chat model that cannot)");
         setValue(J_L.LABEL_RECALLED_MEMORIES, "Memories that fit a message (added to the message of the user)");
         setValue(J_L.LABEL_SERVER_RESTARTED_EVENT, "Server was down (the event when the server was down and a node connected to it again)");
+        setValue(J_L.LABEL_REMOVE_EXTENSION_SETTINGS, "Remove these settings");
+        setValue(J_L.HELP_EXTENSION_SETTINGS_APP, "For everybody: a user's own settings take the place of these, one by one.");
+        setValue(J_L.HELP_EXTENSION_SETTINGS_USER, "For your assistants. What you leave empty is the administrator's.");
+        setValue(J_L.MSG_EXTENSION_NOT_LOADED, "The extension is not loaded any more");
+        setValue(J_L.LABEL_EXTENSION_TASK_PROMPT, "Extension task (what the stronger model is told when it does a task of an extension for her, such as reading a book)");
         setValue(J_L.LABEL_WEB_TASK_PROMPT, "Web task (what the stronger model is told when it searches the web or reads a page for her)");
         setValue(J_L.LABEL_TASK_EVENT, "Task ended (the event when a search or a page she asked for is done, failed, or was not allowed)");
         setValue(J_L.LABEL_PART_REQUEST_EVENT, "Asked to change a part (the event when her personality lets her decide on it)");
@@ -710,6 +715,8 @@ public class JoiLocalizationBundleEN extends TextBundleBase<J_L> {
         setValue(J_L.DESC_TEMPLATE_TASK_ERROR, "Why it failed; empty unless it did.");
         setValue(J_L.DESC_TEMPLATE_TASK_USER_MESSAGE, "What the user said in the message she started the task for; empty when she started it for none.");
         setValue(J_L.DESC_TEMPLATE_TASK_ASKED, "What she asked the tool for, whole; empty when the title already says it.");
+        setValue(J_L.DESC_TEMPLATE_EXTENSION_TASK_TOOL, "The name of her function and what it does, as the extension says it.");
+        setValue(J_L.DESC_TEMPLATE_EXTENSION_TASK_GUIDANCE, "What the extension tells the model about this task: what it works on and its functions.");
         setValue(J_L.DESC_TEMPLATE_TASK_REASON, "What the user said when they did not allow it; empty for none.");
         setValue(J_L.DESC_TEMPLATE_DOWN_FOR, "How long the server was gone, in words (3 minutes); empty when not known.");
         setValue(J_L.DESC_TEMPLATE_LAST_CHATTED, "When she last talked with the user, in words (3 hours ago); empty for never.");

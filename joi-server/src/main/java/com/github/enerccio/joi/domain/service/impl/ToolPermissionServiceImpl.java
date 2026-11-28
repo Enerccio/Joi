@@ -4,7 +4,7 @@ import com.github.enerccio.joi.domain.model.impl.Joi;
 import com.github.enerccio.joi.domain.model.impl.ToolMetadata;
 import com.github.enerccio.joi.domain.service.ToolMetadataService;
 import com.github.enerccio.joi.domain.service.ToolPermissionService;
-import com.github.enerccio.joi.domain.tools.ServerTool;
+import com.github.enerccio.joi.domain.tools.ApprovableTool;
 import com.github.enerccio.joi.domain.tools.ToolPermission;
 import com.github.enerccio.joi.domain.tools.ToolScope;
 import com.github.enerccio.marginalia.domain.traits.CommonTxReadOnly;
@@ -17,7 +17,7 @@ public class ToolPermissionServiceImpl implements ToolPermissionService {
 
     @Override
     @CommonTxReadOnly
-    public Chain chain(Joi joi, ServerTool tool) throws Exception {
+    public Chain chain(Joi joi, ApprovableTool tool) throws Exception {
         ToolPermission assistant = joi == null ? null : permission(toolMetadataService.find(ToolScope.JOI, joi, tool));
         ToolPermission user = permission(toolMetadataService.find(ToolScope.USER, null, tool));
         ToolPermission admin = permission(toolMetadataService.find(ToolScope.APP, null, tool));
@@ -45,7 +45,7 @@ public class ToolPermissionServiceImpl implements ToolPermissionService {
 
     @Override
     @CommonTxReadOnly
-    public Config config(Joi joi, ServerTool tool) throws Exception {
+    public Config config(Joi joi, ApprovableTool tool) throws Exception {
         if (joi != null) {
             ToolMetadata own = toolMetadataService.find(ToolScope.JOI, joi, tool);
             if (own != null && own.hasConfig()) {

@@ -2,7 +2,12 @@ package com.github.enerccio.joi.domain.extensions;
 
 import com.github.enerccio.joi.domain.chat.turn.TurnEvent;
 import com.github.enerccio.joi.domain.chat.turn.TurnEvents;
+import com.github.enerccio.joi.domain.model.impl.Joi;
+import com.github.enerccio.joi.extensions.ExtensionConfig;
 import com.github.enerccio.joi.extensions.ExtensionPart;
+import com.github.enerccio.joi.extensions.ExtensionSettings;
+import com.github.enerccio.joi.extensions.ExtensionTask;
+import com.github.enerccio.joi.extensions.ExtensionTool;
 import com.github.enerccio.joi.extensions.JoiExtension;
 import com.github.enerccio.joi.extensions.JoiExtensionContext;
 import com.github.enerccio.joi.extensions.ToolProvider;
@@ -29,6 +34,9 @@ public class JoiExtensionLoader implements OsgiService.ExtensionListener, Initia
 
     @Autowired
     private JoiExtensions extensions;
+
+    @Autowired
+    private ExtensionSettingsService settingsService;
 
     private ApplicationContext applicationContext;
 
@@ -124,6 +132,26 @@ public class JoiExtensionLoader implements OsgiService.ExtensionListener, Initia
         @Override
         public void onTurnEvent(TurnEvents event, TurnEvent listener) {
             extensions.onTurnEvent(owner, event, listener);
+        }
+
+        @Override
+        public void declareTool(ExtensionTool tool) {
+            extensions.declareTool(owner, tool);
+        }
+
+        @Override
+        public void offerTask(ExtensionTask task) {
+            extensions.offerTask(owner, task);
+        }
+
+        @Override
+        public void declareSettings(ExtensionSettings settings) {
+            extensions.declareSettings(owner, settings);
+        }
+
+        @Override
+        public ExtensionConfig settings(Joi joi) throws Exception {
+            return settingsService.resolve(joi, owner);
         }
     }
 }

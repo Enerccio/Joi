@@ -5,7 +5,7 @@ import com.github.enerccio.joi.domain.model.impl.ToolMetadata;
 import com.github.enerccio.joi.domain.repository.ToolMetadataRepository;
 import com.github.enerccio.joi.domain.service.JoiService;
 import com.github.enerccio.joi.domain.service.ToolMetadataService;
-import com.github.enerccio.joi.domain.tools.ServerTool;
+import com.github.enerccio.joi.domain.tools.ApprovableTool;
 import com.github.enerccio.joi.domain.tools.ToolScope;
 import com.github.enerccio.marginalia.domain.security.AdminGuard;
 import com.github.enerccio.marginalia.domain.security.model.User;
@@ -32,22 +32,37 @@ public class ToolMetadataServiceImpl extends ExtendableServiceImpl<ToolMetadata,
 
     @Override
     @CommonTxReadOnly
-    public ToolMetadata find(ToolScope scope, Joi joi, ServerTool tool) throws Exception {
-        User user = reading(scope, joi);
-        return getRepository().find(scope, joi, user, tool.function());
+    public ToolMetadata find(ToolScope scope, Joi joi, ApprovableTool tool) throws Exception {
+        return find(scope, joi, tool.function());
     }
 
     @Override
     @CommonTxReadOnly
-    public ToolMetadata edit(ToolScope scope, Joi joi, ServerTool tool) throws Exception {
-        ToolMetadata found = find(scope, joi, tool);
+    public ToolMetadata edit(ToolScope scope, Joi joi, ApprovableTool tool) throws Exception {
+        return edit(scope, joi, tool.function());
+    }
+
+    @Override
+    @CommonTxReadOnly
+    public ToolMetadata find(ToolScope scope, Joi joi, String toolKey) throws Exception {
+        User user = reading(scope, joi);
+        return getRepository().find(scope, joi, user, toolKey);
+    }
+
+    @Override
+    @CommonTxReadOnly
+    public ToolMetadata edit(ToolScope scope, Joi joi, String toolKey) throws Exception {
+        if (StringUtils.isBlank(toolKey) || toolKey.length() > 64) {
+            throw new IllegalArgumentException("The key of the settings is blank or longer than 64: " + toolKey);
+        }
+        ToolMetadata found = find(scope, joi, toolKey);
         if (found != null) {
             return found;
         }
         ToolMetadata created = new ToolMetadata();
         created.setScope(scope);
         created.setJoi(scope == ToolScope.JOI ? joi : null);
-        created.setToolKey(tool.function());
+        created.setToolKey(toolKey);
         return created;
     }
 

@@ -100,6 +100,10 @@ public interface PersonaAttributes {
 
     void setWebTaskPrompt(String webTaskPrompt);
 
+    String getExtensionTaskPrompt();
+
+    void setExtensionTaskPrompt(String extensionTaskPrompt);
+
     String getTaskEvent();
 
     void setTaskEvent(String taskEvent);

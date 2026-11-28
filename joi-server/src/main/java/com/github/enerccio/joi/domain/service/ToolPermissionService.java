@@ -2,7 +2,7 @@ package com.github.enerccio.joi.domain.service;
 
 import com.github.enerccio.joi.domain.model.impl.Joi;
 import com.github.enerccio.joi.domain.model.impl.ToolMetadata;
-import com.github.enerccio.joi.domain.tools.ServerTool;
+import com.github.enerccio.joi.domain.tools.ApprovableTool;
 import com.github.enerccio.joi.domain.tools.ToolPermission;
 import com.github.enerccio.joi.domain.tools.ToolScope;
 
@@ -38,13 +38,13 @@ public interface ToolPermissionService {
     }
 
     /** The chain of the tool for the assistant; with no assistant (null) its link is left out: the user's own settings page. */
-    Chain chain(Joi joi, ServerTool tool) throws Exception;
+    Chain chain(Joi joi, ApprovableTool tool) throws Exception;
 
     /** What the tool is for the assistant now. */
-    default ToolPermission effective(Joi joi, ServerTool tool) throws Exception {
+    default ToolPermission effective(Joi joi, ApprovableTool tool) throws Exception {
         return chain(joi, tool).effective();
     }
 
     /** The options of the tool: the assistant's, else the user's, else the administrator's. */
-    Config config(Joi joi, ServerTool tool) throws Exception;
+    Config config(Joi joi, ApprovableTool tool) throws Exception;
 }

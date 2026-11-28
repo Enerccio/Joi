@@ -258,6 +258,9 @@
         <configuration>
           <packagingExcludes>WEB-INF/classes/META-INF/VAADIN/config/flow-build-info.json.*</packagingExcludes>
           <failOnMissingWebXml>false</failOnMissingWebXml>
+          <!-- the server's classes as a JAR too (joi-server-<version>-classes.jar): Joi's own extensions (joi-extensions/marginalia-books)
+               compile against its extension API; at runtime they see the server's classes by boot delegation -->
+          <attachClasses>true</attachClasses>
         </configuration>
       </plugin>
 

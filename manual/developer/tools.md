@@ -14,7 +14,9 @@ verified: b338033
 # Server tools
 
 A server tool is a function the server itself offers her. `ServerTool` lists them: `web_search` and `fetch_page`, each with a built-in default
-permission (`ASK`) and a description a client can show.
+permission (`ASK`) and a description a client can show. What the chain decides on is an `ApprovableTool` (`function`, `fallback`, `description`):
+`ServerTool` is one, and so is an extension's `ExtensionTool` (see [Extensions](extensions.md)), with the same rows, settings, tasks and standing
+approvals. `WebTaskService.tool(function)` finds either.
 
 ## The permission chain
 
@@ -58,7 +60,7 @@ The task's result comes back as one event (`task.finished`, `task.failed`, `task
 ## Web search and pages
 
 `WebTaskService` and `WebResearch` run the task: the model gets the question and two internal functions, `search` and `read_page`, and loops (at most 10
-rounds). `WebSearchClient` calls the sources (`DDGS`, `SEARXNG`, `GOOGLE`, `BRAVE`, `TAVILY`, `PERPLEXITY`) in order; each answers a list of
+rounds; the loop itself is `TaskLoop`, which an extension's task uses too). `WebSearchClient` calls the sources (`DDGS`, `SEARXNG`, `GOOGLE`, `BRAVE`, `TAVILY`, `PERPLEXITY`) in order; each answers a list of
 `SearchHit`. `PageFetcher` reads a page: `DIRECT` (a plain GET stripped with jsoup), `CRAWL4AI` (`POST /crawl`) or `CRAWL4AI_PROXY` (the user's wrapper:
 `POST {url}` with `{"url": url}`, answer `{"content": markdown}`). `WebSearchConfig` and `PageConfig` are the `config` of the two tools.
 

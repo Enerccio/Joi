@@ -84,12 +84,13 @@ the `marginalia` submodule is a commit of its own pointer: build the platform ag
 
 ## The extensions
 
-`joi-extensions/` holds the model providers that come with Joi (`anthropic`, `google-genai`, `grok`), OSGi bundles built against the platform only
+`joi-extensions/` holds the model providers that come with Joi (`anthropic`, `google-genai`, `grok`), OSGi bundles built against the platform only,
+and `marginalia-books`, an extension of Joi built against the server's classes JAR, so `mvn install -DskipTests -pl joi-server` comes first
 (see [Extensions](extensions.md)). They are in the reactor but not in the server's image: build them with Maven, or in Docker (needs the Dockerfile's
 `extensions` stage, the platform comes from the server's build):
 
 ```bash
-mvn package -pl joi-extensions/anthropic,joi-extensions/google-genai,joi-extensions/grok   # target/<name>-<version>.jar
+mvn package -pl joi-extensions/anthropic,joi-extensions/google-genai,joi-extensions/grok,joi-extensions/marginalia-books   # target/<name>-<version>.jar
 docker compose -f joi-extensions/docker-compose.yml build
 docker compose -f joi-extensions/docker-compose.yml run --rm extensions                       # the JARs in joi-extensions/build
 ```
@@ -104,7 +105,7 @@ Four workflows in `.github/workflows` (as Marginalia's) and Dependabot. All chec
 | Workflow | When | What |
 |---|---|---|
 | `test.yml` | every push and pull request | Builds the platform (no tests of its own), the protocol and `joi-sherpa`, then runs the tests of `joi-protocol`, `joi-server` and `joi-node` (not the JavaFX part: without `-Pfx` the pom leaves its main and test classes out). Reports are an artifact when it fails. |
-| `server.yml` | master, `v*` tags, pull requests that touch the server, extensions or Docker files | The WAR (`-Pproduction`) and the three extension JARs as the artifact `joi-server`; the Docker image for `linux/amd64` and `linux/arm64`, each built on a native runner and smoke-tested (`/health` answers 200) before it is pushed. |
+| `server.yml` | master, `v*` tags, pull requests that touch the server, extensions or Docker files | The WAR (`-Pproduction`) and the four extension JARs as the artifact `joi-server`; the Docker image for `linux/amd64` and `linux/arm64`, each built on a native runner and smoke-tested (`/health` answers 200) before it is pushed. |
 | `desktop.yml` | master, `v*` tags, pull requests that touch the desktop app, node, server or protocol | The desktop app (`-Pfx,production,desktop`, see [The desktop app](desktop.md)) on Linux x64 and arm64, Windows x64 and macOS arm64 and x64, with its installers, smoke-tested (the server starts, the API socket answers `POST /oauth/local` with 409 while the port answers 404, both programs and the `.deb` are there). The files are an artifact per platform and, for a `v*` tag, attached to the release. |
 | `manual.yml` | master, pull requests that touch the manual | The manual to GitHub Pages. |
 
@@ -170,7 +171,9 @@ Every entity change has a Flyway migration in `joi-server/src/main/resources/mig
 platform's tables. The first migration, `V1__platform.sql`, is frozen since 2026-11-23: it is never edited again, not even a comment, because Flyway
 checks its checksum in every existing database. A schema change is a new migration next to it (`V2__<what>.sql`, `V3__...`), written
 so that it runs on a database that already holds data (a default for a new `NOT NULL` column, a backfill; SQLite rebuilds a table to
-drop or retype a column). `tools/upgrade_dev_db.py` belongs to the time before the freeze and is no longer used.
+drop or retype a column). `tools/upgrade_dev_db.py` belongs to the time before the freeze and is no longer used. A platform entity change
+comes with Marginalia's own migration, and Joi adds the same columns in its own (`V2__resource_extended.sql` follows Marginalia's
+`V33__resource_extended.sql`, when `Resource` became an `ExtendableEntity`).
 
 A column that refers to another entity (an owner such as `joi_id`, too) stays nullable in SQL, even when the entity says
 `nullable = false`: the administrator's cleanup sets the references of the purged rows to null before it removes them, and a `NOT NULL`

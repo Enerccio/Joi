@@ -3,7 +3,7 @@ package com.github.enerccio.joi.ui.dialogs;
 import com.flowingcode.vaadin.addons.fontawesome.FontAwesome.Solid;
 import com.github.enerccio.joi.domain.model.impl.Joi;
 import com.github.enerccio.joi.domain.service.WebTaskService;
-import com.github.enerccio.joi.domain.tools.ServerTool;
+import com.github.enerccio.joi.domain.tools.ApprovableTool;
 import com.github.enerccio.joi.loc.J_L;
 import com.github.enerccio.marginalia.CssStyles;
 import com.github.enerccio.marginalia.loc.L;
@@ -36,7 +36,7 @@ public class AutoApprovedDialog extends Dialog {
     private final Joi joi;
     private Runnable onChange = () -> {
     };
-    private Grid<ServerTool> grid;
+    private Grid<ApprovableTool> grid;
 
     public AutoApprovedDialog(Joi joi) {
         this.joi = joi;
@@ -54,8 +54,8 @@ public class AutoApprovedDialog extends Dialog {
         hint.addClassName(CssStyles.HINT_TEXT);
         grid = new Grid<>();
         grid.setAllRowsVisible(true);
-        grid.addColumn(ServerTool::function).setHeader(loc.getValue(L.LABEL_NAME)).setFlexGrow(0).setWidth("12rem");
-        grid.addColumn(ServerTool::description).setHeader(loc.getValue(L.LABEL_DESCRIPTION)).setFlexGrow(1);
+        grid.addColumn(ApprovableTool::function).setHeader(loc.getValue(L.LABEL_NAME)).setFlexGrow(0).setWidth("12rem");
+        grid.addColumn(ApprovableTool::description).setHeader(loc.getValue(L.LABEL_DESCRIPTION)).setFlexGrow(1);
         grid.addComponentColumn(tool -> {
             Button remove = new Button(loc.getValue(J_L.LABEL_AUTO_APPROVED_REMOVE), Solid.UNDO.create(), e -> remove(tool));
             remove.setThemeName("tertiary");
@@ -72,11 +72,11 @@ public class AutoApprovedDialog extends Dialog {
     }
 
     private void refresh() throws Exception {
-        List<ServerTool> approved = tasks.autoApproved(joi);
+        List<ApprovableTool> approved = tasks.autoApproved(joi);
         grid.setItems(approved);
     }
 
-    private void remove(ServerTool tool) {
+    private void remove(ApprovableTool tool) {
         try {
             tasks.autoApprove(joi, tool, false);
             refresh();
@@ -87,7 +87,7 @@ public class AutoApprovedDialog extends Dialog {
     }
 
     /** The grid, for tests. */
-    public Grid<ServerTool> getGrid() {
+    public Grid<ApprovableTool> getGrid() {
         return grid;
     }
 }

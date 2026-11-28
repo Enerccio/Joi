@@ -15,7 +15,7 @@ import com.github.enerccio.joi.domain.collections.ChatMessageType;
 import com.github.enerccio.joi.domain.collections.JoiTaskStatus;
 import com.github.enerccio.joi.domain.model.impl.*;
 import com.github.enerccio.joi.domain.service.*;
-import com.github.enerccio.joi.domain.tools.ServerTool;
+import com.github.enerccio.joi.domain.tools.ApprovableTool;
 import com.github.enerccio.joi.domain.web.TaskInfos;
 import com.github.enerccio.joi.domain.service.AccessTokenService.Principal;
 import com.github.enerccio.joi.protocol.JoiProtocol;
@@ -254,7 +254,7 @@ public class JoiApi implements DisposableBean {
         } else if (("DELETE".equalsIgnoreCase(call.method()) || "PUT".equalsIgnoreCase(call.method())) && path.size() == 4
                 && path.getFirst().equals("jois") && path.get(2).equals("auto-approved")) {
             Joi joi = joi(path.get(1));
-            ServerTool tool = ServerTool.of(path.get(3));
+            ApprovableTool tool = webTaskService.tool(path.get(3));
             if (tool == null) {
                 throw new ApiException(404, "not_found", "No tool " + path.get(3));
             }
@@ -373,7 +373,7 @@ public class JoiApi implements DisposableBean {
 
     private AutoApprovalList autoApproved(Joi joi) throws Exception {
         List<AutoApproval> tools = new ArrayList<>();
-        for (ServerTool tool : webTaskService.autoApproved(joi)) {
+        for (ApprovableTool tool : webTaskService.autoApproved(joi)) {
             tools.add(new AutoApproval(tool.function(), tool.function(), tool.description()));
         }
         return new AutoApprovalList(tools);

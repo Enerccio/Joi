@@ -7,6 +7,7 @@ import com.github.enerccio.marginalia.domain.service.agent.VirtualEntry;
 import com.github.enerccio.marginalia.domain.service.agent.ShownImages;
 import com.github.enerccio.marginalia.domain.service.agent.VirtualFileSystem;
 import com.github.enerccio.marginalia.domain.service.agent.VirtualPath;
+import com.github.enerccio.joi.domain.chat.TaskLoop;
 import com.github.enerccio.joi.domain.chat.WebResearch;
 import com.github.enerccio.joi.domain.chat.WorkspaceTools;
 import com.github.enerccio.joi.domain.chat.turn.TurnControllerEvent.Registration;
@@ -42,7 +43,10 @@ import com.github.enerccio.joi.domain.service.WebToolSettingsService.Pages;
 import com.github.enerccio.joi.domain.service.WebToolSettingsService.Search;
 import com.github.enerccio.joi.domain.templates.TaskEventTemplateData;
 import com.github.enerccio.joi.domain.templates.WebTaskTemplateData;
+import com.github.enerccio.joi.domain.tools.ApprovableTool;
 import com.github.enerccio.joi.domain.tools.ServerTool;
+import com.github.enerccio.joi.domain.extensions.JoiExtensions;
+import com.github.enerccio.joi.domain.extensions.ExtensionTaskRunner;
 import com.github.enerccio.joi.domain.tools.ToolPermission;
 import com.github.enerccio.joi.domain.web.SearchSource;
 import com.github.enerccio.marginalia.bound.ApiRequestAttributes;
@@ -115,6 +119,10 @@ public class WebTaskServiceImpl implements WebTaskService, InitializingBean, Dis
     private JoiWorkspaceService workspaceService;
     @Autowired
     private InferenceServices inferenceServices;
+    @Autowired
+    private JoiExtensions extensions;
+    @Autowired
+    private ExtensionTaskRunner extensionTasks;
     private final ExecutorService executor = Executors.newCachedThreadPool(r -> {
         Thread thread = new Thread(r, "joi-task");
         thread.setDaemon(true);
@@ -158,7 +166,8 @@ public class WebTaskServiceImpl implements WebTaskService, InitializingBean, Dis
     // ----------------------------------------------------------------------------------------------------------------
 
     @Override
-    public JoiTask submit(Joi joi, ServerTool tool, String question, String url, String toolCallId) throws Exception {
+    public JoiTask submit(Joi joi, ApprovableTool tool, String question, String url, String title, String arguments, String toolCallId)
+            throws Exception {
         ToolPermission permission = permissionService.effective(joi, tool);
         if (permission == ToolPermission.DENY) {
             throw new NotAllowedException("The use of " + tool.function() + " is not allowed");
@@ -167,10 +176,12 @@ public class WebTaskServiceImpl implements WebTaskService, InitializingBean, Dis
         task.setJoi(joi);
         task.setRole(TextLLMType.DEEP_REASONING);
         task.setTool(tool.function());
-        task.setTitle(StringUtils.abbreviate(StringUtils.normalizeSpace(StringUtils.firstNonBlank(question, url, tool.function())), 90));
+        task.setTitle(StringUtils.abbreviate(StringUtils.normalizeSpace(StringUtils.firstNonBlank(title, question, url, tool.function())), 90));
         task.setInstructions(StringUtils.defaultIfBlank(question, null));
         task.setUrl(StringUtils.defaultIfBlank(url, null));
         task.setToolCallId(toolCallId);
+        task.setArguments(StringUtils.defaultIfBlank(arguments, null));
+        task.setToolDescription(StringUtils.defaultIfBlank(tool.description(), null));
         task.setStatus(permission == ToolPermission.ALLOW ? JoiTaskStatus.QUEUED : JoiTaskStatus.WAITING);
         boolean standing = permission == ToolPermission.ASK && autoApproves(joi, tool);
         task.setAutoApproved(standing);
@@ -186,13 +197,19 @@ public class WebTaskServiceImpl implements WebTaskService, InitializingBean, Dis
     }
 
     @Override
-    public boolean autoApproves(Joi joi, ServerTool tool) throws Exception {
+    public ApprovableTool tool(String function) {
+        ServerTool server = ServerTool.of(function);
+        return server != null ? server : extensions.tool(function);
+    }
+
+    @Override
+    public boolean autoApproves(Joi joi, ApprovableTool tool) throws Exception {
         ToolMetadata metadata = metadataService.find(ToolScope.JOI, joi, tool);
         return metadata != null && metadata.isAutoApprove();
     }
 
     @Override
-    public void autoApprove(Joi joi, ServerTool tool, boolean on) throws Exception {
+    public void autoApprove(Joi joi, ApprovableTool tool, boolean on) throws Exception {
         requireOwn(joi);
         ToolMetadata metadata = metadataService.edit(ToolScope.JOI, joi, tool);
         if (!on && metadata.getId() == null) {
@@ -214,10 +231,12 @@ public class WebTaskServiceImpl implements WebTaskService, InitializingBean, Dis
     }
 
     @Override
-    public List<ServerTool> autoApproved(Joi joi) throws Exception {
+    public List<ApprovableTool> autoApproved(Joi joi) throws Exception {
         requireOwn(joi);
-        List<ServerTool> tools = new ArrayList<>();
-        for (ServerTool tool : ServerTool.values()) {
+        List<ApprovableTool> tools = new ArrayList<>();
+        List<ApprovableTool> all = new ArrayList<>(List.of(ServerTool.values()));
+        extensions.declaredTools().forEach(declared -> all.add(declared.tool()));
+        for (ApprovableTool tool : all) {
             if (autoApproves(joi, tool)) {
                 tools.add(tool);
             }
@@ -242,7 +261,7 @@ public class WebTaskServiceImpl implements WebTaskService, InitializingBean, Dis
     public JoiTask approve(JoiTask task, boolean always) throws Exception {
         JoiTask approved = approve(task);
         if (always) {
-            ServerTool tool = ServerTool.of(approved.getTool());
+            ApprovableTool tool = tool(approved.getTool());
             if (tool != null) {
                 // this one was the user's own answer; the standing approval takes the others that wait and the later ones
                 autoApprove(joi(approved), tool, true);
@@ -467,57 +486,22 @@ public class WebTaskServiceImpl implements WebTaskService, InitializingBean, Dis
             if (ai == null) {
                 throw new IllegalStateException("There is no model to do it: choose a deep reasoning or chat model");
             }
+            TaskLoop.Transcript transcript = transcript(task, ai);
             ServerTool tool = ServerTool.of(task.getTool());
-            boolean withSearch = tool == ServerTool.WEB_SEARCH;
-            Search search = settingsService.search(joi);
-            Pages pages = settingsService.pages(joi);
-            if (withSearch && search.config().usable().isEmpty()) {
-                throw new IllegalStateException(search.config().sources().isEmpty() ? "No search source is set up (Administration or User Settings, Web tools)"
-                        : "No search source may be used now (they are off, or only local ones are allowed)");
-            }
-            String instruction = personaService.render(joi, JoiPromptField.WEB_TASK_PROMPT, instruction(joi, task, withSearch, search));
-            AtomicInteger ordinal = new AtomicInteger();
-            WebResearch research = new WebResearch(inferenceServices.forAIOrThrow(ai), search, pages, withSearch, executor,
-                    () -> stopping.contains(id), (role, content, reasoning, calls, toolCallId, usage) -> {
-                try {
-                    JoiTaskMessage message = new JoiTaskMessage();
-                    message.setRole(role);
-                    message.setOrdinal(ordinal.incrementAndGet());
-                    message.setContent(content);
-                    message.setReasoning(reasoning);
-                    message.setToolCallId(toolCallId);
-                    message.setModelUsed(role == TaskMessageRole.ASSISTANT ? ai.getName() : null);
-                    if (calls != null) {
-                        JsonArray array = new JsonArray();
-                        calls.forEach(call -> {
-                            JsonObject object = new JsonObject();
-                            object.addProperty("id", call.getId());
-                            object.addProperty("name", call.getName());
-                            object.addProperty("arguments", call.getArguments());
-                            array.add(object);
-                        });
-                        message.setToolCalls(array.toString());
-                    }
-                    if (usage != null) {
-                        message.setPromptTokens(usage.promptTokens());
-                        message.setTokenCount(usage.completionTokens());
-                    }
-                    messageService.append(task, message);
-                    changed(task);
-                } catch (Exception e) {
-                    log.warn("The transcript of the task {} lost a step: {}", id, e.getMessage());
-                }
-            });
             VirtualFileSystem files = workspaceService.open(joi);
             Map<String, String> before = snapshot(files);
-            research.withFiles(workspaceService.fileTools(joi));
-            if (ai.isMultimodal()) {
-                // a model that does not see images is not offered view_image
-                ShownImages shown = new ShownImages();
-                research.withImages(workspaceService.imageTools(joi, shown), () -> workspaceService.shownImages(joi, shown));
-            }
-            try (InferenceSession _ = JoiInference.open(JoiInference.TASK, joi, ai)) {
-                result = research.run(ai, instruction);
+            if (tool == null) {
+                // a task of an extension: its own functions, its own template
+                JoiExtensions.Task extensionTask = extensions.task(task.getTool());
+                if (extensionTask == null) {
+                    throw new IllegalStateException("The extension of " + task.getTool() + " is not loaded");
+                }
+                try (InferenceSession _ = JoiInference.open(JoiInference.TASK, joi, ai)) {
+                    result = extensionTasks.run(joi, task, extensionTask, inferenceServices.forAIOrThrow(ai), executor,
+                            () -> stopping.contains(id), transcript);
+                }
+            } else {
+                result = web(joi, task, tool, ai, transcript, id);
             }
             result = withFiles(result, changed(before, snapshot(files)));
             status = "finished";
@@ -548,6 +532,65 @@ public class WebTaskServiceImpl implements WebTaskService, InitializingBean, Dis
         } catch (Exception e) {
             log.error("The end of the task {} was not kept", id, e);
         }
+    }
+
+    /** The work of a web task: the search and the pages with the stronger model, and the files of her workspace. */
+    private String web(Joi joi, JoiTask task, ServerTool tool, AI ai, TaskLoop.Transcript transcript, Long id) throws Exception {
+        boolean withSearch = tool == ServerTool.WEB_SEARCH;
+        Search search = settingsService.search(joi);
+        Pages pages = settingsService.pages(joi);
+        if (withSearch && search.config().usable().isEmpty()) {
+            throw new IllegalStateException(search.config().sources().isEmpty() ? "No search source is set up (Administration or User Settings, Web tools)"
+                    : "No search source may be used now (they are off, or only local ones are allowed)");
+        }
+        String instruction = personaService.render(joi, JoiPromptField.WEB_TASK_PROMPT, instruction(joi, task, withSearch, search));
+        WebResearch research = new WebResearch(inferenceServices.forAIOrThrow(ai), search, pages, withSearch, executor,
+                () -> stopping.contains(id), transcript);
+        research.withFiles(workspaceService.fileTools(joi));
+        if (ai.isMultimodal()) {
+            // a model that does not see images is not offered view_image
+            ShownImages shown = new ShownImages();
+            research.withImages(workspaceService.imageTools(joi, shown), () -> workspaceService.shownImages(joi, shown));
+        }
+        try (InferenceSession _ = JoiInference.open(JoiInference.TASK, joi, ai)) {
+            return research.run(ai, instruction);
+        }
+    }
+
+    /** The transcript of a task: each step a message of the task, and the watchers told. */
+    private TaskLoop.Transcript transcript(JoiTask task, AI ai) {
+        Long id = task.getId();
+        AtomicInteger ordinal = new AtomicInteger();
+        return (role, content, reasoning, calls, toolCallId, usage) -> {
+            try {
+                JoiTaskMessage message = new JoiTaskMessage();
+                message.setRole(role);
+                message.setOrdinal(ordinal.incrementAndGet());
+                message.setContent(content);
+                message.setReasoning(reasoning);
+                message.setToolCallId(toolCallId);
+                message.setModelUsed(role == TaskMessageRole.ASSISTANT ? ai.getName() : null);
+                if (calls != null) {
+                    JsonArray array = new JsonArray();
+                    calls.forEach(call -> {
+                        JsonObject object = new JsonObject();
+                        object.addProperty("id", call.getId());
+                        object.addProperty("name", call.getName());
+                        object.addProperty("arguments", call.getArguments());
+                        array.add(object);
+                    });
+                    message.setToolCalls(array.toString());
+                }
+                if (usage != null) {
+                    message.setPromptTokens(usage.promptTokens());
+                    message.setTokenCount(usage.completionTokens());
+                }
+                messageService.append(task, message);
+                changed(task);
+            } catch (Exception e) {
+                log.warn("The transcript of the task {} lost a step: {}", id, e.getMessage());
+            }
+        };
     }
 
     /** The files of the workspace with what tells a change: path to size and time. */
