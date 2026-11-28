@@ -5,7 +5,7 @@ order: 770
 covers:
   - joi-server/src/main/java/com/github/enerccio/joi/domain
   - joi-server/src/main/resources/META-INF/spring
-verified: 8fac0c2
+verified: 5dd6efa
 ---
 
 # Project structure
@@ -26,7 +26,7 @@ See the [Developer guide](index.md). The server's Java is under `com.github.ener
 | `domain.chat`, `.turn` | the chat service, `ChatImages` (an image of the user made ready; `ChatImageService` keeps them), the steps and events of a turn, her functions (`MemoryTools`, `BodyTools`, `AnimationTools`, `ExpressionTools`, `MoodTools`, `WebTools`, `WorkspaceTools`), `JoiInference` (the cache key `X-Session-ID` of a model call: user, model, assistant, action) |
 | `domain.persona` | `JoiPromptField` (and `TemplateOverride`: a template against its parent in the chain), personalities, moods (`Mood` with its `MoodFace`, the user's `MoodSetting`) and the attributes of an assistant |
 | `domain.templates` | the data of every prompt template (`*TemplateData`) |
-| `domain.bodies`, `.animations` | models, capabilities, appearance, outfits, profiles (`Profiles`, kept by `ProfileService`), spring bones, animation steps (`StepRotation`, `StepTranslation`), the folders of the library (`AnimationFolder`, `AnimationFolders`) |
+| `domain.bodies`, `.animations` | models, capabilities, appearance, outfits, profiles (`Profiles`, kept by `ProfileService`), spring bones, animation steps (`StepRotation`, `StepTranslation`), the folders of the library (`AnimationFolder`, `AnimationFolders`), the ledger of her recent stances (`StanceLog`) |
 | `domain.tools`, `domain.web` | server tools and their permissions; web search and page reading |
 | `domain.events`, `domain.node` | queued events and their merge; a node's session |
 | `extensions`, `domain.extensions` | the API of Joi's extensions and what they registered (see [Extensions](extensions.md)) |
