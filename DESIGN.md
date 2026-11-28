@@ -574,6 +574,14 @@ run by `ChatServiceImpl`). Marginalia's agent runner is not used.
     `enum` of names only when there is a name. What stays conditional is what the user or the nodes decide: a tool
     the permission chain denies, a search with no source, and the tools in a node's manifest (changing those still
     moves the cache once).
+- **A cache key per user, model, assistant and action (built).** As in Marginalia, every request to a model carries the header
+  `X-Session-ID`: the platform's `InferenceSession`, opened around the call by `JoiInference.open(action, joi, ai)`, and
+  `InferenceServices.currentSessionId`, an HMAC of the user and of the session's kind (the action) and scope (`joi:<uuid>/model:<uuid>`).
+  The actions are `chat` (her turns: words, events, the greeting), `summarize`, `task` (web search, reading pages), `describe-image`
+  and `appearance` (a body's look, no assistant). The same four always send the same value, so a server that keeps a prompt cache
+  per value (a proxy in front of llama.cpp that saves and restores a slot by it, a provider that routes by it) keeps her conversation's
+  cache apart from her summaries and tasks, and from another assistant's; the number of caches is bounded. A server that does not
+  know the header ignores it. The user comes from the request scope of the thread (a turn, a task and a summary run in their owner's).
 - **Warming the cache (designed, not built).** With the prompt stable, a request that generates nothing and only
   reads the prompt (llama.cpp `n_predict: 0`, with the prompt cache on) can be sent right after something changes the
   stable part (a memory approved or edited, a summary written, a mood, a personality or a body changed), so the next

@@ -43,6 +43,13 @@ Open **Models → Text Models** and press **Add model** (the pencil edits, the c
   models must be marked **Multimodal**.
 - For [images in the chat](../jois/chats.md#showing-her-an-image) her chat model, or else her deep reasoning model, must be marked **Multimodal**.
 
+## The prompt cache
+
+Every request Joi sends to a model has the header `X-Session-ID`: one value per user, model, assistant and kind of work (her conversation,
+her summaries, her tasks, describing an image, describing a body). It is a hash that says nothing about you. A server that keeps a cache of
+prompts per value, such as a proxy in front of llama.cpp that keeps a slot for each, can then keep her conversation's cache while she writes
+a summary in between, so the next message does not read the whole prompt again. A server that does not know the header ignores it.
+
 ## Thinking and chat
 
 A model that thinks before it answers is slower to the first word. For the conversation role many people turn thinking off in

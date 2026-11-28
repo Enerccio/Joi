@@ -237,6 +237,11 @@ class SummarizerTest extends PlatformTestBase {
         assertThat(body).contains("WHAT HAPPENED BEFORE").contains("The user has a cat called Biscuit.");
         // the messages themselves are not in the history any more
         assertThat(body).doesNotContain("A lovely name.");
+        // the summary and her turn each have their own cache key (X-Session-ID)
+        String summaryKey = llm.getCompletionRequests().getFirst().getHeader(com.github.enerccio.marginalia.domain.service.InferenceSession.HEADER);
+        String chatKey = llm.getCompletionRequests().getLast().getHeader(com.github.enerccio.marginalia.domain.service.InferenceSession.HEADER);
+        assertThat(summaryKey).isNotNull();
+        assertThat(chatKey).isNotNull().isNotEqualTo(summaryKey);
     }
 
     @Test

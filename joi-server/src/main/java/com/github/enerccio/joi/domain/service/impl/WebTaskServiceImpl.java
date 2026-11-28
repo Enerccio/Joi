@@ -1,5 +1,7 @@
 package com.github.enerccio.joi.domain.service.impl;
 
+import com.github.enerccio.joi.domain.chat.JoiInference;
+import com.github.enerccio.marginalia.domain.service.InferenceSession;
 import com.github.enerccio.joi.domain.service.JoiWorkspaceService;
 import com.github.enerccio.marginalia.domain.service.agent.VirtualEntry;
 import com.github.enerccio.marginalia.domain.service.agent.ShownImages;
@@ -514,7 +516,9 @@ public class WebTaskServiceImpl implements WebTaskService, InitializingBean, Dis
                 ShownImages shown = new ShownImages();
                 research.withImages(workspaceService.imageTools(joi, shown), () -> workspaceService.shownImages(joi, shown));
             }
-            result = research.run(ai, instruction);
+            try (InferenceSession _ = JoiInference.open(JoiInference.TASK, joi, ai)) {
+                result = research.run(ai, instruction);
+            }
             result = withFiles(result, changed(before, snapshot(files)));
             status = "finished";
         } catch (CancellationException e) {

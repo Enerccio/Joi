@@ -1,5 +1,7 @@
 package com.github.enerccio.joi.domain.service.impl;
 
+import com.github.enerccio.joi.domain.chat.JoiInference;
+import com.github.enerccio.marginalia.domain.service.InferenceSession;
 import com.github.enerccio.joi.defaults.JoiDefaults;
 import com.github.enerccio.joi.domain.chat.ChatService;
 import com.github.enerccio.joi.domain.chat.turn.TurnControllerEvent.Registration;
@@ -523,13 +525,17 @@ public class SummarizerServiceImpl implements SummarizerService, InitializingBea
         }
         InferenceService service = inferenceServices.forAIOrThrow(ai);
         Work work = new Work(joi, ai, service, config, state);
-        List<Summary> told = switch (job.kind()) {
-            case DAY_ROLL -> work.rollDay(config.days().spanOf(SummaryType.DAY, job.from()));
-            case QUIET -> work.summarizeOpen(null, false, "quiet");
-            case AUTO -> work.summarizeOpen(null, true, "auto");
-            case MANUAL -> work.summarizeOpen(job.to(), false, "manual");
-            case WEEK, MONTH, YEAR -> work.rollPeriod(job.kind(), new Span(job.kind().periodType(), job.from(), job.to()));
-        };
+        List<Summary> told;
+        // its own cache key, so a summary does not take the cache of her conversation
+        try (InferenceSession _ = JoiInference.open(JoiInference.SUMMARIZE, joi, ai)) {
+            told = switch (job.kind()) {
+                case DAY_ROLL -> work.rollDay(config.days().spanOf(SummaryType.DAY, job.from()));
+                case QUIET -> work.summarizeOpen(null, false, "quiet");
+                case AUTO -> work.summarizeOpen(null, true, "auto");
+                case MANUAL -> work.summarizeOpen(job.to(), false, "manual");
+                case WEEK, MONTH, YEAR -> work.rollPeriod(job.kind(), new Span(job.kind().periodType(), job.from(), job.to()));
+            };
+        }
         for (Summary summary : told) {
             tell(joi, config, summary);
         }

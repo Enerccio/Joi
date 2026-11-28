@@ -91,6 +91,14 @@ needing no answer, like `play_animation`.
 
 ## The prompt is built for the model's cache
 
+Every request to a model carries a cache key, the header `X-Session-ID`, as in Marginalia: `JoiInference.open(action, joi, ai)` opens the
+platform's `InferenceSession` (kind: the action; scope: `joi:<uuid>/model:<uuid>`) around the call that starts the request, and the inference
+service sends `InferenceServices.currentSessionId()`, an HMAC of the user and of both. The actions are `CHAT` (`InferenceStep`), `SUMMARIZE`
+(`SummarizerServiceImpl.execute`, around the whole job), `TASK` (`WebTaskServiceImpl`, around `WebResearch.run`), `DESCRIBE_IMAGE`
+(`ChatImageServiceImpl.describe`) and `APPEARANCE` (`AppearanceServiceImpl.ask`, no assistant). The scope must be open on the thread that
+starts the request, and the user is the one of that thread's request scope; without one the request goes without the header. A server with a
+prompt cache per key (a proxy in front of llama.cpp saving a slot per key) keeps her conversation apart from her summaries and tasks.
+
 A model reuses the work it did on a prompt only up to the first token that differs from the last one. So the prompt changes as late and as
 seldom as it can:
 

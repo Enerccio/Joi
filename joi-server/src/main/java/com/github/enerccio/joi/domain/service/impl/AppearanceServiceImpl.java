@@ -1,5 +1,7 @@
 package com.github.enerccio.joi.domain.service.impl;
 
+import com.github.enerccio.joi.domain.chat.JoiInference;
+import com.github.enerccio.marginalia.domain.service.InferenceSession;
 import com.github.enerccio.joi.domain.bodies.AppearanceProposal;
 import com.github.enerccio.joi.domain.bodies.DescribedPart;
 import com.github.enerccio.joi.domain.bodies.ModelCapabilities;
@@ -449,31 +451,33 @@ public class AppearanceServiceImpl implements AppearanceService, DisposableBean 
     private String ask(AI ai, List<LLMChatMessage> payload) throws Exception {
         InferenceService service = inferenceServices.forAIOrThrow(ai);
         CompletableFuture<String> done = new CompletableFuture<>();
-        service.round(payload, null, null, new InferenceRoundCallback() {
-            @Override
-            public void onChunk(ChunkType chunkType, String chunk) {
-            }
+        try (InferenceSession _ = JoiInference.open(JoiInference.APPEARANCE, null, ai)) {
+            service.round(payload, null, null, new InferenceRoundCallback() {
+                @Override
+                public void onChunk(ChunkType chunkType, String chunk) {
+                }
 
-            @Override
-            public void onRound(String text, List<LLMToolCall> calls, RoundUsage usage) {
-                done.complete(StringUtils.defaultString(text));
-            }
+                @Override
+                public void onRound(String text, List<LLMToolCall> calls, RoundUsage usage) {
+                    done.complete(StringUtils.defaultString(text));
+                }
 
-            @Override
-            public void onRound(String text, String reasoning, List<LLMToolCall> calls, RoundUsage usage) {
-                done.complete(StringUtils.defaultString(text));
-            }
+                @Override
+                public void onRound(String text, String reasoning, List<LLMToolCall> calls, RoundUsage usage) {
+                    done.complete(StringUtils.defaultString(text));
+                }
 
-            @Override
-            public void onCancel() {
-                done.completeExceptionally(new IllegalStateException("The model stopped"));
-            }
+                @Override
+                public void onCancel() {
+                    done.completeExceptionally(new IllegalStateException("The model stopped"));
+                }
 
-            @Override
-            public void onError(Throwable exception) {
-                done.completeExceptionally(exception);
-            }
-        });
+                @Override
+                public void onError(Throwable exception) {
+                    done.completeExceptionally(exception);
+                }
+            });
+        }
         try {
             return done.get(TIMEOUT_MINUTES, TimeUnit.MINUTES);
         } catch (ExecutionException e) {

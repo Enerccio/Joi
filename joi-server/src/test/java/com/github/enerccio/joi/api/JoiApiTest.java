@@ -2,6 +2,8 @@ package com.github.enerccio.joi.api;
 
 import com.github.enerccio.joi.domain.events.JoiEvents;
 import com.github.enerccio.joi.domain.model.impl.ChatMessage;
+import com.github.enerccio.joi.domain.chat.JoiInference;
+import com.github.enerccio.marginalia.domain.service.InferenceSession;
 import com.github.enerccio.joi.domain.model.impl.Joi;
 import com.github.enerccio.joi.domain.model.impl.QueuedEvent;
 import com.github.enerccio.joi.domain.model.impl.JoiTask;
@@ -41,6 +43,9 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 class JoiApiTest extends PlatformTestBase {
 
     static final String BASE = "https://github.com/Enerccio/joi/protocol/v1/";
+
+    @Autowired
+    private com.github.enerccio.marginalia.domain.service.InferenceServices inferenceServices;
 
     @Autowired
     private com.github.enerccio.joi.domain.service.SummaryService summaryService;
@@ -704,6 +709,37 @@ class JoiApiTest extends PlatformTestBase {
         // 1000 is the most one call gives
         assertThat(get("/api/v1/jois/" + joi.getUuid() + "/chat?limit=1000").status).isEqualTo(200);
         assertThat(get("/api/v1/jois/" + joi.getUuid() + "/chat?limit=1001").status).isEqualTo(400);
+    }
+
+    @Test
+    void herTurnsSendOneCacheKeyPerUserModelAssistantAndAction() throws Exception {
+        OpenAICompatible ai = createAI();
+        joi.setChatModel(ai.getId());
+        joi = joiService.save(joi);
+        llm.reply("Hi.");
+        llm.reply("Hello again.");
+        call("POST", "/api/v1/jois/" + joi.getUuid() + "/chat", "Bearer " + token, "{\"text\": \"Hi\"}");
+        call("POST", "/api/v1/jois/" + joi.getUuid() + "/chat", "Bearer " + token, "{\"text\": \"Again\"}");
+        List<String> keys = llm.getCompletionRequests().stream().map(r -> r.getHeader(InferenceSession.HEADER)).toList();
+        assertThat(keys).hasSize(2).doesNotContainNull();
+        // the same user, model, assistant and action: the same key, so the server's prompt cache is found again
+        assertThat(keys.get(0)).isEqualTo(keys.get(1)).matches("[0-9a-f]{16,}");
+
+        // another action, assistant or model is another key; the same four are the same again
+        Joi second = joiService.create("Other");
+        java.util.function.BiFunction<String, Joi, String> key = (action, of) -> {
+            try (InferenceSession _ = JoiInference.open(action, of, ai)) {
+                return inferenceServices.currentSessionId();
+            }
+        };
+        String chat = key.apply(JoiInference.CHAT, joi);
+        assertThat(chat).isNotNull().isEqualTo(key.apply(JoiInference.CHAT, joi));
+        assertThat(key.apply(JoiInference.SUMMARIZE, joi)).isNotEqualTo(chat);
+        assertThat(key.apply(JoiInference.TASK, joi)).isNotEqualTo(chat);
+        assertThat(key.apply(JoiInference.CHAT, second)).isNotEqualTo(chat);
+        try (InferenceSession _ = JoiInference.open(JoiInference.CHAT, joi, null)) {
+            assertThat(inferenceServices.currentSessionId()).isNotEqualTo(chat);
+        }
     }
 
     // ----------------------------------------------------------------------------------------------------------------

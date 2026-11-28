@@ -1,5 +1,7 @@
 package com.github.enerccio.joi.domain.chat.turn.impl;
 
+import com.github.enerccio.joi.domain.chat.JoiInference;
+import com.github.enerccio.marginalia.domain.service.InferenceSession;
 import com.github.enerccio.joi.domain.components.CallTextGuard;
 import com.github.enerccio.joi.domain.chat.turn.TurnController;
 import com.github.enerccio.joi.domain.chat.turn.TurnEvents;
@@ -184,7 +186,11 @@ public class InferenceStep extends TurnStepBase {
                 return controller.getCancellationToken().isCancelled();
             }
         };
-        CancellationToken request = service.round(controller.getPayload(), null, controller.getFunctions(), noCalls, callback);
+        CancellationToken request;
+        // the cache key of her conversation: the user, the model, her and the action (the header X-Session-ID)
+        try (InferenceSession _ = JoiInference.open(JoiInference.CHAT, controller.getJoi(), controller.getAi())) {
+            request = service.round(controller.getPayload(), null, controller.getFunctions(), noCalls, callback);
+        }
         requestRef.set(request);
         if (over.get() && request != null) {
             // asked again before the request was known
