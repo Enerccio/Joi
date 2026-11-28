@@ -5,7 +5,7 @@ order: 690
 covers:
   - joi-server/src/test
   - joi-node/src/test
-verified: 0fc31b4
+verified: d99cc59
 ---
 
 # Testing
@@ -46,7 +46,7 @@ registered on the turn must be unregistered after the test: the chat service is 
 | `crud` | every entity's repository and ownership |
 | `api` | the HTTP API (`JoiApiTest`, `BodyApiTest`), every answer checked against the schemas (with the platform's json-schema-validator 3: a `SchemaRegistry` that maps the schemas' ids to the classpath); the pairing offers are in `JoiApiTest`, also the history's `summarized` and `toolImages` and its limit, and the cache key `X-Session-ID` per user, model, assistant and action (also checked for a summary in `SummarizerTest`); the administration calls and the scopes of a token in `JoiAdminApiTest` (OSGi is a `Proxy` stand-in put into `JoiAdminApi` with `ReflectionTestUtils`) |
 | `ui/access` | `PairPhoneDialogTest`: the link of the QR code, the check that approves the device of the offer |
-| `domain` | services, the turn (`ChatTurnTest`, also a turn that fails after some rounds and a round skipped after a gesture), the web tools (against fake servers: `FakeWeb`), events, the administrator's purge of an assistant and her rows (`service/JoiCleanupTest`), conversion (`ModelConversionTest` and `AnimationConversionTest` need Blender), the speech call's one more try (`service/impl/TtsLeaseRetryTest`: which failures of a lock step are tried again) |
+| `domain` | services, the turn (`ChatTurnTest`, also a turn that fails after some rounds, a round skipped after a gesture, and a kept tool replayed in the next prompts while one that only did something is not; the node's `keepResult` in `NodeServiceTest`, an extension's `keepResults` in `ExtensionPointsTest`), the web tools (against fake servers: `FakeWeb`), events, the administrator's purge of an assistant and her rows (`service/JoiCleanupTest`), conversion (`ModelConversionTest` and `AnimationConversionTest` need Blender), the speech call's one more try (`service/impl/TtsLeaseRetryTest`: which failures of a lock step are tried again) |
 | `domain/node` | `NodeServiceTest` drives the node WebSocket through a fake transport, checking every frame against the schemas (also two nodes in two profiles: the part and the outfit frame change the node's profile only and only its nodes get the `body` event, and a turn the server starts goes to the node used last; also the `mood` frame after the manifest, a mood change by the user and `set_mood`; the `stance` frame through her turns, a gesture refused while she holds it, to a node that connects later, ended by her and by the user; the greeting as one turn with the summary due and what waited, and with a Looking Glass frame that came while it waited; her turn on a node offers the functions of her workspace; the pictures of a tool result shown to a multimodal model (kept with her message and deleted with it), and described for one that is not; `set_expression` sending the `expression` frame) |
 | `domain/animations` | `StanceLogTest`: the ledger of her stances (the last first, at most five, said with fixed times and reasons) |
 | `ui/dialogs/joi` | the parts of the Joi dialog (`JoiMemoriesPartTest`, `JoiChatsPartTest`, `JoiAnimationsPartTest`, `JoiSummariesTest`, `JoiFilesPartTest`: the dialog opens with no error) |

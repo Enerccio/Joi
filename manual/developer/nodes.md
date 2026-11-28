@@ -8,7 +8,7 @@ covers:
   - joi-server/src/main/java/com/github/enerccio/joi/domain/node
   - joi-server/src/main/java/com/github/enerccio/joi/api/NodeEndpoint.java
   - joi-server/src/main/frontend/joi-lipsync.js
-verified: 08981e6
+verified: d99cc59
 ---
 
 # Writing a node
@@ -167,6 +167,8 @@ the process and its descendants are killed. `NodeSocket` keeps the thread of eac
 `tool_cancel`; the call still answers, with `cancelled`. The checks of a command (`deniedProgram`: a word between the shell's
 separators, without a folder or `.exe`; `deniedPath`: a denied path written out, from `~`, `$HOME`, `${HOME}` or
 `%USERPROFILE%`, as a whole name) are a backstop. The gate is the question.
+
+`FileTools.ReadFile` and `BrowserTools`' `read_page` say `keepResult` in the manifest (1.18): what she read stays in her history.
 
 `FileTools.ViewImage` (`view_image`) is offered when the files are on, the policy's `images` tier (`Policy.imagesTier`: `allow`,
 `folders` (the default, `null` in the file), `ask`, `off`; an unknown word is off) is not off and the node has set an

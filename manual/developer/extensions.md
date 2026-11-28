@@ -12,7 +12,7 @@ covers:
   - joi-server/src/main/java/com/github/enerccio/joi/domain/templates/ExtensionTaskTemplateData.java
   - joi-server/src/main/resources/META-INF/spring/extensions-config.xml
   - joi-extensions
-verified: 1a48918
+verified: d99cc59
 ---
 
 # Extensions
