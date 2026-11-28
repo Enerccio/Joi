@@ -1,5 +1,6 @@
 package com.github.enerccio.joi.domain.service.impl;
 
+import com.github.enerccio.joi.domain.chat.ToolUsage;
 import com.github.enerccio.joi.domain.chat.JoiInference;
 import com.github.enerccio.marginalia.domain.service.InferenceSession;
 import com.github.enerccio.joi.defaults.JoiDefaults;
@@ -767,6 +768,14 @@ public class SummarizerServiceImpl implements SummarizerService, InitializingBea
                         out.append(" [attached an image").append(i < notes.size() && StringUtils.isNotBlank(notes.get(i)) ? ": " + notes.get(i).strip() : "").append(']');
                     }
                     out.append('\n');
+                }
+                // what her tools brought that stays in her history (a part of a book she read): the summary carries it on
+                for (ToolUsage usage : ToolUsage.fromJson(message.getToolCalls())) {
+                    if (usage.kept()) {
+                        out.append('(').append(character).append(" used ").append(usage.name())
+                                .append(StringUtils.isBlank(usage.arguments()) || "{}".equals(usage.arguments().strip()) ? "" : " " + usage.arguments().strip())
+                                .append(", which answered: ").append(StringUtils.defaultString(usage.result()).strip()).append(")\n");
+                    }
                 }
                 if (StringUtils.isNotBlank(message.getResponse())) {
                     out.append(character).append(": ").append(message.getResponse().strip()).append('\n');

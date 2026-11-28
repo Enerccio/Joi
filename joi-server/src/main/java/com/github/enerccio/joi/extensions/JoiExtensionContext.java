@@ -28,6 +28,13 @@ public interface JoiExtensionContext {
     /** Offers functions to her turns, see {@link ToolProvider}. */
     void offerTools(ToolProvider provider);
 
+    /**
+     * The functions of this extension whose calls and results stay in her history: her later prompts give them again, so she can go on
+     * from what she read (a part of a book, a file). Off for any other function: what only does something (plays, switches, notifies) is
+     * left out of her history. Call it once, as for {@link #offerTools}; the choice is stored with each call.
+     */
+    void keepResults(String... functions);
+
     /** Adds a tab to the workspace, see {@link ExtensionPart}. */
     void addWorkspacePart(ExtensionPart part);
 

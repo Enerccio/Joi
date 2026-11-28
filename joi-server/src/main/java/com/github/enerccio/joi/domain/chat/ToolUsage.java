@@ -14,8 +14,15 @@ import java.util.List;
  * @param arguments the arguments she wrote (JSON text), may be blank
  * @param result    what it answered (or why it failed)
  * @param failed    whether it failed
+ * @param kept      whether the call and its result stay in her history (her later prompts replay them): the tool said so when it was
+ *                  offered, and the call worked. Decided once, at the call, so a later change never rewrites the history the cache holds
  */
-public record ToolUsage(String name, String arguments, String result, boolean failed) {
+public record ToolUsage(String name, String arguments, String result, boolean failed, boolean kept) {
+
+    /** A usage that is not kept in her history. */
+    public ToolUsage(String name, String arguments, String result, boolean failed) {
+        this(name, arguments, result, failed, false);
+    }
 
     private static final Gson GSON = new Gson();
 

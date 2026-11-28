@@ -39,10 +39,31 @@ public final class TurnProperties {
      * from {@code SummarizerService.makeRoom}): given to her before the words of the turn and stored with them.
      */
     public static final String SUMMARY_EVENTS = "joi.summaryEvents";
+    /**
+     * The functions of the turn whose results stay in her history ({@code Set<String>}): each one that offers a function says so while the
+     * tools are collected ({@link #keep}). Read when a call is answered, and stored with it ({@code ToolUsage.kept}).
+     */
+    public static final String KEPT_TOOLS = "joi.keptTools";
     /** Set ({@code Boolean.TRUE}) once the turn asked for room in her context: it asks once. */
     public static final String ROOM_ASKED = "joi.roomAsked";
     /** How the turn went ({@link TurnOutcome}), at {@link TurnEvents#AFTER_CLEANUP}. */
     public static final String OUTCOME = "joi.outcome";
+
+    /** Marks the functions as ones whose results stay in her history, from a listener of {@code COLLECT_TOOLS}. */
+    @SuppressWarnings("unchecked")
+    public static void keep(java.util.Map<String, Object> properties, java.util.Collection<String> functions) {
+        if (functions == null || functions.isEmpty()) {
+            return;
+        }
+        ((java.util.Set<String>) properties.computeIfAbsent(KEPT_TOOLS, _ -> java.util.concurrent.ConcurrentHashMap.newKeySet())).addAll(functions);
+    }
+
+    /** Whether the result of the function stays in her history. */
+    @SuppressWarnings("unchecked")
+    public static boolean kept(java.util.Map<String, Object> properties, String function) {
+        Object kept = properties.get(KEPT_TOOLS);
+        return kept instanceof java.util.Set<?> set && set.contains(function);
+    }
 
     private TurnProperties() {
     }

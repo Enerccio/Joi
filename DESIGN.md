@@ -128,7 +128,9 @@ one; the server treats every node the same.
     and the `eyes`, as the user has them set) is sent after the manifest and on every change of her mood (`ChatService.watchMoods`,
     `NodeService.mood`): the day's roll, the user's switch in the Joi dialog, her own `set_mood`, a change of the mood's face in User Settings. The
     node follows it at once; the reply's and the info's `mood` stay as the name for the UI only.
-  - **Her stance as a frame (1.17, built).** The node frame `stance` (`StanceState`: the uuid and `name` of the animation she holds, nulls
+  - **Kept tool results (1.18, built).** A tool of the manifest may say `keepResult`: her calls of it and what it answered stay in
+    her history (see A chat turn → Her tool results in the history). A node older than 1.18 sends none, so nothing of it is kept.
+  - **Her stance as a frame (1.17, built). The node frame `stance` (`StanceState`: the uuid and `name` of the animation she holds, nulls
     for none) is sent after the manifest and on every change (`NodeService.stance`: her `set_stance` and `end_stance`, the user ending it
     in the Joi dialog). The node loops it in place of idle and talking until it changes; one whose body lacks the animation plays as with
     none. See Bodies → Stances.
@@ -580,15 +582,17 @@ run by `ChatServiceImpl`). Marginalia's agent runner is not used.
     for her turn to end, but under the same lock per assistant), waits for it and makes the prompt again; she is told of the
     summaries **with the words of that turn** (before them, and stored with them), not in a turn after. A model whose context is
     not known has no bound but her summaries' settings.
-  - **Her tool results in the history: per tool (decided 2026-11-28, not built).** Today the history replays only the words of each
-    exchange (and the user's images); the tool calls and their results are stored (`ChatMessage.toolCalls`) but given to the model
-    only in their turn. Some results matter later (a part of a book she read with `marginalia_read_part`, a file she read), most do
-    not (`play_animation`, `set_outfit`, `notify`). So **each tool says whether its result stays**: a value declared with the tool,
-    off by default, on for the tools that read something. Not an annotation: Joi's own functions are `FunctionDefinition.dynamic`
-    lambdas (no method to annotate), an extension's are `ExtensionTool` records, a node's come in the manifest; so it is a field of
-    each (`ServerTool` / its metadata and the definitions of Joi's tools, `ExtensionTool`, an optional field of a node's tool in the
-    manifest). The user can change it per tool where its permission is set. **The choice is stored with the call** (`ToolUsage`), so
-    changing it applies to new calls only and never rewrites the history the cache holds. An exchange with kept results is replayed as it
+  - **Her tool results in the history: per tool (built; the user's own choice per tool is not).** Without them the history replayed
+    only the words of each exchange, so a model saw her reactions to a book with no reading before them and thought the earlier turns
+    were made up. Some results matter later (a part of a book she read with `marginalia_read_part`, a file she read), most do not
+    (`play_animation`, `set_outfit`, `notify`). So **each tool says whether its result stays**, off by default, on for the tools that
+    read something. Not an annotation: Joi's own functions are `FunctionDefinition.dynamic` lambdas (no method to annotate), an
+    extension's come from a lambda `ToolProvider`, a node's from the manifest. Whoever offers a function says it while the tools of a
+    turn are collected: `TurnProperties.keep` from a listener of `COLLECT_TOOLS` (Joi's own: `recall`), `JoiExtensionContext.keepResults`
+    for an extension (Marginalia's books: `marginalia_books`, `marginalia_read_part`), `ToolDefinition.keepResult` in a node's manifest
+    (protocol 1.18; the reference node: `read_file`, `read_page`). Later, the user could change it per tool where its permission is
+    set. **The choice is stored with the call** (`ToolUsage.kept`, only for a call that worked), so a change applies to new calls only
+    and never rewrites the history the cache holds. An exchange with kept results is replayed as it
     happened: the user's message, her call (only the kept ones), the results, her reply. It is built from what was stored, with call ids
     made from the message and the call's place, so it reads the same in every prompt and the cache keeps it. A result that was not
     kept leaves no trace (neither the call nor the result). Kept results count in the summaries' budget and the summarizer reads them,

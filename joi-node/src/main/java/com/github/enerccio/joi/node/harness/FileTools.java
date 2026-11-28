@@ -70,7 +70,9 @@ final class FileTools {
                             "path", property("string", "The file."),
                             "offset", property("integer", "The first line to read, from 1. Optional."),
                             "limit", property("integer", "How many lines, at most " + MAX_LINES + ". Optional.")),
-                    guard.roots().isEmpty() ? ToolTier.ASK : ToolTier.DEPENDS);
+                    guard.roots().isEmpty() ? ToolTier.ASK : ToolTier.DEPENDS,
+                    // what she read stays in her history: she can go on from it in the next turns
+                    true);
         }
 
         @Override

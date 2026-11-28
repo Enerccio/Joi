@@ -23,6 +23,7 @@ import com.github.enerccio.marginalia.test.PlatformTestBase;
 import com.github.enerccio.marginalia.test.llm.MockLLMRequest;
 import com.github.enerccio.marginalia.test.llm.MockLLMResponse;
 import com.google.gson.JsonArray;
+import com.google.gson.JsonObject;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import com.github.enerccio.marginalia.domain.service.job.FinishedJob;
@@ -191,6 +192,63 @@ class ChatTurnTest extends PlatformTestBase {
                 TurnEvents.BEFORE_TOOL_CALL, TurnEvents.AFTER_TOOL_CALL, TurnEvents.BEFORE_INFERENCE,
                 TurnEvents.AFTER_INFERENCE, TurnEvents.BEFORE_STORE, TurnEvents.AFTER_STORE, TurnEvents.AFTER_CLEANUP);
         assertThat(seen).contains(TurnEvents.CHUNK_RECEIVED);
+    }
+
+    @Test
+    void aKeptToolStaysInHerHistoryAndOneThatOnlyDidSomethingDoesNot() throws Exception {
+        List<String> calls = new CopyOnWriteArrayList<>();
+        offerNote(calls);
+        ObjectNode schema = new ObjectMapper().createObjectNode().put("type", "object");
+        schema.putObject("properties").putObject("page").put("type", "integer");
+        FunctionDefinition read = FunctionDefinition.dynamic("read_note", "Reads a page of the notebook", schema,
+                (continuation, arguments) -> continuation.complete("Page " + arguments.get("page") + ": the milk is in the fridge."));
+        registrations.add(chatService.addEventListener(TurnEvents.COLLECT_TOOLS, (event, chain) -> {
+            event.setFunctions(event.getFunctions().and(FunctionSet.bind(List.of(read), this)));
+            // the one that reads keeps its result in her history; note only does something
+            TurnProperties.keep(event.getProperties(), List.of("read_note"));
+            chain.next();
+        }));
+        llm.enqueue(MockLLMResponse.toolCall("read_note", "{\"page\":1}").andToolCall("note", "{\"text\":\"milk\"}"),
+                MockLLMResponse.text("The milk is in the fridge."),
+                MockLLMResponse.text("Yes, the fridge."),
+                MockLLMResponse.text("Still the fridge."));
+
+        ChatService.Result first = chat("Where is the milk?", null);
+        assertThat(ToolUsage.fromJson(first.message().getToolCalls())).containsExactly(
+                new ToolUsage("read_note", "{\"page\":1}", "Page 1: the milk is in the fridge.", false, true),
+                new ToolUsage("note", "{\"text\":\"milk\"}", "noted milk", false, false));
+
+        chat("Are you sure?", null);
+        chat("Really?", null);
+
+        List<MockLLMRequest> requests = llm.getCompletionRequests();
+        JsonArray second = requests.get(2).getBody().getAsJsonArray("messages");
+        String replayed = second.toString();
+        // her call and what it answered, between the user's words and her reply; the note's call is not there
+        assertThat(replayed).contains("read_note").contains("Page 1: the milk is in the fridge.").contains("kept_")
+                .doesNotContain("noted milk");
+        int user = indexOf(second, "Where is the milk?");
+        JsonObject call = second.get(user + 1).getAsJsonObject();
+        assertThat(call.get("role").getAsString()).isEqualTo("assistant");
+        assertThat(call.getAsJsonArray("tool_calls")).hasSize(1);
+        assertThat(second.get(user + 2).getAsJsonObject().get("role").getAsString()).isEqualTo("tool");
+        assertThat(second.get(user + 3).getAsJsonObject().get("content").getAsString()).contains("The milk is in the fridge.");
+        // the next prompt has the same exchange the same way: the cache keeps it
+        JsonArray third = requests.get(3).getBody().getAsJsonArray("messages");
+        for (int i = 1; i <= user + 3; i++) {
+            assertThat(third.get(i)).as("message " + i).isEqualTo(second.get(i));
+        }
+    }
+
+    /** The place of the message whose content contains the text. */
+    private static int indexOf(JsonArray messages, String text) {
+        for (int i = 0; i < messages.size(); i++) {
+            JsonObject message = messages.get(i).getAsJsonObject();
+            if (message.has("content") && message.get("content").isJsonPrimitive() && message.get("content").getAsString().contains(text)) {
+                return i;
+            }
+        }
+        throw new AssertionError("No message with " + text);
     }
 
     @Test

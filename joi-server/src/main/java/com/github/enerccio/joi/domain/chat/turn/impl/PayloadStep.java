@@ -1,6 +1,8 @@
 package com.github.enerccio.joi.domain.chat.turn.impl;
 
 import com.github.enerccio.joi.defaults.JoiDefaults;
+import com.github.enerccio.joi.domain.chat.ToolUsage;
+import com.github.enerccio.marginalia.domain.service.impl.generation.dto.LLMToolCall;
 import com.github.enerccio.joi.domain.summary.MessageTokens;
 import com.github.enerccio.marginalia.domain.model.impl.AI;
 import com.github.enerccio.joi.domain.chat.MessageStamps;
@@ -92,6 +94,7 @@ public class PayloadStep extends TurnStepBase {
                         joi, earlier.imageUuids(), earlier.imageNoteTexts(), sees));
                 first = false;
             }
+            payload.addAll(keptCalls(earlier));
             if (StringUtils.isNotBlank(earlier.getResponse())) {
                 payload.add(LLMChatMessage.of(LLMRole.ASSISTANT, earlier.getResponse()));
             }
@@ -127,6 +130,30 @@ public class PayloadStep extends TurnStepBase {
         payload.add(withImages(LLMChatMessage.of(LLMRole.USER, text.toString()), joi, images, notes, sees));
         controller.setPayload(payload);
         controller.emitEvent(TurnEvents.AFTER_PREPARE_PAYLOAD, controller::next);
+    }
+
+    /**
+     * The calls of an earlier exchange whose results stay in her history ({@code ToolUsage.kept}), as they happened: her call, then what
+     * each answered, before her reply. Built from what was stored, with ids made from the message and the call's place, so it reads the
+     * same in every prompt and the cache keeps it. Empty when none was kept: the calls that only did something leave no trace.
+     */
+    static List<LLMChatMessage> keptCalls(ChatMessage earlier) {
+        List<ToolUsage> kept = ToolUsage.fromJson(earlier.getToolCalls()).stream().filter(ToolUsage::kept).toList();
+        if (kept.isEmpty()) {
+            return List.of();
+        }
+        List<LLMToolCall> calls = new ArrayList<>();
+        List<LLMChatMessage> results = new ArrayList<>();
+        for (int i = 0; i < kept.size(); i++) {
+            ToolUsage usage = kept.get(i);
+            String id = "kept_" + earlier.getId() + "_" + i;
+            calls.add(LLMToolCall.of(id, usage.name(), StringUtils.defaultIfBlank(usage.arguments(), "{}")));
+            results.add(LLMChatMessage.ofToolResult(id, StringUtils.defaultString(usage.result())));
+        }
+        List<LLMChatMessage> messages = new ArrayList<>();
+        messages.add(LLMChatMessage.ofToolCalls("", calls));
+        messages.addAll(results);
+        return messages;
     }
 
     /**

@@ -181,7 +181,8 @@ public class CallToolsStep extends TurnStepBase {
             String result = StringUtils.defaultIfBlank((String) properties.get(TurnProperties.TOOL_RESULT), "OK");
             boolean failed = Boolean.TRUE.equals(properties.get(TurnProperties.TOOL_FAILED));
             controller.getPayload().add(LLMChatMessage.ofToolResult(call.getId(), result));
-            controller.getToolUsages().add(new ToolUsage(call.getName(), call.getArguments(), result, failed));
+            boolean kept = !failed && TurnProperties.kept(properties, call.getName());
+            controller.getToolUsages().add(new ToolUsage(call.getName(), call.getArguments(), result, failed, kept));
             try {
                 controller.getListener().onToolCall(call.getName(), call.getArguments(), result, failed);
             } catch (Exception e) {

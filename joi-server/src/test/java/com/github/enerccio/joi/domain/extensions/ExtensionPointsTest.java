@@ -280,6 +280,22 @@ class ExtensionPointsTest extends PlatformTestBase {
                 .isInstanceOf(IllegalArgumentException.class);
     }
 
+    @Test
+    void aFunctionTheExtensionKeepsStaysInHerHistory() throws Exception {
+        List<String> calls = new CopyOnWriteArrayList<>();
+        load(c -> {
+            c.offerTools(_ -> List.of(shelf(calls)));
+            c.keepResults(SHELF.function());
+        });
+        llm.enqueue(MockLLMResponse.toolCall(SHELF.function(), "{}"), MockLLMResponse.text("You have Dune."),
+                MockLLMResponse.text("Dune, yes."));
+        chat("What books do I have?");
+        chat("Which one again?");
+        // the second turn's prompt has her call and what the shelf answered
+        String body = llm.getCompletionRequests().getLast().getRawBody();
+        assertThat(body).contains(SHELF.function()).contains("kept_");
+    }
+
     /** A task that reads a "book" with one function, as Marginalia's plugin does. */
     private ExtensionTask readTask(List<Map<String, Object>> prepared, List<String> chapters) {
         return new ExtensionTask() {

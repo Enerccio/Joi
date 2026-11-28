@@ -55,6 +55,8 @@ public class MarginaliaBooksExtension implements JoiExtension {
         context.declareTool(ReadPart.TOOL);
         context.offerTools(joi -> configured(context.settings(joi))
                 ? List.of(books(context, joi), ReadPart.function(context, joi, this::client)) : List.of());
+        // what she read of the books (the list, a part) stays in her history: she goes on from it in the next turns
+        context.keepResults(BOOKS.function(), ReadPart.TOOL.function());
         context.offerTask(new ReadBookTask(context, this::client));
         context.log().info("Marginalia's books are offered to the assistants whose user set Marginalia's address and key");
     }

@@ -125,6 +125,11 @@ public class JoiExtensionLoader implements OsgiService.ExtensionListener, Initia
         }
 
         @Override
+        public void keepResults(String... functions) {
+            extensions.keepResults(owner, functions);
+        }
+
+        @Override
         public void addWorkspacePart(ExtensionPart part) {
             extensions.addPart(owner, part);
         }

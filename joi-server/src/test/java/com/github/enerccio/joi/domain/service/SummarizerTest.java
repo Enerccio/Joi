@@ -245,6 +245,19 @@ class SummarizerTest extends PlatformTestBase {
     }
 
     @Test
+    void whatHerKeptToolsBroughtIsInTheTranscriptOfTheSummary() throws Exception {
+        ChatMessage read = message(ago(Duration.ofMinutes(180)), "Read me the first chapter", "What a start!");
+        read.setToolCalls(com.github.enerccio.joi.domain.chat.ToolUsage.toJson(List.of(
+                new com.github.enerccio.joi.domain.chat.ToolUsage("marginalia_read_part", "{\"part\":1}", "Call me Ishmael.", false, true),
+                new com.github.enerccio.joi.domain.chat.ToolUsage("play_animation", "{}", "OK", false, false))));
+        chatMessages.save(read);
+        answers("They read the first chapter.");
+        settle();
+        String body = llm.getCompletionRequests().getFirst().getRawBody();
+        assertThat(body).contains("marginalia_read_part").contains("Call me Ishmael.").doesNotContain("play_animation");
+    }
+
+    @Test
     void theConversationIsLeftAloneWhileTheUserIsStillTalking() throws Exception {
         message(ago(Duration.ofMinutes(10)), "Still here", "Yes.");
         summarizer.check(joi);

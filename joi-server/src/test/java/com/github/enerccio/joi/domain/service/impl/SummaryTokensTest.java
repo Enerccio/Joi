@@ -48,6 +48,16 @@ class SummaryTokensTest {
     }
 
     @Test
+    void keptToolResultsCountAndTheOthersDoNot() {
+        ChatMessage message = message("1234", null);
+        message.setToolCalls(com.github.enerccio.joi.domain.chat.ToolUsage.toJson(List.of(
+                new com.github.enerccio.joi.domain.chat.ToolUsage("read", "{}", "x".repeat(400), false, true),
+                new com.github.enerccio.joi.domain.chat.ToolUsage("wave", "{}", "y".repeat(4000), false, false))));
+        // the words, and the kept call: its name, arguments and result
+        assertEquals((4 + 4 + 2 + 400 + 3) / 4, SummarizerServiceImpl.tokens(message));
+    }
+
+    @Test
     void theEstimateOfAFullImage() {
         // scaled to 1568 on the longest side, as it is sent
         assertEquals((1568L * 1176 + 749) / 750, EstimatedImageTokenizer.estimate(3136, 2352));

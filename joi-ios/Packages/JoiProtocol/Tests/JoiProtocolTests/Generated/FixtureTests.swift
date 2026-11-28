@@ -282,7 +282,7 @@ import Testing
 
     @Test func hello1() throws {
         let json = #"""
-{"protocol":"1.17","nodeId":"6f1d-4c2a","name":"desk","kind":"desktop","software":"joi-node 0.1.0","joi":"2f0c","parts":["tools","audio-out","approvals"],"token":null,"resumed":null,"resume":null}
+{"protocol":"1.18","nodeId":"6f1d-4c2a","name":"desk","kind":"desktop","software":"joi-node 0.1.0","joi":"2f0c","parts":["tools","audio-out","approvals"],"token":null,"resumed":null,"resume":null}
 """#
         try roundTrip(Hello.self, json)
     }
@@ -324,7 +324,7 @@ import Testing
 
     @Test func manifest1() throws {
         let json = #"""
-{"version":3,"os":"macos 26.1","arch":"aarch64","capabilities":{"microphone":true},"tools":[{"name":"read_file","description":"Reads a text file","parameters":{"type":"object","properties":{"path":{"type":"string"}}},"tier":"allow"},{"name":"shell","description":"Runs a command","parameters":{"type":"object","properties":{"path":{"type":"string"}}},"tier":"ask"}]}
+{"version":3,"os":"macos 26.1","arch":"aarch64","capabilities":{"microphone":true},"tools":[{"name":"read_file","description":"Reads a text file","parameters":{"type":"object","properties":{"path":{"type":"string"}}},"tier":"allow","keepResult":null},{"name":"shell","description":"Runs a command","parameters":{"type":"object","properties":{"path":{"type":"string"}}},"tier":"ask","keepResult":null}]}
 """#
         try roundTrip(Manifest.self, json)
     }
@@ -583,7 +583,7 @@ import Testing
 
     @Test func frame1() throws {
         let json = #"""
-{"type":"hello","id":null,"ref":null,"data":{"protocol":"1.17","nodeId":"6f1d-4c2a","name":"desk","kind":"desktop","software":"joi-node 0.1.0","joi":"2f0c","parts":["tools","audio-out","approvals"],"token":null,"resumed":null,"resume":null}}
+{"type":"hello","id":null,"ref":null,"data":{"protocol":"1.18","nodeId":"6f1d-4c2a","name":"desk","kind":"desktop","software":"joi-node 0.1.0","joi":"2f0c","parts":["tools","audio-out","approvals"],"token":null,"resumed":null,"resume":null}}
 """#
         try roundTrip(Frame.self, json)
         try typedFrame(json)

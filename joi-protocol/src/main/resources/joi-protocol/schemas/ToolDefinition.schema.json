@@ -21,6 +21,13 @@
     },
     "tier": {
       "$ref": "ToolTier.schema.json"
+    },
+    "keepResult": {
+      "type": [
+        "boolean",
+        "null"
+      ],
+      "description": "Whether her calls of the tool and what it answers stay in her history: her later prompts give them again, so she can go on from what she read (a file, a page). Leave it out (false) for a tool that only does something (since 1.18)."
     }
   },
   "required": [

@@ -59,6 +59,10 @@ All three are on the [permission](../tools/permissions.md) rows of the Tools tab
 list the books*, *Marginalia: read a part of a book* and *Marginalia: read a book*. Deny one to take it away. `marginalia_books` and
 `marginalia_read_part` run during her reply, where nobody can be asked: *Ask* takes them away as *Deny* does.
 
+What she reads with `marginalia_books` and `marginalia_read_part` **stays in her conversation**: in her next replies she still has the
+text of the part, not only what she said about it, until a [summary](../jois/summaries.md) covers it. A long part makes her
+conversation longer, so a summary comes sooner.
+
 The commands she reads with are the ones your Marginalia offers to a key with *Read*, taken from its API when the task runs: a newer Marginalia
 with more commands gives her more, without a new extension.
 

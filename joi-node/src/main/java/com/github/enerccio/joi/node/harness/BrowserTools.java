@@ -494,7 +494,9 @@ final class BrowserTools {
                     schema(List.of(),
                             "tab", property("integer", "The tab, from list_tabs. Optional: the active tab."),
                             "selection", property("boolean", "True reads only what the user selected.")),
-                    toolTier(policy));
+                    toolTier(policy),
+                    // what she read stays in her history: she can go on from it in the next turns
+                    true);
         }
 
         @Override

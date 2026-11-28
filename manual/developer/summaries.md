@@ -53,7 +53,9 @@ context). When a day ends, `DAY_ROLL` summarizes what is left of it and then:
   executor as an administrator's job, under the lock per assistant that the queue's jobs take after their wait (`SummarizerServiceImpl.lock`),
   so the two never write side by side, and a queued job that wakes up after it finds itself not due. It summarizes like `AUTO` (origin
   `auto`) but does not tell her: the future completes with the texts of `SUMMARY_EVENT`, which the turn gives her with its words.
-- A message counts its words (characters / 4) and the user's images (`MessageTokens.of`, also used by the turn's check). An image counts by its pixels with
+- A message counts its words (characters / 4), the user's images and her kept tool calls with their results (`MessageTokens.of`, also used by the
+  turn's check). The summarizer's transcript has the kept calls too ("(Mira used marginalia_read_part {...}, which answered: ...)"), so a
+  summary carries what she read. An image counts by its pixels with
   Marginalia's `EstimatedImageTokenizer` (750 pixels a token, as sent). The estimate is worked out once when the message is stored
   (`StoreStep`, `ChatImageService.tokens`) and kept on it (`ChatMessage.imageTokens`, an extended attribute), so the trigger reads no file.
   When notes were written for a model that cannot see, the notes' characters count instead. An older message without the estimate counts

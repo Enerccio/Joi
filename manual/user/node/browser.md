@@ -62,6 +62,8 @@ may work on is what you allow from the Joi button in Firefox, and the refused si
 
 ## Reading a page and taking a picture
 
+What she reads with `read_page` stays in her conversation for her next replies, until a [summary](../jois/summaries.md) covers it.
+
 `read_page` and `page_screenshot` work only on the sites you allowed. Both take the tab you have in front (the active tab of the Firefox window you used last)
 unless she names another one. For a picture she names another tab only when you ask for that page or site ("take a picture of
 the news tab"). A picture of a tab that is not in front, in a turn you did not start, is asked every time, whatever its tier or an

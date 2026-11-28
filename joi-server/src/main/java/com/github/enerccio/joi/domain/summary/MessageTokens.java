@@ -1,5 +1,6 @@
 package com.github.enerccio.joi.domain.summary;
 
+import com.github.enerccio.joi.domain.chat.ToolUsage;
 import com.github.enerccio.joi.domain.model.impl.ChatMessage;
 import com.github.enerccio.marginalia.domain.service.impl.inference.tokenizer.EstimatedImageTokenizer;
 import org.apache.commons.lang3.StringUtils;
@@ -22,10 +23,16 @@ public final class MessageTokens {
     /**
      * The exchange: its words, and the user's images (the notes written about them when a model that cannot see got those instead,
      * else their estimate by pixels kept on the message; an image of a message stored before the estimate counts as one of unknown
-     * size). Her tools' pictures are not counted: they are given to the model only in their turn.
+     * size), and the calls of her tools that stay in her history with what they answered ({@code ToolUsage.kept}). Her tools' pictures
+     * are not counted: they are given to the model only in their turn.
      */
     public static int of(ChatMessage message) {
         long chars = StringUtils.length(message.getInput()) + StringUtils.length(message.getResponse());
+        for (ToolUsage usage : ToolUsage.fromJson(message.getToolCalls())) {
+            if (usage.kept()) {
+                chars += StringUtils.length(usage.name()) + StringUtils.length(usage.arguments()) + StringUtils.length(usage.result());
+            }
+        }
         long images = 0;
         List<String> notes = message.imageNoteTexts();
         if (!notes.isEmpty()) {

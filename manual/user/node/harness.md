@@ -17,6 +17,9 @@ off until you turn it on, and the node decides every call itself, under a policy
 | `write_file` | write a whole text file, new or replacing one | every time |
 | `run_command` | run a command line in your shell (60 s by default, at most 10 minutes) | every time |
 
+What she reads with `read_file` **stays in her conversation**: in her next replies she still has the lines, until a
+[summary](../jois/summaries.md) covers them. What the other tools answer is only in the reply that used them.
+
 **Your folders** are the folders you choose. Inside them she reads without asking. Outside them, she can still read, but each
 read is asked about. With no folders chosen, every read is asked about.
 

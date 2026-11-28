@@ -21,6 +21,7 @@ import org.springframework.beans.factory.DisposableBean;
 import org.springframework.beans.factory.InitializingBean;
 import org.springframework.beans.factory.annotation.Autowired;
 
+import com.github.enerccio.joi.domain.chat.turn.TurnProperties;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -50,6 +51,8 @@ public class JoiExtensions implements ExtensionRegistrations, InitializingBean, 
     /** The functions that run as tasks, by function name. */
     private final Map<String, Task> tasks = new ConcurrentHashMap<>();
     private final Map<String, ExtensionSettings> settings = new ConcurrentHashMap<>();
+    /** Per extension, the functions whose results stay in her history. */
+    private final Map<String, java.util.Set<String>> kept = new ConcurrentHashMap<>();
     private final Map<String, List<ExtensionPart>> parts = new ConcurrentHashMap<>();
     private final Map<String, List<TurnControllerEvent.Registration>> listeners = new ConcurrentHashMap<>();
     private TurnControllerEvent.Registration collecting;
@@ -69,6 +72,13 @@ public class JoiExtensions implements ExtensionRegistrations, InitializingBean, 
 
     public void offerTools(String owner, ToolProvider provider) {
         tools.computeIfAbsent(owner, _ -> new CopyOnWriteArrayList<>()).add(provider);
+    }
+
+    /** The functions of the extension whose results stay in her history. */
+    public void keepResults(String owner, String... functions) {
+        if (functions != null) {
+            kept.computeIfAbsent(owner, _ -> ConcurrentHashMap.newKeySet()).addAll(java.util.Arrays.asList(functions));
+        }
     }
 
     /** A tool of an extension under the chain of permissions. */
@@ -152,6 +162,7 @@ public class JoiExtensions implements ExtensionRegistrations, InitializingBean, 
     @Override
     public void unregisterAll(String owner) {
         tools.remove(owner);
+        kept.remove(owner);
         parts.remove(owner);
         declared.values().removeIf(d -> d.owner().equals(owner));
         tasks.values().removeIf(t -> t.owner().equals(owner));
@@ -190,6 +201,9 @@ public class JoiExtensions implements ExtensionRegistrations, InitializingBean, 
                         }
                         if (!offered.isEmpty()) {
                             functions = functions.and(FunctionSet.bind(offered, provider));
+                            java.util.Set<String> keeps = kept.getOrDefault(entry.getKey(), java.util.Set.of());
+                            TurnProperties.keep(event.getProperties(),
+                                    offered.stream().map(FunctionDefinition::getName).filter(keeps::contains).toList());
                         }
                     } catch (Throwable t) {
                         log.warn("The extension {} could not offer its functions: {}", entry.getKey(), t.getMessage(), t);

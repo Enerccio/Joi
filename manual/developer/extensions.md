@@ -57,7 +57,7 @@ repository, and the module takes it as a `provided` dependency (classifier `clas
 | Type | What it is |
 |---|---|
 | `JoiExtension` | extends `MarginaliaExtension`; the bundle registers an instance as that service. `onJoiLoad(bundle, context)` registers what it adds, `onJoiUnload` lets go of what it holds |
-| `JoiExtensionContext` | `owner()`, `log()`, `bean(Class)` (any bean of the server), `offerTools`, `addWorkspacePart`, `onTurnEvent`, `declareTool`, `offerTask`, `declareSettings`, `settings(Joi)` |
+| `JoiExtensionContext` | `owner()`, `log()`, `bean(Class)` (any bean of the server), `offerTools`, `keepResults(String...)` (the functions whose calls and results stay in her history), `addWorkspacePart`, `onTurnEvent`, `declareTool`, `offerTask`, `declareSettings`, `settings(Joi)` |
 | `ToolProvider` | `tools(Joi)` returns `FunctionDefinition`s (`FunctionDefinition.dynamic`), asked at the start of every turn |
 | `ExtensionPart` | a tab of the workspace: `key`, `caption`, `create`, `shown` |
 | `ExtensionTool` | a tool under the chain of permissions: `function` (`[a-z][a-z0-9_]*`, the key of its settings), `label`, `description`, `fallback` (its built-in default). An `ApprovableTool`, as `ServerTool` is |

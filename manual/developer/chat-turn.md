@@ -106,6 +106,10 @@ seldom as it can:
   summaries (`SummarizerService.prompt`, the section `{{#summaries}}`) are in it too and change only when a summary is made; the history
   of the prompt is **every message no summary covers** (`ChatMessageService.findLatestExchangesSince` the end of the last summary), with no
   count: a count would slide by one message a turn and the model server would process the whole history again every turn.
+- **Kept tool results.** An exchange whose calls are kept (`ToolUsage.kept`: the function was marked with `TurnProperties.keep` while the
+  tools were collected, and the call worked; `CallToolsStep` decides it once) is replayed by `PayloadStep.keptCalls`: after the user's message,
+  her call with the kept ones only (`LLMChatMessage.ofToolCalls`, ids `kept_<message id>_<n>`), their results, then her reply. Calls that were
+  not kept leave no trace. The same stored usages make the same messages in every prompt, so the cache keeps them.
 - **A turn that would overfill the context.** `PayloadStep.overfills` estimates the prompt (the system prompt and the words by characters / 4,
   the history by `MessageTokens`, the turn's images by their pixels). Past `JoiDefaults.HISTORY_PROMPT_PERCENT` (80) of the chat model's
   `maxContext`, it calls `SummarizerService.makeRoom` once (`TurnProperties.ROOM_ASKED`) and returns; when the future completes, the turn goes

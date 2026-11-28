@@ -18,6 +18,7 @@ import org.springframework.beans.factory.InitializingBean;
 import org.springframework.beans.factory.annotation.Autowired;
 
 import java.util.Arrays;
+import com.github.enerccio.joi.domain.chat.turn.TurnProperties;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -54,6 +55,8 @@ public class MemoryTools implements InitializingBean, DisposableBean {
             try {
                 Joi joi = event.getJoi();
                 event.setFunctions(event.getFunctions().and(FunctionSet.bind(List.of(remember(joi), recall(joi)), this)));
+                // what she found in her memory stays in her history: she can go on from it in the next turns
+                TurnProperties.keep(event.getProperties(), List.of(RECALL));
             } catch (Exception e) {
                 // no function this turn: she can still talk
                 log.warn("The functions of her memory could not be offered: {}", e.getMessage(), e);

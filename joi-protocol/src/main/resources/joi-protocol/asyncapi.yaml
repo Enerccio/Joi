@@ -1,7 +1,7 @@
 asyncapi: 3.0.0
 info:
   title: Joi node WebSocket
-  version: "1.17"
+  version: "1.18"
   description: |
     The live connection between a node and a Joi server: who the node is, the tools it offers and their calls, the
     user talking to her through it and her answer in text and speech, approvals, and what changes on the server. The
@@ -23,6 +23,8 @@ info:
     2. The server answers `welcome`, or `error` and closes (see the close codes).
     3. The node sends its `manifest`, and again whenever it changes (a higher `version`). Its tools are offered to
        her as `<name>__<tool>` from then on (model APIs allow no dots in names), and stop being offered when the connection closes.
+       A tool with `keepResult` (since 1.18) has her calls of it and what it answered kept in her history: her later prompts give
+       them again, so she can go on from what she read (a file, a page). Leave it out for a tool that only does something.
     4. Then, in any order:
        - **Talking.** The node sends `say` with an `id`: that id is the turn. The server answers with frames whose
          `ref` is that id: `reasoning` and `text` pieces while the model writes, `tool` when she used a tool,

@@ -300,6 +300,32 @@ class NodeServiceTest extends PlatformTestBase {
     }
 
     @Test
+    void aToolTheNodeKeepsStaysInHerHistory() throws Exception {
+        Node node = connect("Bearer " + token);
+        node.hello("n1", "desk", joi.getUuid(), "1.18");
+        node.next("welcome");
+        node.frame("manifest", null, "{\"version\": 1, \"os\": \"macos\", \"tools\": [{\"name\": \"read_file\","
+                + " \"description\": \"Reads a file\", \"parameters\": {\"type\": \"object\", \"properties\":"
+                + " {\"path\": {\"type\": \"string\"}}}, \"tier\": \"allow\", \"keepResult\": true}]}");
+        llm.enqueue(MockLLMResponse.toolCall("desk__read_file", "{\"path\":\"todo.txt\"}"),
+                MockLLMResponse.text("Milk is on the list."), MockLLMResponse.text("Yes, milk."));
+
+        node.frame("say", "t1", "{\"text\": \"What is on my list?\", \"speak\": false}");
+        String callId = node.next("tool_call").getAsJsonObject("data").get("callId").getAsString();
+        node.frame("tool_result", null, "{\"callId\": \"" + callId + "\", \"ok\": true, \"content\": \"1. milk\"}");
+        node.next("done");
+        node.frame("say", "t2", "{\"text\": \"Anything else?\", \"speak\": false}");
+        node.next("done");
+
+        ChatMessage asked = chatMessageService.findLatest(joi, 10).stream().filter(m -> "What is on my list?".equals(m.getInput())).findFirst().orElseThrow();
+        assertThat(com.github.enerccio.joi.domain.chat.ToolUsage.fromJson(asked.getToolCalls()))
+                .singleElement().satisfies(usage -> assertThat(usage.kept()).isTrue());
+        // the next turn's prompt gives her call and the file's lines again
+        String body = llm.getCompletionRequests().getLast().getRawBody();
+        assertThat(body).contains("desk__read_file").contains("1. milk");
+    }
+
+    @Test
     void sheCallsAToolOfTheNodeInATurnItStarted() throws Exception {
         Node node = connect("Bearer " + token);
         node.hello("n1", "desk", joi.getUuid(), "1.2");

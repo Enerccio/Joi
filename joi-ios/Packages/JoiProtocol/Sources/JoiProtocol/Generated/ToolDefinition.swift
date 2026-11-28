@@ -13,11 +13,14 @@ public struct ToolDefinition: Codable, Hashable, Sendable {
     /// A JSON Schema (draft 2020-12) of the arguments, an object.
     public var parameters: [String: JSONValue]
     public var tier: ToolTier
+    /// Whether her calls of the tool and what it answers stay in her history: her later prompts give them again, so she can go on from what she read (a file, a page). Leave it out (false) for a tool that only does something (since 1.18).
+    public var keepResult: Bool?
 
-    public init(name: String, description: String, parameters: [String: JSONValue], tier: ToolTier) {
+    public init(name: String, description: String, parameters: [String: JSONValue], tier: ToolTier, keepResult: Bool? = nil) {
         self.name = name
         self.description = description
         self.parameters = parameters
         self.tier = tier
+        self.keepResult = keepResult
     }
 }

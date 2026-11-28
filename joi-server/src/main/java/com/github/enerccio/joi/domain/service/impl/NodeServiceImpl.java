@@ -64,6 +64,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
+import com.github.enerccio.joi.domain.chat.turn.TurnProperties;
 import java.util.*;
 import java.util.concurrent.*;
 import java.util.regex.Pattern;
@@ -181,11 +182,16 @@ public class NodeServiceImpl implements NodeService, InitializingBean, Disposabl
             List<FunctionDefinition> functions = new ArrayList<>();
             // two nodes of hers with the same name would offer the same function twice, which a model API refuses: the first wins
             Set<String> names = new HashSet<>();
+            Set<String> kept = new HashSet<>();
             for (NodeSession session : sessions(event.getJoi().getId())) {
                 for (ToolDefinition tool : session.tools()) {
                     FunctionDefinition function = function(session, tool);
                     if (function != null && names.add(function.getName())) {
                         functions.add(function);
+                        // the node says whether what the tool answers stays in her history (keepResult, 1.18)
+                        if (tool.isKeepResult()) {
+                            kept.add(function.getName());
+                        }
                     } else if (function != null) {
                         log.warn("Node {}: the tool {} is left out, another node of hers has the same name", session.name(), tool.name());
                     }
@@ -194,6 +200,7 @@ public class NodeServiceImpl implements NodeService, InitializingBean, Disposabl
             // always offered, with a request open or not (and with a node or not): the model renders the tools before the history, so a
             // tool that comes and goes makes the server's cache of the prompt start over; with no request open it answers so
             functions.add(decidePartChange(event.getJoi().getId()));
+            TurnProperties.keep(event.getProperties(), kept);
             if (!functions.isEmpty()) {
                 event.setFunctions(event.getFunctions().and(FunctionSet.bind(functions, this)));
             }

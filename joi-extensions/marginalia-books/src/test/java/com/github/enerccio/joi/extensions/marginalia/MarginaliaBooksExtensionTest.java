@@ -40,6 +40,7 @@ class MarginaliaBooksExtensionTest {
     private final List<ExtensionTool> tools = new CopyOnWriteArrayList<>();
     private final List<ToolProvider> providers = new CopyOnWriteArrayList<>();
     private final List<ExtensionTask> tasks = new CopyOnWriteArrayList<>();
+    private final List<String> kept = new CopyOnWriteArrayList<>();
 
     /** The part of Joi's context the extension uses. */
     private JoiExtensionContext context() {
@@ -52,6 +53,7 @@ class MarginaliaBooksExtensionTest {
                     case "declareTool" -> tools.add((ExtensionTool) args[0]) ? null : null;
                     case "offerTools" -> providers.add((ToolProvider) args[0]) ? null : null;
                     case "offerTask" -> tasks.add((ExtensionTask) args[0]) ? null : null;
+                    case "keepResults" -> kept.addAll(List.of((String[]) args[0])) ? null : null;
                     default -> throw new UnsupportedOperationException(method.getName());
                 });
     }
@@ -89,6 +91,8 @@ class MarginaliaBooksExtensionTest {
         assertEquals(1, tasks.size());
         assertEquals("marginalia_read_book", tasks.getFirst().tool().function());
         assertEquals(ToolPermission.ASK, tasks.getFirst().tool().fallback());
+        // what she read (the list, a part) stays in her history
+        assertEquals(List.of("marginalia_books", "marginalia_read_part"), kept);
     }
 
     @Test
