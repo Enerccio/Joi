@@ -5,7 +5,7 @@ order: 700
 covers:
   - joi-server/src/main/java/com/github/enerccio/joi/ui
   - joi-server/src/main/java/com/github/enerccio/joi/loc
-verified: 197abef
+verified: 895a003
 ---
 
 # The UI
@@ -60,7 +60,8 @@ viewer's face layer (`setFace`) and mouth (`setMouth`) are off until a page call
 (`JoiJavascriptLibrary.takeImages` hands the files of a paste or drop to the `vaadin-upload`), the waiting images as thumbnails with a remove button, and Send. `send()` checks the images
 (`ChatService.checkImages`: a `no_vision` is the notification `MSG_CHAT_NO_VISION`, nothing is lost), then runs the turn in a virtual thread with `ApiRequestAttributes` and `InRequestScope`, as
 the API's chat does; the tab shows the waiting message when the turn starts and the exchange when it is stored. Attach is disabled when `ChatImageService.canSee` is false. The cards show the
-images as `Anchor` + `Image` on a `StreamResource` of the stored file (`ChatImageService.file`); the styles are `.chat-images`, `.chat-image`, `.chat-compose*`.
+images as `Anchor` + `Image` on a `StreamResource` of the stored file (`ChatImageService.file`); her reply shows the pictures her tools brought (`ChatMessage.toolImageUuids`, alt text
+`LABEL_CHAT_TOOL_IMAGE`) the same way, after the tools list; the styles are `.chat-images`, `.chat-image`, `.chat-compose*`.
 
 ## Prompts
 

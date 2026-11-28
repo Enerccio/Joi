@@ -5,7 +5,7 @@ order: 750
 covers:
   - joi-server/src/main/java/com/github/enerccio/joi/domain/chat
   - joi-server/src/main/java/com/github/enerccio/joi/domain/service/impl/ChatImageServiceImpl.java
-verified: 505f64b
+verified: 895a003
 ---
 
 # A chat turn
@@ -115,6 +115,11 @@ describe the images (`describe`: one blocking round of `IMAGE_DESCRIPTION_PROMPT
 (`TurnProperties.IMAGE_NOTES`); `StoreStep` stores them as the message's `imageNotes`, so the next prompts read the note and never ask the describer again. A message of the history that has
 images and no words is in the history like any other. The summarizer's transcript has "[attached an image: note]"; deleting a message deletes its files (`ChatMessageServiceImpl.deleteMessages`
 → `ChatImageService.deleteOf`). `ChatImages` is the pure part (decoding, EXIF orientation, scaling to 1568 pixels, JPEG) and has its own test.
+
+The pictures of a node's tools (`tool_result.images`: the node's `view_image`, a page's screenshot; not the server's `view_image`,
+whose chat images are already the user's messages') are given to the model in their turn only. `CallToolsStep` collects the uuids it showed in `TurnProperties.TOOL_IMAGES`; `StoreStep` writes them into her message's extended
+attribute `toolImages` and links them with `ChatImageService.attach`, and `deleteOf` deletes them with the message. A turn that stops before
+`StoreStep` leaves them unlinked, and the sweep deletes them. Later prompts do not give them again, and `ChatEntry` does not carry them yet.
 
 ## Inference
 
