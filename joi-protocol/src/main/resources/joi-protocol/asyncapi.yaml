@@ -70,8 +70,9 @@ info:
          for none) after the node's manifest and each time it changes: she takes one with her `set_stance` function
          (dancing, sitting, a pose she holds), changes it, or ends it with `end_stance` or the user ends it in her dialog.
          It is kept on the server, so it outlives turns, reconnects and restarts. While she has one, the node plays it
-         looped in place of her idle and talking animations: talking does not interrupt it, her mouth, mood and
-         expressions go on over it, and an `animation` (a gesture) plays once and returns to it. Asleep, falling asleep
+         looped in place of her idle and talking animations: talking does not interrupt it, and her mouth, mood and
+         expressions go on over it. It wins over her gestures: the node ignores an `animation` frame while it is on
+         (the server refuses her `play_animation` then and sends none). Asleep, falling asleep
          and waking up win over it, and she is back in it when she is awake. A node that does not have the animation in
          the body's `.joia` (another body) plays as with none.
        - **Her expressions** (since 1.15). The server sends `expression` (a `ShowExpression`: the name of an expression of

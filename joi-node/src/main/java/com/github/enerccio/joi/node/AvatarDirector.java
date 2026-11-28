@@ -20,8 +20,9 @@ import java.util.random.RandomGenerator;
  * <p>
  * Her stance ({@link #stance}, the {@code stance} frame) is an animation she holds: while she has one, it loops in place
  * of the idle and talking ones (her state still goes from idle to talking and back, so her words and voice are as
- * always; her mouth and face are the renderer's, over any animation). A gesture plays once and returns to it. Asleep,
- * falling asleep and waking up win over it, and she is back in it when she is awake.
+ * always; her mouth and face are the renderer's, over any animation). It wins over her gestures: none plays while she
+ * holds it (the server refuses them too). Asleep, falling asleep and waking up win over it, and she is back in it when
+ * she is awake.
  * <p>
  * Not thread safe: call it from one thread (the UI's, or the socket's in the terminal client).
  */
@@ -221,12 +222,11 @@ public class AvatarDirector {
 
     /**
      * She plays an animation of her own choice (her {@code play_animation}) on top of what she is doing: once, and then
-     * what she was doing goes on (if she started talking meanwhile, that; her stance, when she holds one); or until
-     * something else, when it loops.
-     * Not while she sleeps, wakes up or falls asleep: those animations are not interrupted.
+     * what she was doing goes on (if she started talking meanwhile, that); or until something else, when it loops.
+     * Not while she sleeps, wakes up or falls asleep, nor while she holds a stance: those animations are not interrupted.
      */
     public void gesture(String animation, boolean loop) {
-        if (animation == null || state == State.SLEEPING || state == State.WAKING_UP || state == State.FALLING_ASLEEP) {
+        if (animation == null || stance != null || state == State.SLEEPING || state == State.WAKING_UP || state == State.FALLING_ASLEEP) {
             return;
         }
         gesturing = !loop;

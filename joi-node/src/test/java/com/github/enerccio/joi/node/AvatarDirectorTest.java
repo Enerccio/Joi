@@ -214,10 +214,9 @@ class AvatarDirectorTest {
         assertThat(director.state()).isEqualTo(AvatarDirector.State.IDLE);
         assertThat(log.subList(2, log.size())).containsExactly("reply Wheee.", "speak 0");
 
-        // a gesture plays once and returns to the dance
+        // the stance wins over a gesture: none plays
         director.gesture("wave", false);
-        director.animationEnded();
-        assertThat(log.subList(4, log.size())).containsExactly("play wave", "play dance loop");
+        assertThat(log).hasSize(4);
 
         // asleep wins over it, and she is back in it awake
         director.fallAsleep();
@@ -225,7 +224,7 @@ class AvatarDirectorTest {
         director.turnStarted("s1", AvatarDirector.FIRST_BOOT, false);
         director.done("s1");
         director.animationEnded();
-        assertThat(log.subList(6, log.size())).containsExactly("play sleep loop", "play sleep loop", "play wake", "play dance loop");
+        assertThat(log.subList(4, log.size())).containsExactly("play sleep loop", "play sleep loop", "play wake", "play dance loop");
 
         // another stance while she talks plays at once; ending it goes back to talking, then idle
         director.turnStarted("t2", "say", false);
@@ -233,10 +232,12 @@ class AvatarDirectorTest {
         director.stance("sit");
         director.stance(null);
         director.done("t2");
-        assertThat(log.subList(10, log.size())).containsExactly("reply Now sit.", "play sit loop", "play talk loop", "play idle loop");
+        assertThat(log.subList(8, log.size())).containsExactly("reply Now sit.", "play sit loop", "play talk loop", "play idle loop");
         assertThat(director.stance()).isNull();
-        // the same again changes nothing
+        // the same again changes nothing; without a stance a gesture plays again
         director.stance(null);
-        assertThat(log).hasSize(14);
+        assertThat(log).hasSize(12);
+        director.gesture("wave", false);
+        assertThat(log.getLast()).isEqualTo("play wave");
     }
 }

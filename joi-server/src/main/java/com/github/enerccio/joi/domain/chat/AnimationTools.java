@@ -30,7 +30,7 @@ import java.util.Map;
  * them with their descriptions, so she picks by what they show; her prompt asks her to use it often.
  * {@code set_stance} and {@code end_stance}: she holds one of them, looped in place of her idle and talking animations,
  * until she ends it or takes another ({@link StanceService}, the {@code stance} frame): for what lasts, as dancing or
- * sitting. It is her choice: no consent is asked.
+ * sitting. The stance wins: while she holds one (that her body plays), {@code play_animation} refuses and says so. It is her choice: no consent is asked.
  */
 public class AnimationTools implements InitializingBean, DisposableBean {
 
@@ -111,9 +111,10 @@ public class AnimationTools implements InitializingBean, DisposableBean {
         schema.putArray("required").add("animation");
         return FunctionDefinition.dynamic(PLAY_ANIMATION, "Plays one of your animations now: a gesture or a movement of "
                 + "your body that goes with what you say or feel (a wave, a nod, a shrug, a laugh). Use it often, in "
-                + "most of your replies, before or while you speak; it plays once and you go back to what you were doing "
-                + "(your stance, when you hold one). Not for something that lasts, as dancing, sitting or a pose you hold: "
-                + "that is set_stance. Your animations:" + list, schema, (continuation, arguments) -> {
+                + "most of your replies, before or while you speak; it plays once and you go back to what you were doing. "
+                + "Not for something that lasts, as dancing, sitting or a pose you hold: that is set_stance. Not while you "
+                + "hold a stance: then it does not play; change the stance with set_stance or end it with end_stance. "
+                + "Your animations:" + list, schema, (continuation, arguments) -> {
             Object value = arguments == null ? null : arguments.get("animation");
             AnimationPack pack = value instanceof String name ? byName.get(name) : null;
             if (pack == null) {
@@ -122,6 +123,13 @@ public class AnimationTools implements InitializingBean, DisposableBean {
                 return;
             }
             try {
+                // her stance wins: a gesture would break the dance (a node ignores one too)
+                AnimationPack stance = heldStance(joi, animations);
+                if (stance != null) {
+                    continuation.fail("You hold the stance " + stance.getName() + ": no gesture plays while you hold it. "
+                            + "Change it with set_stance or end it with end_stance.");
+                    return;
+                }
                 int nodes = nodeService.animate(joi, pack.getUuid(), pack.getName(), false);
                 continuation.complete(nodes == 0 ? "You are not shown anywhere now, nobody saw it."
                         : "You played " + pack.getName() + ".");
@@ -130,6 +138,12 @@ public class AnimationTools implements InitializingBean, DisposableBean {
                 continuation.fail("It failed: " + StringUtils.defaultIfBlank(e.getMessage(), e.getClass().getSimpleName()));
             }
         });
+    }
+
+    /** The stance she holds when her body plays it (a node shows another body as without one); null for none. */
+    private AnimationPack heldStance(Joi joi, List<AnimationPack> animations) throws Exception {
+        AnimationPack stance = stanceService.current(joi);
+        return stance != null && animations.stream().anyMatch(pack -> pack.getUuid().equals(stance.getUuid())) ? stance : null;
     }
 
     private FunctionDefinition setStance(Joi joi, List<AnimationPack> animations) {
@@ -145,7 +159,8 @@ public class AnimationTools implements InitializingBean, DisposableBean {
         return FunctionDefinition.dynamic(SET_STANCE, "Takes a stance: one of your animations (those of play_animation) "
                 + "loops and stays, in place of how you stand and talk, through your replies, until you take another one "
                 + "or end it with end_stance. Use it for something that lasts: dancing, sitting, a pose you hold, a "
-                + "workout; not play_animation. Your words, your face and your gestures go on over it. End it when you "
+                + "workout; not play_animation. While you hold it, play_animation does not play: you only change it "
+                + "with set_stance or end it with end_stance. Your words and your face go on over it. End it when you "
                 + "decide to stop or when you are asked to stop.", schema, (continuation, arguments) -> {
             Object value = arguments == null ? null : arguments.get("animation");
             AnimationPack pack = value instanceof String name ? byName.get(name) : null;

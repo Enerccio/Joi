@@ -123,7 +123,8 @@ on her (`Joi.stance`, the uuid, an extended attribute), notes it in the conversa
 event `stance.ended` (`JoiDefaults.eventStanceEnded`). `BodyServiceImpl.prompt` sets `BodyTemplateData.stance` when the active body plays
 that animation, and the default body prompt says she holds it. Both functions are in `ToolEffects.NO_ANSWER`. On a node,
 `AvatarDirector.stance` (Java and Swift) plays it looped while she is idle or talking: entering talking or idle in a stance keeps it
-playing (`enterHeld`), a gesture returns to it, asleep and waking up win over it. The JavaFX node and the iOS app pass null for an
+playing (`enterHeld`), a gesture is ignored (`gesture` returns early), asleep and waking up win over it. The server refuses
+`play_animation` too while she holds a stance her body plays (`AnimationTools.heldStance`), and tells her to change or end it. The JavaFX node and the iOS app pass null for an
 animation the body shown lacks (`AvatarPane.has`, `AnimationPlayer.has`) and check again when a body is shown (`RendererBridge.onShown`,
 `ChatModel.bodyShown`).
 

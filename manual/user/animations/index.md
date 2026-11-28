@@ -59,8 +59,9 @@ talking while it plays, her talking animation waits for its end.
 ### Stances: what lasts
 
 For something that lasts, as dancing, sitting or a pose she holds, she takes a **stance** with her function `set_stance`. The
-animation then loops in place of her idle and talking ones: she talks while she dances, her mouth, her mood and her expressions go on over it,
-and a gesture she plays returns to the dance. It lasts through her replies, a node that reconnects and a restart of the server, until she
+animation then loops in place of her idle and talking ones: she talks while she dances, and her mouth, her mood and her expressions go on over it.
+The stance wins over her gestures: while she holds it, `play_animation` does not play (she is told to change or end the stance first), so a
+dance is not cut by a nod. It lasts through her replies, a node that reconnects and a restart of the server, until she
 takes another stance or ends it with `end_stance`: when she decides to stop, or when you ask her to ("you can stop dancing now"). While she
 sleeps the sleeping animations win, and she is back in her stance when she wakes up.
 

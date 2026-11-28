@@ -1602,6 +1602,10 @@ UI — nothing is deleted):
     stays for one-shot gestures, and its description, `set_stance`'s and her master template tell her to use the stance
     for what lasts, not `play_animation`, and to end it when she decides to stop or is asked. Both need no answer
     round (`ToolEffects.needsNoAnswer`) but change state.
+    **The stance wins over gestures:** a dance cut by a talking gesture or a sarcastic nod does not look right, so while
+    she holds a stance (that the active body plays) `play_animation` refuses and tells her to change it with `set_stance`
+    or end it with `end_stance`; no `animation` frame is sent, and a node ignores one anyway. Her prompt, the body
+    section and both functions say so.
     The stance is **hers, on the server** (`Joi.stance`, an extended attribute: the animation's uuid; `StanceService`),
     so it lasts through turns, a node's reconnect and a server restart. Her nodes get the `stance` frame (`StanceState`:
     the uuid and name, nulls for none) after their manifest and each time it changes. Her body section of the prompt
@@ -1611,9 +1615,11 @@ UI — nothing is deleted):
     A node (`AvatarDirector.stance`, the JavaFX node, the terminal client and the iOS app) plays it looped while she is
     idle or talking: talking does not interrupt it (her state still goes to talking and back, nothing new plays), her
     mouth (lip sync), her mood's face and her expressions go on over it (they are the renderer's, over any animation),
-    and a gesture plays once and returns to it. Asleep, falling asleep and waking up win over it, and she is back in it
-    when she is awake. A body that does not have the animation (she moved into another one) plays as with no stance;
-    the node checks again when a body is shown.
+    and a gesture is ignored. Asleep, falling asleep and waking up win over it, and she is back in it when she is
+    awake. A body that does not have the animation (she moved into another one) plays as with no stance; the node
+    checks again when a body is shown.
+    **Next (idea, 2026-11-28):** animations linked to a stance: gestures made for it (a twirl in the dance, a wave while
+    sitting) that she may play while she holds it, and its own talking ones, so a stance can move with what she says.
   - Clips that leave the frame (a jump, a full-body dance) ask for a wider shot, so the camera follows.
   - **Generated clips (idea, 2026-11-28, not built).** Text-to-motion models can make new clips ("a slow sway, arms
     loose"), but not in real time on one GPU: the voice lock already holds her chat model and the TTS model. So it is a

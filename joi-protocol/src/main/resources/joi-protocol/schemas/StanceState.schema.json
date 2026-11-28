@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://github.com/Enerccio/joi/protocol/v1/StanceState.schema.json",
   "title": "StanceState",
-  "description": "stance (since 1.17): the animation she holds now, her stance (her set_stance and end_stance functions, or the user ending it in her dialog). While she has one, the node plays it looped in place of her idle and talking animations, through her turns, until it changes; her mouth, her mood's face and her expressions go on over it, and a gesture (animation) plays once and returns to it. Asleep, falling asleep and waking up win over it. The server sends it after the node's manifest and each time it changes. A node that does not have the animation in the body's .joia plays as with none.",
+  "description": "stance (since 1.17): the animation she holds now, her stance (her set_stance and end_stance functions, or the user ending it in her dialog). While she has one, the node plays it looped in place of her idle and talking animations, through her turns, until it changes; her mouth, her mood's face and her expressions go on over it. It wins over her gestures: the node ignores an animation frame while it is on (the server sends none then). Asleep, falling asleep and waking up win over it. The server sends it after the node's manifest and each time it changes. A node that does not have the animation in the body's .joia plays as with none.",
   "type": "object",
   "properties": {
     "animation": {

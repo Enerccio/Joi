@@ -32,8 +32,8 @@ extension AvatarOutput {
 ///
 /// Her stance (`stance(_:)`, the server's `stance` frame) is an animation she holds: while she has one, it loops in place of the idle and
 /// talking ones (her state still goes from idle to talking and back, so her words and voice are as always; her mouth and face are the
-/// renderer's, over any animation). A gesture plays once and returns to it. Asleep, falling asleep and waking up win over it, and she is
-/// back in it when she is awake.
+/// renderer's, over any animation). It wins over her gestures: none plays while she holds it (the server refuses them too). Asleep,
+/// falling asleep and waking up win over it, and she is back in it when she is awake.
 ///
 /// The same logic as the reference node's `AvatarDirector` (Java).
 @MainActor public final class AvatarDirector {
@@ -190,10 +190,10 @@ extension AvatarOutput {
     }
 
     /// She plays an animation of her own choice (her `play_animation`) on top of what she is doing: once, and then what she was doing
-    /// goes on (if she started talking meanwhile, that; her stance, when she holds one); or until something else, when it loops. Not while she sleeps, wakes up or falls
-    /// asleep: those animations are not interrupted.
+    /// goes on (if she started talking meanwhile, that); or until something else, when it loops. Not while she sleeps, wakes up or falls
+    /// asleep, nor while she holds a stance: those animations are not interrupted.
     public func gesture(_ animation: String?, loop: Bool) {
-        guard let animation, state != .sleeping, state != .wakingUp, state != .fallingAsleep else { return }
+        guard let animation, stance == nil, state != .sleeping, state != .wakingUp, state != .fallingAsleep else { return }
         gesturing = !loop
         output.play(animation, loop: loop)
     }

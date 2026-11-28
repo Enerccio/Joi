@@ -196,10 +196,10 @@ import JoiProtocol
         d.done("t1")
         #expect(d.state == .idle)
         #expect(Array(out.actions.dropFirst(2)) == ["reply Wheee", "speak 0", "done"])
-        // a gesture plays once and returns to the dance
+        // the stance wins over a gesture: none plays
+        let before = out.actions.count
         d.gesture("wave", loop: false)
-        d.animationEnded()
-        #expect(Array(out.actions.suffix(2)) == ["play wave", "play dance loop"])
+        #expect(out.actions.count == before)
         // asleep wins over it; awake she is back in it
         d.fallAsleep()
         d.animationEnded()
@@ -214,5 +214,8 @@ import JoiProtocol
         let count = out.actions.count
         d.stance(nil)
         #expect(out.actions.count == count)
+        // without a stance a gesture plays again
+        d.gesture("wave", loop: false)
+        #expect(out.actions.last == "play wave")
     }
 }

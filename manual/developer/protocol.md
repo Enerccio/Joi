@@ -64,7 +64,8 @@ still be valid. Credentials are `AccessToken` rows (prefix and SHA-256).
 holds: sent after the manifest (`NodeServiceImpl.sendStance`) and each time it changes (`NodeService.stance`, called by `StanceServiceImpl`
 when she calls `set_stance` or `end_stance`, or the user ends it in her dialog). It is stored on her (`Joi.stance`), so a node that connects
 or reconnects, and a restarted server, show it again. The node loops it in place of idle and talking (`AvatarDirector.stance`) until it
-changes, and plays as with none when its body lacks the animation. A node older than 1.17 ignores the frame.
+changes, ignores an `animation` frame meanwhile (the server refuses `play_animation` then and sends none), and plays as with none when its
+body lacks the animation. A node older than 1.17 ignores the frame.
 
 **Her expressions (1.15).** The node frame `expression` (`ShowExpression`: the name of an expression of her model, `weight` 0 to 1, `seconds` at most 60;
 null for the node's defaults, 0.8 and 4) goes to her nodes when she calls `set_expression` (`ExpressionTools`, `NodeServiceImpl.express`). A null

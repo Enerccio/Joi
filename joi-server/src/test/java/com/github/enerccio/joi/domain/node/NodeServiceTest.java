@@ -1017,6 +1017,8 @@ class NodeServiceTest extends PlatformTestBase {
                 MockLLMResponse.toolCall("set_stance", "{\"animation\":\"Dance\"}"),
                 MockLLMResponse.text("Dancing!"),
                 MockLLMResponse.text("Still dancing."),
+                MockLLMResponse.toolCall("play_animation", "{\"animation\":\"Dance\"}"),
+                MockLLMResponse.text("Hm."),
                 MockLLMResponse.toolCall("end_stance", "{}"),
                 MockLLMResponse.text("Done."));
         Node node = connect("Bearer " + token);
@@ -1029,7 +1031,8 @@ class NodeServiceTest extends PlatformTestBase {
         node.frame("say", "t1", "{\"text\": \"Hi\", \"speak\": false}");
         node.next("done");
         // her prompt and her functions tell her a stance is for what lasts, and not play_animation
-        assertThat(llm.getCompletionRequests().getFirst().getPromptText()).contains("take a stance with set_stance");
+        assertThat(llm.getCompletionRequests().getFirst().getPromptText()).contains("take a stance with set_stance")
+                .contains("While you hold a stance, don't use play_animation at all");
         assertThat(llm.getCompletionRequests().getFirst().getRawBody()).contains("set_stance").contains("end_stance")
                 .contains("Not for something that lasts");
 
@@ -1046,6 +1049,14 @@ class NodeServiceTest extends PlatformTestBase {
         node.next("done");
         assertThat(llm.getCompletionRequests().get(3).getPromptText()).contains("You hold the stance \"Dance\" now");
 
+        // the stance wins: a gesture is refused and no animation frame is sent
+        node.frame("say", "t3b", "{\"text\": \"Wave at me.\", \"speak\": false}");
+        for (JsonObject frame = node.next(); !frame.get("type").getAsString().equals("done"); frame = node.next()) {
+            assertThat(frame.get("type").getAsString()).as("no gesture while she dances").isNotEqualTo("animation");
+        }
+        assertThat(llm.getCompletionRequests().get(5).getLastMessage().content()).contains("You hold the stance Dance")
+                .contains("end_stance");
+
         // a node that connects now is told the stance after its manifest
         Node other = connect("Bearer " + token);
         other.hello("n2", "phone", joi.getUuid(), "1.17");
@@ -1060,7 +1071,7 @@ class NodeServiceTest extends PlatformTestBase {
         node.next("done");
         assertThat(noStance(other.next("stance").getAsJsonObject("data"))).isTrue();
         assertThat(joiService.find(joi.getId()).getStance()).isNull();
-        assertThat(llm.getCompletionRequests().get(5).getLastMessage().content()).contains("Your stance Dance ended");
+        assertThat(llm.getCompletionRequests().get(7).getLastMessage().content()).contains("Your stance Dance ended");
         assertThat(queuedEventService.findWaiting(joi)).isEmpty();
 
         // the user ends it in her dialog: she is told as an event
